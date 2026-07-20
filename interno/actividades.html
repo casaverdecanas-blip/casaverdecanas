@@ -683,12 +683,7 @@ try {
 } catch { /* sin sesión activa */ }
 
 // ═══ Suscripción en vivo — SIEMPRE AL FINAL ═══════════════
-const col = collection(db, 'actividades');
-const consulta = CV2.esAdmin() ? query(col) : query(col, or(
-  where('alcance', '==', 'equipo'),
-  where('creadoPor', '==', u.uid),
-  and(where('alcance', '==', 'asignados'), where('competencias', 'array-contains', u.uid))
-));
+const consulta = Core.consultaActividades(u, CV2.esAdmin());
 
 onSnapshot(consulta, (snap) => {
   byId = {}; childrenOf = {};
@@ -704,7 +699,7 @@ onSnapshot(consulta, (snap) => {
     .sort((a, b) => String(byId[a].titulo ?? '').localeCompare(String(byId[b].titulo ?? '')));
   render();
   verificarCrono();
-}, (e) => { console.error(e); CV2.toast('No se pudieron cargar las actividades', 'error'); });
+}, (e) => { console.error(e); CV2.toast('No se pudieron cargar las actividades (' + (e.code ?? e.message) + ')', 'error'); });
 </script>
 </body>
 </html>

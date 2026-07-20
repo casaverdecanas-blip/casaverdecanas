@@ -8,12 +8,29 @@
 
 import {
   db, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
-  collection, query, where, limit,
+  collection, query, where, limit, or, and,
   getAggregateFromServer, sum,
   serverTimestamp, Timestamp
 } from './firebase-init.js';
 
 export const Core = {};
+
+// ── Consulta de actividades visibles (ÚNICO lugar) ───────────
+// Para no-admin, CADA rama del or() debe ser DEMOSTRABLE contra las
+// reglas (lección v5.13): el motor de reglas rechaza consultas cuyos
+// resultados posibles no pueda probar permitidos. Por eso cada rama
+// fija el alcance:
+//   equipo · personal+propia · asignados+me-incluye · asignados+propia
+Core.consultaActividades = (u, esAdmin) => {
+  const col = collection(db, 'actividades');
+  if (esAdmin) return query(col);
+  return query(col, or(
+    where('alcance', '==', 'equipo'),
+    and(where('alcance', '==', 'personal'), where('creadoPor', '==', u.uid)),
+    and(where('alcance', '==', 'asignados'), where('competencias', 'array-contains', u.uid)),
+    and(where('alcance', '==', 'asignados'), where('creadoPor', '==', u.uid))
+  ));
+};
 
 // ── Utilidades ───────────────────────────────────────────────
 const hoyISO = () => new Date().toISOString().slice(0, 10);

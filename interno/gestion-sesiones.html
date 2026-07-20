@@ -321,14 +321,8 @@ $('mGuardar').addEventListener('click', async () => {
 
 // ═══ Cargas iniciales ═════════════════════════════════════
 // Árbol de actividades (para agrupar, colorear y el selector)
-try {
-  const col = collection(db, 'actividades');
-  const qa = CV2.esAdmin() ? query(col) : query(col, or(
-    where('alcance', '==', 'equipo'),
-    where('creadoPor', '==', u.uid),
-    and(where('alcance', '==', 'asignados'), where('competencias', 'array-contains', u.uid))
-  ));
-  const sa = await getDocs(qa);
+{
+  const sa = await getDocs(Core.consultaActividades(u, CV2.esAdmin()));
   const hijosDe = {};
   sa.forEach((d) => {
     const x = d.data();
@@ -349,9 +343,6 @@ try {
   // Filtro de proyecto con árbol tabulado
   $('fProyecto').innerHTML = '<option value="">Todos los proyectos</option>' +
     arbolPlano.map((n) => `<option value="${n.id}">${'\u00A0'.repeat(n.nivel * 4)}${n.esRaiz ? '🏠 ' : '· '}${esc(n.titulo)}</option>`).join('');
-} catch (e) {
-  console.error('carga actividades (gestion-sesiones):', e);
-  CV2.toast('No se pudo cargar el árbol de proyectos (se muestran igual tus sesiones)', 'error');
 }
 
 // Filtro de usuario (solo admin; colaborador ve lo suyo)

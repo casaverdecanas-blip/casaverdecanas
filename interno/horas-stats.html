@@ -66,8 +66,9 @@
 
 <script type="module">
 // Regla del 2.0: definiciones primero, suscripción AL FINAL.
-import { db, collection, query, where, onSnapshot, getDocs, or, and } from './firebase-init.js';
+import { db, collection, query, where, onSnapshot, getDocs } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
+import { Core } from './actividades-core.js';
 
 CV2.registrarSW();
 const u = await CV2.verificarAuth();
@@ -198,14 +199,8 @@ function render() {
 ['fPeriodo', 'fUsuario', 'fProyecto'].forEach((id) => $(id).addEventListener('change', render));
 
 // ═══ Cargas iniciales ═════════════════════════════════════
-try {
-  const col = collection(db, 'actividades');
-  const qa = CV2.esAdmin() ? query(col) : query(col, or(
-    where('alcance', '==', 'equipo'),
-    where('creadoPor', '==', u.uid),
-    and(where('alcance', '==', 'asignados'), where('competencias', 'array-contains', u.uid))
-  ));
-  const sa = await getDocs(qa);
+{
+  const sa = await getDocs(Core.consultaActividades(u, CV2.esAdmin()));
   const hijosDe = {};
   sa.forEach((d) => {
     const x = d.data();
@@ -224,9 +219,6 @@ try {
   roots.forEach((r) => bajar(r, 0, vis));
   $('fProyecto').innerHTML = '<option value="">Todos los proyectos</option>' +
     arbolPlano.map((n) => `<option value="${n.id}">${'\u00A0'.repeat(n.nivel * 4)}${n.esRaiz ? '🏠 ' : '· '}${esc(n.titulo)}</option>`).join('');
-} catch (e) {
-  console.error('carga actividades (horas-stats):', e);
-  CV2.toast('No se pudo cargar el árbol de proyectos (se muestran igual tus horas)', 'error');
 }
 
 if (CV2.esAdmin()) {

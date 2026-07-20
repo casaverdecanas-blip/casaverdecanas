@@ -10,6 +10,7 @@ import {
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
+  terminate, clearIndexedDbPersistence,
   // — lectura/escritura —
   doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   collection, query, where, orderBy, limit, onSnapshot,
@@ -74,5 +75,6 @@ export {
   serverTimestamp, Timestamp, increment, arrayUnion, arrayRemove,
   deleteField, writeBatch, runTransaction,
   onAuthStateChanged, signInWithEmailAndPassword, signOut,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  terminate, clearIndexedDbPersistence
 };

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Reservas</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .filtros { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+  .fchip { border: 1px solid var(--linea); background: #fff; border-radius: 999px;
+    padding: 6px 14px; font: inherit; font-size: .84rem; cursor: pointer; color: var(--gris); }
+  .fchip.activo { background: var(--verde); border-color: var(--verde); color: #fff; }
+
+  .res {
+    background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 11px 12px; margin: 7px 0; box-shadow: var(--sombra); cursor: pointer;
+  }
+  .res .fila1 { display: flex; align-items: center; gap: 8px; }
+  .res .quien { flex: 1; min-width: 0; font-weight: 600; font-size: .95rem; overflow-wrap: anywhere; }
+  .res .fila2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    font-size: .8rem; color: var(--gris); margin-top: 4px; }
+  .cab { font-size: .72rem; padding: 3px 10px; border-radius: 999px; font-weight: 700; white-space: nowrap; }
+  .est { font-size: .72rem; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .est.presupuesto { background: #e8ecfd; color: #2b3f9e; }
+  .est.confirmada { background: var(--verde-claro); color: var(--verde-osc); }
+  .est.finalizada { background: #eee; color: #666; }
+  .est.anulada { background: #fde4e2; color: #8f1d17; }
+  .encasa { background: #123c0e; color: #d9f2d3; font-size: .72rem; padding: 3px 10px; border-radius: 999px; }
+  .detalle { border-top: 1px dashed var(--linea); margin-top: 8px; padding-top: 8px; font-size: .85rem; }
+  .detalle .acciones { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .btn-ico { border: 1px solid var(--linea); background: #fff; border-radius: 7px;
+    padding: 5px 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+    font: inherit; font-size: .8rem; color: var(--tinta); line-height: 1; }
+  .btn-ico .material-icons { font-size: 16px; }
+  .hist { font-size: .76rem; color: var(--gris); margin-top: 6px; }
+  .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
+
+  dialog { border: 0; border-radius: 14px; padding: 16px; width: min(500px, 94vw);
+    max-height: 88dvh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(20,30,18,.45); }
+  .fila2c { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h1 style="margin-right:auto;">Reservas</h1>
+    <button class="btn btn-primario" id="btnNueva">
+      <span class="material-icons">add</span> Reserva
+    </button>
+  </div>
+
+  <div class="filtros" id="filtros">
+    <button class="fchip activo" data-f="vigentes">Vigentes</button>
+    <button class="fchip" data-f="presupuesto">Presupuestos</button>
+    <button class="fchip" data-f="confirmada">Confirmadas</button>
+    <button class="fchip" data-f="finalizada">Finalizadas</button>
+    <button class="fchip" data-f="todas">Todas</button>
+  </div>
+
+  <div id="lista"><div class="vacio">Cargando…</div></div>
+</div>
+
+<dialog id="modal">
+  <h2 id="mTit" style="margin:0 0 6px;">Nueva reserva</h2>
+
+  <label>Huésped</label>
+  <input id="fNombre" maxlength="80" placeholder="Nombre del huésped">
+
+  <label>Cabaña</label>
+  <select id="fCabana"></select>
+
+  <div class="fila2c">
+    <div><label>Entrada</label><input id="fIn" type="date"></div>
+    <div><label>Salida</label><input id="fOut" type="date"></div>
+  </div>
+  <p class="texto-gris" id="calcNoches" style="margin:6px 0 0;"></p>
+
+  <div class="fila2c">
+    <div><label>Adultos</label><input id="fAdultos" type="number" min="1" step="1" value="2" inputmode="numeric"></div>
+    <div><label>Niños</label><input id="fNinos" type="number" min="0" step="1" value="0" inputmode="numeric"></div>
+  </div>
+
+  <div class="fila2c">
+    <div><label>Total (R$)</label><input id="fTotal" type="number" min="0" step="0.01" inputmode="decimal"></div>
+    <div><label>Estado</label>
+      <select id="fEstado">
+        <option value="presupuesto">Presupuesto</option>
+        <option value="confirmada">Confirmada</option>
+      </select>
+    </div>
+  </div>
+
+  <label>Notas</label>
+  <textarea id="fNotas" rows="2"></textarea>
+
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+    <button class="btn" id="mCancelar">Cancelar</button>
+    <button class="btn btn-primario" id="mGuardar"><span class="material-icons">save</span> Guardar</button>
+  </div>
+</dialog>
+
+<script type="module">
+// Regla del 2.0: definiciones primero, suscripción AL FINAL.
+import {
+  db, collection, query, onSnapshot, getDocs,
+  doc, addDoc, updateDoc, setDoc, serverTimestamp, arrayUnion, Timestamp
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('reservas');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+// ═══ Estado ═══════════════════════════════════════════════
+let reservas = [];
+let cabanas = [];              // [{id, nombre, color}]
+let filtro = 'vigentes';
+let abierta = null;
+let editId = null;
+
+const COLORES_CAB = ['#2a9d8f', '#e76f51', '#4361ee', '#b8860b', '#7209b7'];
+
+// ═══ Helpers ══════════════════════════════════════════════
+const nombreCab = (id) => {
+  const c = cabanas.find((x) => x.id === id);
+  const n = c?.nombre;
+  return typeof n === 'object' ? (n.es ?? n.pt ?? n.en ?? id) : (n ?? id);
+};
+const colorCab = (id) => {
+  const i = cabanas.findIndex((x) => x.id === id);
+  return COLORES_CAB[(i < 0 ? COLORES_CAB.length - 1 : i) % COLORES_CAB.length];
+};
+const noches = (r) => Math.max(0, Math.round((new Date(r.checkOut) - new Date(r.checkIn)) / 86400000));
+const enCasa = (r) => r.estado === 'confirmada' && r.checkIn <= CV2.hoyISO() && r.checkOut > CV2.hoyISO();
+
+const registrarCambio = (cambio) => arrayUnion({
+  fecha: Timestamp.now(), autorUid: u.uid, autorNombre: u.nombre ?? '', cambio
+});
+
+// Solapamiento de fechas en la misma cabaña (solo confirmadas)
+const conflicto = (cabanaId, ci, co, ignorarId) =>
+  reservas.find((r) => r.id !== ignorarId && r.cabanaId === cabanaId &&
+    r.estado === 'confirmada' && r.checkIn < co && r.checkOut > ci);
+
+// ═══ Render ═══════════════════════════════════════════════
+const pasaFiltro = (r) => {
+  if (filtro === 'todas') return true;
+  if (filtro === 'vigentes') return r.estado === 'presupuesto' ||
+    (r.estado === 'confirmada' && r.checkOut >= CV2.hoyISO());
+  return r.estado === filtro;
+};
+
+function render() {
+  const fs = reservas.filter(pasaFiltro);
+  const cont = $('lista');
+  if (!fs.length) {
+    cont.innerHTML = `<div class="vacio">${reservas.length ? 'Nada con este filtro.' : 'Sin reservas todavía.<br>Creá la primera con el botón <b>Reserva</b>.'}</div>`;
+    return;
+  }
+  cont.innerHTML = fs.map((r) => {
+    const col = colorCab(r.cabanaId);
+    let h = `<div class="res" style="border-left:5px solid ${col};" onclick="abrir('${r.id}')">
+      <div class="fila1">
+        <span class="quien">${esc(r.clienteNombre)}</span>
+        ${enCasa(r) ? '<span class="encasa">🏠 En casa</span>' : ''}
+        ${r.origen === 'airbnb' ? '<span class="est" style="background:#fde8ec;color:#b0164a;">Airbnb</span>' : ''}
+        <span class="est ${r.estado}">${r.estado}</span>
+      </div>
+      <div class="fila2">
+        <span class="cab" style="background:${CV2.pastelDe(col)};color:${col};">${esc(nombreCab(r.cabanaId))}</span>
+        <span>${CV2.fmtFecha(r.checkIn)} → ${CV2.fmtFecha(r.checkOut)} · ${noches(r)} noche(s)</span>
+        <span>👤 ${r.adultos}${r.ninos ? ' + ' + r.ninos + ' 🧒' : ''}</span>
+        <span><b>${CV2.fmtMonto(r.totalBRL ?? 0)}</b></span>
+      </div>`;
+
+    if (abierta === r.id) {
+      const ultimos = (r.historial ?? []).slice(-3).reverse()
+        .map((x) => `${CV2.fmtFecha(x.fecha)} · ${esc(x.autorNombre)}: ${esc(x.cambio)}`).join('<br>');
+      h += `<div class="detalle" onclick="event.stopPropagation()">
+        ${r.notas ? `<div>📝 ${esc(r.notas)}</div>` : ''}
+        ${ultimos ? `<div class="hist">${ultimos}</div>` : ''}
+        <div class="acciones">
+          ${CV2.esAdmin() && r.estado === 'presupuesto'
+            ? `<button class="btn-ico" style="border-color:var(--ok);color:var(--ok);" onclick="cambiarEstado('${r.id}','confirmada')"><span class="material-icons">check_circle</span> Confirmar</button>` : ''}
+          ${CV2.esAdmin() && r.estado === 'confirmada' && r.checkOut <= CV2.hoyISO()
+            ? `<button class="btn-ico" onclick="cambiarEstado('${r.id}','finalizada')"><span class="material-icons">flag</span> Finalizar</button>` : ''}
+          ${CV2.esAdmin() && (r.estado === 'presupuesto' || r.estado === 'confirmada')
+            ? `<button class="btn-ico" style="color:var(--rojo);" onclick="cambiarEstado('${r.id}','anulada')"><span class="material-icons">cancel</span> Anular</button>` : ''}
+          ${CV2.esAdmin()
+            ? `<button class="btn-ico" onclick="editar('${r.id}')"><span class="material-icons">edit</span> Editar</button>` : ''}
+        </div>
+      </div>`;
+    }
+    return h + '</div>';
+  }).join('');
+}
+
+window.abrir = (id) => { abierta = abierta === id ? null : id; render(); };
+
+// ═══ Cambios de estado (con historial) ════════════════════
+window.cambiarEstado = async (id, nuevo) => {
+  const r = reservas.find((x) => x.id === id);
+  const textos = { confirmada: '¿Confirmar la reserva?', finalizada: '¿Marcar como finalizada?', anulada: '¿ANULAR esta reserva?' };
+  if (!confirm(textos[nuevo])) return;
+
+  if (nuevo === 'confirmada') {
+    const c = conflicto(r.cabanaId, r.checkIn, r.checkOut, id);
+    if (c && !confirm(`⚠ Se superpone con la reserva confirmada de ${c.clienteNombre} (${CV2.fmtFecha(c.checkIn)}→${CV2.fmtFecha(c.checkOut)}). ¿Confirmar igual?`)) return;
+  }
+  try {
+    await updateDoc(doc(db, 'reservas', id), {
+      estado: nuevo,
+      historial: registrarCambio(`estado → ${nuevo}`),
+      actualizadoEn: serverTimestamp()
+    });
+    CV2.toast(`Reserva ${nuevo}`, 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+};
+
+// ═══ Alta / edición ═══════════════════════════════════════
+const calcN = () => {
+  const ci = $('fIn').value, co = $('fOut').value;
+  if (!ci || !co) { $('calcNoches').textContent = ''; return; }
+  const n = Math.round((new Date(co) - new Date(ci)) / 86400000);
+  $('calcNoches').textContent = n > 0 ? `= ${n} noche(s)` : '⚠ la salida debe ser después de la entrada';
+};
+['fIn', 'fOut'].forEach((i) => $(i).addEventListener('input', calcN));
+
+function abrirModal(r) {
+  editId = r?.id ?? null;
+  $('mTit').textContent = editId ? 'Editar reserva' : 'Nueva reserva';
+  $('fCabana').innerHTML = cabanas.map((c) =>
+    `<option value="${c.id}">${esc(nombreCab(c.id))}</option>`).join('');
+  $('fNombre').value = r?.clienteNombre ?? '';
+  $('fCabana').value = r?.cabanaId ?? (cabanas[0]?.id ?? '');
+  $('fIn').value = r?.checkIn ?? '';
+  $('fOut').value = r?.checkOut ?? '';
+  $('fAdultos').value = r?.adultos ?? 2;
+  $('fNinos').value = r?.ninos ?? 0;
+  $('fTotal').value = r?.totalBRL ?? '';
+  $('fEstado').value = r?.estado === 'confirmada' ? 'confirmada' : 'presupuesto';
+  $('fEstado').disabled = !!editId;   // el estado se cambia con los botones, no editando
+  $('fNotas').value = r?.notas ?? '';
+  calcN();
+  $('modal').showModal();
+  $('fNombre').focus();
+}
+
+$('btnNueva').addEventListener('click', () => abrirModal(null));
+window.editar = (id) => abrirModal(reservas.find((x) => x.id === id));
+$('mCancelar').addEventListener('click', () => $('modal').close());
+
+$('mGuardar').addEventListener('click', async () => {
+  const nombre = $('fNombre').value.trim();
+  const ci = $('fIn').value, co = $('fOut').value;
+  if (!nombre) { CV2.toast('Falta el nombre del huésped', 'error'); return; }
+  if (!ci || !co || co <= ci) { CV2.toast('Revisá las fechas', 'error'); return; }
+  const cabanaId = $('fCabana').value;
+  const estado = $('fEstado').value;
+
+  if (estado === 'confirmada') {
+    const c = conflicto(cabanaId, ci, co, editId);
+    if (c && !confirm(`⚠ Se superpone con la reserva de ${c.clienteNombre}. ¿Guardar igual?`)) return;
+  }
+
+  const datos = {
+    clienteNombre: nombre,
+    clienteId: null,
+    cabanaId,
+    checkIn: ci, checkOut: co,
+    adultos: Math.max(1, parseInt($('fAdultos').value) || 1),
+    ninos: Math.max(0, parseInt($('fNinos').value) || 0),
+    totalBRL: Math.max(0, parseFloat($('fTotal').value) || 0),
+    notas: $('fNotas').value.trim(),
+    actualizadoEn: serverTimestamp()
+  };
+  $('mGuardar').disabled = true;
+  try {
+    if (editId) {
+      datos.historial = registrarCambio('datos editados');
+      await updateDoc(doc(db, 'reservas', editId), datos);
+      CV2.toast('Guardada', 'success');
+    } else {
+      await addDoc(collection(db, 'reservas'), {
+        ...datos,
+        estado,
+        origen: 'directa',
+        googleEventId: null,
+        historial: [{ fecha: Timestamp.now(), autorUid: u.uid, autorNombre: u.nombre ?? '', cambio: `creada (${estado})` }],
+        creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
+      });
+      CV2.toast('Creada', 'success');
+    }
+    $('modal').close();
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+  finally { $('mGuardar').disabled = false; }
+});
+
+$('filtros').addEventListener('click', (ev) => {
+  const b = ev.target.closest('.fchip');
+  if (!b) return;
+  filtro = b.dataset.f;
+  document.querySelectorAll('.fchip').forEach((x) => x.classList.toggle('activo', x === b));
+  render();
+});
+
+// ═══ Cargas iniciales ═════════════════════════════════════
+// Cabañas: si la colección está vacía, el admin puede crear las 3 base
+{
+  const sc = await getDocs(collection(db, 'cabanas'));
+  sc.forEach((d) => cabanas.push({ id: d.id, ...d.data() }));
+  cabanas.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+
+  if (!cabanas.length && CV2.esAdmin()) {
+    if (confirm('No hay cabañas cargadas todavía. ¿Crear las 3 de Casa Verde ahora?')) {
+      const base = [
+        { id: 'c1', nombre: { es: 'Vista al Bosque', pt: 'Vista al Bosque', en: 'Forest View' }, orden: 1 },
+        { id: 'c2', nombre: { es: 'Familiar Premium', pt: 'Familiar Premium', en: 'Family Premium' }, orden: 2 },
+        { id: 'c3', nombre: { es: 'Loft', pt: 'Loft', en: 'Loft' }, orden: 3 }
+      ];
+      for (const c of base) {
+        await setDoc(doc(db, 'cabanas', c.id), {
+          nombre: c.nombre, descripcion: { es: '', pt: '', en: '' },
+          capacidad: 4, tarifas: { noche: 0, limpieza: 0, moneda: 'BRL' },
+          amenities: [], fotos: [], calendarId: null,
+          inventarioBase: [], orden: c.orden, activa: true
+        });
+        cabanas.push({ id: c.id, nombre: c.nombre, orden: c.orden });
+      }
+      CV2.toast('✓ Cabañas creadas — ajustá tarifas y contenido en Fase 4', 'success');
+    }
+  }
+  if (!cabanas.length) {
+    $('lista').innerHTML = '<div class="vacio">No hay cabañas cargadas. Pedile al administrador que entre a Reservas para crearlas.</div>';
+  }
+}
+
+// ═══ Suscripción — AL FINAL ═══════════════════════════════
+onSnapshot(query(collection(db, 'reservas')), (snap) => {
+  reservas = [];
+  snap.forEach((d) => reservas.push({ id: d.id, ...d.data() }));
+  reservas.sort((a, b) => (b.checkIn ?? '').localeCompare(a.checkIn ?? ''));
+  render();
+}, (e) => { console.error(e); CV2.toast('No se pudieron cargar las reservas', 'error'); });
+</script>
+</body>
+</html>

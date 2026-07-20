@@ -5,7 +5,7 @@
 //  Namespace único: CV2 (import { CV2 } from './nucleo.js')
 // ═══════════════════════════════════════════════════════════════
 
-import { auth, db, doc, getDoc, onAuthStateChanged, signOut } from './firebase-init.js';
+import { auth, db, doc, getDoc, onAuthStateChanged, signOut, terminate, clearIndexedDbPersistence } from './firebase-init.js';
 
 export const CV2 = {};
 
@@ -47,6 +47,9 @@ CV2.puede = (seccion) =>
 
 CV2.cerrarSesion = async function () {
   await signOut(auth);
+  // La caché local es UNA por navegador: si otra persona entra en el
+  // mismo dispositivo, no debe encontrar datos de la sesión anterior.
+  try { await terminate(db); await clearIndexedDbPersistence(db); } catch { /* mejor esfuerzo */ }
   location.href = './login.html';
 };
 
