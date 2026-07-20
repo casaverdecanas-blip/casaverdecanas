@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Cobros</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .kpis { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
+  .kpi { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+         padding: 10px 16px; box-shadow: var(--sombra); }
+  .kpi b { display: block; font-size: 1.2rem; }
+  .kpi span { font-size: .78rem; color: var(--gris); }
+  .hon {
+    display: flex; align-items: center; gap: 10px; background: #fff;
+    border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 10px 12px; margin: 6px 0; box-shadow: var(--sombra); font-size: .9rem;
+  }
+  .hon .info { flex: 1; min-width: 0; }
+  .hon .info small { display: block; color: var(--gris); font-size: .76rem; }
+  .hon .monto { font-weight: 700; white-space: nowrap; }
+  .estado {
+    font-size: .72rem; padding: 3px 10px; border-radius: 999px; white-space: nowrap;
+  }
+  .estado.pendiente { background: #fdf1d8; color: #8a6206; }
+  .estado.pagado { background: var(--verde-claro); color: var(--verde-osc); }
+  .persona-t { margin: 16px 0 4px; font-size: .95rem; color: var(--verde-osc); }
+  .btn-pagar {
+    border: 1px solid var(--ok); background: #fff; color: var(--ok); border-radius: 7px;
+    padding: 5px 10px; font: inherit; font-size: .8rem; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <h1 id="titulo">Cobros</h1>
+  <p class="texto-gris" style="margin-top:-6px;">Los honorarios se generan solos al cerrar
+  el ciclo de una actividad <b>con precio</b>, repartidos según las horas de cada uno.</p>
+
+  <div class="kpis">
+    <div class="kpi"><b id="kPend">—</b><span>Pendiente de pago</span></div>
+    <div class="kpi"><b id="kPag">—</b><span>Ya pagado</span></div>
+  </div>
+
+  <div id="lista"><div class="vacio">Cargando…</div></div>
+</div>
+
+<script type="module">
+// Regla del 2.0: definiciones primero, suscripción AL FINAL.
+import {
+  db, collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('honorarios');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+let docs = [];
+
+if (CV2.esAdmin()) $('titulo').textContent = 'Honorarios del equipo';
+
+function render() {
+  let pend = 0, pag = 0;
+  for (const h of docs) (h.estado === 'pagado' ? pag += h.monto : pend += h.monto);
+  $('kPend').textContent = CV2.fmtMonto(pend);
+  $('kPag').textContent = CV2.fmtMonto(pag);
+
+  const cont = $('lista');
+  if (!docs.length) {
+    cont.innerHTML = `<div class="vacio">Todavía no hay honorarios.<br>
+      Aparecen al cerrar el ciclo de una actividad con precio.</div>`;
+    return;
+  }
+
+  const fila = (h) => `<div class="hon">
+    <div class="info">${esc(h.concepto ?? 'Actividad')}
+      <small>${CV2.fmtFecha(h.cicloCerradoEn)} · ${CV2.fmtHM(h.horas ?? 0)}
+      ${CV2.esAdmin() ? '' : ''}</small></div>
+    <span class="monto">${CV2.fmtMonto(h.monto)}</span>
+    <span class="estado ${h.estado}">${h.estado === 'pagado' ? '✓ Pagado' : 'Pendiente'}</span>
+    ${CV2.esAdmin() && h.estado !== 'pagado'
+      ? `<button class="btn-pagar" onclick="pagar('${h.id}')"><span class="material-icons" style="font-size:15px;">paid</span> Pagar</button>`
+      : ''}
+  </div>`;
+
+  if (CV2.esAdmin()) {
+    // Agrupado por persona, pendientes primero
+    const porUid = {};
+    for (const h of docs) (porUid[h.uid] ??= { nombre: h.nombre ?? h.uid, items: [], pend: 0 }).items.push(h);
+    for (const g of Object.values(porUid)) g.pend = g.items.reduce((a, x) => a + (x.estado !== 'pagado' ? x.monto : 0), 0);
+    cont.innerHTML = Object.values(porUid)
+      .sort((a, b) => b.pend - a.pend || a.nombre.localeCompare(b.nombre))
+      .map((g) => `<div class="persona-t">👤 <b>${esc(g.nombre)}</b> — pendiente ${CV2.fmtMonto(g.pend)}</div>`
+        + g.items.map(fila).join(''))
+      .join('');
+  } else {
+    cont.innerHTML = docs.map(fila).join('');
+  }
+}
+
+window.pagar = async (id) => {
+  if (!confirm('¿Marcar este honorario como pagado?')) return;
+  try {
+    await updateDoc(doc(db, 'honorarios', id), {
+      estado: 'pagado', pagadoEn: serverTimestamp()
+    });
+    CV2.toast('✓ Pagado', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+};
+
+// ═══ Suscripción — AL FINAL ═══════════════════════════════
+const col = collection(db, 'honorarios');
+const consulta = CV2.esAdmin() ? query(col) : query(col, where('uid', '==', u.uid));
+
+onSnapshot(consulta, (snap) => {
+  docs = [];
+  snap.forEach((d) => docs.push({ id: d.id, ...d.data() }));
+  docs.sort((a, b) => (b.cicloCerradoEn?.toMillis?.() ?? 0) - (a.cicloCerradoEn?.toMillis?.() ?? 0));
+  render();
+}, (e) => { console.error(e); CV2.toast('No se pudieron cargar los honorarios', 'error'); });
+</script>
+</body>
+</html>
