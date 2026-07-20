@@ -39,7 +39,7 @@
   }
   .act-detalle .acciones { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
 
-  /* Botones compactos (pedido del admin: ocupar poco con muchas actividades) */
+  /* Botones compactos (pedido del admin) */
   .btn-ico {
     border: 1px solid var(--linea); background: #fff; border-radius: 7px;
     padding: 5px 7px; cursor: pointer; display: inline-flex; align-items: center;
@@ -53,6 +53,20 @@
     display: inline-flex; align-items: center; gap: 5px;
     background: #123c0e; color: #d9f2d3; border-radius: 999px;
     padding: 4px 12px; font-size: .82rem; font-variant-numeric: tabular-nums;
+  }
+  /* Banner prioritario: si hay un reloj corriendo es lo PRIMERO que se ve */
+  .banner-crono {
+    display: flex; align-items: center; gap: 10px;
+    background: #123c0e; color: #eaf7e6; border-radius: var(--radio);
+    padding: 12px 14px; margin: 10px 0; box-shadow: var(--sombra);
+    position: sticky; top: 58px; z-index: 50;
+  }
+  .banner-crono .reloj { font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .banner-crono .que { flex: 1; min-width: 0; font-size: .9rem; overflow-wrap: anywhere; }
+  .banner-crono .btn-stop {
+    background: var(--rojo); border: 0; color: #fff; border-radius: 10px;
+    padding: 10px 16px; font: inherit; font-weight: 700; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
   }
   .estrella { color: #c9a227; }
   .act-row.hecha .act-titulo { text-decoration: line-through; color: var(--gris); font-weight: 500; }
@@ -85,6 +99,8 @@
       <span class="material-icons">create_new_folder</span> Proyecto
     </button>
   </div>
+
+  <div id="bannerCrono"></div>
 
   <div class="filtros" id="filtros">
     <button class="fchip activo" data-f="todas">Todas</button>
@@ -179,10 +195,10 @@
 
 <script type="module">
 // ═══════════════════════════════════════════════════════════
-// ESTRUCTURA: todo se define PRIMERO; la suscripción onSnapshot
-// se registra AL FINAL del módulo. Lección T1.2: con la caché
+// ESTRUCTURA (lección T1.2): todo se define PRIMERO; la
+// suscripción onSnapshot se registra AL FINAL. Con la caché
 // persistente el primer snapshot puede llegar antes de que el
-// módulo termine de evaluarse — nada de datos antes de tiempo.
+// módulo termine de evaluarse.
 // ═══════════════════════════════════════════════════════════
 import {
   db, collection, query, where, or, and, onSnapshot,
@@ -210,19 +226,14 @@ let filtro = 'todas';
 let editandoId = null;
 let altaPadreId = null;
 let equipo = [];
-let crono = null;              // { actId, sesionId, inicioMs } — mi cronómetro
-const horasCache = {};         // actId → horas agregadas
+let crono = null;              // { actId, sesionId, inicioMs }
+const horasCache = {};
 
 const PALETA = ['#2a9d8f', '#e76f51', '#4361ee', '#b8860b', '#7209b7',
                 '#2d5a27', '#c2185b', '#00838f', '#6d4c41', '#546e7a'];
 
 // ═══ Helpers ══════════════════════════════════════════════
 const diasEntre = (isoA, isoB) => Math.round((new Date(isoB) - new Date(isoA)) / 86400000);
-const sumarDias = (iso, n) => {
-  const d = new Date(iso + 'T12:00:00');
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
-};
 const fmtCrono = (ms) => {
   const s = Math.floor(ms / 1000);
   const hh = Math.floor(s / 3600), mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0'),
@@ -298,7 +309,22 @@ function visible(id) {
 }
 
 // ═══ Render ═══════════════════════════════════════════════
+function renderBanner() {
+  const b = $('bannerCrono');
+  if (!crono) { b.innerHTML = ''; return; }
+  const it = byId[crono.actId];
+  const titulo = it?.titulo ?? crono.titulo ?? 'una actividad';
+  b.innerHTML = `<div class="banner-crono">
+    <span class="material-icons" style="font-size:26px;">timer</span>
+    <span class="que">Cronómetro corriendo en<br><b>${esc(titulo)}</b></span>
+    <span class="reloj crono-t" data-ini="${crono.inicioMs}">0:00:00</span>
+    <button class="btn-stop" onclick="cronoStop('${crono.actId}')">
+      <span class="material-icons">stop</span> STOP</button>
+  </div>`;
+}
+
 function render() {
+  renderBanner();
   const cont = $('arbol');
   if (roots.length === 0) {
     cont.innerHTML = `<div class="vacio">Todavía no hay proyectos.<br>Creá el primero con el botón <b>Proyecto</b>.</div>`;
@@ -338,7 +364,6 @@ function nodoHTML(id) {
     </div>`;
 
   if (detalleAbierto === id) {
-    // Estado sin repetir: el semáforo ya dice lo esencial.
     const partes = [s.t];
     if (it.ultimaRealizacion) partes.push(`última vez ${CV2.fmtFecha(it.ultimaRealizacion)}${it.ultimaRealizacionNombre ? ' (' + esc(it.ultimaRealizacionNombre) + ')' : ''}`);
     if (!(it.recurrenciaDias > 0) && it.fechaVencimiento && !s.t.startsWith('Vence') && s.t !== 'Vencida') partes.push('vence ' + CV2.fmtFecha(it.fechaVencimiento));
@@ -371,7 +396,7 @@ function nodoHTML(id) {
 window.cronoPlay = async (id) => {
   try {
     const r = await Core.iniciar(id, u);
-    crono = { actId: id, sesionId: r.sesionId, inicioMs: r.inicioMs };
+    crono = { actId: id, sesionId: r.sesionId, inicioMs: r.inicioMs, titulo: byId[id]?.titulo ?? '' };
     render();
     CV2.toast('▶ Cronómetro corriendo', 'success');
   } catch (e) { CV2.toast(e.message, 'error'); }
@@ -396,7 +421,6 @@ window.cronoStop = async (id) => {
   } catch (e) { CV2.toast(e.message, 'error'); }
 };
 
-// Realizada sin cronómetro (tilde): registra sesión de 0h y cierra ciclo
 window.realizada = async (id) => {
   try {
     const r = await Core.tildar(id, u);
@@ -417,7 +441,7 @@ window.restaurar = async (id) => {
   } catch { CV2.toast('No se pudo restaurar', 'error'); }
 };
 
-// Reloj vivo (un solo intervalo para toda la página)
+// Reloj vivo (un intervalo único)
 setInterval(() => {
   document.querySelectorAll('.crono-t').forEach((el) => {
     el.textContent = fmtCrono(Date.now() - Number(el.dataset.ini));
@@ -621,7 +645,11 @@ try {
 // Restaurar mi cronómetro si quedó corriendo (sobrevive recargas)
 try {
   const activa = await Core.sesionActiva(u.uid);
-  if (activa) crono = { actId: activa.actividadId, sesionId: activa.id, inicioMs: activa.inicio.toMillis() };
+  if (activa) {
+    crono = { actId: activa.actividadId, sesionId: activa.id,
+              inicioMs: activa.inicio.toMillis(), titulo: activa.actividadTitulo ?? '' };
+    renderBanner();   // lo primero que se ve al volver, incluso antes de los datos
+  }
 } catch { /* sin sesión activa */ }
 
 // ═══ Suscripción en vivo — SIEMPRE AL FINAL ═══════════════
