@@ -60,14 +60,15 @@ CV2._listonAdmin = function () {
 // ── Navegación (crece por fase; T0.3 = mínima) ───────────────
 CV2.NAV = [
   { id: 'inicio', label: 'Inicio', href: './index.html', icono: 'home' },
-  { id: 'actividades', label: 'Actividades', href: './actividades.html', icono: 'checklist' }
+  { id: 'actividades', label: 'Actividades', href: './actividades.html', icono: 'checklist' },
+  { id: 'honorarios', label: 'Cobros', href: './honorarios.html', icono: 'payments' }
   // Fase 1 suma: sesiones, horas, comunicación...
 ];
 
 CV2.renderNav = function (activo) {
   const cont = document.getElementById('nav');
   if (!cont) return;
-  const SIEMPRE = ['inicio', 'actividades'];
+  const SIEMPRE = ['inicio', 'actividades', 'honorarios'];
   const items = CV2.NAV
     .filter(it => CV2.puede(it.id) || SIEMPRE.includes(it.id))
     .map(it => `
