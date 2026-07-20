@@ -198,7 +198,7 @@ function render() {
 ['fPeriodo', 'fUsuario', 'fProyecto'].forEach((id) => $(id).addEventListener('change', render));
 
 // ═══ Cargas iniciales ═════════════════════════════════════
-{
+try {
   const col = collection(db, 'actividades');
   const qa = CV2.esAdmin() ? query(col) : query(col, or(
     where('alcance', '==', 'equipo'),
@@ -224,6 +224,9 @@ function render() {
   roots.forEach((r) => bajar(r, 0, vis));
   $('fProyecto').innerHTML = '<option value="">Todos los proyectos</option>' +
     arbolPlano.map((n) => `<option value="${n.id}">${'\u00A0'.repeat(n.nivel * 4)}${n.esRaiz ? '🏠 ' : '· '}${esc(n.titulo)}</option>`).join('');
+} catch (e) {
+  console.error('carga actividades (horas-stats):', e);
+  CV2.toast('No se pudo cargar el árbol de proyectos (se muestran igual tus horas)', 'error');
 }
 
 if (CV2.esAdmin()) {
