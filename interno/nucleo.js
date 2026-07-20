@@ -61,14 +61,16 @@ CV2._listonAdmin = function () {
 CV2.NAV = [
   { id: 'inicio', label: 'Inicio', href: './index.html', icono: 'home' },
   { id: 'actividades', label: 'Actividades', href: './actividades.html', icono: 'checklist' },
+  { id: 'sesiones', label: 'Sesiones', href: './gestion-sesiones.html', icono: 'schedule' },
+  { id: 'horas', label: 'Horas', href: './horas-stats.html', icono: 'insights' },
   { id: 'honorarios', label: 'Cobros', href: './honorarios.html', icono: 'payments' }
-  // Fase 1 suma: sesiones, horas, comunicación...
+  // Fase 1 suma: comunicación...
 ];
 
 CV2.renderNav = function (activo) {
   const cont = document.getElementById('nav');
   if (!cont) return;
-  const SIEMPRE = ['inicio', 'actividades', 'honorarios'];
+  const SIEMPRE = ['inicio', 'actividades', 'sesiones', 'horas', 'honorarios'];
   const items = CV2.NAV
     .filter(it => CV2.puede(it.id) || SIEMPRE.includes(it.id))
     .map(it => `
