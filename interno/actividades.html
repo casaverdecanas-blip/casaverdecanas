@@ -418,8 +418,36 @@ window.cronoStop = async (id) => {
     CV2.toast(terminada
       ? `✅ ${CV2.fmtHM(r.horas)} registradas — ciclo cerrado`
       : `⏹ ${CV2.fmtHM(r.horas)} registradas — sigue pendiente`, 'success');
-  } catch (e) { CV2.toast(e.message, 'error'); }
+  } catch (e) {
+    if (e.code === 'sin-sesion') {
+      crono = null;
+      render();
+      CV2.toast(e.message, 'info');
+    } else {
+      CV2.toast(e.message, 'error');
+    }
+  }
 };
+
+// Si otra persona termina la actividad, mi cronómetro se frena en el
+// servidor: verificar (con freno de 15s) para que la pantalla no
+// muestre un reloj que ya no existe.
+let _ultVerifCrono = 0;
+async function verificarCrono() {
+  if (!crono || Date.now() - _ultVerifCrono < 15000) return;
+  _ultVerifCrono = Date.now();
+  try {
+    const a = await Core.sesionActiva(u.uid);
+    if (!a || a.id !== crono.sesionId) {
+      crono = null;
+      render();
+      CV2.toast('Tu cronómetro fue frenado: la actividad se dio por terminada y tus horas quedaron registradas', 'info');
+    }
+  } catch { /* silencioso */ }
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) { _ultVerifCrono = 0; verificarCrono(); }
+});
 
 window.realizada = async (id) => {
   try {
@@ -454,7 +482,9 @@ window.toggleAbierto = (id) => { abiertos[id] = !abiertos[id]; render(); };
 window.toggleDetalle = (id) => {
   detalleAbierto = detalleAbierto === id ? null : id;
   render();
-  if (detalleAbierto === id && horasCache[id] == null) {
+  // Siempre fresco: el Gestor de Sesiones puede haber alterado el
+  // registro. La agregación va al servidor, no a la caché.
+  if (detalleAbierto === id) {
     Core.horasDeActividad(id).then((h) => {
       horasCache[id] = h;
       const el = document.getElementById('hrs-' + id);
@@ -673,6 +703,7 @@ onSnapshot(consulta, (snap) => {
   roots = (childrenOf[''] ?? []).slice()
     .sort((a, b) => String(byId[a].titulo ?? '').localeCompare(String(byId[b].titulo ?? '')));
   render();
+  verificarCrono();
 }, (e) => { console.error(e); CV2.toast('No se pudieron cargar las actividades', 'error'); });
 </script>
 </body>

@@ -90,6 +90,7 @@ import {
   doc, addDoc, updateDoc, deleteDoc, Timestamp, serverTimestamp, or, and
 } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
+import { Core } from './actividades-core.js';
 
 CV2.registrarSW();
 const u = await CV2.verificarAuth();
@@ -258,12 +259,30 @@ window.editarSes = (id) => {
 };
 
 window.borrarSes = async (id) => {
+  const s = sesiones.find((x) => x.id === id);
   if (!confirm('¿Eliminar esta sesión? No se puede deshacer.')) return;
   try {
     await deleteDoc(doc(db, 'sesiones', id));
     CV2.toast('Eliminada', 'success');
+    await recalcularSiCorresponde(s?.actividadId);
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
 };
+
+// El Gestor GOBIERNA cobros y estadísticas: tras alterar sesiones,
+// el admin recalcula los honorarios de los ciclos de esa actividad.
+// Ciclos con pagos hechos no se tocan (se avisa para ajuste manual).
+async function recalcularSiCorresponde(actividadId) {
+  if (!actividadId || !CV2.esAdmin()) return;
+  try {
+    const r = await Core.recalcularCiclos(actividadId);
+    if (r.recalculados > 0) {
+      CV2.toast(`Cobros recalculados (${r.recalculados} ciclo/s)` +
+        (r.conPagos ? ` — ${r.conPagos} con pagos hechos sin tocar` : ''), 'info');
+    } else if (r.conPagos > 0) {
+      CV2.toast(`Ese ciclo ya tiene pagos hechos: ajustá el cobro a mano en Cobros`, 'info');
+    }
+  } catch (e) { CV2.toast('No se pudieron recalcular los cobros: ' + (e.code ?? e.message), 'error'); }
+}
 
 $('mCancelar').addEventListener('click', () => $('modal').close());
 $('mGuardar').addEventListener('click', async () => {
@@ -275,10 +294,12 @@ $('mGuardar').addEventListener('click', async () => {
   $('mGuardar').disabled = true;
   try {
     if (editId) {
+      const sPrev = sesiones.find((x) => x.id === editId);
       await updateDoc(doc(db, 'sesiones', editId), {
         inicio: ini, fin, horas, notas: $('fNota').value.trim(), actualizadoEn: serverTimestamp()
       });
       CV2.toast('Guardada', 'success');
+      await recalcularSiCorresponde(sPrev?.actividadId);
     } else {
       const aid = $('fAct').value;
       if (!aid) { CV2.toast('Elegí la actividad', 'error'); $('mGuardar').disabled = false; return; }

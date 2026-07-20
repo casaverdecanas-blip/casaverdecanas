@@ -7,7 +7,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import {
-  db, doc, getDoc, getDocs, addDoc, updateDoc,
+  db, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
   collection, query, where, limit,
   getAggregateFromServer, sum,
   serverTimestamp, Timestamp
@@ -96,8 +96,13 @@ Core.finalizar = async (actId, u, terminada = true) => {
       estado: 'finalizada',
       actualizadoEn: ahora
     });
-  } else if (!terminada) {
-    throw new Error('No hay un cronómetro corriendo en esta actividad.');
+  } else {
+    // La sesión no existe: casi seguro otra persona terminó la
+    // actividad y el cierre frenó este cronómetro. NO se vuelve a
+    // cerrar el ciclo (evita honorarios duplicados).
+    const err = new Error('Este cronómetro ya fue frenado: la actividad se dio por terminada y tus horas quedaron registradas.');
+    err.code = 'sin-sesion';
+    throw err;
   }
 
   const actRef = doc(db, 'actividades', actId);
@@ -149,6 +154,25 @@ Core.tildar = async (actId, u) => {
 // ── Cierre de ciclo (interno) ────────────────────────────────
 async function _cerrarCiclo(actId, act, u, conCrono) {
   const ahora = Timestamp.now();
+
+  // 0) TERMINADA = se frenan TODOS los cronómetros corriendo en la
+  //    actividad, de cualquier usuario: su tiempo queda registrado
+  //    y entra en el reparto de ESTE ciclo. (Si el Stop fue "todavía
+  //    no", este cierre no ocurre y los demás relojes siguen.)
+  const abiertas = await getDocs(query(
+    collection(db, 'sesiones'),
+    where('actividadId', '==', actId),
+    where('estado', '==', 'en_curso')
+  ));
+  for (const d of abiertas.docs) {
+    const horas = r2(Math.max(0, (ahora.toMillis() - d.data().inicio.toMillis()) / 3600000));
+    await updateDoc(d.ref, {
+      fin: ahora, horas, estado: 'finalizada',
+      cerradoPorCierreDeActividad: true,
+      cerradoPorNombre: u.nombre ?? '',
+      actualizadoEn: ahora
+    });
+  }
 
   // 1) Honorarios proporcionales del ciclo que se cierra
   const monto = Number(act.monto) || 0;
@@ -229,6 +253,90 @@ async function _cerrarCiclo(actId, act, u, conCrono) {
     });
   }
 }
+
+// ── Recalcular honorarios tras editar/borrar sesiones ────────
+// El Gestor de Sesiones GOBIERNA cobros y estadísticas: si el admin
+// altera sesiones, los honorarios de los ciclos afectados se rehacen.
+// Regla de seguridad: un ciclo con algún honorario PAGADO no se toca
+// (el dinero ya salió) — se informa para ajuste manual en Cobros.
+// El "pozo" de cada ciclo se conserva (suma de sus honorarios): solo
+// cambia el reparto según las horas que quedaron.
+Core.recalcularCiclos = async (actividadId) => {
+  const hs = await getDocs(query(
+    collection(db, 'honorarios'), where('actividadId', '==', actividadId)));
+  if (hs.empty) return { recalculados: 0, conPagos: 0 };
+
+  // Agrupar honorarios por cierre de ciclo
+  const ciclos = {};
+  hs.forEach((d) => {
+    const x = d.data();
+    const k = x.cicloCerradoEn?.toMillis?.() ?? 0;
+    (ciclos[k] ??= []).push({ id: d.id, ...x });
+  });
+  const cortes = Object.keys(ciclos).map(Number).sort((a, b) => a - b);
+
+  // Sesiones finalizadas de la actividad (estado actual, post-edición)
+  const ss = await getDocs(query(
+    collection(db, 'sesiones'), where('actividadId', '==', actividadId)));
+  const sesiones = [];
+  ss.forEach((d) => { const x = d.data(); if (x.estado === 'finalizada') sesiones.push(x); });
+
+  let recalculados = 0, conPagos = 0;
+
+  for (let i = 0; i < cortes.length; i++) {
+    const hasta = cortes[i];
+    const desde = i > 0 ? cortes[i - 1] : 0;
+    const grupo = ciclos[hasta];
+
+    if (grupo.some((h) => h.estado === 'pagado')) { conPagos++; continue; }
+
+    const pozo = r2(grupo.reduce((a, h) => a + (Number(h.monto) || 0), 0));
+
+    // Horas por persona dentro del ciclo (desde < fin <= hasta)
+    const porUid = {};
+    let tot = 0;
+    for (const s of sesiones) {
+      const f = s.fin?.toMillis?.() ?? 0;
+      if (f > desde && f <= hasta && s.uid) {
+        const h = Number(s.horas) || 0;
+        (porUid[s.uid] ??= { nombre: s.nombre ?? '', horas: 0 }).horas += h;
+        tot += h;
+      }
+    }
+
+    // Nuevo reparto del mismo pozo
+    const meta = grupo[0];
+    const nuevos = [];
+    if (tot > 0.001) {
+      for (const [uid, reg] of Object.entries(porUid)) {
+        const parte = r2(pozo * (reg.horas / tot));
+        if (parte > 0) nuevos.push({ uid, nombre: reg.nombre, horas: r2(reg.horas), monto: parte });
+      }
+    } else {
+      nuevos.push({ uid: meta.cerradoPor ?? meta.uid, nombre: meta.cerradoNombre ?? meta.nombre ?? '', horas: 0, monto: pozo });
+    }
+
+    for (const h of grupo) await deleteDoc(doc(db, 'honorarios', h.id));
+    for (const n of nuevos) {
+      await addDoc(collection(db, 'honorarios'), {
+        ...n,
+        actividadId,
+        concepto: meta.concepto ?? '',
+        estado: 'pendiente',
+        cicloCerradoEn: meta.cicloCerradoEn ?? null,
+        cerradoPor: meta.cerradoPor ?? null,
+        cerradoNombre: meta.cerradoNombre ?? '',
+        pagadoEn: null,
+        movimientoId: null,
+        nota: 'Recalculado por edición de sesiones',
+        creadoEn: serverTimestamp()
+      });
+    }
+    recalculados++;
+  }
+
+  return { recalculados, conPagos };
+};
 
 // ── Horas acumuladas de una actividad (agregación del servidor) ──
 // Suma en Firestore sin bajar documentos. Las sesiones en curso y
