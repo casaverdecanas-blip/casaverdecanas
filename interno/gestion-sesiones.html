@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Gestor de Sesiones</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .filtros { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+  .filtros select { width: auto; max-width: 260px; font-size: .86rem; padding: 8px 10px; }
+
+  .gnode { border-radius: var(--radio); border: 1px solid var(--linea); margin: 8px 0; overflow: hidden; box-shadow: var(--sombra); }
+  .ghead { display: flex; align-items: center; gap: 8px; padding: 10px 12px; cursor: pointer; font-size: .92rem; }
+  .ghead b { flex: 1; overflow-wrap: anywhere; }
+  .ghead .tot { font-weight: 700; white-space: nowrap; }
+  .gses {
+    display: flex; align-items: center; gap: 8px; background: #fff;
+    border-top: 1px dashed var(--linea); padding: 8px 12px; font-size: .84rem;
+  }
+  .gses .qn { flex: 1; min-width: 0; }
+  .gses .qn small { display: block; color: var(--gris); font-size: .74rem; }
+  .gses .hs { font-weight: 700; white-space: nowrap; }
+  .tipoch { font-size: .9rem; }
+  .btn-mini { border: 0; background: none; color: var(--gris); cursor: pointer; padding: 3px; display: inline-flex; opacity: .6; }
+  .btn-mini:hover { opacity: 1; }
+  .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
+
+  dialog { border: 0; border-radius: 14px; padding: 16px; width: min(460px, 94vw); box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(20,30,18,.45); }
+  .fila2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h1 style="margin-right:auto;">Gestor de Sesiones</h1>
+    <button class="btn btn-primario" id="btnManual">
+      <span class="material-icons">more_time</span> Registrar horas
+    </button>
+  </div>
+
+  <div class="filtros">
+    <select id="fUsuario" class="oculto"><option value="">Todo el equipo</option></select>
+    <select id="fProyecto"><option value="">Todos los proyectos</option></select>
+  </div>
+
+  <div class="card" style="display:flex;gap:16px;flex-wrap:wrap;">
+    <span>Total: <b id="tTotal">—</b></span>
+    <span class="texto-gris" id="tCant"></span>
+  </div>
+
+  <div id="lista"><div class="vacio">Cargando…</div></div>
+</div>
+
+<!-- Registro manual / edición -->
+<dialog id="modal">
+  <h2 id="mTit" style="margin:0 0 6px;">Registrar horas</h2>
+  <div id="grupoAct">
+    <label>Actividad (cualquier nivel del árbol)</label>
+    <select id="fAct"></select>
+  </div>
+  <label>Fecha</label>
+  <input id="fFecha" type="date">
+  <div class="fila2">
+    <div><label>Hora inicio</label><input id="fIni" type="time"></div>
+    <div><label>Hora fin</label><input id="fFin" type="time"></div>
+  </div>
+  <p class="texto-gris" id="calc" style="margin:8px 0 0;"></p>
+  <label>Nota (opcional)</label>
+  <input id="fNota" maxlength="200">
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+    <button class="btn" id="mCancelar">Cancelar</button>
+    <button class="btn btn-primario" id="mGuardar"><span class="material-icons">save</span> Guardar</button>
+  </div>
+</dialog>
+
+<script type="module">
+// Regla del 2.0: definiciones primero, suscripción AL FINAL.
+import {
+  db, collection, query, where, onSnapshot, getDocs,
+  doc, addDoc, updateDoc, deleteDoc, Timestamp, serverTimestamp, or, and
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('sesiones');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+// ═══ Estado ═══════════════════════════════════════════════
+let sesiones = [];
+let actIdx = {};          // id → { titulo, parentId, color }
+let roots = [];
+let arbolPlano = [];      // [{id, nivel, titulo, esRaiz}] en orden de árbol
+let abiertos = {};
+let editId = null;
+
+const PALETA = ['#2a9d8f', '#e76f51', '#4361ee', '#b8860b', '#7209b7',
+                '#2d5a27', '#c2185b', '#00838f', '#6d4c41', '#546e7a'];
+
+// ═══ Helpers ══════════════════════════════════════════════
+const raizDe = (id) => {
+  let cur = actIdx[id], curId = id, g = 0;
+  while (cur?.parentId && actIdx[cur.parentId] && g++ < 25) { curId = cur.parentId; cur = actIdx[curId]; }
+  return actIdx[id] ? curId : null;
+};
+const colorProy = (rootId) => {
+  const r = actIdx[rootId];
+  if (r?.color) return { a: r.color, p: CV2.pastelDe(r.color) };
+  const i = roots.indexOf(rootId);
+  const a = PALETA[(i < 0 ? PALETA.length - 1 : i) % PALETA.length];
+  return { a, p: CV2.pastelDe(a) };
+};
+const enPath = (actId, nodoId) => {
+  let cur = actId, g = 0;
+  while (cur && g++ < 25) {
+    if (cur === nodoId) return true;
+    cur = actIdx[cur]?.parentId ?? null;
+  }
+  return false;
+};
+const tipoIcono = (t) => t === 'manual' ? '📝' : (t === 'tilde' ? '✔' : '⏱');
+
+// ═══ Render ═══════════════════════════════════════════════
+function filtradas() {
+  const fu = CV2.esAdmin() ? $('fUsuario').value : u.uid;
+  const fp = $('fProyecto').value;
+  return sesiones.filter((s) =>
+    (!fu || s.uid === fu) &&
+    (!fp || enPath(s.actividadId, fp)) &&
+    s.estado === 'finalizada');
+}
+
+function render() {
+  const fs = filtradas();
+  const total = fs.reduce((a, s) => a + (s.horas ?? 0), 0);
+  $('tTotal').textContent = CV2.fmtHM(total);
+  $('tCant').textContent = `${fs.length} sesión(es)`;
+
+  // Agrupar por proyecto raíz → actividad
+  const porProy = {};
+  for (const s of fs) {
+    const r = raizDe(s.actividadId) ?? '__sin';
+    ((porProy[r] ??= {})[s.actividadId] ??= []).push(s);
+  }
+
+  const cont = $('lista');
+  const claves = Object.keys(porProy)
+    .sort((a, b) => (actIdx[a]?.titulo ?? '~').localeCompare(actIdx[b]?.titulo ?? '~'));
+  if (!claves.length) { cont.innerHTML = '<div class="vacio">No hay sesiones para mostrar.</div>'; return; }
+
+  cont.innerHTML = claves.map((rid) => {
+    const col = colorProy(rid);
+    const grupos = porProy[rid];
+    const horasProy = Object.values(grupos).flat().reduce((a, s) => a + (s.horas ?? 0), 0);
+    const ab = abiertos[rid] ?? false;
+    let h = `<div class="gnode" style="border-left:5px solid ${col.a};">
+      <div class="ghead" style="background:${col.p};" onclick="toggleP('${rid}')">
+        <span>${ab ? '▾' : '▸'}</span>
+        <b>📁 ${esc(actIdx[rid]?.titulo ?? '(proyecto eliminado)')}</b>
+        <span class="tot" style="color:${col.a};">${CV2.fmtHM(horasProy)}</span>
+      </div>`;
+    if (ab) {
+      for (const [aid, ss] of Object.entries(grupos).sort((x, y) =>
+          (actIdx[x[0]]?.titulo ?? '~').localeCompare(actIdx[y[0]]?.titulo ?? '~'))) {
+        const horasAct = ss.reduce((a, s) => a + (s.horas ?? 0), 0);
+        h += `<div class="ghead" style="background:${col.p}66;padding-left:26px;" onclick="toggleP('a-${aid}')">
+          <span>${abiertos['a-' + aid] ? '▾' : '▸'}</span>
+          <b>${esc(actIdx[aid]?.titulo ?? ss[0].actividadTitulo ?? '(actividad)')}</b>
+          <span class="tot">${CV2.fmtHM(horasAct)}</span></div>`;
+        if (abiertos['a-' + aid]) {
+          for (const s of ss) {
+            const puede = CV2.esAdmin() || s.uid === u.uid;
+            h += `<div class="gses">
+              <span class="tipoch" title="${s.tipo}">${tipoIcono(s.tipo)}</span>
+              <div class="qn">${esc(s.nombre ?? '')}
+                <small>${CV2.fmtFecha(s.fin ?? s.inicio)}${s.notas ? ' · ' + esc(s.notas) : ''}</small></div>
+              <span class="hs">${CV2.fmtHM(s.horas ?? 0)}</span>
+              ${puede ? `<button class="btn-mini" onclick="editarSes('${s.id}')" title="Editar"><span class="material-icons" style="font-size:16px;">edit</span></button>
+              <button class="btn-mini" onclick="borrarSes('${s.id}')" title="Eliminar"><span class="material-icons" style="font-size:16px;color:var(--rojo)">delete_outline</span></button>` : ''}
+            </div>`;
+          }
+        }
+      }
+    }
+    return h + '</div>';
+  }).join('');
+}
+
+window.toggleP = (k) => { abiertos[k] = !abiertos[k]; render(); };
+
+// ═══ Alta manual / edición ════════════════════════════════
+const calcHoras = () => {
+  const f = $('fFecha').value, i = $('fIni').value, fi = $('fFin').value;
+  if (!f || !i || !fi) return null;
+  let ms = new Date(`${f}T${fi}`) - new Date(`${f}T${i}`);
+  if (ms <= 0) return null;
+  return Math.round(ms / 36000) / 100;
+};
+const actualizarCalc = () => {
+  const h = calcHoras();
+  $('calc').textContent = h != null ? `= ${CV2.fmtHM(h)}` : '';
+};
+['fFecha', 'fIni', 'fFin'].forEach((id) => $(id).addEventListener('input', actualizarCalc));
+
+$('btnManual').addEventListener('click', () => {
+  editId = null;
+  $('mTit').textContent = 'Registrar horas';
+  $('grupoAct').classList.remove('oculto');
+  $('fAct').innerHTML = '<option value="">Elegí una actividad…</option>' +
+    arbolPlano.map((n) => `<option value="${n.id}">${'\u00A0'.repeat(n.nivel * 4)}${n.esRaiz ? '🏠 ' : '· '}${esc(n.titulo)}</option>`).join('');
+  $('fFecha').value = CV2.hoyISO();
+  $('fIni').value = ''; $('fFin').value = ''; $('fNota').value = ''; $('calc').textContent = '';
+  $('modal').showModal();
+});
+
+window.editarSes = (id) => {
+  const s = sesiones.find((x) => x.id === id);
+  if (!s) return;
+  editId = id;
+  $('mTit').textContent = 'Editar sesión';
+  $('grupoAct').classList.add('oculto');
+  const ini = s.inicio?.toDate?.() ?? new Date();
+  const fin = s.fin?.toDate?.() ?? ini;
+  $('fFecha').value = ini.toISOString().slice(0, 10);
+  $('fIni').value = ini.toTimeString().slice(0, 5);
+  $('fFin').value = fin.toTimeString().slice(0, 5);
+  $('fNota').value = s.notas ?? '';
+  actualizarCalc();
+  $('modal').showModal();
+};
+
+window.borrarSes = async (id) => {
+  if (!confirm('¿Eliminar esta sesión? No se puede deshacer.')) return;
+  try {
+    await deleteDoc(doc(db, 'sesiones', id));
+    CV2.toast('Eliminada', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+};
+
+$('mCancelar').addEventListener('click', () => $('modal').close());
+$('mGuardar').addEventListener('click', async () => {
+  const horas = calcHoras();
+  if (horas == null) { CV2.toast('Revisá fecha y horas (fin después de inicio)', 'error'); return; }
+  const f = $('fFecha').value;
+  const ini = Timestamp.fromDate(new Date(`${f}T${$('fIni').value}`));
+  const fin = Timestamp.fromDate(new Date(`${f}T${$('fFin').value}`));
+  $('mGuardar').disabled = true;
+  try {
+    if (editId) {
+      await updateDoc(doc(db, 'sesiones', editId), {
+        inicio: ini, fin, horas, notas: $('fNota').value.trim(), actualizadoEn: serverTimestamp()
+      });
+      CV2.toast('Guardada', 'success');
+    } else {
+      const aid = $('fAct').value;
+      if (!aid) { CV2.toast('Elegí la actividad', 'error'); $('mGuardar').disabled = false; return; }
+      await addDoc(collection(db, 'sesiones'), {
+        actividadId: aid,
+        actividadTitulo: actIdx[aid]?.titulo ?? '',
+        uid: u.uid, nombre: u.nombre ?? '',
+        inicio: ini, fin, horas,
+        estado: 'finalizada', tipo: 'manual',
+        notas: $('fNota').value.trim(),
+        creadoEn: serverTimestamp(), creadoPor: u.uid, actualizadoEn: serverTimestamp()
+      });
+      CV2.toast(`📝 ${CV2.fmtHM(horas)} registradas`, 'success');
+    }
+    $('modal').close();
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+  finally { $('mGuardar').disabled = false; }
+});
+
+// ═══ Cargas iniciales ═════════════════════════════════════
+// Árbol de actividades (para agrupar, colorear y el selector)
+{
+  const col = collection(db, 'actividades');
+  const qa = CV2.esAdmin() ? query(col) : query(col, or(
+    where('alcance', '==', 'equipo'),
+    where('creadoPor', '==', u.uid),
+    and(where('alcance', '==', 'asignados'), where('competencias', 'array-contains', u.uid))
+  ));
+  const sa = await getDocs(qa);
+  const hijosDe = {};
+  sa.forEach((d) => {
+    const x = d.data();
+    actIdx[d.id] = { titulo: x.titulo ?? d.id, parentId: x.parentId ?? null, color: x.color ?? null, orden: x.orden ?? 0 };
+    (hijosDe[x.parentId ?? ''] ??= []).push(d.id);
+  });
+  const ordenar = (arr) => arr.sort((a, b) => (actIdx[a].orden - actIdx[b].orden)
+    || actIdx[a].titulo.localeCompare(actIdx[b].titulo));
+  roots = ordenar((hijosDe[''] ?? []).slice()).sort((a, b) => actIdx[a].titulo.localeCompare(actIdx[b].titulo));
+  const bajar = (id, nivel, vis) => {
+    if (vis[id]) return; vis[id] = 1;
+    arbolPlano.push({ id, nivel, titulo: actIdx[id].titulo, esRaiz: nivel === 0 });
+    ordenar((hijosDe[id] ?? []).slice()).forEach((h) => bajar(h, nivel + 1, vis));
+  };
+  const vis = {};
+  roots.forEach((r) => bajar(r, 0, vis));
+
+  // Filtro de proyecto con árbol tabulado
+  $('fProyecto').innerHTML = '<option value="">Todos los proyectos</option>' +
+    arbolPlano.map((n) => `<option value="${n.id}">${'\u00A0'.repeat(n.nivel * 4)}${n.esRaiz ? '🏠 ' : '· '}${esc(n.titulo)}</option>`).join('');
+}
+
+// Filtro de usuario (solo admin; colaborador ve lo suyo)
+if (CV2.esAdmin()) {
+  $('fUsuario').classList.remove('oculto');
+  const su = await getDocs(collection(db, 'usuarios'));
+  const ops = [];
+  su.forEach((d) => { const x = d.data(); if (x.activo === true) ops.push({ uid: d.id, nombre: x.nombre ?? d.id }); });
+  ops.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  $('fUsuario').innerHTML = '<option value="">Todo el equipo</option>' +
+    ops.map((p) => `<option value="${p.uid}">${esc(p.nombre)}</option>`).join('');
+}
+$('fUsuario').addEventListener('change', render);
+$('fProyecto').addEventListener('change', render);
+
+// ═══ Suscripción — AL FINAL ═══════════════════════════════
+const cs = collection(db, 'sesiones');
+const qs = CV2.esAdmin() ? query(cs) : query(cs, where('uid', '==', u.uid));
+
+onSnapshot(qs, (snap) => {
+  sesiones = [];
+  snap.forEach((d) => sesiones.push({ id: d.id, ...d.data() }));
+  sesiones.sort((a, b) => ((b.fin ?? b.inicio)?.toMillis?.() ?? 0) - ((a.fin ?? a.inicio)?.toMillis?.() ?? 0));
+  render();
+}, (e) => { console.error(e); CV2.toast('No se pudieron cargar las sesiones', 'error'); });
+</script>
+</body>
+</html>
