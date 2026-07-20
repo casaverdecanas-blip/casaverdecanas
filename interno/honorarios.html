@@ -34,6 +34,11 @@
     padding: 5px 10px; font: inherit; font-size: .8rem; cursor: pointer;
     display: inline-flex; align-items: center; gap: 4px;
   }
+  .btn-nota {
+    border: 0; background: none; color: var(--gris); cursor: pointer;
+    padding: 4px; display: inline-flex; opacity: .55;
+  }
+  .btn-nota:hover { opacity: 1; }
   .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
 </style>
 </head>
@@ -53,6 +58,19 @@
 
   <div id="lista"><div class="vacio">Cargando…</div></div>
 </div>
+
+<dialog id="mEdit" style="border:0;border-radius:14px;padding:16px;width:min(420px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.25);">
+  <h2 style="margin:0 0 4px;">Editar registro</h2>
+  <p class="texto-gris" id="meQue" style="margin:0;"></p>
+  <label>Monto (R$)</label>
+  <input id="meMonto" type="number" min="0" step="0.01" inputmode="decimal">
+  <label>Comentario del administrador</label>
+  <textarea id="meNota" rows="3" placeholder="Aclaración sobre este registro…"></textarea>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+    <button class="btn" id="meCancelar">Cancelar</button>
+    <button class="btn btn-primario" id="meGuardar"><span class="material-icons">save</span> Guardar</button>
+  </div>
+</dialog>
 
 <script type="module">
 // Regla del 2.0: definiciones primero, suscripción AL FINAL.
@@ -86,10 +104,14 @@ function render() {
 
   const fila = (h) => `<div class="hon">
     <div class="info">${esc(h.concepto ?? 'Actividad')}
-      <small>${CV2.fmtFecha(h.cicloCerradoEn)} · ${CV2.fmtHM(h.horas ?? 0)}
-      ${CV2.esAdmin() ? '' : ''}</small></div>
+      <small>${CV2.fmtFecha(h.cicloCerradoEn)} · ${CV2.fmtHM(h.horas ?? 0)}</small>
+      ${h.nota ? `<small style="font-style:italic;color:#7a6a2e;">💬 ${esc(h.nota)}</small>` : ''}
+    </div>
     <span class="monto">${CV2.fmtMonto(h.monto)}</span>
     <span class="estado ${h.estado}">${h.estado === 'pagado' ? '✓ Pagado' : 'Pendiente'}</span>
+    ${CV2.esAdmin()
+      ? `<button class="btn-nota" onclick="editar('${h.id}')" title="Editar / comentar"><span class="material-icons" style="font-size:16px;">edit_note</span></button>`
+      : ''}
     ${CV2.esAdmin() && h.estado !== 'pagado'
       ? `<button class="btn-pagar" onclick="pagar('${h.id}')"><span class="material-icons" style="font-size:15px;">paid</span> Pagar</button>`
       : ''}
@@ -109,6 +131,29 @@ function render() {
     cont.innerHTML = docs.map(fila).join('');
   }
 }
+
+let editId = null;
+window.editar = (id) => {
+  const h = docs.find((x) => x.id === id);
+  if (!h) return;
+  editId = id;
+  $('meQue').textContent = `${h.nombre ?? ''} · ${h.concepto ?? ''} · ${CV2.fmtFecha(h.cicloCerradoEn)}`;
+  $('meMonto').value = h.monto ?? 0;
+  $('meNota').value = h.nota ?? '';
+  $('mEdit').showModal();
+};
+$('meCancelar').addEventListener('click', () => $('mEdit').close());
+$('meGuardar').addEventListener('click', async () => {
+  try {
+    await updateDoc(doc(db, 'honorarios', editId), {
+      monto: Math.max(0, parseFloat($('meMonto').value) || 0),
+      nota: $('meNota').value.trim() || null,
+      actualizadoEn: serverTimestamp()
+    });
+    $('mEdit').close();
+    CV2.toast('Guardado', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+});
 
 window.pagar = async (id) => {
   if (!confirm('¿Marcar este honorario como pagado?')) return;
