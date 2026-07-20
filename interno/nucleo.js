@@ -69,6 +69,7 @@ CV2.NAV = [
   { id: 'sesiones', label: 'Sesiones', href: './gestion-sesiones.html', icono: 'schedule' },
   { id: 'horas', label: 'Horas', href: './horas-stats.html', icono: 'insights' },
   { id: 'honorarios', label: 'Cobros', href: './honorarios.html', icono: 'payments' },
+  { id: 'cabanas', label: 'Cabañas', href: './cabanas.html', icono: 'cottage' },
   { id: 'usuarios', label: 'Usuarios', href: './usuarios.html', icono: 'group' }
 ];
 

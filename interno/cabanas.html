@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Cabañas</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .cabcard { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 12px; margin: 8px 0; box-shadow: var(--sombra); }
+  .cabcard .head { display: flex; align-items: center; gap: 10px; }
+  .cabcard .head b { flex: 1; font-size: 1rem; }
+  .datos { display: flex; gap: 12px; flex-wrap: wrap; font-size: .82rem; color: var(--gris); margin-top: 6px; }
+  .fotos { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .fotos img { width: 74px; height: 56px; object-fit: cover; border-radius: 7px; border: 1px solid var(--linea); }
+  .btn-ico { border: 1px solid var(--linea); background: #fff; border-radius: 7px;
+    padding: 5px 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+    font: inherit; font-size: .8rem; color: var(--tinta); }
+  .btn-ico .material-icons { font-size: 16px; }
+  dialog { border: 0; border-radius: 14px; padding: 16px; width: min(560px, 94vw);
+    max-height: 88dvh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(20,30,18,.45); }
+  .fila2c { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .idioma { display: grid; grid-template-columns: 34px 1fr; gap: 8px; align-items: center; margin-top: 6px; }
+  .idioma span { font-size: .8rem; color: var(--gris); }
+  .fotoedit { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+  .fotoedit img { width: 64px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid var(--linea); }
+  .fotoedit input { flex: 1; font-size: .78rem; }
+  .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <h1>Cabañas</h1>
+  <p class="texto-gris" style="margin-top:-6px;">La información de cada cabaña alimenta
+  las reservas, las limpiezas y —en la Fase 4— el sitio público en tres idiomas.</p>
+  <div id="lista"><div class="vacio">Cargando…</div></div>
+</div>
+
+<dialog id="modal">
+  <h2 id="mTit" style="margin:0 0 6px;">Editar cabaña</h2>
+
+  <label>Nombre</label>
+  <div class="idioma"><span>🇪🇸 es</span><input id="nEs" maxlength="60"></div>
+  <div class="idioma"><span>🇧🇷 pt</span><input id="nPt" maxlength="60"></div>
+  <div class="idioma"><span>🇬🇧 en</span><input id="nEn" maxlength="60"></div>
+
+  <label>Descripción</label>
+  <div class="idioma"><span>🇪🇸 es</span><textarea id="dEs" rows="2"></textarea></div>
+  <div class="idioma"><span>🇧🇷 pt</span><textarea id="dPt" rows="2"></textarea></div>
+  <div class="idioma"><span>🇬🇧 en</span><textarea id="dEn" rows="2"></textarea></div>
+
+  <div class="fila2c">
+    <div><label>Capacidad (personas)</label><input id="fCap" type="number" min="1" step="1" inputmode="numeric"></div>
+    <div><label>Orden en el sitio</label><input id="fOrden" type="number" min="1" step="1" inputmode="numeric"></div>
+  </div>
+  <div class="fila2c">
+    <div><label>Tarifa por noche (R$)</label><input id="fNoche" type="number" min="0" step="0.01" inputmode="decimal"></div>
+    <div><label>Precio de limpieza (R$)</label><input id="fLimpieza" type="number" min="0" step="0.01" inputmode="decimal"></div>
+  </div>
+
+  <label>Amenities (separadas por coma)</label>
+  <input id="fAmenities" placeholder="Wifi, Piscina, Aire acondicionado…">
+
+  <label>Google Calendar ID (sync Airbnb — se conecta en la próxima tanda)</label>
+  <input id="fCalendar" style="font-family:monospace;font-size:.8rem;" placeholder="xxxx@group.calendar.google.com">
+
+  <label>Fotos</label>
+  <div id="fotosEdit"></div>
+  <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+    <button class="btn" id="btnSubirFoto" style="font-size:.84rem;">
+      <span class="material-icons">add_photo_alternate</span> Subir foto</button>
+    <input id="inputFoto" type="file" accept="image/*" class="oculto">
+    <button class="btn" id="btnUrlFoto" style="font-size:.84rem;">
+      <span class="material-icons">link</span> Pegar URL</button>
+  </div>
+
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+    <button class="btn" id="mCancelar">Cancelar</button>
+    <button class="btn btn-primario" id="mGuardar"><span class="material-icons">save</span> Guardar</button>
+  </div>
+</dialog>
+
+<script type="module">
+// Regla del 2.0: definiciones primero, suscripción AL FINAL.
+import { db, collection, onSnapshot, doc, updateDoc, serverTimestamp } from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+if (!CV2.esAdmin()) { location.href = './index.html'; throw new Error('solo admin'); }
+CV2.renderNav('cabanas');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+let cabanas = [];
+let editId = null;
+let fotosTmp = [];
+
+const nom = (c) => c.nombre?.es ?? c.nombre?.pt ?? c.nombre?.en ?? c.id;
+
+// ═══ Cloudinary (mismo cloud del sistema, subida sin firma) ═══
+async function subirCloudinary(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('upload_preset', 'preset-comprobantes');
+  const r = await fetch('https://api.cloudinary.com/v1_1/dnwfu8ffn/image/upload', { method: 'POST', body: fd });
+  if (!r.ok) throw new Error('Cloudinary ' + r.status);
+  return (await r.json()).secure_url;
+}
+
+// ═══ Render lista ═════════════════════════════════════════
+function render() {
+  const cont = $('lista');
+  if (!cabanas.length) {
+    cont.innerHTML = '<div class="vacio">Sin cabañas. Entrá a <b>Reservas</b> para crear las 3 base.</div>';
+    return;
+  }
+  cont.innerHTML = cabanas.map((c) => `
+    <div class="cabcard">
+      <div class="head">
+        <span class="material-icons" style="color:var(--verde);">cottage</span>
+        <b>${esc(nom(c))}</b>
+        ${c.activa === false ? '<span class="chip" style="background:#fde4e2;color:#8f1d17;">inactiva</span>' : ''}
+        <button class="btn-ico" onclick="editar('${c.id}')"><span class="material-icons">edit</span> Editar</button>
+      </div>
+      <div class="datos">
+        <span>👥 ${c.capacidad ?? '—'}</span>
+        <span>🌙 ${CV2.fmtMonto(c.tarifas?.noche ?? 0)}/noche</span>
+        <span>🧹 ${CV2.fmtMonto(c.tarifas?.limpieza ?? 0)} limpieza</span>
+        <span>📅 ${c.calendarId ? 'calendario conectado' : 'sin calendario Airbnb'}</span>
+        <span>🖼 ${(c.fotos ?? []).length} foto(s)</span>
+      </div>
+      ${(c.fotos ?? []).length ? `<div class="fotos">${c.fotos.slice(0, 6).map((f) => `<img src="${esc(f)}" loading="lazy">`).join('')}</div>` : ''}
+      ${c.descripcion?.es ? `<p class="texto-gris" style="margin:8px 0 0;font-size:.84rem;">${esc(c.descripcion.es)}</p>` : ''}
+    </div>`).join('');
+}
+
+// ═══ Edición ══════════════════════════════════════════════
+function renderFotosEdit() {
+  $('fotosEdit').innerHTML = fotosTmp.map((f, i) => `
+    <div class="fotoedit">
+      <img src="${esc(f)}">
+      <input value="${esc(f)}" readonly>
+      <button class="btn-ico" onclick="quitarFoto(${i})"><span class="material-icons" style="color:var(--rojo)">delete_outline</span></button>
+    </div>`).join('') || '<p class="texto-gris" style="margin:4px 0 0;">Sin fotos todavía.</p>';
+}
+window.quitarFoto = (i) => { fotosTmp.splice(i, 1); renderFotosEdit(); };
+
+window.editar = (id) => {
+  const c = cabanas.find((x) => x.id === id);
+  editId = id;
+  $('mTit').textContent = 'Editar · ' + nom(c);
+  $('nEs').value = c.nombre?.es ?? ''; $('nPt').value = c.nombre?.pt ?? ''; $('nEn').value = c.nombre?.en ?? '';
+  $('dEs').value = c.descripcion?.es ?? ''; $('dPt').value = c.descripcion?.pt ?? ''; $('dEn').value = c.descripcion?.en ?? '';
+  $('fCap').value = c.capacidad ?? 4;
+  $('fOrden').value = c.orden ?? 1;
+  $('fNoche').value = c.tarifas?.noche ?? 0;
+  $('fLimpieza').value = c.tarifas?.limpieza ?? 0;
+  $('fAmenities').value = (c.amenities ?? []).join(', ');
+  $('fCalendar').value = c.calendarId ?? '';
+  fotosTmp = (c.fotos ?? []).slice();
+  renderFotosEdit();
+  $('modal').showModal();
+};
+
+$('btnSubirFoto').addEventListener('click', () => $('inputFoto').click());
+$('inputFoto').addEventListener('change', async () => {
+  const f = $('inputFoto').files[0];
+  if (!f) return;
+  $('btnSubirFoto').disabled = true;
+  CV2.toast('Subiendo foto…', 'info');
+  try {
+    const url = await subirCloudinary(f);
+    fotosTmp.push(url);
+    renderFotosEdit();
+    CV2.toast('✓ Foto subida', 'success');
+  } catch (e) { CV2.toast('No se pudo subir: ' + e.message, 'error'); }
+  finally { $('btnSubirFoto').disabled = false; $('inputFoto').value = ''; }
+});
+$('btnUrlFoto').addEventListener('click', () => {
+  const url = prompt('Pegá la URL de la imagen:');
+  if (url?.startsWith('http')) { fotosTmp.push(url.trim()); renderFotosEdit(); }
+});
+
+$('mCancelar').addEventListener('click', () => $('modal').close());
+$('mGuardar').addEventListener('click', async () => {
+  const es = $('nEs').value.trim();
+  if (!es) { CV2.toast('Falta el nombre en español', 'error'); return; }
+  $('mGuardar').disabled = true;
+  try {
+    await updateDoc(doc(db, 'cabanas', editId), {
+      nombre: { es, pt: $('nPt').value.trim() || es, en: $('nEn').value.trim() || es },
+      descripcion: { es: $('dEs').value.trim(), pt: $('dPt').value.trim(), en: $('dEn').value.trim() },
+      capacidad: Math.max(1, parseInt($('fCap').value) || 1),
+      orden: Math.max(1, parseInt($('fOrden').value) || 1),
+      tarifas: {
+        noche: Math.max(0, parseFloat($('fNoche').value) || 0),
+        limpieza: Math.max(0, parseFloat($('fLimpieza').value) || 0),
+        moneda: 'BRL'
+      },
+      amenities: $('fAmenities').value.split(',').map((x) => x.trim()).filter(Boolean),
+      calendarId: $('fCalendar').value.trim() || null,
+      fotos: fotosTmp,
+      actualizadoEn: serverTimestamp()
+    });
+    $('modal').close();
+    CV2.toast('Guardada', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+  finally { $('mGuardar').disabled = false; }
+});
+
+// ═══ Suscripción — AL FINAL ═══════════════════════════════
+onSnapshot(collection(db, 'cabanas'), (snap) => {
+  cabanas = [];
+  snap.forEach((d) => cabanas.push({ id: d.id, ...d.data() }));
+  cabanas.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+  render();
+}, (e) => { console.error(e); CV2.toast('No se pudieron cargar las cabañas (' + (e.code ?? e.message) + ')', 'error'); });
+</script>
+</body>
+</html>

@@ -107,11 +107,42 @@
   </div>
 </dialog>
 
+<dialog id="mPago" style="border:0;border-radius:14px;padding:16px;width:min(420px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.25);">
+  <h2 style="margin:0 0 4px;">Registrar pago</h2>
+  <p class="texto-gris" id="pQuien" style="margin:0;"></p>
+  <div class="fila2c">
+    <div><label>Concepto</label>
+      <select id="pConcepto">
+        <option value="sena">Seña</option>
+        <option value="saldo">Saldo</option>
+        <option value="otro">Otro pago</option>
+      </select></div>
+    <div><label>Método</label>
+      <select id="pMetodo">
+        <option value="pix">Pix</option>
+        <option value="efectivo">Efectivo</option>
+        <option value="transferencia">Transferencia</option>
+        <option value="airbnb">Airbnb</option>
+        <option value="otro">Otro</option>
+      </select></div>
+  </div>
+  <div class="fila2c">
+    <div><label>Monto (R$)</label><input id="pMonto" type="number" min="0" step="0.01" inputmode="decimal"></div>
+    <div><label>Fecha</label><input id="pFecha" type="date"></div>
+  </div>
+  <label>Nota (opcional)</label>
+  <input id="pNota" maxlength="150">
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+    <button class="btn" id="pCancelar">Cancelar</button>
+    <button class="btn btn-primario" id="pGuardar"><span class="material-icons">save</span> Guardar</button>
+  </div>
+</dialog>
+
 <script type="module">
 // Regla del 2.0: definiciones primero, suscripción AL FINAL.
 import {
   db, collection, query, onSnapshot, getDocs,
-  doc, addDoc, updateDoc, setDoc, serverTimestamp, arrayUnion, Timestamp
+  doc, addDoc, updateDoc, setDoc, deleteDoc, serverTimestamp, arrayUnion, Timestamp
 } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
 
@@ -125,9 +156,17 @@ const esc = CV2.esc;
 // ═══ Estado ═══════════════════════════════════════════════
 let reservas = [];
 let cabanas = [];              // [{id, nombre, color}]
+let pagos = [];                // colección plana; se agrupa por reservaId
 let filtro = 'vigentes';
 let abierta = null;
 let editId = null;
+let pagoReservaId = null;      // reserva a la que se registra un pago
+
+// Derivados de dinero — NUNCA guardados (CONVENCIONES)
+const pagosDe = (rid) => pagos.filter((p) => p.reservaId === rid)
+  .sort((a, b) => (b.fecha ?? '').localeCompare(a.fecha ?? ''));
+const pagadoDe = (rid) => pagosDe(rid).reduce((a, p) => a + (Number(p.monto) || 0), 0);
+const tieneSena = (rid) => pagosDe(rid).some((p) => p.concepto === 'sena');
 
 const COLORES_CAB = ['#2a9d8f', '#e76f51', '#4361ee', '#b8860b', '#7209b7'];
 
@@ -182,12 +221,30 @@ function render() {
         <span>${CV2.fmtFecha(r.checkIn)} → ${CV2.fmtFecha(r.checkOut)} · ${noches(r)} noche(s)</span>
         <span>👤 ${r.adultos}${r.ninos ? ' + ' + r.ninos + ' 🧒' : ''}</span>
         <span><b>${CV2.fmtMonto(r.totalBRL ?? 0)}</b></span>
+        ${(() => {
+          const pag = pagadoDe(r.id);
+          const saldo = (r.totalBRL ?? 0) - pag;
+          if (pag <= 0) return r.estado === 'presupuesto' ? '' : '<span style="color:var(--rojo);">sin pagos</span>';
+          return `<span style="color:${saldo > 0.01 ? 'var(--amarillo)' : 'var(--ok)'};">${saldo > 0.01 ? 'saldo ' + CV2.fmtMonto(saldo) : '✓ pagada'}</span>`;
+        })()}
+        ${tieneSena(r.id) && r.estado === 'presupuesto' ? '<span class="est" style="background:#fdf1d8;color:#8a6206;">señada</span>' : ''}
       </div>`;
 
     if (abierta === r.id) {
       const ultimos = (r.historial ?? []).slice(-3).reverse()
         .map((x) => `${CV2.fmtFecha(x.fecha)} · ${esc(x.autorNombre)}: ${esc(x.cambio)}`).join('<br>');
+      const ps = pagosDe(r.id);
+      const CONC = { sena: 'Seña', saldo: 'Saldo', otro: 'Pago' };
       h += `<div class="detalle" onclick="event.stopPropagation()">
+        ${ps.length ? `<div style="margin-bottom:6px;">
+          <b>Pagos</b> · pagado ${CV2.fmtMonto(pagadoDe(r.id))} de ${CV2.fmtMonto(r.totalBRL ?? 0)}
+          ${ps.map((p) => `<div style="display:flex;gap:8px;align-items:center;font-size:.82rem;color:var(--gris);margin-top:3px;">
+            <span>${CV2.fmtFecha(p.fecha)}</span>
+            <span style="flex:1;">${CONC[p.concepto] ?? 'Pago'} · ${esc(p.metodo ?? '')}${p.nota ? ' · ' + esc(p.nota) : ''}</span>
+            <b style="color:var(--tinta);">${CV2.fmtMonto(p.monto)}</b>
+            ${CV2.esAdmin() ? `<button class="btn-ico" style="border:0;padding:2px;" onclick="borrarPago('${p.id}')" title="Eliminar pago"><span class="material-icons" style="font-size:15px;color:var(--rojo)">delete_outline</span></button>` : ''}
+          </div>`).join('')}
+        </div>` : ''}
         ${r.notas ? `<div>📝 ${esc(r.notas)}</div>` : ''}
         ${ultimos ? `<div class="hist">${ultimos}</div>` : ''}
         <div class="acciones">
@@ -197,6 +254,8 @@ function render() {
             ? `<button class="btn-ico" onclick="cambiarEstado('${r.id}','finalizada')"><span class="material-icons">flag</span> Finalizar</button>` : ''}
           ${CV2.esAdmin() && (r.estado === 'presupuesto' || r.estado === 'confirmada')
             ? `<button class="btn-ico" style="color:var(--rojo);" onclick="cambiarEstado('${r.id}','anulada')"><span class="material-icons">cancel</span> Anular</button>` : ''}
+          ${CV2.esAdmin() && r.estado !== 'anulada'
+            ? `<button class="btn-ico" style="border-color:var(--verde);color:var(--verde-osc);" onclick="abrirPago('${r.id}')"><span class="material-icons">attach_money</span> Pago</button>` : ''}
           ${CV2.esAdmin()
             ? `<button class="btn-ico" onclick="editar('${r.id}')"><span class="material-icons">edit</span> Editar</button>` : ''}
         </div>
@@ -307,6 +366,55 @@ $('mGuardar').addEventListener('click', async () => {
   finally { $('mGuardar').disabled = false; }
 });
 
+// ═══ Pagos y señas ════════════════════════════════════════
+window.abrirPago = (rid) => {
+  pagoReservaId = rid;
+  const r = reservas.find((x) => x.id === rid);
+  const saldo = (r.totalBRL ?? 0) - pagadoDe(rid);
+  $('pQuien').textContent = `${r.clienteNombre} · ${nombreCab(r.cabanaId)} · saldo ${CV2.fmtMonto(Math.max(0, saldo))}`;
+  $('pConcepto').value = pagosDe(rid).length ? 'saldo' : 'sena';
+  $('pMetodo').value = r.origen === 'airbnb' ? 'airbnb' : 'pix';
+  $('pMonto').value = '';
+  $('pFecha').value = CV2.hoyISO();
+  $('pNota').value = '';
+  $('mPago').showModal();
+  $('pMonto').focus();
+};
+$('pCancelar').addEventListener('click', () => $('mPago').close());
+$('pGuardar').addEventListener('click', async () => {
+  const monto = Math.max(0, parseFloat($('pMonto').value) || 0);
+  if (!monto) { CV2.toast('Falta el monto', 'error'); return; }
+  $('pGuardar').disabled = true;
+  try {
+    const r = reservas.find((x) => x.id === pagoReservaId);
+    await addDoc(collection(db, 'pagos'), {
+      reservaId: pagoReservaId,
+      monto, moneda: 'BRL',
+      concepto: $('pConcepto').value,
+      metodo: $('pMetodo').value,
+      fecha: $('pFecha').value || CV2.hoyISO(),
+      nota: $('pNota').value.trim(),
+      comprobanteUrl: null,
+      creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
+    });
+    await updateDoc(doc(db, 'reservas', pagoReservaId), {
+      historial: registrarCambio(`pago ${$('pConcepto').value} ${CV2.fmtMonto(monto)} (${$('pMetodo').value})`),
+      actualizadoEn: serverTimestamp()
+    });
+    $('mPago').close();
+    CV2.toast('💰 Pago registrado', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+  finally { $('pGuardar').disabled = false; }
+});
+
+window.borrarPago = async (pid) => {
+  if (!confirm('¿Eliminar este pago?')) return;
+  try {
+    await deleteDoc(doc(db, 'pagos', pid));
+    CV2.toast('Pago eliminado', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+};
+
 $('filtros').addEventListener('click', (ev) => {
   const b = ev.target.closest('.fchip');
   if (!b) return;
@@ -347,6 +455,12 @@ $('filtros').addEventListener('click', (ev) => {
 }
 
 // ═══ Suscripción — AL FINAL ═══════════════════════════════
+onSnapshot(query(collection(db, 'pagos')), (snap) => {
+  pagos = [];
+  snap.forEach((d) => pagos.push({ id: d.id, ...d.data() }));
+  render();
+}, (e) => console.error('pagos:', e));
+
 onSnapshot(query(collection(db, 'reservas')), (snap) => {
   reservas = [];
   snap.forEach((d) => reservas.push({ id: d.id, ...d.data() }));

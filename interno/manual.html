@@ -42,6 +42,7 @@
     <a href="#horas">Horas</a>
     <a href="#reservas">Reservas</a>
     <a href="#comunicacion">Chat</a>
+    <a href="#cabanas">Cabañas</a>
     <a href="#usuarios">Usuarios</a>
     <a href="#app">La app</a>
   </div>
@@ -138,6 +139,10 @@
       confirmada en la misma cabaña.</li>
       <li>Filtros: <b>Vigentes</b> (presupuestos + confirmadas por venir o en curso),
       por estado, o todas.</li>
+      <li><b>Pagos y señas</b> (admin): el botón 💰 registra cada pago con concepto
+      (Seña/Saldo/Otro), método, monto y fecha. La tarjeta muestra el <b>saldo</b>
+      derivado (nunca guardado) y la etiqueta <b>señada</b> en presupuestos con seña.
+      Todo pago queda también en el historial de la reserva.</li>
     </ul>
     <div class="tip">Próximamente en esta fase: clientes y pagos por reserva, calendario,
     generación automática de limpiezas y la sincronización con Airbnb.</div>
@@ -149,6 +154,16 @@
     y cuándo, y el globo azul <b>nuevo</b> cuando hay algo sin leer. Adentro es
     mensajería común: tus burbujas en verde, <kbd>Enter</kbd> envía, la lectura se marca
     sola. El botón <b>Tema</b> abre uno nuevo con su primer mensaje.</p>
+  </section>
+
+  <section id="cabanas" class="card">
+    <h2><span class="material-icons">cottage</span>Cabañas (solo admin)</h2>
+    <p>La ficha de cada cabaña: <b>nombre y descripción en tres idiomas</b> (es/pt/en —
+    lo que se ve en el sitio público), capacidad, <b>tarifas</b> de noche y limpieza,
+    amenities, el <b>Google Calendar ID</b> para la sincronización con Airbnb, y las
+    <b>fotos</b> — subilas directo desde el teléfono (van a Cloudinary) o pegá una URL.
+    Si completás solo el español, los otros idiomas usan ese texto hasta que los
+    traduzcas.</p>
   </section>
 
   <section id="usuarios" class="card">
