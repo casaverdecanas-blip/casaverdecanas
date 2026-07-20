@@ -63,8 +63,10 @@
 <dialog id="modal">
   <h2 id="mTit" style="margin:0 0 6px;">Registrar horas</h2>
   <div id="grupoAct">
-    <label>Actividad (cualquier nivel del árbol)</label>
-    <select id="fAct"></select>
+    <label>Proyecto</label>
+    <select id="fProy"></select>
+    <label>Actividad (cualquier nivel dentro del proyecto)</label>
+    <select id="fAct"><option value="">Primero elegí el proyecto…</option></select>
   </div>
   <label>Fecha</label>
   <input id="fFecha" type="date">
@@ -212,16 +214,32 @@ const actualizarCalc = () => {
 };
 ['fFecha', 'fIni', 'fFin'].forEach((id) => $(id).addEventListener('input', actualizarCalc));
 
+// Cascada: al elegir proyecto, el select de actividades muestra SOLO
+// su subárbol (incluida la raíz), tabulado. Reduce la lista cuando
+// el sistema empiece a llenarse.
+function poblarActividadesDe(rid) {
+  if (!rid) { $('fAct').innerHTML = '<option value="">Primero elegí el proyecto…</option>'; return; }
+  const sub = arbolPlano.filter((n) => enPath(n.id, rid));
+  $('fAct').innerHTML = '<option value="">Elegí la actividad…</option>' +
+    sub.map((n) => {
+      const nivel = n.nivel - (arbolPlano.find((x) => x.id === rid)?.nivel ?? 0);
+      const etiqueta = n.id === rid ? `🏠 ${esc(n.titulo)} (el proyecto en sí)` : '\u00A0'.repeat(nivel * 4) + '· ' + esc(n.titulo);
+      return `<option value="${n.id}">${etiqueta}</option>`;
+    }).join('');
+}
+
 $('btnManual').addEventListener('click', () => {
   editId = null;
   $('mTit').textContent = 'Registrar horas';
   $('grupoAct').classList.remove('oculto');
-  $('fAct').innerHTML = '<option value="">Elegí una actividad…</option>' +
-    arbolPlano.map((n) => `<option value="${n.id}">${'\u00A0'.repeat(n.nivel * 4)}${n.esRaiz ? '🏠 ' : '· '}${esc(n.titulo)}</option>`).join('');
+  $('fProy').innerHTML = '<option value="">Elegí el proyecto…</option>' +
+    roots.map((r) => `<option value="${r}">📁 ${esc(actIdx[r].titulo)}</option>`).join('');
+  poblarActividadesDe('');
   $('fFecha').value = CV2.hoyISO();
   $('fIni').value = ''; $('fFin').value = ''; $('fNota').value = ''; $('calc').textContent = '';
   $('modal').showModal();
 });
+$('fProy').addEventListener('change', () => poblarActividadesDe($('fProy').value));
 
 window.editarSes = (id) => {
   const s = sesiones.find((x) => x.id === id);
