@@ -61,6 +61,7 @@ CV2._listonAdmin = function () {
 CV2.NAV = [
   { id: 'inicio', label: 'Inicio', href: './index.html', icono: 'home' },
   { id: 'actividades', label: 'Actividades', href: './actividades.html', icono: 'checklist' },
+  { id: 'reservas', label: 'Reservas', href: './reservas.html', icono: 'king_bed' },
   { id: 'comunicacion', label: 'Chat', href: './comunicacion.html', icono: 'forum' },
   { id: 'sesiones', label: 'Sesiones', href: './gestion-sesiones.html', icono: 'schedule' },
   { id: 'horas', label: 'Horas', href: './horas-stats.html', icono: 'insights' },
@@ -71,7 +72,7 @@ CV2.NAV = [
 CV2.renderNav = function (activo) {
   const cont = document.getElementById('nav');
   if (!cont) return;
-  const SIEMPRE = ['inicio', 'actividades', 'comunicacion', 'sesiones', 'horas', 'honorarios'];
+  const SIEMPRE = ['inicio', 'actividades', 'reservas', 'comunicacion', 'sesiones', 'horas', 'honorarios'];
   const items = CV2.NAV
     .filter(it => CV2.puede(it.id) || SIEMPRE.includes(it.id))
     .map(it => `
@@ -84,6 +85,9 @@ CV2.renderNav = function (activo) {
       ${items}
       <span class="nav-sep"></span>
       <span class="nav-quien">${CV2.esc(CV2.usuario?.nombre ?? '')}</span>
+      <a class="nav-item" href="./manual.html#${activo}" title="Ayuda de esta página">
+        <span class="material-icons">help</span>
+      </a>
       <button class="nav-item" id="btnSalir" title="Cerrar sesión">
         <span class="material-icons">logout</span>
       </button>

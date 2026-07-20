@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Manual</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .indice { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 4px; }
+  .indice a {
+    font-size: .8rem; text-decoration: none; border: 1px solid var(--linea);
+    background: #fff; border-radius: 999px; padding: 5px 12px; color: var(--verde-osc);
+  }
+  section { scroll-margin-top: 70px; }
+  section h2 { display: flex; align-items: center; gap: 8px; color: var(--verde-osc); }
+  section h2 .material-icons { font-size: 20px; }
+  .card p { margin: .5em 0; }
+  .card ul { margin: .4em 0; padding-left: 1.2em; }
+  .card li { margin: .3em 0; }
+  kbd { background: var(--verde-claro); border-radius: 5px; padding: 1px 7px; font-family: inherit; font-size: .85em; }
+  .tip { border-left: 4px solid var(--amarillo); background: #fdf8ea; border-radius: 0 8px 8px 0; padding: 8px 12px; font-size: .86rem; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <h1>Manual de CasaVerde 2.0</h1>
+  <p class="texto-gris" style="margin-top:-6px;">Versión Fase 1 · el manual vive con el
+  código: siempre describe exactamente lo que el sistema hace.</p>
+
+  <div class="indice">
+    <a href="#actividades">Actividades</a>
+    <a href="#cronometro">Cronómetro</a>
+    <a href="#cobros">Cobros</a>
+    <a href="#sesiones">Sesiones</a>
+    <a href="#horas">Horas</a>
+    <a href="#reservas">Reservas</a>
+    <a href="#comunicacion">Chat</a>
+    <a href="#usuarios">Usuarios</a>
+    <a href="#app">La app</a>
+  </div>
+
+  <section id="actividades" class="card">
+    <h2><span class="material-icons">checklist</span>Actividades</h2>
+    <p>Todo el trabajo del complejo vive en un árbol: <b>proyectos</b> 📁 (con su color,
+    que toda su línea hereda como fondo) y adentro actividades y sub-ítems sin límite de
+    niveles. Tocá una fila para abrir su detalle y acciones; el triangulito ▸ despliega
+    los hijos.</p>
+    <ul>
+      <li><b>Recurrentes (rutina)</b>: se repiten cada X días. Al realizarse quedan grises
+      "Vuelve el…" y al llegar su fecha se rehabilitan solas, recorriendo el semáforo:
+      🟢 toca hacerla → 🟡 atrasada → 🔴 muy atrasada.</li>
+      <li><b>Únicas</b>: al terminarse quedan <s>tachadas</s> a la vista, hasta que un
+      administrador las elimine (o restaure).</li>
+      <li><b>Alcances</b>: Equipo (todos), Asignados (elegís quiénes 👥) o Personal 🔒.</li>
+      <li><b>Precio (R$)</b>: si una actividad tiene precio, al cerrarse su ciclo genera
+      los cobros automáticamente (ver Cobros).</li>
+      <li><b>Filtros</b>: Todas · Hoy (lo que toca o está vencido) · ★ Destacadas (tus
+      estrellas, personales).</li>
+    </ul>
+  </section>
+
+  <section id="cronometro" class="card">
+    <h2><span class="material-icons">timer</span>Cronómetro: Play y Stop</h2>
+    <p>Registrar tiempo es simple: <kbd>▶</kbd> cuando empezás, <kbd>⏹</kbd> cuando
+    terminás. No hay pausa: si cortás, frená; al retomar, Play de nuevo — quedan dos
+    sesiones y está perfecto. Un solo cronómetro por persona.</p>
+    <p><b>Si hay un reloj corriendo, es lo primero que ves</b>: el cartel verde arriba de
+    todo, con la actividad, el tiempo y el botón STOP — aunque hayas cerrado el navegador
+    o se te haya reiniciado el teléfono.</p>
+    <p>Al frenar una <b>recurrente</b>, el sistema pregunta si quedó <b>terminada</b>:</p>
+    <ul>
+      <li><b>Sí</b> → se reprograma para el próximo ciclo, y se frenan también los relojes
+      de tus compañeros en esa actividad (sus horas quedan registradas e incluidas en el
+      reparto de este ciclo).</li>
+      <li><b>Todavía no</b> → tu tiempo queda registrado igual y la actividad sigue
+      pendiente; los relojes ajenos siguen corriendo.</li>
+    </ul>
+    <p>El botón <kbd>✔</kbd> marca la actividad como realizada <b>sin</b> cronómetro
+    (queda un registro de 0 horas con tu nombre).</p>
+  </section>
+
+  <section id="cobros" class="card">
+    <h2><span class="material-icons">payments</span>Cobros (honorarios)</h2>
+    <p>Se generan solos: al cerrar el ciclo de una actividad <b>con precio</b>, el monto
+    se reparte entre quienes trabajaron en el ciclo, <b>en proporción a sus horas</b>.
+    Ejemplo: precio R$ 100, Flor 3 h y Mauro 1 h → Flor R$ 75, Mauro R$ 25. Si nadie
+    cronometró (tilde puro), todo va a quien cerró.</p>
+    <ul>
+      <li>Cada colaborador ve <b>sus</b> cobros con el total pendiente.</li>
+      <li>El admin ve todo agrupado por persona, marca <b>Pagado</b>, y con el lapicito
+      discreto puede corregir el monto y dejar un <b>comentario</b> 💬 aclaratorio.</li>
+    </ul>
+    <div class="tip">Si el admin edita o borra sesiones en el Gestor, los cobros de los
+    ciclos afectados se <b>recalculan solos</b> conservando el pozo del ciclo. Los ciclos
+    con pagos ya hechos no se tocan: esos se ajustan a mano acá.</div>
+  </section>
+
+  <section id="sesiones" class="card">
+    <h2><span class="material-icons">schedule</span>Gestor de Sesiones</h2>
+    <p>El registro completo de tiempo, agrupado proyecto → actividad → sesiones, cada
+    proyecto con su color. Es <b>la fuente que gobierna</b> las horas, las estadísticas y
+    los cobros.</p>
+    <ul>
+      <li><b>Registrar horas</b> a mano: elegís el <b>proyecto</b> primero y después la
+      actividad dentro de él (cualquier nivel, incluso "el proyecto en sí"), fecha y horas
+      de inicio/fin — el total se calcula solo. Se marcan con 📝 (⏱ cronómetro, ✔ tilde).</li>
+      <li>Cada uno edita o borra <b>sus</b> registros; el admin, todos.</li>
+      <li>Filtros por persona (admin) y por proyecto o cualquier subcategoría.</li>
+    </ul>
+  </section>
+
+  <section id="horas" class="card">
+    <h2><span class="material-icons">insights</span>Análisis de horas</h2>
+    <p>Las estadísticas del tiempo trabajado: elegí el período (7/30/90 días, año o
+    todo), y mirá los totales, la torta por proyecto con sus colores y la tabla por
+    persona con porcentajes. El admin filtra por persona y por proyecto o subcategoría;
+    cada colaborador ve lo suyo.</p>
+  </section>
+
+  <section id="reservas" class="card">
+    <h2><span class="material-icons">king_bed</span>Reservas</h2>
+    <p>Toda reserva vive un ciclo: <b>presupuesto → confirmada → finalizada</b> (o
+    anulada). El presupuesto ES una reserva sin confirmar — no hay dos listas.</p>
+    <ul>
+      <li>La tarjeta muestra huésped, cabaña (con su color), fechas y noches, personas y
+      total. La etiqueta 🏠 <b>En casa</b> marca a quien está alojado hoy.</li>
+      <li>Tocá la tarjeta para abrir acciones (admin): <b>Confirmar</b>, <b>Finalizar</b>
+      (al pasar la salida), <b>Anular</b> y Editar. Cada cambio queda en el historial con
+      fecha y autor.</li>
+      <li>Al confirmar, el sistema avisa si las fechas se <b>superponen</b> con otra
+      confirmada en la misma cabaña.</li>
+      <li>Filtros: <b>Vigentes</b> (presupuestos + confirmadas por venir o en curso),
+      por estado, o todas.</li>
+    </ul>
+    <div class="tip">Próximamente en esta fase: clientes y pagos por reserva, calendario,
+    generación automática de limpiezas y la sincronización con Airbnb.</div>
+  </section>
+
+  <section id="comunicacion" class="card">
+    <h2><span class="material-icons">forum</span>Chat del equipo</h2>
+    <p>Temas de conversación con su historial. La lista muestra el último mensaje, quién
+    y cuándo, y el globo azul <b>nuevo</b> cuando hay algo sin leer. Adentro es
+    mensajería común: tus burbujas en verde, <kbd>Enter</kbd> envía, la lectura se marca
+    sola. El botón <b>Tema</b> abre uno nuevo con su primer mensaje.</p>
+  </section>
+
+  <section id="usuarios" class="card">
+    <h2><span class="material-icons">group</span>Usuarios (solo admin)</h2>
+    <ul>
+      <li><b>Cuenta nueva</b>: nombre, email y contraseña inicial — la cuenta se crea
+      desde el panel, sin perder tu sesión. La persona después la cambia con "Olvidé mi
+      contraseña".</li>
+      <li><b>Ya existe en Auth</b>: vincula por UID una cuenta creada en la consola.</li>
+      <li><b>Desactivar</b> corta el acceso al instante sin borrar historial; se puede
+      reactivar. No podés desactivarte ni quitarte tu propio rol de admin.</li>
+    </ul>
+  </section>
+
+  <section id="app" class="card">
+    <h2><span class="material-icons">install_mobile</span>La app</h2>
+    <ul>
+      <li><b>Instalala</b>: iPhone/iPad → Compartir → "Agregar a inicio" · Android → menú
+      → "Instalar app". Abre al instante, con ícono propio.</li>
+      <li><b>Funciona sin señal</b>: podés mirar todo y hasta cronometrar en modo avión;
+      al volver la conexión, se sincroniza solo.</li>
+      <li>Los datos se actualizan <b>en vivo</b>: lo que carga un compañero aparece en tu
+      pantalla sin recargar.</li>
+      <li>El listón amarillo/negro arriba indica que la sesión es de un administrador.</li>
+    </ul>
+  </section>
+
+  <p class="texto-gris" style="text-align:center;">CasaVerde 2.0 · Fase 1 · el botón
+  <span class="material-icons" style="font-size:15px;vertical-align:middle;">help</span>
+  de la barra te trae siempre a la sección de la página donde estás.</p>
+</div>
+
+<script type="module">
+import { CV2 } from './nucleo.js';
+CV2.registrarSW();
+await CV2.verificarAuth();
+CV2.renderNav('manual');
+// Ir al ancla pedida (ayuda contextual)
+if (location.hash) {
+  document.querySelector(location.hash)?.scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
