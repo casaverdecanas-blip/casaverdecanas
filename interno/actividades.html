@@ -47,6 +47,8 @@
   }
   .btn-ico .material-icons { font-size: 18px; }
   .estrella { color: #c9a227; }
+  .act-row.hecha .act-titulo { text-decoration: line-through; color: var(--gris); font-weight: 500; }
+  .act-row.hecha { opacity: .75; }
   .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
 
   /* ── Modal ── */
@@ -114,6 +116,7 @@
         <label>Alcance</label>
         <select id="fAlcance">
           <option value="equipo">Equipo (todos)</option>
+          <option value="asignados">Asignados (elegir quiénes)</option>
           <option value="personal">Personal (solo yo)</option>
         </select>
       </div>
@@ -149,6 +152,11 @@
       </div>
     </div>
 
+    <div id="grupoCompetencias" class="oculto">
+      <label>Quiénes (además del creador)</label>
+      <div id="fCompetencias" style="display:flex;flex-direction:column;gap:6px;border:1px solid var(--linea);border-radius:8px;padding:10px;"></div>
+    </div>
+
     <div class="check-linea">
       <input id="fEsCompra" type="checkbox">
       <span>Es una compra</span>
@@ -166,7 +174,7 @@
 <script type="module">
 import {
   db, collection, query, where, or, and, onSnapshot,
-  doc, addDoc, updateDoc, deleteDoc, setDoc, getDoc,
+  doc, addDoc, updateDoc, deleteDoc, setDoc, getDoc, getDocs,
   serverTimestamp, arrayUnion, arrayRemove
 } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
@@ -217,6 +225,17 @@ onSnapshot(q, (snap) => {
   render();
 }, (e) => { console.error(e); CV2.toast('No se pudieron cargar las actividades', 'error'); });
 
+// Equipo (para el alcance 'asignados')
+let equipo = [];
+try {
+  const su = await getDocs(collection(db, 'usuarios'));
+  su.forEach((d) => {
+    const x = d.data();
+    if (x.activo === true && d.id !== u.uid) equipo.push({ uid: d.id, nombre: x.nombre ?? d.id });
+  });
+  equipo.sort((a, b) => a.nombre.localeCompare(b.nombre));
+} catch { /* sin equipo cargado todavía */ }
+
 // Destacadas del usuario (estado_usuario)
 try {
   const eu = await getDoc(doc(db, 'estado_usuario', u.uid));
@@ -250,13 +269,33 @@ const esDescendiente = (id, posibleAncestro) => {
 // ═══ Semáforo (versión T1.1; temporada llega después) ═════
 // rojo = vencida o urgente · amarillo = vence en ≤3 días o importante
 // verde = al día · gris = programada a futuro o sin fechas
+const diasEntre = (isoA, isoB) => Math.round((new Date(isoB) - new Date(isoA)) / 86400000);
+const sumarDias = (iso, n) => {
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
 function semaforo(it) {
-  if (it.hecho) return { c: '#9aa69a', t: 'Hecha' };
+  if (it.hecho) return { c: '#9aa69a', t: 'Terminada' };
   const hoy = CV2.hoyISO();
   if (it.prioridad === 'rojo') return { c: '#c0271f', t: 'Urgente' };
+
+  // Recurrentes: la secuencia del semáforo corre dentro del ciclo.
+  // Al realizarse se reprograman (gris) y vuelven a habilitarse al
+  // llegar su fecha: verde → amarillo → rojo según el atraso.
+  const ciclo = it.recurrenciaDias ?? 0;
+  if (ciclo > 0 && it.fechaInicio) {
+    if (it.fechaInicio > hoy) return { c: '#cdd6cb', t: 'Vuelve el ' + CV2.fmtFecha(it.fechaInicio) };
+    const atraso = diasEntre(it.fechaInicio, hoy);
+    if (atraso <= Math.max(1, Math.round(ciclo * 0.25))) return { c: '#1f7a32', t: 'Toca hacerla' };
+    if (atraso <= ciclo) return { c: '#b8860b', t: `Atrasada ${atraso}d` };
+    return { c: '#c0271f', t: `Muy atrasada (${atraso}d)` };
+  }
+
   if (it.fechaVencimiento && it.fechaVencimiento < hoy) return { c: '#c0271f', t: 'Vencida' };
   if (it.fechaVencimiento) {
-    const dias = Math.round((new Date(it.fechaVencimiento) - new Date(hoy)) / 86400000);
+    const dias = diasEntre(hoy, it.fechaVencimiento);
     if (dias <= 3) return { c: '#b8860b', t: `Vence en ${dias} día(s)` };
   }
   if (it.prioridad === 'amarillo') return { c: '#b8860b', t: 'Importante' };
@@ -265,9 +304,11 @@ function semaforo(it) {
 }
 
 const esHoy = (it) => {
+  if (it.hecho) return false;
   const s = semaforo(it);
   return s.t === 'Urgente' || s.t === 'Vencida' || s.t.startsWith('Vence')
-    || (it.fechaInicio && it.fechaInicio <= CV2.hoyISO() && !it.hecho);
+    || s.t === 'Toca hacerla' || s.t.startsWith('Atrasada') || s.t.startsWith('Muy atrasada')
+    || (it.fechaInicio && it.fechaInicio <= CV2.hoyISO());
 };
 
 const pasaFiltro = (it) => {
@@ -308,9 +349,10 @@ function nodoHTML(id) {
   if ((it.monto ?? 0) > 0) chips += `<span class="mini">${CV2.fmtMonto(it.monto)}</span>`;
   if (it.esCompra) chips += `<span class="mini">🛒</span>`;
   if (it.alcance === 'personal') chips += `<span class="mini">🔒</span>`;
+  if (it.alcance === 'asignados') chips += `<span class="mini">👥 ${(it.competencias ?? []).length}</span>`;
 
   let h = `<div class="act-item" id="nodo-${id}">
-    <div class="act-row" style="background:${col.p};${esRaiz ? `border-left:5px solid ${col.a};` : ''}"
+    <div class="act-row${it.hecho ? ' hecha' : ''}" style="background:${col.p};${esRaiz ? `border-left:5px solid ${col.a};` : ''}"
          onclick="toggleDetalle('${id}')">
       <span class="caret" onclick="event.stopPropagation();toggleAbierto('${id}')">${hijos.length ? (ab ? '▾' : '▸') : ''}</span>
       ${star ? '<span class="material-icons estrella" style="font-size:17px;">star</span>' : ''}
@@ -328,12 +370,16 @@ function nodoHTML(id) {
         ${it.creadoNombre ? ' · creada por ' + esc(it.creadoNombre) : ''}
       </span>
       <div class="acciones">
-        <button class="btn-ico" onclick="abrirAlta('${id}')"><span class="material-icons">add</span> Sub-ítem</button>
+        ${!it.hecho ? `<button class="btn-ico" onclick="marcarRealizada('${id}')">
+          <span class="material-icons" style="color:var(--ok)">task_alt</span> Realizada</button>` : ''}
+        ${it.hecho && CV2.esAdmin() ? `<button class="btn-ico" onclick="restaurar('${id}')">
+          <span class="material-icons">restart_alt</span> Restaurar</button>` : ''}
+        ${!it.hecho ? `<button class="btn-ico" onclick="abrirAlta('${id}')"><span class="material-icons">add</span> Sub-ítem</button>` : ''}
         <button class="btn-ico" onclick="toggleEstrella('${id}')">
           <span class="material-icons ${star ? 'estrella' : ''}">${star ? 'star' : 'star_outline'}</span></button>
-        <button class="btn-ico" onclick="abrirEdicion('${id}')"><span class="material-icons">edit</span></button>
-        <button class="btn-ico" onclick="borrar('${id}')"><span class="material-icons" style="color:var(--rojo)">delete</span></button>
-        <span class="texto-gris" style="align-self:center;">⏱ cronómetro: próxima tanda</span>
+        ${!it.hecho ? `<button class="btn-ico" onclick="abrirEdicion('${id}')"><span class="material-icons">edit</span></button>` : ''}
+        ${(!it.hecho || CV2.esAdmin()) ? `<button class="btn-ico" onclick="borrar('${id}')"><span class="material-icons" style="color:var(--rojo)">delete</span></button>` : ''}
+        ${!it.hecho ? `<span class="texto-gris" style="align-self:center;">⏱ cronómetro: próxima tanda</span>` : ''}
       </div>
     </div>`;
   }
@@ -361,8 +407,52 @@ window.toggleEstrella = async (id) => {
   } catch (e) { CV2.toast('No se pudo guardar la estrella', 'error'); }
 };
 
+// Realizada: recurrente → se reprograma y vuelve a habilitarse al
+// pasar su plazo; única → queda TACHADA hasta que un admin la borre.
+// (En T1.2 esta acción además dejará la sesión de registro en /sesiones/.)
+window.marcarRealizada = async (id) => {
+  const it = byId[id];
+  const ciclo = it.recurrenciaDias ?? 0;
+  try {
+    if (ciclo > 0) {
+      const proxima = sumarDias(CV2.hoyISO(), ciclo);
+      await updateDoc(doc(db, 'actividades', id), {
+        fechaInicio: proxima,
+        hecho: false,
+        ultimaRealizacion: CV2.hoyISO(),
+        ultimaRealizacionNombre: u.nombre,
+        actualizadoEn: serverTimestamp()
+      });
+      CV2.toast(`↻ Hecha — vuelve el ${CV2.fmtFecha(proxima)}`, 'success');
+    } else {
+      await updateDoc(doc(db, 'actividades', id), {
+        hecho: true,
+        estado: 'finalizada',
+        hechoPor: u.uid,
+        hechoEn: serverTimestamp(),
+        actualizadoEn: serverTimestamp()
+      });
+      CV2.toast('✔ Terminada (queda tachada hasta que un admin la elimine)', 'success');
+    }
+  } catch (e) { CV2.toast('No se pudo marcar: ' + (e.code ?? e.message), 'error'); }
+};
+
+window.restaurar = async (id) => {
+  try {
+    await updateDoc(doc(db, 'actividades', id), {
+      hecho: false, estado: 'pendiente', hechoPor: null, hechoEn: null,
+      actualizadoEn: serverTimestamp()
+    });
+    CV2.toast('Restaurada', 'success');
+  } catch (e) { CV2.toast('No se pudo restaurar', 'error'); }
+};
+
 window.borrar = async (id) => {
   const it = byId[id];
+  if (it.hecho && !CV2.esAdmin()) {
+    CV2.toast('Las terminadas solo las elimina un administrador', 'error');
+    return;
+  }
   if ((childrenOf[id] ?? []).length) {
     CV2.toast('Tiene sub-ítems: movelos o borralos primero', 'error');
     return;
@@ -420,6 +510,15 @@ function prepararModal({ titulo, esProyecto, padreId, it }) {
   $('fEsCompra').checked = it?.esCompra ?? false;
   $('fProveedor').value = it?.proveedor ?? '';
   $('fProveedor').classList.toggle('oculto', !$('fEsCompra').checked);
+
+  // Selector de asignados (equipo activo, sin el creador)
+  const sel = new Set(it?.competencias ?? []);
+  $('fCompetencias').innerHTML = equipo.length
+    ? equipo.map((p) => `<label class="check-linea" style="margin:0;">
+        <input type="checkbox" class="chkComp" value="${p.uid}" ${sel.has(p.uid) ? 'checked' : ''}>
+        <span>${esc(p.nombre)}</span></label>`).join('')
+    : '<span class="texto-gris">Todavía no hay otros usuarios cargados en el equipo.</span>';
+  $('grupoCompetencias').classList.toggle('oculto', $('fAlcance').value !== 'asignados');
   modal.showModal();
   $('fTitulo').focus();
 }
@@ -442,6 +541,8 @@ window.abrirEdicion = (id) => {
 
 $('fEsCompra').addEventListener('change', () =>
   $('fProveedor').classList.toggle('oculto', !$('fEsCompra').checked));
+$('fAlcance').addEventListener('change', () =>
+  $('grupoCompetencias').classList.toggle('oculto', $('fAlcance').value !== 'asignados'));
 $('mCerrar').addEventListener('click', () => modal.close());
 $('mCancelar').addEventListener('click', () => modal.close());
 
@@ -463,8 +564,15 @@ $('mGuardar').addEventListener('click', async () => {
     fechaVencimiento: $('fFechaVenc').value || null,
     esCompra: $('fEsCompra').checked,
     proveedor: $('fEsCompra').checked ? ($('fProveedor').value.trim() || null) : null,
+    competencias: $('fAlcance').value === 'asignados'
+      ? [...document.querySelectorAll('.chkComp:checked')].map((c) => c.value)
+      : [],
     actualizadoEn: serverTimestamp()
   };
+  if (datos.alcance === 'asignados' && datos.competencias.length === 0) {
+    CV2.toast('Elegí al menos una persona para el alcance asignados', 'error');
+    return;
+  }
   if (esProyecto) datos.color = $('fColor').value;
   if (!esProyecto && !datos.parentId) { CV2.toast('Elegí a qué proyecto pertenece', 'error'); return; }
 
