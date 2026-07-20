@@ -7,12 +7,13 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
-const VERSION = 'cv2-shell-v1';
+const VERSION = 'cv2-shell-v2';
 
 const SHELL = [
   './',
   './index.html',
   './login.html',
+  './actividades.html',
   './nucleo.js',
   './firebase-init.js',
   './design-system.css',

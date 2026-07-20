@@ -59,15 +59,17 @@ CV2._listonAdmin = function () {
 
 // ── Navegación (crece por fase; T0.3 = mínima) ───────────────
 CV2.NAV = [
-  { id: 'inicio', label: 'Inicio', href: './index.html', icono: 'home' }
-  // Fase 1 suma: actividades, sesiones, horas, comunicación...
+  { id: 'inicio', label: 'Inicio', href: './index.html', icono: 'home' },
+  { id: 'actividades', label: 'Actividades', href: './actividades.html', icono: 'checklist' }
+  // Fase 1 suma: sesiones, horas, comunicación...
 ];
 
 CV2.renderNav = function (activo) {
   const cont = document.getElementById('nav');
   if (!cont) return;
+  const SIEMPRE = ['inicio', 'actividades'];
   const items = CV2.NAV
-    .filter(it => CV2.puede(it.id) || it.id === 'inicio')
+    .filter(it => CV2.puede(it.id) || SIEMPRE.includes(it.id))
     .map(it => `
       <a href="${it.href}" class="nav-item ${it.id === activo ? 'activo' : ''}">
         <span class="material-icons">${it.icono}</span>${it.label}

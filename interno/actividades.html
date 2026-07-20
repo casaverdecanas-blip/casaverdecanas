@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Actividades</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  /* ── Filtros ── */
+  .filtros { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
+  .fchip {
+    border: 1px solid var(--linea); background: #fff; border-radius: 999px;
+    padding: 6px 14px; font: inherit; font-size: .86rem; cursor: pointer; color: var(--gris);
+  }
+  .fchip.activo { background: var(--verde); border-color: var(--verde); color: #fff; }
+
+  /* ── Árbol ── */
+  .act-item { margin: 6px 0; }
+  .act-row {
+    display: flex; align-items: center; gap: 8px;
+    border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 10px 12px; cursor: pointer; box-shadow: var(--sombra);
+  }
+  .act-row .caret { width: 18px; text-align: center; color: var(--gris); flex: none; font-size: .8rem; }
+  .act-titulo { flex: 1; min-width: 0; font-weight: 600; font-size: .95rem; overflow-wrap: anywhere; }
+  .act-titulo small { display: block; font-weight: 400; color: var(--gris); font-size: .78rem; }
+  .act-chips { display: flex; gap: 5px; align-items: center; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+  .sem { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .mini {
+    font-size: .72rem; padding: 2px 8px; border-radius: 999px;
+    background: rgba(255, 255, 255, .75); border: 1px solid var(--linea); color: var(--gris); white-space: nowrap;
+  }
+  .act-children { margin-left: 16px; padding-left: 10px; border-left: 3px solid var(--linea); }
+  .act-detalle {
+    border: 1px solid var(--linea); border-top: 0; border-radius: 0 0 var(--radio) var(--radio);
+    margin: -6px 2px 0; padding: 12px; font-size: .88rem;
+  }
+  .act-detalle .acciones { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .btn-ico {
+    border: 1px solid var(--linea); background: #fff; border-radius: 8px;
+    padding: 7px 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+    font: inherit; font-size: .8rem; color: var(--tinta);
+  }
+  .btn-ico .material-icons { font-size: 18px; }
+  .estrella { color: #c9a227; }
+  .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
+
+  /* ── Modal ── */
+  dialog {
+    border: 0; border-radius: 14px; padding: 0; width: min(560px, 94vw);
+    max-height: 88dvh; box-shadow: 0 10px 40px rgba(0, 0, 0, .25);
+  }
+  dialog::backdrop { background: rgba(20, 30, 18, .45); }
+  .m-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 0; }
+  .m-head h2 { margin: 0; }
+  .m-body { padding: 6px 16px 16px; overflow-y: auto; }
+  .m-pie { display: flex; gap: 8px; justify-content: flex-end; padding: 0 16px 16px; }
+  .fila2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .check-linea { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; }
+  .check-linea input { width: auto; }
+  .check-linea span { font-size: .88rem; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h1 style="margin-right:auto;">Actividades</h1>
+    <button class="btn btn-primario" id="btnNuevoProyecto">
+      <span class="material-icons">create_new_folder</span> Proyecto
+    </button>
+  </div>
+
+  <div class="filtros" id="filtros">
+    <button class="fchip activo" data-f="todas">Todas</button>
+    <button class="fchip" data-f="hoy">Hoy</button>
+    <button class="fchip" data-f="destacadas">★ Destacadas</button>
+  </div>
+
+  <div id="arbol"><div class="vacio">Cargando…</div></div>
+</div>
+
+<!-- ── Modal de alta/edición ── -->
+<dialog id="modal">
+  <div class="m-head">
+    <h2 id="mTitulo">Nueva actividad</h2>
+    <button class="btn-ico" id="mCerrar"><span class="material-icons">close</span></button>
+  </div>
+  <div class="m-body">
+    <label>Título</label>
+    <input id="fTitulo" maxlength="120">
+
+    <label>Detalle (opcional)</label>
+    <textarea id="fDetalle" rows="2"></textarea>
+
+    <div id="grupoPadre">
+      <label>Pertenece a</label>
+      <select id="fPadre"></select>
+    </div>
+
+    <div id="grupoColor" class="oculto">
+      <label>Color del proyecto (toda la línea lo hereda)</label>
+      <input id="fColor" type="color" value="#2d5a27" style="height:44px;padding:4px;">
+    </div>
+
+    <div class="fila2">
+      <div>
+        <label>Alcance</label>
+        <select id="fAlcance">
+          <option value="equipo">Equipo (todos)</option>
+          <option value="personal">Personal (solo yo)</option>
+        </select>
+      </div>
+      <div>
+        <label>Prioridad</label>
+        <select id="fPrioridad">
+          <option value="">Normal</option>
+          <option value="rojo">🔴 Urgente</option>
+          <option value="amarillo">🟡 Importante</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="fila2">
+      <div>
+        <label>Repetir cada (días, 0 = no repite)</label>
+        <input id="fRecurrencia" type="number" min="0" step="1" value="0" inputmode="numeric">
+      </div>
+      <div>
+        <label>Precio / honorario (R$, 0 = sin precio)</label>
+        <input id="fMonto" type="number" min="0" step="0.01" value="0" inputmode="decimal">
+      </div>
+    </div>
+
+    <div class="fila2">
+      <div>
+        <label>Fecha de inicio</label>
+        <input id="fFechaInicio" type="date">
+      </div>
+      <div>
+        <label>Vencimiento (opcional)</label>
+        <input id="fFechaVenc" type="date">
+      </div>
+    </div>
+
+    <div class="check-linea">
+      <input id="fEsCompra" type="checkbox">
+      <span>Es una compra</span>
+      <input id="fProveedor" placeholder="Proveedor (opcional)" class="oculto" style="flex:1;">
+    </div>
+  </div>
+  <div class="m-pie">
+    <button class="btn" id="mCancelar">Cancelar</button>
+    <button class="btn btn-primario" id="mGuardar">
+      <span class="material-icons">save</span> Guardar
+    </button>
+  </div>
+</dialog>
+
+<script type="module">
+import {
+  db, collection, query, where, or, and, onSnapshot,
+  doc, addDoc, updateDoc, deleteDoc, setDoc, getDoc,
+  serverTimestamp, arrayUnion, arrayRemove
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('actividades');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+// ═══ Estado ═══════════════════════════════════════════════
+let byId = {};            // id → actividad
+let childrenOf = {};      // parentId → [ids]
+let roots = [];           // ids de proyectos raíz (orden alfabético)
+let abiertos = {};        // id → bool (expandido)
+let detalleAbierto = null;
+let destacados = new Set();
+let filtro = 'todas';
+let editandoId = null;    // id en edición (null = alta)
+let altaPadreId = null;   // padre preseleccionado en alta
+
+// Paleta de respaldo para proyectos sin color definido
+const PALETA = ['#2a9d8f', '#e76f51', '#4361ee', '#b8860b', '#7209b7',
+                '#2d5a27', '#c2185b', '#00838f', '#6d4c41', '#546e7a'];
+
+// ═══ Datos en vivo ════════════════════════════════════════
+const col = collection(db, 'actividades');
+const q = CV2.esAdmin() ? query(col) : query(col, or(
+  where('alcance', '==', 'equipo'),
+  where('creadoPor', '==', u.uid),
+  and(where('alcance', '==', 'asignados'), where('competencias', 'array-contains', u.uid))
+));
+
+onSnapshot(q, (snap) => {
+  byId = {}; childrenOf = {};
+  snap.forEach((d) => { byId[d.id] = { id: d.id, ...d.data() }; });
+  for (const it of Object.values(byId)) {
+    const p = it.parentId ?? '';
+    (childrenOf[p] ??= []).push(it.id);
+  }
+  for (const arr of Object.values(childrenOf)) {
+    arr.sort((a, b) => (byId[a].orden ?? 0) - (byId[b].orden ?? 0)
+      || String(byId[a].titulo ?? '').localeCompare(String(byId[b].titulo ?? '')));
+  }
+  roots = (childrenOf[''] ?? []).slice()
+    .sort((a, b) => String(byId[a].titulo ?? '').localeCompare(String(byId[b].titulo ?? '')));
+  render();
+}, (e) => { console.error(e); CV2.toast('No se pudieron cargar las actividades', 'error'); });
+
+// Destacadas del usuario (estado_usuario)
+try {
+  const eu = await getDoc(doc(db, 'estado_usuario', u.uid));
+  destacados = new Set(eu.exists() ? (eu.data().destacados ?? []) : []);
+} catch { /* primera vez */ }
+
+// ═══ Helpers de árbol ═════════════════════════════════════
+const raizDe = (id) => {
+  let cur = byId[id], guarda = 0;
+  while (cur?.parentId && byId[cur.parentId] && guarda++ < 25) cur = byId[cur.parentId];
+  return cur ?? null;
+};
+
+const colorProy = (rootId) => {
+  const r = byId[rootId];
+  if (r?.color) return { a: r.color, p: CV2.pastelDe(r.color) };
+  const i = roots.indexOf(rootId);
+  const a = PALETA[(i < 0 ? PALETA.length - 1 : i) % PALETA.length];
+  return { a, p: CV2.pastelDe(a) };
+};
+
+const esDescendiente = (id, posibleAncestro) => {
+  let cur = byId[id], guarda = 0;
+  while (cur?.parentId && guarda++ < 25) {
+    if (cur.parentId === posibleAncestro) return true;
+    cur = byId[cur.parentId];
+  }
+  return false;
+};
+
+// ═══ Semáforo (versión T1.1; temporada llega después) ═════
+// rojo = vencida o urgente · amarillo = vence en ≤3 días o importante
+// verde = al día · gris = programada a futuro o sin fechas
+function semaforo(it) {
+  if (it.hecho) return { c: '#9aa69a', t: 'Hecha' };
+  const hoy = CV2.hoyISO();
+  if (it.prioridad === 'rojo') return { c: '#c0271f', t: 'Urgente' };
+  if (it.fechaVencimiento && it.fechaVencimiento < hoy) return { c: '#c0271f', t: 'Vencida' };
+  if (it.fechaVencimiento) {
+    const dias = Math.round((new Date(it.fechaVencimiento) - new Date(hoy)) / 86400000);
+    if (dias <= 3) return { c: '#b8860b', t: `Vence en ${dias} día(s)` };
+  }
+  if (it.prioridad === 'amarillo') return { c: '#b8860b', t: 'Importante' };
+  if (it.fechaInicio && it.fechaInicio > hoy) return { c: '#cdd6cb', t: 'Programada ' + CV2.fmtFecha(it.fechaInicio) };
+  return { c: '#1f7a32', t: 'Al día' };
+}
+
+const esHoy = (it) => {
+  const s = semaforo(it);
+  return s.t === 'Urgente' || s.t === 'Vencida' || s.t.startsWith('Vence')
+    || (it.fechaInicio && it.fechaInicio <= CV2.hoyISO() && !it.hecho);
+};
+
+const pasaFiltro = (it) => {
+  if (filtro === 'destacadas') return destacados.has(it.id);
+  if (filtro === 'hoy') return esHoy(it);
+  return true;
+};
+
+// Un nodo se muestra si él o algún descendiente pasa el filtro
+function visible(id) {
+  if (pasaFiltro(byId[id])) return true;
+  return (childrenOf[id] ?? []).some(visible);
+}
+
+// ═══ Render ═══════════════════════════════════════════════
+function render() {
+  const cont = $('arbol');
+  if (roots.length === 0) {
+    cont.innerHTML = `<div class="vacio">Todavía no hay proyectos.<br>Creá el primero con el botón <b>Proyecto</b>.</div>`;
+    return;
+  }
+  const html = roots.filter(visible).map(nodoHTML).join('');
+  cont.innerHTML = html || `<div class="vacio">Nada para mostrar con este filtro.</div>`;
+}
+
+function nodoHTML(id) {
+  const it = byId[id];
+  const hijos = (childrenOf[id] ?? []).filter(visible);
+  const ab = abiertos[id] ?? false;
+  const raiz = raizDe(id);
+  const col = colorProy(raiz?.id ?? id);
+  const s = semaforo(it);
+  const esRaiz = !it.parentId;
+  const star = destacados.has(id);
+
+  let chips = '';
+  if ((it.recurrenciaDias ?? 0) > 0) chips += `<span class="mini">↻ ${it.recurrenciaDias}d</span>`;
+  if ((it.monto ?? 0) > 0) chips += `<span class="mini">${CV2.fmtMonto(it.monto)}</span>`;
+  if (it.esCompra) chips += `<span class="mini">🛒</span>`;
+  if (it.alcance === 'personal') chips += `<span class="mini">🔒</span>`;
+
+  let h = `<div class="act-item" id="nodo-${id}">
+    <div class="act-row" style="background:${col.p};${esRaiz ? `border-left:5px solid ${col.a};` : ''}"
+         onclick="toggleDetalle('${id}')">
+      <span class="caret" onclick="event.stopPropagation();toggleAbierto('${id}')">${hijos.length ? (ab ? '▾' : '▸') : ''}</span>
+      ${star ? '<span class="material-icons estrella" style="font-size:17px;">star</span>' : ''}
+      <span class="act-titulo">${esRaiz ? '📁 ' : ''}${esc(it.titulo)}
+        ${it.detalle ? `<small>${esc(it.detalle)}</small>` : ''}</span>
+      <span class="act-chips">${chips}</span>
+      <span class="sem" style="background:${s.c}" title="${esc(s.t)}"></span>
+    </div>`;
+
+  if (detalleAbierto === id) {
+    h += `<div class="act-detalle" style="background:${col.p}">
+      <span class="texto-gris">${esc(s.t)}
+        ${it.fechaInicio ? ' · inicio ' + CV2.fmtFecha(it.fechaInicio) : ''}
+        ${it.fechaVencimiento ? ' · vence ' + CV2.fmtFecha(it.fechaVencimiento) : ''}
+        ${it.creadoNombre ? ' · creada por ' + esc(it.creadoNombre) : ''}
+      </span>
+      <div class="acciones">
+        <button class="btn-ico" onclick="abrirAlta('${id}')"><span class="material-icons">add</span> Sub-ítem</button>
+        <button class="btn-ico" onclick="toggleEstrella('${id}')">
+          <span class="material-icons ${star ? 'estrella' : ''}">${star ? 'star' : 'star_outline'}</span></button>
+        <button class="btn-ico" onclick="abrirEdicion('${id}')"><span class="material-icons">edit</span></button>
+        <button class="btn-ico" onclick="borrar('${id}')"><span class="material-icons" style="color:var(--rojo)">delete</span></button>
+        <span class="texto-gris" style="align-self:center;">⏱ cronómetro: próxima tanda</span>
+      </div>
+    </div>`;
+  }
+
+  if (ab && hijos.length) {
+    h += `<div class="act-children" style="border-left-color:${col.a}">${hijos.map(nodoHTML).join('')}</div>`;
+  }
+  return h + '</div>';
+}
+
+// ═══ Interacción del árbol ════════════════════════════════
+window.toggleAbierto = (id) => { abiertos[id] = !abiertos[id]; render(); };
+window.toggleDetalle = (id) => { detalleAbierto = detalleAbierto === id ? null : id; render(); };
+
+window.toggleEstrella = async (id) => {
+  const ref = doc(db, 'estado_usuario', u.uid);
+  const tiene = destacados.has(id);
+  tiene ? destacados.delete(id) : destacados.add(id);
+  render();
+  try {
+    await setDoc(ref, {
+      destacados: tiene ? arrayRemove(id) : arrayUnion(id),
+      actualizadoEn: serverTimestamp()
+    }, { merge: true });
+  } catch (e) { CV2.toast('No se pudo guardar la estrella', 'error'); }
+};
+
+window.borrar = async (id) => {
+  const it = byId[id];
+  if ((childrenOf[id] ?? []).length) {
+    CV2.toast('Tiene sub-ítems: movelos o borralos primero', 'error');
+    return;
+  }
+  if (!confirm(`¿Borrar "${it.titulo}"? No se puede deshacer.`)) return;
+  try {
+    await deleteDoc(doc(db, 'actividades', id));
+    if (detalleAbierto === id) detalleAbierto = null;
+    CV2.toast('Borrada', 'success');
+  } catch (e) { CV2.toast('No se pudo borrar: ' + (e.code ?? e.message), 'error'); }
+};
+
+// ═══ Filtros ══════════════════════════════════════════════
+$('filtros').addEventListener('click', (ev) => {
+  const b = ev.target.closest('.fchip');
+  if (!b) return;
+  filtro = b.dataset.f;
+  document.querySelectorAll('.fchip').forEach((x) => x.classList.toggle('activo', x === b));
+  render();
+});
+
+// ═══ Modal alta/edición ═══════════════════════════════════
+const modal = $('modal');
+
+function opcionesPadre(excluirId) {
+  // Árbol completo tabulado (convención heredada del viejo)
+  const op = [];
+  const bajar = (id, nivel) => {
+    if (id === excluirId || (excluirId && esDescendiente(id, excluirId))) return;
+    const sang = '\u00A0'.repeat(nivel * 4);
+    op.push(`<option value="${id}">${sang}${nivel === 0 ? '🏠 ' : '· '}${esc(byId[id].titulo)}</option>`);
+    (childrenOf[id] ?? []).forEach((h) => bajar(h, nivel + 1));
+  };
+  roots.forEach((r) => bajar(r, 0));
+  return op.join('');
+}
+
+function prepararModal({ titulo, esProyecto, padreId, it }) {
+  $('mTitulo').textContent = titulo;
+  $('grupoColor').classList.toggle('oculto', !esProyecto);
+  $('grupoPadre').classList.toggle('oculto', esProyecto);
+  if (!esProyecto) {
+    $('fPadre').innerHTML = opcionesPadre(it?.id ?? null);
+    $('fPadre').value = padreId ?? it?.parentId ?? roots[0] ?? '';
+  }
+  $('fTitulo').value = it?.titulo ?? '';
+  $('fDetalle').value = it?.detalle ?? '';
+  $('fColor').value = it?.color ?? '#2d5a27';
+  $('fAlcance').value = it?.alcance ?? 'equipo';
+  $('fPrioridad').value = it?.prioridad ?? '';
+  $('fRecurrencia').value = it?.recurrenciaDias ?? 0;
+  $('fMonto').value = it?.monto ?? 0;
+  $('fFechaInicio').value = it?.fechaInicio ?? '';
+  $('fFechaVenc').value = it?.fechaVencimiento ?? '';
+  $('fEsCompra').checked = it?.esCompra ?? false;
+  $('fProveedor').value = it?.proveedor ?? '';
+  $('fProveedor').classList.toggle('oculto', !$('fEsCompra').checked);
+  modal.showModal();
+  $('fTitulo').focus();
+}
+
+$('btnNuevoProyecto').addEventListener('click', () => {
+  editandoId = null; altaPadreId = null;
+  prepararModal({ titulo: 'Nuevo proyecto', esProyecto: true });
+});
+
+window.abrirAlta = (padreId) => {
+  editandoId = null; altaPadreId = padreId;
+  prepararModal({ titulo: 'Nueva actividad', esProyecto: false, padreId });
+};
+
+window.abrirEdicion = (id) => {
+  editandoId = id; altaPadreId = null;
+  const it = byId[id];
+  prepararModal({ titulo: 'Editar', esProyecto: !it.parentId, it });
+};
+
+$('fEsCompra').addEventListener('change', () =>
+  $('fProveedor').classList.toggle('oculto', !$('fEsCompra').checked));
+$('mCerrar').addEventListener('click', () => modal.close());
+$('mCancelar').addEventListener('click', () => modal.close());
+
+$('mGuardar').addEventListener('click', async () => {
+  const titulo = $('fTitulo').value.trim();
+  if (!titulo) { CV2.toast('Falta el título', 'error'); return; }
+  const esProyecto = !$('grupoColor').classList.contains('oculto');
+
+  const datos = {
+    titulo,
+    detalle: $('fDetalle').value.trim(),
+    tipo: 'normal',
+    parentId: esProyecto ? null : ($('fPadre').value || null),
+    alcance: $('fAlcance').value,
+    prioridad: $('fPrioridad').value || null,
+    recurrenciaDias: Math.max(0, parseInt($('fRecurrencia').value) || 0),
+    monto: Math.max(0, parseFloat($('fMonto').value) || 0),
+    fechaInicio: $('fFechaInicio').value || null,
+    fechaVencimiento: $('fFechaVenc').value || null,
+    esCompra: $('fEsCompra').checked,
+    proveedor: $('fEsCompra').checked ? ($('fProveedor').value.trim() || null) : null,
+    actualizadoEn: serverTimestamp()
+  };
+  if (esProyecto) datos.color = $('fColor').value;
+  if (!esProyecto && !datos.parentId) { CV2.toast('Elegí a qué proyecto pertenece', 'error'); return; }
+
+  $('mGuardar').disabled = true;
+  try {
+    if (editandoId) {
+      await updateDoc(doc(db, 'actividades', editandoId), datos);
+      CV2.toast('Guardada', 'success');
+    } else {
+      await addDoc(collection(db, 'actividades'), {
+        ...datos,
+        hecho: false,
+        estado: 'pendiente',
+        sesionActualId: null,
+        ultimoCierreEn: null,
+        orden: (childrenOf[datos.parentId ?? ''] ?? []).length,
+        creadoEn: serverTimestamp(),
+        creadoPor: u.uid,
+        creadoNombre: u.nombre
+      });
+      if (datos.parentId) abiertos[datos.parentId] = true;
+      CV2.toast('Creada', 'success');
+    }
+    modal.close();
+  } catch (e) {
+    CV2.toast('No se pudo guardar: ' + (e.code ?? e.message), 'error');
+  } finally {
+    $('mGuardar').disabled = false;
+  }
+});
+</script>
+</body>
+</html>
