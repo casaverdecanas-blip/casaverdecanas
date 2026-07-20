@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Importar del sitio viejo</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .mapa { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 12px; margin: 8px 0; box-shadow: var(--sombra); font-size: .88rem; }
+  .mapa .head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .mapa .head b { flex: 1; min-width: 140px; }
+  .mapa select { width: auto; }
+  .datos { color: var(--gris); font-size: .8rem; margin-top: 6px; }
+  .fotos { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+  .fotos img { width: 64px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid var(--linea); }
+  .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <h1>Importar del sitio viejo</h1>
+  <p class="texto-gris" style="margin-top:-6px;">Cargá el <b>export-casaverde-viejo.json</b>
+  que descargó el extractor. Las fotos son las mismas URLs de Cloudinary — no se resube
+  nada. La importación es <b>idempotente</b>: podés correrla dos veces sin duplicar.</p>
+
+  <div class="card">
+    <input id="archivo" type="file" accept=".json,application/json">
+  </div>
+
+  <div id="previa"></div>
+  <div id="acciones" class="oculto" style="margin:12px 0;">
+    <button class="btn btn-primario" id="btnImportar">
+      <span class="material-icons">download_done</span> Importar a las cabañas del 2.0
+    </button>
+  </div>
+</div>
+
+<script type="module">
+// Herramienta temporal de migración anticipada (se borra tras el corte).
+import { db, collection, getDocs, doc, setDoc, serverTimestamp } from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+if (!CV2.esAdmin()) { location.href = './index.html'; throw new Error('solo admin'); }
+CV2.renderNav('cabanas');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+let viejo = null;          // JSON cargado
+let destinos = [];         // cabañas del 2.0
+
+// ═══ Cosecha genérica de datos del schema viejo ═══════════
+// El schema viejo puede variar: se buscan los campos por varios
+// nombres posibles y las fotos se cosechan recorriendo TODO el doc.
+const esFotoUrl = (s) => typeof s === 'string' && /^https?:\/\//.test(s)
+  && (/cloudinary/.test(s) || /\.(jpe?g|png|webp|gif)(\?|$)/i.test(s));
+
+function cosecharFotos(obj, bolsa) {
+  if (obj == null) return bolsa;
+  if (typeof obj === 'string') { if (esFotoUrl(obj)) bolsa.add(obj); return bolsa; }
+  if (Array.isArray(obj)) { obj.forEach((x) => cosecharFotos(x, bolsa)); return bolsa; }
+  if (typeof obj === 'object') {
+    for (const v of Object.values(obj)) cosecharFotos(v, bolsa);
+  }
+  return bolsa;
+}
+
+const texto = (v) => typeof v === 'string' ? v : '';
+const multiling = (v, respaldo = '') => {
+  if (v && typeof v === 'object') return { es: texto(v.es) || respaldo, pt: texto(v.pt) || texto(v.es) || respaldo, en: texto(v.en) || texto(v.es) || respaldo };
+  const s = texto(v) || respaldo;
+  return { es: s, pt: s, en: s };
+};
+const num = (...vs) => { for (const v of vs) { const n = parseFloat(v); if (!isNaN(n) && n > 0) return n; } return 0; };
+
+function interpretar(docViejo) {
+  const fotos = [...cosecharFotos(docViejo, new Set())].slice(0, 24);
+  const t = docViejo.tarifas ?? {};
+  return {
+    idViejo: docViejo.__id,
+    nombre: multiling(docViejo.nombre, docViejo.__id),
+    descripcion: multiling(docViejo.descripcion ?? docViejo.desc ?? docViejo.texto ?? ''),
+    capacidad: Math.round(num(docViejo.capacidad, docViejo.pax, docViejo.personas)) || null,
+    tarifaNoche: num(t.noche, t.diaria, docViejo.tarifa_noche, docViejo.precio_noche, docViejo.tarifaNoche),
+    tarifaLimpieza: num(t.limpieza, docViejo.precio_limpieza, docViejo.tarifaLimpieza, docViejo.limpieza),
+    calendarId: texto(docViejo.google_calendar_id ?? docViejo.calendarId ?? docViejo.calendar_id) || null,
+    amenities: Array.isArray(docViejo.amenities) ? docViejo.amenities.filter((x) => typeof x === 'string' && !esFotoUrl(x)) : [],
+    inventarioBase: Array.isArray(docViejo.checklistInventario) ? docViejo.checklistInventario
+      : (Array.isArray(docViejo.inventarioActual) ? docViejo.inventarioActual : []),
+    fotos
+  };
+}
+
+// ═══ Previa y mapeo ═══════════════════════════════════════
+function renderPrevia() {
+  const cont = $('previa');
+  const cabs = (viejo.cabanas ?? []).map(interpretar);
+  if (!cabs.length) {
+    cont.innerHTML = '<div class="vacio">El archivo no trae cabañas.</div>';
+    return;
+  }
+  const ops = destinos.map((d) =>
+    `<option value="${d.id}">${esc(d.nombre?.es ?? d.id)}</option>`).join('')
+    + '<option value="">— omitir —</option>';
+
+  cont.innerHTML = cabs.map((c, i) => `
+    <div class="mapa" data-i="${i}">
+      <div class="head">
+        <b>${esc(c.nombre.es)} <span class="texto-gris">(viejo: ${esc(c.idViejo)})</span></b>
+        <span class="texto-gris">→ importar a</span>
+        <select class="selDest">${ops}</select>
+      </div>
+      <div class="datos">
+        ${c.tarifaNoche ? '🌙 ' + CV2.fmtMonto(c.tarifaNoche) + '/noche · ' : ''}
+        ${c.tarifaLimpieza ? '🧹 ' + CV2.fmtMonto(c.tarifaLimpieza) + ' · ' : ''}
+        ${c.capacidad ? '👥 ' + c.capacidad + ' · ' : ''}
+        ${c.calendarId ? '📅 calendario · ' : ''}
+        ${c.amenities.length ? c.amenities.length + ' amenities · ' : ''}
+        ${c.inventarioBase.length ? c.inventarioBase.length + ' ítems de inventario · ' : ''}
+        <b>${c.fotos.length} foto(s)</b> (mismas URLs de Cloudinary)
+        ${c.descripcion.es ? '<br>“' + esc(c.descripcion.es.slice(0, 140)) + (c.descripcion.es.length > 140 ? '…' : '') + '”' : ''}
+      </div>
+      ${c.fotos.length ? `<div class="fotos">${c.fotos.slice(0, 8).map((f) => `<img src="${esc(f)}" loading="lazy">`).join('')}</div>` : ''}
+    </div>`).join('');
+
+  // Preasignación por orden
+  const sels = cont.querySelectorAll('.selDest');
+  sels.forEach((s, i) => { if (destinos[i]) s.value = destinos[i].id; });
+  $('acciones').classList.remove('oculto');
+  window._cabsInterpretadas = cabs;
+}
+
+$('archivo').addEventListener('change', async () => {
+  const f = $('archivo').files[0];
+  if (!f) return;
+  try {
+    viejo = JSON.parse(await f.text());
+    CV2.toast(`Archivo leído: ${(viejo.cabanas ?? []).length} cabaña(s), exportado ${viejo.exportadoEn?.slice(0, 10) ?? '¿?'}`, 'success');
+    renderPrevia();
+  } catch (e) {
+    CV2.toast('El archivo no es un JSON válido', 'error');
+  }
+});
+
+// ═══ Importación (idempotente: setDoc merge sobre destino) ═
+$('btnImportar').addEventListener('click', async () => {
+  const cabs = window._cabsInterpretadas ?? [];
+  const filas = [...document.querySelectorAll('.mapa')];
+  let hechas = 0;
+  $('btnImportar').disabled = true;
+  try {
+    for (const fila of filas) {
+      const i = Number(fila.dataset.i);
+      const dest = fila.querySelector('.selDest').value;
+      if (!dest) continue;
+      const c = cabs[i];
+      const datos = {
+        nombre: c.nombre,
+        descripcion: c.descripcion,
+        amenities: c.amenities,
+        fotos: c.fotos,
+        inventarioBase: c.inventarioBase,
+        actualizadoEn: serverTimestamp(),
+        importadoDe: 'sitio-viejo:' + c.idViejo
+      };
+      if (c.capacidad) datos.capacidad = c.capacidad;
+      if (c.calendarId) datos.calendarId = c.calendarId;
+      if (c.tarifaNoche || c.tarifaLimpieza) {
+        datos.tarifas = { noche: c.tarifaNoche || 0, limpieza: c.tarifaLimpieza || 0, moneda: 'BRL' };
+      }
+      await setDoc(doc(db, 'cabanas', dest), datos, { merge: true });
+      hechas++;
+    }
+    CV2.toast(`✓ Importadas ${hechas} cabaña(s) — revisá las fichas en Cabañas`, 'success');
+  } catch (e) {
+    CV2.toast('Error importando: ' + (e.code ?? e.message), 'error');
+  } finally {
+    $('btnImportar').disabled = false;
+  }
+});
+
+// ═══ Carga de destinos — AL FINAL ═════════════════════════
+const sc = await getDocs(collection(db, 'cabanas'));
+sc.forEach((d) => destinos.push({ id: d.id, ...d.data() }));
+destinos.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+if (!destinos.length) {
+  $('previa').innerHTML = '<div class="vacio">Primero creá las 3 cabañas base en <a href="./cabanas.html">Cabañas</a> y volvé acá.</div>';
+}
+</script>
+</body>
+</html>
