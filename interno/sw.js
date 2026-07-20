@@ -7,7 +7,7 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
-const VERSION = 'cv2-shell-v13';
+const VERSION = 'cv2-shell-v14';
 
 const SHELL = [
   './',
@@ -65,17 +65,20 @@ self.addEventListener('fetch', (ev) => {
     return;
   }
 
-  // Shell y estáticos del mismo origen: caché primero
+  // Estáticos del mismo origen: RED PRIMERO con respaldo en caché.
+  // (v14 — lección: con HTML red-primero y JS caché-primero, un deploy
+  // podía mezclar página nueva con módulos viejos y romper en silencio.
+  // Red-primero en todo el mismo origen elimina el desfase; sin señal,
+  // la caché responde igual y la app sigue funcionando offline.)
   if (url.origin === location.origin) {
     ev.respondWith(
-      caches.match(ev.request).then((enCache) => {
-        if (enCache) return enCache;
-        return fetch(ev.request).then((r) => {
+      fetch(ev.request)
+        .then((r) => {
           const copia = r.clone();
           caches.open(VERSION).then((c) => c.put(ev.request, copia));
           return r;
-        });
-      })
+        })
+        .catch(() => caches.match(ev.request))
     );
   }
   // Todo lo demás (gstatic, fonts, Firestore) sigue su camino normal.

@@ -683,6 +683,10 @@ try {
 } catch { /* sin sesión activa */ }
 
 // ═══ Suscripción en vivo — SIEMPRE AL FINAL ═══════════════
+if (typeof Core.consultaActividades !== 'function') {
+  $('arbol').innerHTML = '<div class="vacio">La app quedó a medio actualizar.<br><b>Cerrala del todo y volvé a abrirla.</b></div>';
+  throw new Error('core desactualizado');
+}
 const consulta = Core.consultaActividades(u, CV2.esAdmin());
 
 onSnapshot(consulta, (snap) => {
