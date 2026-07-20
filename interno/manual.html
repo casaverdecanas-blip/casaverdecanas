@@ -41,6 +41,7 @@
     <a href="#sesiones">Sesiones</a>
     <a href="#horas">Horas</a>
     <a href="#reservas">Reservas</a>
+    <a href="#clientes">Clientes</a>
     <a href="#comunicacion">Chat</a>
     <a href="#calendario">Calendario</a>
     <a href="#cabanas">Cabañas</a>
@@ -154,6 +155,14 @@
     generación automática de limpiezas y la sincronización con Airbnb.</div>
   </section>
 
+  <section id="clientes" class="card">
+    <h2><span class="material-icons">contacts</span>Clientes</h2>
+    <p>La ficha de cada huésped: nombre, teléfono (con acceso directo a
+    <b>WhatsApp</b>), email, país y notas. Tocá un cliente para ver su historial de
+    reservas. Al cargar una reserva podés elegir un cliente existente, crear uno nuevo
+    con ➕ sin salir del formulario, o poner solo el nombre sin ficha.</p>
+  </section>
+
   <section id="comunicacion" class="card">
     <h2><span class="material-icons">forum</span>Chat del equipo</h2>
     <p>Temas de conversación con su historial. La lista muestra el último mensaje, quién
@@ -173,6 +182,12 @@
     cobra por el reparto normal de honorarios. Si la reserva se anula, la limpieza
     desaparece (salvo que ya esté hecha); si cambian las fechas, se realinea sola.
     El botón 🧹 del calendario (admin) revisa y regenera todas de una pasada.</p>
+    <p><b>Sync Airbnb</b> (admin, botón ↔ en Reservas): lee el Google Calendar de cada
+    cabaña (la ficha guarda su Calendar ID) y trae las reservas de Airbnb — nuevas se
+    crean confirmadas con su limpieza, cambios de fechas se actualizan, y si un evento
+    futuro desaparece del calendario, la reserva se anula sola (y su limpieza también).
+    Los bloqueos "Not available" se ignoran. La primera vez pide la Google API Key (la
+    misma del sistema viejo).</p>
   </section>
 
   <section id="cabanas" class="card">

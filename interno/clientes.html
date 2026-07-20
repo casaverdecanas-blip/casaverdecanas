@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Clientes</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .cli { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 11px 12px; margin: 7px 0; box-shadow: var(--sombra); cursor: pointer; }
+  .cli .fila1 { display: flex; align-items: center; gap: 8px; }
+  .cli .fila1 b { flex: 1; overflow-wrap: anywhere; }
+  .cli .contacto { display: flex; gap: 12px; flex-wrap: wrap; font-size: .82rem;
+    color: var(--gris); margin-top: 4px; }
+  .cli .contacto a { text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+  .detalle { border-top: 1px dashed var(--linea); margin-top: 8px; padding-top: 8px; font-size: .85rem; }
+  .rsv { display: flex; gap: 8px; align-items: center; padding: 5px 0; color: var(--gris); font-size: .82rem; }
+  .btn-ico { border: 1px solid var(--linea); background: #fff; border-radius: 7px;
+    padding: 5px 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+    font: inherit; font-size: .8rem; color: var(--tinta); }
+  .btn-ico .material-icons { font-size: 16px; }
+  .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
+  dialog { border: 0; border-radius: 14px; padding: 16px; width: min(460px, 94vw); box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(20,30,18,.45); }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h1 style="margin-right:auto;">Clientes</h1>
+    <button class="btn btn-primario" id="btnNuevo">
+      <span class="material-icons">person_add</span> Cliente
+    </button>
+  </div>
+
+  <input id="buscar" placeholder="Buscar por nombre, teléfono o email…" style="margin:10px 0;">
+  <div id="lista"><div class="vacio">Cargando…</div></div>
+</div>
+
+<dialog id="modal">
+  <h2 id="mTit" style="margin:0 0 6px;">Nuevo cliente</h2>
+  <label>Nombre</label>
+  <input id="fNombre" maxlength="80">
+  <label>Teléfono (con código de país, ej. +54911…)</label>
+  <input id="fTelefono" inputmode="tel" maxlength="25">
+  <label>Email</label>
+  <input id="fEmail" type="email" inputmode="email" maxlength="80">
+  <label>País</label>
+  <input id="fPais" maxlength="40" placeholder="Argentina, Brasil, Uruguay…">
+  <label>Notas</label>
+  <textarea id="fNotas" rows="2" placeholder="Preferencias, historia, detalles…"></textarea>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+    <button class="btn" id="mCancelar">Cancelar</button>
+    <button class="btn btn-primario" id="mGuardar"><span class="material-icons">save</span> Guardar</button>
+  </div>
+</dialog>
+
+<script type="module">
+// Regla del 2.0: definiciones primero, suscripción AL FINAL.
+import {
+  db, collection, query, onSnapshot, doc, addDoc, updateDoc, deleteDoc, serverTimestamp
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('clientes');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+let clientes = [];
+let reservas = [];
+let abierto = null;
+let editId = null;
+let filtro = '';
+
+const reservasDe = (cid) => reservas
+  .filter((r) => r.clienteId === cid)
+  .sort((a, b) => (b.checkIn ?? '').localeCompare(a.checkIn ?? ''));
+
+const soloDigitos = (t) => String(t ?? '').replace(/[^\d]/g, '');
+
+function render() {
+  const t = filtro.toLowerCase();
+  const fs = clientes.filter((c) => !t ||
+    (c.nombre ?? '').toLowerCase().includes(t) ||
+    (c.email ?? '').toLowerCase().includes(t) ||
+    (c.telefono ?? '').includes(t));
+  const cont = $('lista');
+  if (!fs.length) {
+    cont.innerHTML = `<div class="vacio">${clientes.length ? 'Sin resultados.' : 'Sin clientes todavía.<br>Se crean acá o directamente al cargar una reserva.'}</div>`;
+    return;
+  }
+  cont.innerHTML = fs.map((c) => {
+    const rs = reservasDe(c.id);
+    let h = `<div class="cli" onclick="abrir('${c.id}')">
+      <div class="fila1"><b>${esc(c.nombre)}</b>
+        ${c.pais ? `<span class="chip">${esc(c.pais)}</span>` : ''}
+        ${rs.length ? `<span class="texto-gris">${rs.length} reserva(s)</span>` : ''}
+      </div>
+      <div class="contacto" onclick="event.stopPropagation()">
+        ${c.telefono ? `<a href="https://wa.me/${soloDigitos(c.telefono)}" target="_blank"><span class="material-icons" style="font-size:15px;color:#25d366;">chat</span>${esc(c.telefono)}</a>` : ''}
+        ${c.email ? `<a href="mailto:${esc(c.email)}"><span class="material-icons" style="font-size:15px;">mail</span>${esc(c.email)}</a>` : ''}
+      </div>`;
+    if (abierto === c.id) {
+      h += `<div class="detalle" onclick="event.stopPropagation()">
+        ${c.notas ? `<div>📝 ${esc(c.notas)}</div>` : ''}
+        ${rs.length ? rs.slice(0, 6).map((r) => `<div class="rsv">
+          <span class="material-icons" style="font-size:15px;">king_bed</span>
+          ${CV2.fmtFecha(r.checkIn)} → ${CV2.fmtFecha(r.checkOut)} · ${esc(r.estado)} · ${CV2.fmtMonto(r.totalBRL ?? 0)}
+        </div>`).join('') : '<div class="texto-gris">Sin reservas asociadas.</div>'}
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button class="btn-ico" onclick="editar('${c.id}')"><span class="material-icons">edit</span> Editar</button>
+          ${CV2.esAdmin() && !rs.length ? `<button class="btn-ico" onclick="borrar('${c.id}')"><span class="material-icons" style="color:var(--rojo)">delete</span></button>` : ''}
+        </div>
+      </div>`;
+    }
+    return h + '</div>';
+  }).join('');
+}
+
+window.abrir = (id) => { abierto = abierto === id ? null : id; render(); };
+
+window.borrar = async (id) => {
+  if (!confirm('¿Eliminar este cliente? (No tiene reservas asociadas.)')) return;
+  try {
+    await deleteDoc(doc(db, 'clientes', id));
+    CV2.toast('Eliminado', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+};
+
+$('buscar').addEventListener('input', () => { filtro = $('buscar').value.trim(); render(); });
+
+// ═══ Alta / edición ═══════════════════════════════════════
+function abrirModal(c) {
+  editId = c?.id ?? null;
+  $('mTit').textContent = editId ? 'Editar cliente' : 'Nuevo cliente';
+  $('fNombre').value = c?.nombre ?? '';
+  $('fTelefono').value = c?.telefono ?? '';
+  $('fEmail').value = c?.email ?? '';
+  $('fPais').value = c?.pais ?? '';
+  $('fNotas').value = c?.notas ?? '';
+  $('modal').showModal();
+  $('fNombre').focus();
+}
+$('btnNuevo').addEventListener('click', () => abrirModal(null));
+window.editar = (id) => abrirModal(clientes.find((x) => x.id === id));
+$('mCancelar').addEventListener('click', () => $('modal').close());
+
+$('mGuardar').addEventListener('click', async () => {
+  const nombre = $('fNombre').value.trim();
+  if (!nombre) { CV2.toast('Falta el nombre', 'error'); return; }
+  const datos = {
+    nombre,
+    telefono: $('fTelefono').value.trim() || null,
+    email: $('fEmail').value.trim() || null,
+    pais: $('fPais').value.trim() || null,
+    notas: $('fNotas').value.trim() || '',
+    actualizadoEn: serverTimestamp()
+  };
+  $('mGuardar').disabled = true;
+  try {
+    if (editId) {
+      await updateDoc(doc(db, 'clientes', editId), datos);
+    } else {
+      await addDoc(collection(db, 'clientes'), {
+        ...datos, creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
+      });
+    }
+    $('modal').close();
+    CV2.toast('Guardado', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+  finally { $('mGuardar').disabled = false; }
+});
+
+// ═══ Suscripciones — AL FINAL ═════════════════════════════
+onSnapshot(query(collection(db, 'reservas')), (snap) => {
+  reservas = [];
+  snap.forEach((d) => reservas.push({ id: d.id, ...d.data() }));
+  render();
+}, (e) => console.error('reservas:', e));
+
+onSnapshot(query(collection(db, 'clientes')), (snap) => {
+  clientes = [];
+  snap.forEach((d) => clientes.push({ id: d.id, ...d.data() }));
+  clientes.sort((a, b) => (a.nombre ?? '').localeCompare(b.nombre ?? ''));
+  render();
+}, (e) => { console.error(e); CV2.toast('No se pudieron cargar los clientes (' + (e.code ?? e.message) + ')', 'error'); });
+</script>
+</body>
+</html>

@@ -52,6 +52,9 @@
 <div class="contenedor">
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
     <h1 style="margin-right:auto;">Reservas</h1>
+    <button class="btn oculto" id="btnAirbnb" title="Sincronizar con los calendarios de Airbnb">
+      <span class="material-icons">sync</span> Airbnb
+    </button>
     <button class="btn btn-primario" id="btnNueva">
       <span class="material-icons">add</span> Reserva
     </button>
@@ -72,7 +75,8 @@
   <h2 id="mTit" style="margin:0 0 6px;">Nueva reserva</h2>
 
   <label>Huésped</label>
-  <input id="fNombre" maxlength="80" placeholder="Nombre del huésped">
+  <select id="fCliente"></select>
+  <input id="fNombre" maxlength="80" placeholder="Nombre del huésped" class="oculto" style="margin-top:6px;">
 
   <label>Cabaña</label>
   <select id="fCabana"></select>
@@ -183,6 +187,7 @@ let filtro = 'vigentes';
 let abierta = null;
 let editId = null;
 let pagoReservaId = null;      // reserva a la que se registra un pago
+let clientes = [];
 
 // Derivados de dinero — NUNCA guardados (CONVENCIONES)
 const pagosDe = (rid) => pagos.filter((p) => p.reservaId === rid)
@@ -331,6 +336,21 @@ function abrirModal(r) {
   $('mTit').textContent = editId ? 'Editar reserva' : 'Nueva reserva';
   $('fCabana').innerHTML = cabanas.map((c) =>
     `<option value="${c.id}">${esc(nombreCab(c.id))}</option>`).join('');
+
+  // Selector de cliente: ficha existente, nuevo con ficha, o solo nombre
+  $('fCliente').innerHTML = '<option value="">Elegí el cliente…</option>'
+    + clientes.map((c) => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('')
+    + '<option value="__nuevo">➕ Nuevo cliente (con ficha)…</option>'
+    + '<option value="__libre">✎ Solo nombre (sin ficha)</option>';
+  if (r?.clienteId && clientes.some((c) => c.id === r.clienteId)) {
+    $('fCliente').value = r.clienteId;
+    $('fNombre').classList.add('oculto');
+  } else if (r) {
+    $('fCliente').value = '__libre';
+    $('fNombre').classList.remove('oculto');
+  } else {
+    $('fNombre').classList.add('oculto');
+  }
   $('fNombre').value = r?.clienteNombre ?? '';
   $('fCabana').value = r?.cabanaId ?? (cabanas[0]?.id ?? '');
   $('fIn').value = r?.checkIn ?? '';
@@ -348,14 +368,45 @@ function abrirModal(r) {
   $('fNombre').focus();
 }
 
+$('fCliente').addEventListener('change', async () => {
+  const v = $('fCliente').value;
+  $('fNombre').classList.toggle('oculto', v !== '__libre');
+  if (v === '__libre') { $('fNombre').focus(); return; }
+  if (v !== '__nuevo') return;
+  const nombre = (prompt('Nombre del nuevo cliente:') ?? '').trim();
+  if (!nombre) { $('fCliente').value = ''; return; }
+  const telefono = (prompt('Teléfono con código de país (opcional):') ?? '').trim();
+  try {
+    const ref = await addDoc(collection(db, 'clientes'), {
+      nombre, telefono: telefono || null, email: null, pais: null, notas: '',
+      creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
+    });
+    clientes.push({ id: ref.id, nombre, telefono });
+    clientes.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    $('fCliente').innerHTML = '<option value="">Elegí el cliente…</option>'
+      + clientes.map((c) => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('')
+      + '<option value="__nuevo">➕ Nuevo cliente (con ficha)…</option>'
+      + '<option value="__libre">✎ Solo nombre (sin ficha)</option>';
+    $('fCliente').value = ref.id;
+    CV2.toast('✓ Cliente creado — completá su ficha en Clientes cuando quieras', 'success');
+  } catch (e) { CV2.toast('No se pudo crear: ' + (e.code ?? e.message), 'error'); $('fCliente').value = ''; }
+});
+
 $('btnNueva').addEventListener('click', () => abrirModal(null));
 window.editar = (id) => abrirModal(reservas.find((x) => x.id === id));
 $('mCancelar').addEventListener('click', () => $('modal').close());
 
 $('mGuardar').addEventListener('click', async () => {
-  const nombre = $('fNombre').value.trim();
+  const selCli = $('fCliente').value;
+  let clienteId = null, nombre = '';
+  if (selCli && selCli !== '__libre' && selCli !== '__nuevo') {
+    clienteId = selCli;
+    nombre = clientes.find((c) => c.id === selCli)?.nombre ?? '';
+  } else {
+    nombre = $('fNombre').value.trim();
+  }
   const ci = $('fIn').value, co = $('fOut').value;
-  if (!nombre) { CV2.toast('Falta el nombre del huésped', 'error'); return; }
+  if (!nombre) { CV2.toast('Elegí el cliente o escribí el nombre', 'error'); return; }
   if (!ci || !co || co <= ci) { CV2.toast('Revisá las fechas', 'error'); return; }
   const cabanaId = $('fCabana').value;
   const estado = $('fEstado').value;
@@ -367,7 +418,7 @@ $('mGuardar').addEventListener('click', async () => {
 
   const datos = {
     clienteNombre: nombre,
-    clienteId: null,
+    clienteId,
     cabanaId,
     checkIn: ci, checkOut: co,
     horaEntrada: $('fHoraIn').value || '14:00',
@@ -511,6 +562,29 @@ window.borrarPago = async (pid) => {
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
 };
 
+// ═══ Sync Airbnb (admin) ══════════════════════════════════
+if (CV2.esAdmin()) {
+  $('btnAirbnb').classList.remove('oculto');
+  $('btnAirbnb').addEventListener('click', async () => {
+    $('btnAirbnb').disabled = true;
+    try {
+      const s = await RCore.sincronizarAirbnb(reservas, cabanas, u);
+      CV2.toast(`↔ Airbnb: ${s.nuevas} nueva(s), ${s.actualizadas} con cambios, ${s.anuladas} cancelada(s)`
+        + (s.cabanasSinCalendario ? ` · ${s.cabanasSinCalendario} cabaña(s) sin calendario` : ''), 'success');
+    } catch (e) {
+      if (e.code === 'sin-clave') {
+        const clave = (prompt('Pegá la Google API Key (la misma del sistema viejo, en config/integraciones):') ?? '').trim();
+        if (clave) {
+          await RCore.guardarApiKeyGoogle(clave);
+          CV2.toast('Clave guardada — tocá Airbnb de nuevo', 'success');
+        }
+      } else {
+        CV2.toast('Sync falló: ' + (e.code ?? e.message), 'error');
+      }
+    } finally { $('btnAirbnb').disabled = false; }
+  });
+}
+
 $('filtros').addEventListener('click', (ev) => {
   const b = ev.target.closest('.fchip');
   if (!b) return;
@@ -520,6 +594,13 @@ $('filtros').addEventListener('click', (ev) => {
 });
 
 // ═══ Cargas iniciales ═════════════════════════════════════
+await cargarListas();
+try {
+  const scl = await getDocs(collection(db, 'clientes'));
+  scl.forEach((d) => clientes.push({ id: d.id, ...d.data() }));
+  clientes.sort((a, b) => (a.nombre ?? '').localeCompare(b.nombre ?? ''));
+} catch { /* sin clientes */ }
+
 // Cabañas: si la colección está vacía, el admin puede crear las 3 base
 {
   const sc = await getDocs(collection(db, 'cabanas'));
