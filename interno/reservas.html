@@ -430,27 +430,10 @@ $('filtros').addEventListener('click', (ev) => {
   sc.forEach((d) => cabanas.push({ id: d.id, ...d.data() }));
   cabanas.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
 
-  if (!cabanas.length && CV2.esAdmin()) {
-    if (confirm('No hay cabañas cargadas todavía. ¿Crear las 3 de Casa Verde ahora?')) {
-      const base = [
-        { id: 'c1', nombre: { es: 'Vista al Bosque', pt: 'Vista al Bosque', en: 'Forest View' }, orden: 1 },
-        { id: 'c2', nombre: { es: 'Familiar Premium', pt: 'Familiar Premium', en: 'Family Premium' }, orden: 2 },
-        { id: 'c3', nombre: { es: 'Loft', pt: 'Loft', en: 'Loft' }, orden: 3 }
-      ];
-      for (const c of base) {
-        await setDoc(doc(db, 'cabanas', c.id), {
-          nombre: c.nombre, descripcion: { es: '', pt: '', en: '' },
-          capacidad: 4, tarifas: { noche: 0, limpieza: 0, moneda: 'BRL' },
-          amenities: [], fotos: [], calendarId: null,
-          inventarioBase: [], orden: c.orden, activa: true
-        });
-        cabanas.push({ id: c.id, nombre: c.nombre, orden: c.orden });
-      }
-      CV2.toast('✓ Cabañas creadas — ajustá tarifas y contenido en Fase 4', 'success');
-    }
-  }
   if (!cabanas.length) {
-    $('lista').innerHTML = '<div class="vacio">No hay cabañas cargadas. Pedile al administrador que entre a Reservas para crearlas.</div>';
+    $('lista').innerHTML = CV2.esAdmin()
+      ? '<div class="vacio">Primero cargá las cabañas: <a href="./cabanas.html">abrí Cabañas</a> y creá las 3 base.</div>'
+      : '<div class="vacio">No hay cabañas cargadas todavía. Avisale al administrador.</div>';
   }
 }
 

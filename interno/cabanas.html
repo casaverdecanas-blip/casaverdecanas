@@ -90,7 +90,7 @@
 
 <script type="module">
 // Regla del 2.0: definiciones primero, suscripción AL FINAL.
-import { db, collection, onSnapshot, doc, updateDoc, serverTimestamp } from './firebase-init.js';
+import { db, collection, onSnapshot, doc, updateDoc, setDoc, serverTimestamp } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
 
 CV2.registrarSW();
@@ -121,7 +121,9 @@ async function subirCloudinary(file) {
 function render() {
   const cont = $('lista');
   if (!cabanas.length) {
-    cont.innerHTML = '<div class="vacio">Sin cabañas. Entrá a <b>Reservas</b> para crear las 3 base.</div>';
+    cont.innerHTML = `<div class="vacio">Todavía no hay cabañas cargadas.<br><br>
+      <button class="btn btn-primario" onclick="crearBase()">
+        <span class="material-icons">cottage</span> Crear las 3 cabañas de Casa Verde</button></div>`;
     return;
   }
   cont.innerHTML = cabanas.map((c) => `
@@ -143,6 +145,27 @@ function render() {
       ${c.descripcion?.es ? `<p class="texto-gris" style="margin:8px 0 0;font-size:.84rem;">${esc(c.descripcion.es)}</p>` : ''}
     </div>`).join('');
 }
+
+// Bootstrap: las 3 cabañas base, listas para completar su ficha
+window.crearBase = async () => {
+  const base = [
+    { id: 'c1', nombre: { es: 'Vista al Bosque', pt: 'Vista al Bosque', en: 'Forest View' }, orden: 1 },
+    { id: 'c2', nombre: { es: 'Familiar Premium', pt: 'Familiar Premium', en: 'Family Premium' }, orden: 2 },
+    { id: 'c3', nombre: { es: 'Loft', pt: 'Loft', en: 'Loft' }, orden: 3 }
+  ];
+  try {
+    for (const c of base) {
+      await setDoc(doc(db, 'cabanas', c.id), {
+        nombre: c.nombre, descripcion: { es: '', pt: '', en: '' },
+        capacidad: 4, tarifas: { noche: 0, limpieza: 0, moneda: 'BRL' },
+        amenities: [], fotos: [], calendarId: null,
+        inventarioBase: [], orden: c.orden, activa: true,
+        creadoEn: serverTimestamp()
+      });
+    }
+    CV2.toast('✓ Cabañas creadas — completá cada ficha con Editar', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+};
 
 // ═══ Edición ══════════════════════════════════════════════
 function renderFotosEdit() {
