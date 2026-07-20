@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Comunicación</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .tema {
+    display: flex; align-items: center; gap: 10px; background: #fff;
+    border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 12px; margin: 7px 0; box-shadow: var(--sombra); cursor: pointer;
+  }
+  .tema .info { flex: 1; min-width: 0; }
+  .tema .info b { font-size: .94rem; overflow-wrap: anywhere; }
+  .tema .info small { display: block; color: var(--gris); font-size: .78rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .badge { background: var(--azul); color: #fff; border-radius: 999px;
+    font-size: .72rem; padding: 2px 9px; font-weight: 700; }
+
+  /* Hilo */
+  #hilo { display: none; }
+  .msgs { display: flex; flex-direction: column; gap: 8px; padding: 4px 0 90px; }
+  .msg { max-width: 84%; border-radius: 14px; padding: 9px 13px; font-size: .9rem;
+    background: #fff; border: 1px solid var(--linea); align-self: flex-start; }
+  .msg.mio { background: var(--verde-claro); align-self: flex-end; }
+  .msg small { display: block; color: var(--gris); font-size: .72rem; margin-top: 3px; }
+  .escribir {
+    position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 8px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    background: var(--crema); border-top: 1px solid var(--linea);
+  }
+  .escribir input { flex: 1; }
+  .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <!-- Lista de temas -->
+  <div id="listaVista">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <h1 style="margin-right:auto;">Comunicación</h1>
+      <button class="btn btn-primario" id="btnNuevo">
+        <span class="material-icons">add_comment</span> Tema
+      </button>
+    </div>
+    <div id="temas"><div class="vacio">Cargando…</div></div>
+  </div>
+
+  <!-- Hilo abierto -->
+  <div id="hilo">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button class="btn" id="btnVolver" style="padding:7px 10px;"><span class="material-icons">arrow_back</span></button>
+      <h1 id="hTitulo" style="margin:0;font-size:1.1rem;flex:1;overflow-wrap:anywhere;"></h1>
+    </div>
+    <div class="msgs" id="msgs"></div>
+  </div>
+</div>
+
+<div class="escribir oculto" id="barra">
+  <input id="texto" placeholder="Escribí un mensaje…" maxlength="1000">
+  <button class="btn btn-primario" id="btnEnviar"><span class="material-icons">send</span></button>
+</div>
+
+<dialog id="mNuevo" style="border:0;border-radius:14px;padding:16px;width:min(440px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.25);">
+  <h2 style="margin:0 0 4px;">Nuevo tema</h2>
+  <label>Título</label>
+  <input id="nTitulo" maxlength="100" placeholder="De qué se trata">
+  <label>Primer mensaje</label>
+  <textarea id="nMensaje" rows="3"></textarea>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+    <button class="btn" id="nCancelar">Cancelar</button>
+    <button class="btn btn-primario" id="nCrear"><span class="material-icons">send</span> Crear</button>
+  </div>
+</dialog>
+
+<script type="module">
+// Regla del 2.0: definiciones primero, suscripciones AL FINAL.
+import {
+  db, collection, query, onSnapshot, doc, addDoc, setDoc, updateDoc,
+  serverTimestamp, Timestamp
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('comunicacion');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+// ═══ Estado ═══════════════════════════════════════════════
+let temas = [];
+let lecturas = {};          // comId → ms de última lectura mía
+let abierto = null;         // comId del hilo abierto
+let offMsgs = null;         // unsubscribe del hilo
+
+// ═══ Helpers ══════════════════════════════════════════════
+const fmtHora = (ts) => {
+  const d = ts?.toDate?.() ?? new Date();
+  const hoy = new Date().toDateString() === d.toDateString();
+  return hoy
+    ? d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }) + ' ' +
+      d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+};
+const noLeido = (t) => {
+  const ult = t.ultimaActividad?.toMillis?.() ?? 0;
+  return ult > (lecturas[t.id] ?? 0) && t.ultimoAutorUid !== u.uid;
+};
+
+// ═══ Render lista ═════════════════════════════════════════
+function renderTemas() {
+  const cont = $('temas');
+  if (!temas.length) {
+    cont.innerHTML = '<div class="vacio">Sin temas todavía.<br>Creá el primero con el botón <b>Tema</b>.</div>';
+    return;
+  }
+  cont.innerHTML = temas.map((t) => `
+    <div class="tema" onclick="abrirTema('${t.id}')">
+      <div class="info"><b>${esc(t.titulo)}</b>
+        <small>${esc(t.ultimoMensaje ?? '')}</small>
+        <small>${fmtHora(t.ultimaActividad)}${t.ultimoAutorNombre ? ' · ' + esc(t.ultimoAutorNombre) : ''}</small>
+      </div>
+      ${noLeido(t) ? '<span class="badge">nuevo</span>' : ''}
+    </div>`).join('');
+}
+
+// ═══ Hilo ═════════════════════════════════════════════════
+window.abrirTema = (id) => {
+  abierto = id;
+  const t = temas.find((x) => x.id === id);
+  $('hTitulo').textContent = t?.titulo ?? '';
+  $('listaVista').style.display = 'none';
+  $('hilo').style.display = 'block';
+  $('barra').classList.remove('oculto');
+  $('msgs').innerHTML = '<div class="vacio">Cargando…</div>';
+
+  offMsgs?.();
+  offMsgs = onSnapshot(query(collection(db, 'comunicaciones', id, 'mensajes')), (snap) => {
+    const ms = [];
+    snap.forEach((d) => ms.push({ id: d.id, ...d.data() }));
+    ms.sort((a, b) => (a.creadoEn?.toMillis?.() ?? 0) - (b.creadoEn?.toMillis?.() ?? 0));
+    $('msgs').innerHTML = ms.map((m) => `
+      <div class="msg${m.autorUid === u.uid ? ' mio' : ''}">
+        ${esc(m.texto)}
+        <small>${m.autorUid === u.uid ? '' : esc(m.autorNombre ?? '') + ' · '}${fmtHora(m.creadoEn)}</small>
+      </div>`).join('') || '<div class="vacio">Sin mensajes.</div>';
+    window.scrollTo(0, document.body.scrollHeight);
+    marcarLeido(id);
+  });
+};
+
+$('btnVolver').addEventListener('click', () => {
+  abierto = null;
+  offMsgs?.(); offMsgs = null;
+  $('hilo').style.display = 'none';
+  $('barra').classList.add('oculto');
+  $('listaVista').style.display = 'block';
+  renderTemas();
+});
+
+async function marcarLeido(id) {
+  lecturas[id] = Date.now();
+  try {
+    await setDoc(doc(db, 'comunicaciones_lecturas', u.uid),
+      { [id]: Timestamp.now() }, { merge: true });
+  } catch { /* silencioso */ }
+}
+
+async function enviar() {
+  const texto = $('texto').value.trim();
+  if (!texto || !abierto) return;
+  $('texto').value = '';
+  try {
+    await addDoc(collection(db, 'comunicaciones', abierto, 'mensajes'), {
+      texto, autorUid: u.uid, autorNombre: u.nombre ?? '', creadoEn: serverTimestamp()
+    });
+    await updateDoc(doc(db, 'comunicaciones', abierto), {
+      ultimoMensaje: texto.slice(0, 120),
+      ultimoAutorUid: u.uid,
+      ultimoAutorNombre: u.nombre ?? '',
+      ultimaActividad: serverTimestamp()
+    });
+  } catch (e) { CV2.toast('No se pudo enviar: ' + (e.code ?? e.message), 'error'); }
+}
+$('btnEnviar').addEventListener('click', enviar);
+$('texto').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') enviar(); });
+
+// ═══ Nuevo tema ═══════════════════════════════════════════
+$('btnNuevo').addEventListener('click', () => {
+  $('nTitulo').value = ''; $('nMensaje').value = '';
+  $('mNuevo').showModal();
+  $('nTitulo').focus();
+});
+$('nCancelar').addEventListener('click', () => $('mNuevo').close());
+$('nCrear').addEventListener('click', async () => {
+  const titulo = $('nTitulo').value.trim();
+  const msj = $('nMensaje').value.trim();
+  if (!titulo || !msj) { CV2.toast('Falta título o mensaje', 'error'); return; }
+  $('nCrear').disabled = true;
+  try {
+    const ref = await addDoc(collection(db, 'comunicaciones'), {
+      titulo, audiencia: 'equipo',
+      ultimoMensaje: msj.slice(0, 120),
+      ultimoAutorUid: u.uid, ultimoAutorNombre: u.nombre ?? '',
+      creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? '',
+      ultimaActividad: serverTimestamp()
+    });
+    await addDoc(collection(db, 'comunicaciones', ref.id, 'mensajes'), {
+      texto: msj, autorUid: u.uid, autorNombre: u.nombre ?? '', creadoEn: serverTimestamp()
+    });
+    $('mNuevo').close();
+    abrirTema(ref.id);
+  } catch (e) { CV2.toast('No se pudo crear: ' + (e.code ?? e.message), 'error'); }
+  finally { $('nCrear').disabled = false; }
+});
+
+// ═══ Suscripciones — AL FINAL ═════════════════════════════
+onSnapshot(doc(db, 'comunicaciones_lecturas', u.uid), (snap) => {
+  const d = snap.exists() ? snap.data() : {};
+  lecturas = Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v?.toMillis?.() ?? 0]));
+  if (!abierto) renderTemas();
+});
+
+onSnapshot(query(collection(db, 'comunicaciones')), (snap) => {
+  temas = [];
+  snap.forEach((d) => temas.push({ id: d.id, ...d.data() }));
+  temas.sort((a, b) => (b.ultimaActividad?.toMillis?.() ?? 0) - (a.ultimaActividad?.toMillis?.() ?? 0));
+  if (!abierto) renderTemas();
+}, (e) => { console.error(e); CV2.toast('No se pudo cargar la comunicación', 'error'); });
+</script>
+</body>
+</html>
