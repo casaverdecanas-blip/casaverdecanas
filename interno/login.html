@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Ingresar</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  body { display: grid; place-items: center; min-height: 100dvh; }
+  .login-card { width: min(380px, 92vw); }
+  .logo { text-align: center; font-size: 2.2rem; margin-bottom: 4px; }
+  .titulo { text-align: center; margin: 0 0 18px; }
+  .titulo b { color: var(--verde); }
+  .error { color: var(--rojo); font-size: .85rem; min-height: 1.2em; margin-top: 10px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="card login-card">
+  <div class="logo">🌿</div>
+  <h1 class="titulo">CasaVerde <b>2.0</b></h1>
+
+  <label for="email">Email</label>
+  <input id="email" type="email" autocomplete="username" inputmode="email">
+
+  <label for="clave">Contraseña</label>
+  <input id="clave" type="password" autocomplete="current-password">
+
+  <div style="margin-top:16px;">
+    <button id="btnEntrar" class="btn btn-primario" style="width:100%;justify-content:center;">
+      <span class="material-icons">login</span> Entrar
+    </button>
+  </div>
+
+  <div id="error" class="error"></div>
+  <p class="texto-gris" style="text-align:center;margin-top:14px;">
+    <a href="#" id="olvide">Olvidé mi contraseña</a>
+  </p>
+</div>
+
+<script type="module">
+import { auth, signInWithEmailAndPassword, sendPasswordResetEmail } from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+
+const $ = (id) => document.getElementById(id);
+
+const aviso = new URLSearchParams(location.search).get('e');
+if (aviso === 'inactivo') $('error').textContent = 'Tu usuario está desactivado. Hablá con el administrador.';
+
+async function entrar() {
+  const email = $('email').value.trim();
+  const clave = $('clave').value;
+  if (!email || !clave) { $('error').textContent = 'Completá email y contraseña.'; return; }
+  $('btnEntrar').disabled = true;
+  $('error').textContent = '';
+  try {
+    await signInWithEmailAndPassword(auth, email, clave);
+    location.href = './index.html';
+  } catch (e) {
+    $('error').textContent = 'No se pudo ingresar. Revisá email y contraseña.';
+    $('btnEntrar').disabled = false;
+  }
+}
+
+$('btnEntrar').addEventListener('click', entrar);
+$('clave').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') entrar(); });
+
+$('olvide').addEventListener('click', async (ev) => {
+  ev.preventDefault();
+  const email = $('email').value.trim();
+  if (!email) { $('error').textContent = 'Escribí tu email arriba y volvé a tocar.'; return; }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    $('error').textContent = 'Listo: revisá tu correo para restablecerla.';
+  } catch (e) {
+    $('error').textContent = 'No se pudo enviar el correo de restablecimiento.';
+  }
+});
+</script>
+</body>
+</html>

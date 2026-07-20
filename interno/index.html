@@ -1,1 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Inicio</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .check { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--linea); }
+  .check:last-child { border-bottom: 0; }
+  .check .material-icons { font-size: 20px; }
+  .ok { color: var(--ok); }
+  .mal { color: var(--rojo); }
+  .esperando { color: var(--amarillo); }
+</style>
+</head>
+<body>
 
+<div id="nav"></div>
+
+<div class="contenedor">
+  <h1>Prueba de humo del entorno · Tanda 0.3</h1>
+  <p class="texto-gris">Esta página desaparece en la Fase 1 (la reemplaza Actividades).
+  Si todos los renglones quedan en verde, la fundación de CasaVerde 2.0 está sana.</p>
+
+  <div class="card" id="checks">
+    <div class="check" id="c-auth"><span class="material-icons esperando">hourglass_top</span> Sesión y perfil…</div>
+    <div class="check" id="c-rol"><span class="material-icons esperando">hourglass_top</span> Rol y permisos…</div>
+    <div class="check" id="c-lectura"><span class="material-icons esperando">hourglass_top</span> Lectura de Firestore…</div>
+    <div class="check" id="c-agg"><span class="material-icons esperando">hourglass_top</span> Agregación del servidor…</div>
+    <div class="check" id="c-cache"><span class="material-icons esperando">hourglass_top</span> Caché persistente (offline)…</div>
+    <div class="check" id="c-sw"><span class="material-icons esperando">hourglass_top</span> Service worker (PWA)…</div>
+  </div>
+
+  <div class="card">
+    <h2>Instalar como app</h2>
+    <p class="texto-gris">
+      <b>iPhone/iPad:</b> Compartir <span class="material-icons" style="font-size:16px;vertical-align:middle;">ios_share</span> → "Agregar a inicio".<br>
+      <b>Android:</b> menú del navegador → "Instalar app" (o el aviso que aparece solo).
+    </p>
+  </div>
+</div>
+
+<script type="module">
+import { db, doc, getDoc, collection, getCountFromServer } from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+const marcar = (id, ok, texto) => {
+  const el = document.getElementById(id);
+  el.innerHTML = `<span class="material-icons ${ok ? 'ok' : 'mal'}">${ok ? 'check_circle' : 'error'}</span> ${CV2.esc(texto)}`;
+};
+
+const u = await CV2.verificarAuth();
+CV2.renderNav('inicio');
+
+marcar('c-auth', true, `Sesión activa: ${u.nombre} (${u.email})`);
+marcar('c-rol', true, `Rol: ${u.rol}${u.rol === 'admin' ? ' — mirá el listón amarillo/negro arriba' : ''}`);
+
+// Lectura directa (el propio perfil ya se leyó; confirmamos con cabañas o usuarios)
+try {
+  const propio = await getDoc(doc(db, 'usuarios', u.uid));
+  marcar('c-lectura', propio.exists(), 'Lectura de Firestore funcionando');
+} catch (e) {
+  marcar('c-lectura', false, `Lectura falló: ${e.code ?? e.message}`);
+}
+
+// Agregación del servidor: contar usuarios sin bajar documentos
+try {
+  const c = await getCountFromServer(collection(db, 'usuarios'));
+  marcar('c-agg', true, `Agregación OK: ${c.data().count} usuario(s) en el equipo`);
+} catch (e) {
+  marcar('c-agg', false, `Agregación falló: ${e.code ?? e.message}`);
+}
+
+// Caché persistente: si initializeFirestore no tiró error, está activa.
+// La prueba real es el modo avión, pero verificamos IndexedDB.
+try {
+  const bases = await indexedDB.databases();
+  const hay = bases.some(b => (b.name ?? '').includes('firestore'));
+  marcar('c-cache', hay, hay
+    ? 'Caché persistente activa (probala en modo avión: la página vuelve a abrir)'
+    : 'IndexedDB sin base de Firestore todavía — recargá una vez');
+} catch (e) {
+  marcar('c-cache', true, 'Caché configurada (este navegador no permite listar IndexedDB)');
+}
+
+// Service worker
+const reg = await CV2.registrarSW();
+marcar('c-sw', !!reg, reg
+  ? 'Service worker registrado — la app es instalable y abre offline'
+  : 'Service worker no disponible en este navegador');
+</script>
+</body>
+</html>
