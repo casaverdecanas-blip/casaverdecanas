@@ -136,10 +136,10 @@ function renderDia() {
 
   let h = '';
   for (const r of salidas) h += `<div class="evt"><span class="material-icons" style="color:var(--rojo);">logout</span>
-    <span style="flex:1;"><b>${esc(r.clienteNombre)}</b> deja ${esc(nomCab(r.cabanaId))}</span>
+    <span style="flex:1;"><b>${esc(r.clienteNombre)}</b> deja ${esc(nomCab(r.cabanaId))} a las ${r.horaSalida ?? '10:00'}</span>
     <span class="chip">🧹 limpieza</span></div>`;
   for (const r of entradas) h += `<div class="evt"><span class="material-icons" style="color:var(--ok);">login</span>
-    <span style="flex:1;"><b>${esc(r.clienteNombre)}</b> entra a ${esc(nomCab(r.cabanaId))}</span>
+    <span style="flex:1;"><b>${esc(r.clienteNombre)}</b> entra a ${esc(nomCab(r.cabanaId))} a las ${r.horaEntrada ?? '14:00'}</span>
     <span class="texto-gris">${r.adultos}p</span></div>`;
   for (const r of encasa) h += `<div class="evt"><span class="material-icons" style="color:var(--verde);">home</span>
     <span style="flex:1;">${esc(r.clienteNombre)} en ${esc(nomCab(r.cabanaId))} (hasta ${CV2.fmtFecha(r.checkOut)})</span></div>`;

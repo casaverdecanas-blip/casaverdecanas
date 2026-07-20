@@ -81,6 +81,10 @@
     <div><label>Entrada</label><input id="fIn" type="date"></div>
     <div><label>Salida</label><input id="fOut" type="date"></div>
   </div>
+  <div class="fila2c">
+    <div><label>Hora de entrada</label><input id="fHoraIn" type="time" value="14:00"></div>
+    <div><label>Hora de salida</label><input id="fHoraOut" type="time" value="10:00"></div>
+  </div>
   <p class="texto-gris" id="calcNoches" style="margin:6px 0 0;"></p>
 
   <div class="fila2c">
@@ -127,9 +131,26 @@
       </select></div>
   </div>
   <div class="fila2c">
-    <div><label>Monto (R$)</label><input id="pMonto" type="number" min="0" step="0.01" inputmode="decimal"></div>
-    <div><label>Fecha</label><input id="pFecha" type="date"></div>
+    <div><label>Moneda</label>
+      <select id="pMoneda">
+        <option value="BRL">R$ Reales</option>
+        <option value="USD">U$D Dólares</option>
+        <option value="UYU">$U Pesos uruguayos</option>
+      </select></div>
+    <div><label>Monto</label><input id="pMonto" type="number" min="0" step="0.01" inputmode="decimal"></div>
   </div>
+  <div id="grupoEquiv" class="oculto">
+    <label>Equivalente en R$ (al cambio de hoy)</label>
+    <input id="pEquiv" type="number" min="0" step="0.01" inputmode="decimal">
+  </div>
+  <div class="fila2c">
+    <div><label>Categoría</label>
+      <select id="pCategoria"></select></div>
+    <div><label>Cuenta de destino</label>
+      <select id="pCuenta"></select></div>
+  </div>
+  <label>Fecha</label>
+  <input id="pFecha" type="date">
   <label>Nota (opcional)</label>
   <input id="pNota" maxlength="150">
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
@@ -166,7 +187,9 @@ let pagoReservaId = null;      // reserva a la que se registra un pago
 // Derivados de dinero — NUNCA guardados (CONVENCIONES)
 const pagosDe = (rid) => pagos.filter((p) => p.reservaId === rid)
   .sort((a, b) => (b.fecha ?? '').localeCompare(a.fecha ?? ''));
-const pagadoDe = (rid) => pagosDe(rid).reduce((a, p) => a + (Number(p.monto) || 0), 0);
+// El saldo cierra SIEMPRE en R$: pagos en otra moneda aportan su montoBRL
+const enBRL = (p) => Number(p.moneda === 'BRL' ? p.monto : p.montoBRL) || 0;
+const pagadoDe = (rid) => pagosDe(rid).reduce((a, p) => a + enBRL(p), 0);
 const tieneSena = (rid) => pagosDe(rid).some((p) => p.concepto === 'sena');
 
 const COLORES_CAB = ['#2a9d8f', '#e76f51', '#4361ee', '#b8860b', '#7209b7'];
@@ -219,7 +242,7 @@ function render() {
       </div>
       <div class="fila2">
         <span class="cab" style="background:${CV2.pastelDe(col)};color:${col};">${esc(nombreCab(r.cabanaId))}</span>
-        <span>${CV2.fmtFecha(r.checkIn)} → ${CV2.fmtFecha(r.checkOut)} · ${noches(r)} noche(s)</span>
+        <span>${CV2.fmtFecha(r.checkIn)} ${r.horaEntrada ?? '14:00'} → ${CV2.fmtFecha(r.checkOut)} ${r.horaSalida ?? '10:00'} · ${noches(r)} noche(s)</span>
         <span>👤 ${r.adultos}${r.ninos ? ' + ' + r.ninos + ' 🧒' : ''}</span>
         <span><b>${CV2.fmtMonto(r.totalBRL ?? 0)}</b></span>
         ${(() => {
@@ -241,8 +264,8 @@ function render() {
           <b>Pagos</b> · pagado ${CV2.fmtMonto(pagadoDe(r.id))} de ${CV2.fmtMonto(r.totalBRL ?? 0)}
           ${ps.map((p) => `<div style="display:flex;gap:8px;align-items:center;font-size:.82rem;color:var(--gris);margin-top:3px;">
             <span>${CV2.fmtFecha(p.fecha)}</span>
-            <span style="flex:1;">${CONC[p.concepto] ?? 'Pago'} · ${esc(p.metodo ?? '')}${p.nota ? ' · ' + esc(p.nota) : ''}</span>
-            <b style="color:var(--tinta);">${CV2.fmtMonto(p.monto)}</b>
+            <span style="flex:1;">${CONC[p.concepto] ?? 'Pago'} · ${esc(p.metodo ?? '')}${p.categoria ? ' · ' + esc(p.categoria) : ''}${p.cuentaDestino ? ' → ' + esc(p.cuentaDestino) : ''}${p.nota ? ' · ' + esc(p.nota) : ''}</span>
+            <b style="color:var(--tinta);">${CV2.fmtMonto(p.monto, p.moneda ?? 'BRL')}${p.moneda && p.moneda !== 'BRL' ? ' <span style="font-weight:400;color:var(--gris);">(≈' + CV2.fmtMonto(enBRL(p)) + ')</span>' : ''}</b>
             ${CV2.esAdmin() ? `<button class="btn-ico" style="border:0;padding:2px;" onclick="borrarPago('${p.id}')" title="Eliminar pago"><span class="material-icons" style="font-size:15px;color:var(--rojo)">delete_outline</span></button>` : ''}
           </div>`).join('')}
         </div>` : ''}
@@ -312,6 +335,8 @@ function abrirModal(r) {
   $('fCabana').value = r?.cabanaId ?? (cabanas[0]?.id ?? '');
   $('fIn').value = r?.checkIn ?? '';
   $('fOut').value = r?.checkOut ?? '';
+  $('fHoraIn').value = r?.horaEntrada ?? '14:00';
+  $('fHoraOut').value = r?.horaSalida ?? '10:00';
   $('fAdultos').value = r?.adultos ?? 2;
   $('fNinos').value = r?.ninos ?? 0;
   $('fTotal').value = r?.totalBRL ?? '';
@@ -345,6 +370,8 @@ $('mGuardar').addEventListener('click', async () => {
     clienteId: null,
     cabanaId,
     checkIn: ci, checkOut: co,
+    horaEntrada: $('fHoraIn').value || '14:00',
+    horaSalida: $('fHoraOut').value || '10:00',
     adultos: Math.max(1, parseInt($('fAdultos').value) || 1),
     ninos: Math.max(0, parseInt($('fNinos').value) || 0),
     totalBRL: Math.max(0, parseFloat($('fTotal').value) || 0),
@@ -378,6 +405,48 @@ $('mGuardar').addEventListener('click', async () => {
 });
 
 // ═══ Pagos y señas ════════════════════════════════════════
+// Listas mantenibles en config/dinero: al registrar un pago se puede
+// AGREGAR una nueva categoría o cuenta en el momento (opción ➕).
+let listas = { categoriasRecepcion: ['Alquiler', 'Seña', 'Extra'], cuentasDestino: [] };
+
+async function cargarListas() {
+  try {
+    const s = await getDoc(doc(db, 'config', 'dinero'));
+    if (s.exists()) {
+      const d = s.data();
+      if (Array.isArray(d.categoriasRecepcion) && d.categoriasRecepcion.length) listas.categoriasRecepcion = d.categoriasRecepcion;
+      if (Array.isArray(d.cuentasDestino)) listas.cuentasDestino = d.cuentasDestino;
+    }
+  } catch { /* primera vez */ }
+}
+
+const opcionesLista = (arr) =>
+  arr.map((x) => `<option value="${esc(x)}">${esc(x)}</option>`).join('')
+  + '<option value="__nueva">➕ Agregar nueva…</option>';
+
+function poblarSelectsPago() {
+  $('pCategoria').innerHTML = opcionesLista(listas.categoriasRecepcion);
+  $('pCuenta').innerHTML = '<option value="">— sin especificar —</option>' + opcionesLista(listas.cuentasDestino);
+}
+
+async function manejarNueva(sel, campo) {
+  if (sel.value !== '__nueva') return;
+  const nombre = (prompt('Nombre de la nueva ' + (campo === 'categoriasRecepcion' ? 'categoría' : 'cuenta de destino') + ':') ?? '').trim();
+  if (!nombre) { sel.selectedIndex = 0; return; }
+  if (!listas[campo].includes(nombre)) {
+    listas[campo] = [...listas[campo], nombre];
+    try {
+      await setDoc(doc(db, 'config', 'dinero'), { [campo]: arrayUnion(nombre) }, { merge: true });
+    } catch (e) { CV2.toast('No se pudo guardar en la lista: ' + (e.code ?? e.message), 'error'); }
+  }
+  poblarSelectsPago();
+  sel.value = nombre;
+}
+$('pCategoria').addEventListener('change', () => manejarNueva($('pCategoria'), 'categoriasRecepcion'));
+$('pCuenta').addEventListener('change', () => manejarNueva($('pCuenta'), 'cuentasDestino'));
+$('pMoneda').addEventListener('change', () =>
+  $('grupoEquiv').classList.toggle('oculto', $('pMoneda').value === 'BRL'));
+
 window.abrirPago = (rid) => {
   pagoReservaId = rid;
   const r = reservas.find((x) => x.id === rid);
@@ -385,6 +454,10 @@ window.abrirPago = (rid) => {
   $('pQuien').textContent = `${r.clienteNombre} · ${nombreCab(r.cabanaId)} · saldo ${CV2.fmtMonto(Math.max(0, saldo))}`;
   $('pConcepto').value = pagosDe(rid).length ? 'saldo' : 'sena';
   $('pMetodo').value = r.origen === 'airbnb' ? 'airbnb' : 'pix';
+  $('pMoneda').value = 'BRL';
+  $('grupoEquiv').classList.add('oculto');
+  $('pEquiv').value = '';
+  poblarSelectsPago();
   $('pMonto').value = '';
   $('pFecha').value = CV2.hoyISO();
   $('pNota').value = '';
@@ -395,12 +468,24 @@ $('pCancelar').addEventListener('click', () => $('mPago').close());
 $('pGuardar').addEventListener('click', async () => {
   const monto = Math.max(0, parseFloat($('pMonto').value) || 0);
   if (!monto) { CV2.toast('Falta el monto', 'error'); return; }
+  const moneda = $('pMoneda').value;
+  const montoBRL = moneda === 'BRL' ? monto : Math.max(0, parseFloat($('pEquiv').value) || 0);
+  if (moneda !== 'BRL' && !montoBRL) {
+    CV2.toast('Cargá el equivalente en R$ (para el saldo de la reserva)', 'error');
+    return;
+  }
+  if ($('pCategoria').value === '__nueva' || $('pCuenta').value === '__nueva') {
+    CV2.toast('Terminá de agregar la opción nueva', 'error');
+    return;
+  }
   $('pGuardar').disabled = true;
   try {
     const r = reservas.find((x) => x.id === pagoReservaId);
     await addDoc(collection(db, 'pagos'), {
       reservaId: pagoReservaId,
-      monto, moneda: 'BRL',
+      monto, moneda, montoBRL,
+      categoria: $('pCategoria').value || null,
+      cuentaDestino: $('pCuenta').value || null,
       concepto: $('pConcepto').value,
       metodo: $('pMetodo').value,
       fecha: $('pFecha').value || CV2.hoyISO(),
@@ -409,7 +494,7 @@ $('pGuardar').addEventListener('click', async () => {
       creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
     });
     await updateDoc(doc(db, 'reservas', pagoReservaId), {
-      historial: registrarCambio(`pago ${$('pConcepto').value} ${CV2.fmtMonto(monto)} (${$('pMetodo').value})`),
+      historial: registrarCambio(`pago ${$('pConcepto').value} ${CV2.fmtMonto(monto, moneda)}${moneda !== 'BRL' ? ' (≈' + CV2.fmtMonto(montoBRL) + ')' : ''} → ${$('pCuenta').value || 'sin cuenta'}`),
       actualizadoEn: serverTimestamp()
     });
     $('mPago').close();
