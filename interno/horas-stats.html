@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Análisis de horas</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .filtros { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+  .filtros select { width: auto; max-width: 250px; font-size: .86rem; padding: 8px 10px; }
+  .kpis { display: flex; gap: 10px; flex-wrap: wrap; }
+  .kpi { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+         padding: 10px 16px; box-shadow: var(--sombra); }
+  .kpi b { display: block; font-size: 1.15rem; }
+  .kpi span { font-size: .76rem; color: var(--gris); }
+  .torta-box { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+  .ley { flex: 1; min-width: 220px; }
+  .ley .fila { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 7px; margin: 3px 0; font-size: .86rem; }
+  .ley .dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+  .ley .nm { flex: 1; overflow-wrap: anywhere; }
+  .ley .hs { font-weight: 700; white-space: nowrap; }
+  table { width: 100%; border-collapse: collapse; font-size: .87rem; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--linea); }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <h1>Análisis de horas</h1>
+
+  <div class="filtros">
+    <select id="fPeriodo">
+      <option value="7">Últimos 7 días</option>
+      <option value="30" selected>Últimos 30 días</option>
+      <option value="90">Últimos 3 meses</option>
+      <option value="365">Último año</option>
+      <option value="0">Todo</option>
+    </select>
+    <select id="fUsuario" class="oculto"><option value="">Todo el equipo</option></select>
+    <select id="fProyecto"><option value="">Todos los proyectos</option></select>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card">
+    <h2 style="margin-top:0;">Tiempo por proyecto</h2>
+    <div class="torta-box">
+      <div id="torta"></div>
+      <div class="ley" id="leyenda"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;">Por persona</h2>
+    <div id="personas"></div>
+  </div>
+</div>
+
+<script type="module">
+// Regla del 2.0: definiciones primero, suscripción AL FINAL.
+import { db, collection, query, where, onSnapshot, getDocs, or, and } from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('horas');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+// ═══ Estado ═══════════════════════════════════════════════
+let sesiones = [];
+let actIdx = {};
+let roots = [];
+let arbolPlano = [];
+
+const PALETA = ['#2a9d8f', '#e76f51', '#4361ee', '#b8860b', '#7209b7',
+                '#2d5a27', '#c2185b', '#00838f', '#6d4c41', '#546e7a'];
+
+// ═══ Helpers ══════════════════════════════════════════════
+const raizDe = (id) => {
+  let curId = id, g = 0;
+  while (actIdx[curId]?.parentId && actIdx[actIdx[curId].parentId] && g++ < 25) curId = actIdx[curId].parentId;
+  return actIdx[id] ? curId : null;
+};
+const colorProy = (rootId) => {
+  const r = actIdx[rootId];
+  if (r?.color) return { a: r.color, p: CV2.pastelDe(r.color) };
+  const i = roots.indexOf(rootId);
+  const a = PALETA[(i < 0 ? PALETA.length - 1 : i) % PALETA.length];
+  return { a, p: CV2.pastelDe(a) };
+};
+const enPath = (actId, nodoId) => {
+  let cur = actId, g = 0;
+  while (cur && g++ < 25) {
+    if (cur === nodoId) return true;
+    cur = actIdx[cur]?.parentId ?? null;
+  }
+  return false;
+};
+
+// ═══ Filtro ═══════════════════════════════════════════════
+function filtradas() {
+  const dias = Number($('fPeriodo').value);
+  const desde = dias ? Date.now() - dias * 86400000 : 0;
+  const fu = CV2.esAdmin() ? $('fUsuario').value : u.uid;
+  const fp = $('fProyecto').value;
+  return sesiones.filter((s) => {
+    if (s.estado !== 'finalizada') return false;
+    const ms = (s.fin ?? s.inicio)?.toMillis?.() ?? 0;
+    if (ms < desde) return false;
+    if (fu && s.uid !== fu) return false;
+    if (fp && !enPath(s.actividadId, fp)) return false;
+    return true;
+  });
+}
+
+// ═══ Render ═══════════════════════════════════════════════
+function render() {
+  const fs = filtradas();
+  const total = fs.reduce((a, s) => a + (s.horas ?? 0), 0);
+  const dias = Number($('fPeriodo').value) || Math.max(1, Math.round((Date.now() - Math.min(...fs.map((s) => (s.fin ?? s.inicio)?.toMillis?.() ?? Date.now()), Date.now())) / 86400000));
+  const kpi = (v, l) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`;
+  $('kpis').innerHTML =
+    kpi(CV2.fmtHM(total), 'Horas totales') +
+    kpi(String(fs.length), 'Sesiones') +
+    kpi(CV2.fmtHM(total / (dias / 7)), 'Promedio semanal');
+
+  // ── Torta por proyecto ──
+  const porProy = {};
+  for (const s of fs) {
+    const r = raizDe(s.actividadId) ?? '__sin';
+    porProy[r] = (porProy[r] ?? 0) + (s.horas ?? 0);
+  }
+  const grupos = Object.entries(porProy)
+    .map(([id, horas]) => ({ id, horas }))
+    .sort((a, b) => b.horas - a.horas);
+
+  if (!grupos.length || total <= 0) {
+    $('torta').innerHTML = '';
+    $('leyenda').innerHTML = '<div class="vacio">Sin horas en el período.</div>';
+    $('personas').innerHTML = '<div class="vacio">Sin datos.</div>';
+    return;
+  }
+
+  const cx = 95, cy = 95, R = 88, r0 = 48;
+  let svg = `<svg width="190" height="190" viewBox="0 0 190 190">`;
+  if (grupos.length === 1) {
+    svg += `<circle cx="${cx}" cy="${cy}" r="${(R + r0) / 2}" fill="none" stroke="${colorProy(grupos[0].id).a}" stroke-width="${R - r0}"/>`;
+  } else {
+    let ang = -Math.PI / 2;
+    for (const g of grupos) {
+      const a2 = ang + (g.horas / total) * 2 * Math.PI;
+      const big = (a2 - ang) > Math.PI ? 1 : 0;
+      const p = (a, rr) => `${(cx + rr * Math.cos(a)).toFixed(2)} ${(cy + rr * Math.sin(a)).toFixed(2)}`;
+      svg += `<path d="M ${p(ang, R)} A ${R} ${R} 0 ${big} 1 ${p(a2, R)} L ${p(a2, r0)} A ${r0} ${r0} 0 ${big} 0 ${p(ang, r0)} Z" fill="${colorProy(g.id).a}"/>`;
+      ang = a2;
+    }
+  }
+  svg += `<text x="${cx}" y="${cy + 5}" text-anchor="middle" font-size="15" font-weight="700" fill="#22301f">${CV2.fmtHM(total)}</text></svg>`;
+  $('torta').innerHTML = svg;
+
+  $('leyenda').innerHTML = grupos.map((g) => {
+    const c = colorProy(g.id);
+    return `<div class="fila" style="background:${c.p};">
+      <span class="dot" style="background:${c.a};"></span>
+      <span class="nm">${esc(actIdx[g.id]?.titulo ?? '(sin proyecto)')}</span>
+      <span class="hs">${CV2.fmtHM(g.horas)} · ${Math.round(g.horas / total * 100)}%</span>
+    </div>`;
+  }).join('');
+
+  // ── Por persona ──
+  const porUid = {};
+  for (const s of fs) {
+    (porUid[s.uid] ??= { nombre: s.nombre ?? s.uid, horas: 0, n: 0 });
+    porUid[s.uid].horas += s.horas ?? 0;
+    porUid[s.uid].n++;
+  }
+  const filas = Object.values(porUid).sort((a, b) => b.horas - a.horas);
+  $('personas').innerHTML = `<table>
+    <thead><tr><th>Persona</th><th class="num">Sesiones</th><th class="num">Horas</th><th class="num">%</th></tr></thead>
+    <tbody>${filas.map((p) => `<tr>
+      <td>${esc(p.nombre)}</td>
+      <td class="num">${p.n}</td>
+      <td class="num"><b>${CV2.fmtHM(p.horas)}</b></td>
+      <td class="num">${Math.round(p.horas / total * 100)}%</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+['fPeriodo', 'fUsuario', 'fProyecto'].forEach((id) => $(id).addEventListener('change', render));
+
+// ═══ Cargas iniciales ═════════════════════════════════════
+{
+  const col = collection(db, 'actividades');
+  const qa = CV2.esAdmin() ? query(col) : query(col, or(
+    where('alcance', '==', 'equipo'),
+    where('creadoPor', '==', u.uid),
+    and(where('alcance', '==', 'asignados'), where('competencias', 'array-contains', u.uid))
+  ));
+  const sa = await getDocs(qa);
+  const hijosDe = {};
+  sa.forEach((d) => {
+    const x = d.data();
+    actIdx[d.id] = { titulo: x.titulo ?? d.id, parentId: x.parentId ?? null, color: x.color ?? null, orden: x.orden ?? 0 };
+    (hijosDe[x.parentId ?? ''] ??= []).push(d.id);
+  });
+  roots = (hijosDe[''] ?? []).slice().sort((a, b) => actIdx[a].titulo.localeCompare(actIdx[b].titulo));
+  const bajar = (id, nivel, vis) => {
+    if (vis[id]) return; vis[id] = 1;
+    arbolPlano.push({ id, nivel, titulo: actIdx[id].titulo, esRaiz: nivel === 0 });
+    (hijosDe[id] ?? []).slice()
+      .sort((a, b) => (actIdx[a].orden - actIdx[b].orden) || actIdx[a].titulo.localeCompare(actIdx[b].titulo))
+      .forEach((h) => bajar(h, nivel + 1, vis));
+  };
+  const vis = {};
+  roots.forEach((r) => bajar(r, 0, vis));
+  $('fProyecto').innerHTML = '<option value="">Todos los proyectos</option>' +
+    arbolPlano.map((n) => `<option value="${n.id}">${'\u00A0'.repeat(n.nivel * 4)}${n.esRaiz ? '🏠 ' : '· '}${esc(n.titulo)}</option>`).join('');
+}
+
+if (CV2.esAdmin()) {
+  $('fUsuario').classList.remove('oculto');
+  const su = await getDocs(collection(db, 'usuarios'));
+  const ops = [];
+  su.forEach((d) => { const x = d.data(); if (x.activo === true) ops.push({ uid: d.id, nombre: x.nombre ?? d.id }); });
+  ops.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  $('fUsuario').innerHTML = '<option value="">Todo el equipo</option>' +
+    ops.map((p) => `<option value="${p.uid}">${esc(p.nombre)}</option>`).join('');
+}
+
+// ═══ Suscripción — AL FINAL ═══════════════════════════════
+const cs = collection(db, 'sesiones');
+const qs = CV2.esAdmin() ? query(cs) : query(cs, where('uid', '==', u.uid));
+
+onSnapshot(qs, (snap) => {
+  sesiones = [];
+  snap.forEach((d) => sesiones.push({ id: d.id, ...d.data() }));
+  render();
+}, (e) => { console.error(e); CV2.toast('No se pudieron cargar las horas', 'error'); });
+</script>
+</body>
+</html>
