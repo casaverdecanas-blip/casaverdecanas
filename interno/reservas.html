@@ -145,6 +145,7 @@ import {
   doc, addDoc, updateDoc, setDoc, deleteDoc, serverTimestamp, arrayUnion, Timestamp
 } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
+import { RCore } from './reservas-core.js';
 
 CV2.registrarSW();
 const u = await CV2.verificarAuth();
@@ -284,6 +285,12 @@ window.cambiarEstado = async (id, nuevo) => {
       actualizadoEn: serverTimestamp()
     });
     CV2.toast(`Reserva ${nuevo}`, 'success');
+    // Limpieza automática: confirmar la crea, anular la borra (si no se hizo)
+    try {
+      const s = await RCore.sincronizarLimpiezas([{ ...r, estado: nuevo }], cabanas, u);
+      if (s.creadas) CV2.toast(`🧹 Limpieza programada para el ${CV2.fmtFecha(r.checkOut)}`, 'info');
+      if (s.borradas) CV2.toast('🧹 Limpieza cancelada', 'info');
+    } catch (e2) { console.warn('limpiezas:', e2); }
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
 };
 
@@ -350,6 +357,10 @@ $('mGuardar').addEventListener('click', async () => {
       datos.historial = registrarCambio('datos editados');
       await updateDoc(doc(db, 'reservas', editId), datos);
       CV2.toast('Guardada', 'success');
+      // Si cambió fecha/cabaña, la limpieza se realinea sola
+      const rPrev = reservas.find((x) => x.id === editId);
+      try { await RCore.sincronizarLimpiezas([{ ...rPrev, ...datos, id: editId }], cabanas, u); }
+      catch (e2) { console.warn('limpiezas:', e2); }
     } else {
       await addDoc(collection(db, 'reservas'), {
         ...datos,

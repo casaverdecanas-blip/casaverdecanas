@@ -65,6 +65,7 @@ CV2.NAV = [
   { id: 'inicio', label: 'Inicio', href: './index.html', icono: 'home' },
   { id: 'actividades', label: 'Actividades', href: './actividades.html', icono: 'checklist' },
   { id: 'reservas', label: 'Reservas', href: './reservas.html', icono: 'king_bed' },
+  { id: 'calendario', label: 'Calendario', href: './calendario.html', icono: 'calendar_month' },
   { id: 'comunicacion', label: 'Chat', href: './comunicacion.html', icono: 'forum' },
   { id: 'sesiones', label: 'Sesiones', href: './gestion-sesiones.html', icono: 'schedule' },
   { id: 'horas', label: 'Horas', href: './horas-stats.html', icono: 'insights' },
@@ -76,7 +77,7 @@ CV2.NAV = [
 CV2.renderNav = function (activo) {
   const cont = document.getElementById('nav');
   if (!cont) return;
-  const SIEMPRE = ['inicio', 'actividades', 'reservas', 'comunicacion', 'sesiones', 'horas', 'honorarios'];
+  const SIEMPRE = ['inicio', 'actividades', 'reservas', 'calendario', 'comunicacion', 'sesiones', 'horas', 'honorarios'];
   const items = CV2.NAV
     .filter(it => CV2.puede(it.id) || SIEMPRE.includes(it.id))
     .map(it => `

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Calendario</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .mes-nav { display: flex; align-items: center; gap: 8px; }
+  .mes-nav h2 { flex: 1; text-align: center; margin: 0; text-transform: capitalize; }
+  .grilla { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-top: 10px; }
+  .dow { text-align: center; font-size: .7rem; color: var(--gris); padding: 3px 0; }
+  .dia {
+    min-height: 62px; background: #fff; border: 1px solid var(--linea);
+    border-radius: 8px; padding: 3px 4px; cursor: pointer; overflow: hidden;
+  }
+  .dia.fuera { opacity: .35; }
+  .dia.hoy { outline: 2px solid var(--verde); }
+  .dia.sel { background: var(--verde-claro); }
+  .dia .n { font-size: .72rem; color: var(--gris); }
+  .barra { height: 7px; border-radius: 4px; margin-top: 2px; opacity: .85; }
+  .barra.entrada { border-left: 3px solid #123c0e; }
+  .leyenda { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: .78rem; color: var(--gris); }
+  .leyenda span { display: inline-flex; align-items: center; gap: 5px; }
+  .leyenda i { width: 14px; height: 8px; border-radius: 4px; display: inline-block; }
+  .evt { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px dashed var(--linea); font-size: .88rem; }
+  .evt:last-child { border-bottom: 0; }
+  .evt .material-icons { font-size: 18px; }
+  .vacio { text-align: center; color: var(--gris); padding: 20px 10px; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h1 style="margin-right:auto;">Calendario</h1>
+    <button class="btn oculto" id="btnSync" title="Generar/actualizar limpiezas de todas las reservas">
+      <span class="material-icons">cleaning_services</span> Limpiezas
+    </button>
+  </div>
+
+  <div class="card">
+    <div class="mes-nav">
+      <button class="btn" id="prev" style="padding:7px 10px;"><span class="material-icons">chevron_left</span></button>
+      <h2 id="mesTitulo"></h2>
+      <button class="btn" id="next" style="padding:7px 10px;"><span class="material-icons">chevron_right</span></button>
+    </div>
+    <div class="grilla" id="grilla"></div>
+    <div class="leyenda" id="leyenda"></div>
+  </div>
+
+  <div class="card">
+    <h2 id="diaTitulo" style="margin-top:0;">Tocá un día</h2>
+    <div id="diaDetalle"><div class="vacio">Las entradas, salidas y quién está en casa aparecen acá.</div></div>
+  </div>
+</div>
+
+<script type="module">
+// Regla del 2.0: definiciones primero, suscripción AL FINAL.
+import { db, collection, query, onSnapshot, getDocs } from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+import { RCore } from './reservas-core.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('calendario');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+let reservas = [];
+let cabanas = [];
+let anio, mes;             // mes 0-11
+let diaSel = null;
+
+const COLORES_CAB = ['#2a9d8f', '#e76f51', '#4361ee', '#b8860b', '#7209b7'];
+const colorCab = (id) => {
+  const i = cabanas.findIndex((x) => x.id === id);
+  return COLORES_CAB[(i < 0 ? COLORES_CAB.length - 1 : i) % COLORES_CAB.length];
+};
+const nomCab = (id) => {
+  const c = cabanas.find((x) => x.id === id);
+  const n = c?.nombre;
+  return typeof n === 'object' ? (n.es ?? id) : (n ?? id);
+};
+const iso = (a, m, d) => `${a}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+const activasEn = (d) => reservas.filter((r) =>
+  r.estado === 'confirmada' && r.checkIn <= d && r.checkOut > d);
+
+// ═══ Render ═══════════════════════════════════════════════
+function render() {
+  $('mesTitulo').textContent = MESES[mes] + ' ' + anio;
+  const hoy = CV2.hoyISO();
+  const primero = new Date(anio, mes, 1);
+  const inicioSemana = (primero.getDay() + 6) % 7;      // lunes = 0
+  const diasMes = new Date(anio, mes + 1, 0).getDate();
+
+  let h = ['L','M','X','J','V','S','D'].map((d) => `<div class="dow">${d}</div>`).join('');
+
+  // días del mes anterior para completar la primera fila
+  const prevDias = new Date(anio, mes, 0).getDate();
+  for (let i = inicioSemana - 1; i >= 0; i--) {
+    h += `<div class="dia fuera"><span class="n">${prevDias - i}</span></div>`;
+  }
+  for (let d = 1; d <= diasMes; d++) {
+    const fecha = iso(anio, mes, d);
+    const acts = activasEn(fecha);
+    const barras = acts.slice(0, 3).map((r) =>
+      `<div class="barra${r.checkIn === fecha ? ' entrada' : ''}" style="background:${colorCab(r.cabanaId)};"></div>`).join('');
+    h += `<div class="dia${fecha === hoy ? ' hoy' : ''}${fecha === diaSel ? ' sel' : ''}" onclick="verDia('${fecha}')">
+      <span class="n">${d}</span>${barras}${acts.length > 3 ? '<span class="n">+' + (acts.length - 3) + '</span>' : ''}</div>`;
+  }
+  $('grilla').innerHTML = h;
+
+  $('leyenda').innerHTML = cabanas.map((c) =>
+    `<span><i style="background:${colorCab(c.id)};"></i>${esc(nomCab(c.id))}</span>`).join('')
+    + '<span><i style="background:#888;border-left:3px solid #123c0e;"></i>día de entrada</span>';
+
+  if (diaSel) renderDia();
+}
+
+function renderDia() {
+  const d = diaSel;
+  $('diaTitulo').textContent = CV2.fmtFecha(d);
+  const entradas = reservas.filter((r) => r.estado === 'confirmada' && r.checkIn === d);
+  const salidas = reservas.filter((r) => (r.estado === 'confirmada' || r.estado === 'finalizada') && r.checkOut === d);
+  const encasa = activasEn(d).filter((r) => r.checkIn !== d);
+
+  let h = '';
+  for (const r of salidas) h += `<div class="evt"><span class="material-icons" style="color:var(--rojo);">logout</span>
+    <span style="flex:1;"><b>${esc(r.clienteNombre)}</b> deja ${esc(nomCab(r.cabanaId))}</span>
+    <span class="chip">🧹 limpieza</span></div>`;
+  for (const r of entradas) h += `<div class="evt"><span class="material-icons" style="color:var(--ok);">login</span>
+    <span style="flex:1;"><b>${esc(r.clienteNombre)}</b> entra a ${esc(nomCab(r.cabanaId))}</span>
+    <span class="texto-gris">${r.adultos}p</span></div>`;
+  for (const r of encasa) h += `<div class="evt"><span class="material-icons" style="color:var(--verde);">home</span>
+    <span style="flex:1;">${esc(r.clienteNombre)} en ${esc(nomCab(r.cabanaId))} (hasta ${CV2.fmtFecha(r.checkOut)})</span></div>`;
+
+  $('diaDetalle').innerHTML = h || '<div class="vacio">Día tranquilo: sin movimientos.</div>';
+}
+
+window.verDia = (d) => { diaSel = d; render(); };
+
+$('prev').addEventListener('click', () => { mes--; if (mes < 0) { mes = 11; anio--; } render(); });
+$('next').addEventListener('click', () => { mes++; if (mes > 11) { mes = 0; anio++; } render(); });
+
+// ═══ Sincronizar limpiezas (admin) ════════════════════════
+if (CV2.esAdmin()) {
+  $('btnSync').classList.remove('oculto');
+  $('btnSync').addEventListener('click', async () => {
+    $('btnSync').disabled = true;
+    try {
+      const r = await RCore.sincronizarLimpiezas(reservas, cabanas, u);
+      CV2.toast(`🧹 Limpiezas: ${r.creadas} nueva(s), ${r.actualizadas} al día, ${r.borradas} borrada(s)`, 'success');
+    } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+    finally { $('btnSync').disabled = false; }
+  });
+}
+
+// ═══ Cargas iniciales ═════════════════════════════════════
+const hoy = new Date();
+anio = hoy.getFullYear(); mes = hoy.getMonth();
+diaSel = CV2.hoyISO();
+
+const sc = await getDocs(collection(db, 'cabanas'));
+sc.forEach((d) => cabanas.push({ id: d.id, ...d.data() }));
+cabanas.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+
+// ═══ Suscripción — AL FINAL ═══════════════════════════════
+onSnapshot(query(collection(db, 'reservas')), (snap) => {
+  reservas = [];
+  snap.forEach((d) => reservas.push({ id: d.id, ...d.data() }));
+  render();
+}, (e) => { console.error(e); CV2.toast('No se pudo cargar el calendario (' + (e.code ?? e.message) + ')', 'error'); });
+</script>
+</body>
+</html>
