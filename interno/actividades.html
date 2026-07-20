@@ -10,7 +10,6 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#2d5a27">
 <style>
-  /* ── Filtros ── */
   .filtros { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
   .fchip {
     border: 1px solid var(--linea); background: #fff; border-radius: 999px;
@@ -18,7 +17,6 @@
   }
   .fchip.activo { background: var(--verde); border-color: var(--verde); color: #fff; }
 
-  /* ── Árbol ── */
   .act-item { margin: 6px 0; }
   .act-row {
     display: flex; align-items: center; gap: 8px;
@@ -37,21 +35,30 @@
   .act-children { margin-left: 16px; padding-left: 10px; border-left: 3px solid var(--linea); }
   .act-detalle {
     border: 1px solid var(--linea); border-top: 0; border-radius: 0 0 var(--radio) var(--radio);
-    margin: -6px 2px 0; padding: 12px; font-size: .88rem;
+    margin: -6px 2px 0; padding: 10px 12px; font-size: .86rem;
   }
-  .act-detalle .acciones { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .act-detalle .acciones { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
+
+  /* Botones compactos (pedido del admin: ocupar poco con muchas actividades) */
   .btn-ico {
-    border: 1px solid var(--linea); background: #fff; border-radius: 8px;
-    padding: 7px 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
-    font: inherit; font-size: .8rem; color: var(--tinta);
+    border: 1px solid var(--linea); background: #fff; border-radius: 7px;
+    padding: 5px 7px; cursor: pointer; display: inline-flex; align-items: center;
+    font: inherit; color: var(--tinta); line-height: 1;
   }
-  .btn-ico .material-icons { font-size: 18px; }
+  .btn-ico .material-icons { font-size: 17px; }
+  .btn-ico.play { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .btn-ico.stop { background: var(--rojo); border-color: var(--rojo); color: #fff; }
+
+  .crono {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: #123c0e; color: #d9f2d3; border-radius: 999px;
+    padding: 4px 12px; font-size: .82rem; font-variant-numeric: tabular-nums;
+  }
   .estrella { color: #c9a227; }
   .act-row.hecha .act-titulo { text-decoration: line-through; color: var(--gris); font-weight: 500; }
   .act-row.hecha { opacity: .75; }
   .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
 
-  /* ── Modal ── */
   dialog {
     border: 0; border-radius: 14px; padding: 0; width: min(560px, 94vw);
     max-height: 88dvh; box-shadow: 0 10px 40px rgba(0, 0, 0, .25);
@@ -88,7 +95,6 @@
   <div id="arbol"><div class="vacio">Cargando…</div></div>
 </div>
 
-<!-- ── Modal de alta/edición ── -->
 <dialog id="modal">
   <div class="m-head">
     <h2 id="mTitulo">Nueva actividad</h2>
@@ -172,12 +178,19 @@
 </dialog>
 
 <script type="module">
+// ═══════════════════════════════════════════════════════════
+// ESTRUCTURA: todo se define PRIMERO; la suscripción onSnapshot
+// se registra AL FINAL del módulo. Lección T1.2: con la caché
+// persistente el primer snapshot puede llegar antes de que el
+// módulo termine de evaluarse — nada de datos antes de tiempo.
+// ═══════════════════════════════════════════════════════════
 import {
   db, collection, query, where, or, and, onSnapshot,
   doc, addDoc, updateDoc, deleteDoc, setDoc, getDoc, getDocs,
   serverTimestamp, arrayUnion, arrayRemove
 } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
+import { Core } from './actividades-core.js';
 
 CV2.registrarSW();
 const u = await CV2.verificarAuth();
@@ -187,65 +200,39 @@ const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
 
 // ═══ Estado ═══════════════════════════════════════════════
-let byId = {};            // id → actividad
-let childrenOf = {};      // parentId → [ids]
-let roots = [];           // ids de proyectos raíz (orden alfabético)
-let abiertos = {};        // id → bool (expandido)
+let byId = {};
+let childrenOf = {};
+let roots = [];
+let abiertos = {};
 let detalleAbierto = null;
 let destacados = new Set();
 let filtro = 'todas';
-let editandoId = null;    // id en edición (null = alta)
-let altaPadreId = null;   // padre preseleccionado en alta
+let editandoId = null;
+let altaPadreId = null;
+let equipo = [];
+let crono = null;              // { actId, sesionId, inicioMs } — mi cronómetro
+const horasCache = {};         // actId → horas agregadas
 
-// Paleta de respaldo para proyectos sin color definido
 const PALETA = ['#2a9d8f', '#e76f51', '#4361ee', '#b8860b', '#7209b7',
                 '#2d5a27', '#c2185b', '#00838f', '#6d4c41', '#546e7a'];
 
-// ═══ Datos en vivo ════════════════════════════════════════
-const col = collection(db, 'actividades');
-const q = CV2.esAdmin() ? query(col) : query(col, or(
-  where('alcance', '==', 'equipo'),
-  where('creadoPor', '==', u.uid),
-  and(where('alcance', '==', 'asignados'), where('competencias', 'array-contains', u.uid))
-));
+// ═══ Helpers ══════════════════════════════════════════════
+const diasEntre = (isoA, isoB) => Math.round((new Date(isoB) - new Date(isoA)) / 86400000);
+const sumarDias = (iso, n) => {
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+const fmtCrono = (ms) => {
+  const s = Math.floor(ms / 1000);
+  const hh = Math.floor(s / 3600), mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0'),
+        ss = String(s % 60).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+};
 
-onSnapshot(q, (snap) => {
-  byId = {}; childrenOf = {};
-  snap.forEach((d) => { byId[d.id] = { id: d.id, ...d.data() }; });
-  for (const it of Object.values(byId)) {
-    const p = it.parentId ?? '';
-    (childrenOf[p] ??= []).push(it.id);
-  }
-  for (const arr of Object.values(childrenOf)) {
-    arr.sort((a, b) => (byId[a].orden ?? 0) - (byId[b].orden ?? 0)
-      || String(byId[a].titulo ?? '').localeCompare(String(byId[b].titulo ?? '')));
-  }
-  roots = (childrenOf[''] ?? []).slice()
-    .sort((a, b) => String(byId[a].titulo ?? '').localeCompare(String(byId[b].titulo ?? '')));
-  render();
-}, (e) => { console.error(e); CV2.toast('No se pudieron cargar las actividades', 'error'); });
-
-// Equipo (para el alcance 'asignados')
-let equipo = [];
-try {
-  const su = await getDocs(collection(db, 'usuarios'));
-  su.forEach((d) => {
-    const x = d.data();
-    if (x.activo === true && d.id !== u.uid) equipo.push({ uid: d.id, nombre: x.nombre ?? d.id });
-  });
-  equipo.sort((a, b) => a.nombre.localeCompare(b.nombre));
-} catch { /* sin equipo cargado todavía */ }
-
-// Destacadas del usuario (estado_usuario)
-try {
-  const eu = await getDoc(doc(db, 'estado_usuario', u.uid));
-  destacados = new Set(eu.exists() ? (eu.data().destacados ?? []) : []);
-} catch { /* primera vez */ }
-
-// ═══ Helpers de árbol ═════════════════════════════════════
 const raizDe = (id) => {
-  let cur = byId[id], guarda = 0;
-  while (cur?.parentId && byId[cur.parentId] && guarda++ < 25) cur = byId[cur.parentId];
+  let cur = byId[id], g = 0;
+  while (cur?.parentId && byId[cur.parentId] && g++ < 25) cur = byId[cur.parentId];
   return cur ?? null;
 };
 
@@ -257,33 +244,21 @@ const colorProy = (rootId) => {
   return { a, p: CV2.pastelDe(a) };
 };
 
-const esDescendiente = (id, posibleAncestro) => {
-  let cur = byId[id], guarda = 0;
-  while (cur?.parentId && guarda++ < 25) {
-    if (cur.parentId === posibleAncestro) return true;
+const esDescendiente = (id, ancestro) => {
+  let cur = byId[id], g = 0;
+  while (cur?.parentId && g++ < 25) {
+    if (cur.parentId === ancestro) return true;
     cur = byId[cur.parentId];
   }
   return false;
 };
 
-// ═══ Semáforo (versión T1.1; temporada llega después) ═════
-// rojo = vencida o urgente · amarillo = vence en ≤3 días o importante
-// verde = al día · gris = programada a futuro o sin fechas
-const diasEntre = (isoA, isoB) => Math.round((new Date(isoB) - new Date(isoA)) / 86400000);
-const sumarDias = (iso, n) => {
-  const d = new Date(iso + 'T12:00:00');
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
-};
-
+// ═══ Semáforo ═════════════════════════════════════════════
 function semaforo(it) {
   if (it.hecho) return { c: '#9aa69a', t: 'Terminada' };
   const hoy = CV2.hoyISO();
   if (it.prioridad === 'rojo') return { c: '#c0271f', t: 'Urgente' };
 
-  // Recurrentes: la secuencia del semáforo corre dentro del ciclo.
-  // Al realizarse se reprograman (gris) y vuelven a habilitarse al
-  // llegar su fecha: verde → amarillo → rojo según el atraso.
   const ciclo = it.recurrenciaDias ?? 0;
   if (ciclo > 0 && it.fechaInicio) {
     if (it.fechaInicio > hoy) return { c: '#cdd6cb', t: 'Vuelve el ' + CV2.fmtFecha(it.fechaInicio) };
@@ -317,7 +292,6 @@ const pasaFiltro = (it) => {
   return true;
 };
 
-// Un nodo se muestra si él o algún descendiente pasa el filtro
 function visible(id) {
   if (pasaFiltro(byId[id])) return true;
   return (childrenOf[id] ?? []).some(visible);
@@ -338,13 +312,14 @@ function nodoHTML(id) {
   const it = byId[id];
   const hijos = (childrenOf[id] ?? []).filter(visible);
   const ab = abiertos[id] ?? false;
-  const raiz = raizDe(id);
-  const col = colorProy(raiz?.id ?? id);
+  const col = colorProy(raizDe(id)?.id ?? id);
   const s = semaforo(it);
   const esRaiz = !it.parentId;
   const star = destacados.has(id);
+  const miCrono = crono?.actId === id;
 
   let chips = '';
+  if (miCrono) chips += `<span class="crono">⏱ <span class="crono-t" data-ini="${crono.inicioMs}">0:00:00</span></span>`;
   if ((it.recurrenciaDias ?? 0) > 0) chips += `<span class="mini">↻ ${it.recurrenciaDias}d</span>`;
   if ((it.monto ?? 0) > 0) chips += `<span class="mini">${CV2.fmtMonto(it.monto)}</span>`;
   if (it.esCompra) chips += `<span class="mini">🛒</span>`;
@@ -363,23 +338,25 @@ function nodoHTML(id) {
     </div>`;
 
   if (detalleAbierto === id) {
+    // Estado sin repetir: el semáforo ya dice lo esencial.
+    const partes = [s.t];
+    if (it.ultimaRealizacion) partes.push(`última vez ${CV2.fmtFecha(it.ultimaRealizacion)}${it.ultimaRealizacionNombre ? ' (' + esc(it.ultimaRealizacionNombre) + ')' : ''}`);
+    if (!(it.recurrenciaDias > 0) && it.fechaVencimiento && !s.t.startsWith('Vence') && s.t !== 'Vencida') partes.push('vence ' + CV2.fmtFecha(it.fechaVencimiento));
+    partes.push(`<span id="hrs-${id}">${horasCache[id] != null ? CV2.fmtHM(horasCache[id]) + ' registradas' : '…'}</span>`);
+
     h += `<div class="act-detalle" style="background:${col.p}">
-      <span class="texto-gris">${esc(s.t)}
-        ${it.fechaInicio ? ' · inicio ' + CV2.fmtFecha(it.fechaInicio) : ''}
-        ${it.fechaVencimiento ? ' · vence ' + CV2.fmtFecha(it.fechaVencimiento) : ''}
-        ${it.creadoNombre ? ' · creada por ' + esc(it.creadoNombre) : ''}
-      </span>
+      <span class="texto-gris">${partes.join(' · ')}</span>
       <div class="acciones">
-        ${!it.hecho ? `<button class="btn-ico" onclick="marcarRealizada('${id}')">
-          <span class="material-icons" style="color:var(--ok)">task_alt</span> Realizada</button>` : ''}
-        ${it.hecho && CV2.esAdmin() ? `<button class="btn-ico" onclick="restaurar('${id}')">
-          <span class="material-icons">restart_alt</span> Restaurar</button>` : ''}
-        ${!it.hecho ? `<button class="btn-ico" onclick="abrirAlta('${id}')"><span class="material-icons">add</span> Sub-ítem</button>` : ''}
-        <button class="btn-ico" onclick="toggleEstrella('${id}')">
+        ${!it.hecho ? (miCrono
+          ? `<button class="btn-ico stop" onclick="cronoStop('${id}')" title="Frenar y registrar"><span class="material-icons">stop</span></button>`
+          : `<button class="btn-ico play" onclick="cronoPlay('${id}')" title="Iniciar cronómetro"><span class="material-icons">play_arrow</span></button>`) : ''}
+        ${!it.hecho && !miCrono ? `<button class="btn-ico" onclick="realizada('${id}')" title="Realizada sin cronómetro"><span class="material-icons" style="color:var(--ok)">task_alt</span></button>` : ''}
+        ${it.hecho && CV2.esAdmin() ? `<button class="btn-ico" onclick="restaurar('${id}')" title="Restaurar"><span class="material-icons">restart_alt</span></button>` : ''}
+        ${!it.hecho ? `<button class="btn-ico" onclick="abrirAlta('${id}')" title="Agregar sub-ítem"><span class="material-icons">add</span></button>` : ''}
+        <button class="btn-ico" onclick="toggleEstrella('${id}')" title="Destacar">
           <span class="material-icons ${star ? 'estrella' : ''}">${star ? 'star' : 'star_outline'}</span></button>
-        ${!it.hecho ? `<button class="btn-ico" onclick="abrirEdicion('${id}')"><span class="material-icons">edit</span></button>` : ''}
-        ${(!it.hecho || CV2.esAdmin()) ? `<button class="btn-ico" onclick="borrar('${id}')"><span class="material-icons" style="color:var(--rojo)">delete</span></button>` : ''}
-        ${!it.hecho ? `<span class="texto-gris" style="align-self:center;">⏱ cronómetro: próxima tanda</span>` : ''}
+        ${!it.hecho ? `<button class="btn-ico" onclick="abrirEdicion('${id}')" title="Editar"><span class="material-icons">edit</span></button>` : ''}
+        ${(!it.hecho || CV2.esAdmin()) ? `<button class="btn-ico" onclick="borrar('${id}')" title="Eliminar"><span class="material-icons" style="color:var(--rojo)">delete</span></button>` : ''}
       </div>
     </div>`;
   }
@@ -390,51 +367,44 @@ function nodoHTML(id) {
   return h + '</div>';
 }
 
-// ═══ Interacción del árbol ════════════════════════════════
-window.toggleAbierto = (id) => { abiertos[id] = !abiertos[id]; render(); };
-window.toggleDetalle = (id) => { detalleAbierto = detalleAbierto === id ? null : id; render(); };
-
-window.toggleEstrella = async (id) => {
-  const ref = doc(db, 'estado_usuario', u.uid);
-  const tiene = destacados.has(id);
-  tiene ? destacados.delete(id) : destacados.add(id);
-  render();
+// ═══ Cronómetro ═══════════════════════════════════════════
+window.cronoPlay = async (id) => {
   try {
-    await setDoc(ref, {
-      destacados: tiene ? arrayRemove(id) : arrayUnion(id),
-      actualizadoEn: serverTimestamp()
-    }, { merge: true });
-  } catch (e) { CV2.toast('No se pudo guardar la estrella', 'error'); }
+    const r = await Core.iniciar(id, u);
+    crono = { actId: id, sesionId: r.sesionId, inicioMs: r.inicioMs };
+    render();
+    CV2.toast('▶ Cronómetro corriendo', 'success');
+  } catch (e) { CV2.toast(e.message, 'error'); }
 };
 
-// Realizada: recurrente → se reprograma y vuelve a habilitarse al
-// pasar su plazo; única → queda TACHADA hasta que un admin la borre.
-// (En T1.2 esta acción además dejará la sesión de registro en /sesiones/.)
-window.marcarRealizada = async (id) => {
+window.cronoStop = async (id) => {
   const it = byId[id];
-  const ciclo = it.recurrenciaDias ?? 0;
+  let terminada = true;
+  if ((it.recurrenciaDias ?? 0) > 0) {
+    terminada = confirm('El tiempo trabajado se registra ahora.\n\n¿La actividad quedó TERMINADA por este ciclo?\n\nAceptar = sí (se reprograma)\nCancelar = todavía no (queda pendiente, con el tiempo ya registrado)');
+  } else {
+    if (!confirm('¿Frenar y registrar el tiempo trabajado?')) return;
+  }
   try {
-    if (ciclo > 0) {
-      const proxima = sumarDias(CV2.hoyISO(), ciclo);
-      await updateDoc(doc(db, 'actividades', id), {
-        fechaInicio: proxima,
-        hecho: false,
-        ultimaRealizacion: CV2.hoyISO(),
-        ultimaRealizacionNombre: u.nombre,
-        actualizadoEn: serverTimestamp()
-      });
-      CV2.toast(`↻ Hecha — vuelve el ${CV2.fmtFecha(proxima)}`, 'success');
-    } else {
-      await updateDoc(doc(db, 'actividades', id), {
-        hecho: true,
-        estado: 'finalizada',
-        hechoPor: u.uid,
-        hechoEn: serverTimestamp(),
-        actualizadoEn: serverTimestamp()
-      });
-      CV2.toast('✔ Terminada (queda tachada hasta que un admin la elimine)', 'success');
-    }
-  } catch (e) { CV2.toast('No se pudo marcar: ' + (e.code ?? e.message), 'error'); }
+    const r = await Core.finalizar(id, u, terminada);
+    crono = null;
+    delete horasCache[id];
+    render();
+    CV2.toast(terminada
+      ? `✅ ${CV2.fmtHM(r.horas)} registradas — ciclo cerrado`
+      : `⏹ ${CV2.fmtHM(r.horas)} registradas — sigue pendiente`, 'success');
+  } catch (e) { CV2.toast(e.message, 'error'); }
+};
+
+// Realizada sin cronómetro (tilde): registra sesión de 0h y cierra ciclo
+window.realizada = async (id) => {
+  try {
+    const r = await Core.tildar(id, u);
+    delete horasCache[id];
+    CV2.toast(r.recurrente
+      ? `↻ Hecha — vuelve el ${CV2.fmtFecha(r.proxima)}`
+      : '✔ Terminada (queda tachada hasta que un admin la elimine)', 'success');
+  } catch (e) { CV2.toast(e.message, 'error'); }
 };
 
 window.restaurar = async (id) => {
@@ -444,7 +414,41 @@ window.restaurar = async (id) => {
       actualizadoEn: serverTimestamp()
     });
     CV2.toast('Restaurada', 'success');
-  } catch (e) { CV2.toast('No se pudo restaurar', 'error'); }
+  } catch { CV2.toast('No se pudo restaurar', 'error'); }
+};
+
+// Reloj vivo (un solo intervalo para toda la página)
+setInterval(() => {
+  document.querySelectorAll('.crono-t').forEach((el) => {
+    el.textContent = fmtCrono(Date.now() - Number(el.dataset.ini));
+  });
+}, 1000);
+
+// ═══ Interacción del árbol ════════════════════════════════
+window.toggleAbierto = (id) => { abiertos[id] = !abiertos[id]; render(); };
+
+window.toggleDetalle = (id) => {
+  detalleAbierto = detalleAbierto === id ? null : id;
+  render();
+  if (detalleAbierto === id && horasCache[id] == null) {
+    Core.horasDeActividad(id).then((h) => {
+      horasCache[id] = h;
+      const el = document.getElementById('hrs-' + id);
+      if (el) el.textContent = CV2.fmtHM(h) + ' registradas';
+    }).catch(() => {});
+  }
+};
+
+window.toggleEstrella = async (id) => {
+  const tiene = destacados.has(id);
+  tiene ? destacados.delete(id) : destacados.add(id);
+  render();
+  try {
+    await setDoc(doc(db, 'estado_usuario', u.uid), {
+      destacados: tiene ? arrayRemove(id) : arrayUnion(id),
+      actualizadoEn: serverTimestamp()
+    }, { merge: true });
+  } catch { CV2.toast('No se pudo guardar la estrella', 'error'); }
 };
 
 window.borrar = async (id) => {
@@ -465,7 +469,6 @@ window.borrar = async (id) => {
   } catch (e) { CV2.toast('No se pudo borrar: ' + (e.code ?? e.message), 'error'); }
 };
 
-// ═══ Filtros ══════════════════════════════════════════════
 $('filtros').addEventListener('click', (ev) => {
   const b = ev.target.closest('.fchip');
   if (!b) return;
@@ -478,7 +481,6 @@ $('filtros').addEventListener('click', (ev) => {
 const modal = $('modal');
 
 function opcionesPadre(excluirId) {
-  // Árbol completo tabulado (convención heredada del viejo)
   const op = [];
   const bajar = (id, nivel) => {
     if (id === excluirId || (excluirId && esDescendiente(id, excluirId))) return;
@@ -511,7 +513,6 @@ function prepararModal({ titulo, esProyecto, padreId, it }) {
   $('fProveedor').value = it?.proveedor ?? '';
   $('fProveedor').classList.toggle('oculto', !$('fEsCompra').checked);
 
-  // Selector de asignados (equipo activo, sin el creador)
   const sel = new Set(it?.competencias ?? []);
   $('fCompetencias').innerHTML = equipo.length
     ? equipo.map((p) => `<label class="check-linea" style="margin:0;">
@@ -527,12 +528,10 @@ $('btnNuevoProyecto').addEventListener('click', () => {
   editandoId = null; altaPadreId = null;
   prepararModal({ titulo: 'Nuevo proyecto', esProyecto: true });
 });
-
 window.abrirAlta = (padreId) => {
   editandoId = null; altaPadreId = padreId;
   prepararModal({ titulo: 'Nueva actividad', esProyecto: false, padreId });
 };
-
 window.abrirEdicion = (id) => {
   editandoId = id; altaPadreId = null;
   const it = byId[id];
@@ -569,12 +568,12 @@ $('mGuardar').addEventListener('click', async () => {
       : [],
     actualizadoEn: serverTimestamp()
   };
+  if (esProyecto) datos.color = $('fColor').value;
+  if (!esProyecto && !datos.parentId) { CV2.toast('Elegí a qué proyecto pertenece', 'error'); return; }
   if (datos.alcance === 'asignados' && datos.competencias.length === 0) {
     CV2.toast('Elegí al menos una persona para el alcance asignados', 'error');
     return;
   }
-  if (esProyecto) datos.color = $('fColor').value;
-  if (!esProyecto && !datos.parentId) { CV2.toast('Elegí a qué proyecto pertenece', 'error'); return; }
 
   $('mGuardar').disabled = true;
   try {
@@ -603,6 +602,50 @@ $('mGuardar').addEventListener('click', async () => {
     $('mGuardar').disabled = false;
   }
 });
+
+// ═══ Cargas iniciales (antes de suscribirse) ══════════════
+try {
+  const su = await getDocs(collection(db, 'usuarios'));
+  su.forEach((d) => {
+    const x = d.data();
+    if (x.activo === true && d.id !== u.uid) equipo.push({ uid: d.id, nombre: x.nombre ?? d.id });
+  });
+  equipo.sort((a, b) => a.nombre.localeCompare(b.nombre));
+} catch { /* sin equipo todavía */ }
+
+try {
+  const eu = await getDoc(doc(db, 'estado_usuario', u.uid));
+  destacados = new Set(eu.exists() ? (eu.data().destacados ?? []) : []);
+} catch { /* primera vez */ }
+
+// Restaurar mi cronómetro si quedó corriendo (sobrevive recargas)
+try {
+  const activa = await Core.sesionActiva(u.uid);
+  if (activa) crono = { actId: activa.actividadId, sesionId: activa.id, inicioMs: activa.inicio.toMillis() };
+} catch { /* sin sesión activa */ }
+
+// ═══ Suscripción en vivo — SIEMPRE AL FINAL ═══════════════
+const col = collection(db, 'actividades');
+const consulta = CV2.esAdmin() ? query(col) : query(col, or(
+  where('alcance', '==', 'equipo'),
+  where('creadoPor', '==', u.uid),
+  and(where('alcance', '==', 'asignados'), where('competencias', 'array-contains', u.uid))
+));
+
+onSnapshot(consulta, (snap) => {
+  byId = {}; childrenOf = {};
+  snap.forEach((d) => { byId[d.id] = { id: d.id, ...d.data() }; });
+  for (const it of Object.values(byId)) {
+    (childrenOf[it.parentId ?? ''] ??= []).push(it.id);
+  }
+  for (const arr of Object.values(childrenOf)) {
+    arr.sort((a, b) => (byId[a].orden ?? 0) - (byId[b].orden ?? 0)
+      || String(byId[a].titulo ?? '').localeCompare(String(byId[b].titulo ?? '')));
+  }
+  roots = (childrenOf[''] ?? []).slice()
+    .sort((a, b) => String(byId[a].titulo ?? '').localeCompare(String(byId[b].titulo ?? '')));
+  render();
+}, (e) => { console.error(e); CV2.toast('No se pudieron cargar las actividades', 'error'); });
 </script>
 </body>
 </html>
