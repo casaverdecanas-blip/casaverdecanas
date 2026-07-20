@@ -5,7 +5,7 @@
 //  todo pasa por este módulo. La versión del SDK vive SOLO acá.
 // ═══════════════════════════════════════════════════════════════
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
+import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
 import {
   initializeFirestore,
   persistentLocalCache,
@@ -23,7 +23,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword,
-  signOut, sendPasswordResetEmail
+  signOut, sendPasswordResetEmail, createUserWithEmailAndPassword
 } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
 
 // ── Configuración del proyecto casaverde-20 ──────────────────
@@ -49,6 +49,20 @@ const db = initializeFirestore(app, {
 });
 
 const auth = getAuth(app);
+
+// ── Alta de cuentas SIN perder la sesión del admin ───────────
+// createUserWithEmailAndPassword loguea a la cuenta nueva en la
+// instancia donde corre. Usamos una app SECUNDARIA descartable:
+// la sesión principal del admin no se toca.
+export async function crearCuentaAuth(email, clave) {
+  const app2 = getApps().find((a) => a.name === 'alta-usuarios')
+    ?? initializeApp(firebaseConfig, 'alta-usuarios');
+  const auth2 = getAuth(app2);
+  const cred = await createUserWithEmailAndPassword(auth2, email, clave);
+  const uid = cred.user.uid;
+  await signOut(auth2);
+  return uid;
+}
 
 // ── Re-exportación: las páginas importan TODO desde acá ──────
 export {

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Usuarios</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .usr {
+    display: flex; align-items: center; gap: 10px; background: #fff;
+    border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 11px 12px; margin: 7px 0; box-shadow: var(--sombra); font-size: .9rem;
+  }
+  .usr.inactivo { opacity: .55; }
+  .usr .info { flex: 1; min-width: 0; }
+  .usr .info small { display: block; color: var(--gris); font-size: .76rem; overflow-wrap: anywhere; }
+  .rol { font-size: .72rem; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .rol.admin { background: #1a1a1a; color: #e6b800; }
+  .rol.colaborador { background: var(--verde-claro); color: var(--verde-osc); }
+  .btn-mini { border: 0; background: none; color: var(--gris); cursor: pointer; padding: 4px; display: inline-flex; opacity: .6; }
+  .btn-mini:hover { opacity: 1; }
+  .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
+  dialog { border: 0; border-radius: 14px; padding: 16px; width: min(440px, 94vw); box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(20,30,18,.45); }
+  .modo { display: flex; gap: 8px; margin: 8px 0; }
+  .modo button { flex: 1; }
+  .modo .btn.activo { background: var(--verde); border-color: var(--verde); color: #fff; }
+  .aviso { font-size: .78rem; color: var(--gris); margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h1 style="margin-right:auto;">Usuarios</h1>
+    <button class="btn btn-primario" id="btnNuevo">
+      <span class="material-icons">person_add</span> Agregar
+    </button>
+  </div>
+  <p class="texto-gris" style="margin-top:-6px;">El rol y el estado se aplican al instante.
+  Desactivar a alguien le corta el acceso sin borrar su historial.</p>
+
+  <div id="lista"><div class="vacio">Cargando…</div></div>
+</div>
+
+<dialog id="modal">
+  <h2 id="mTit" style="margin:0 0 6px;">Agregar usuario</h2>
+
+  <div class="modo" id="modos">
+    <button class="btn activo" data-m="nueva">Cuenta nueva</button>
+    <button class="btn" data-m="uid">Ya existe en Auth</button>
+  </div>
+
+  <label>Nombre</label>
+  <input id="fNombre" maxlength="60">
+
+  <div id="grupoNueva">
+    <label>Email</label>
+    <input id="fEmail" type="email" inputmode="email">
+    <label>Contraseña inicial (mínimo 6)</label>
+    <input id="fClave" type="text" autocomplete="off">
+    <p class="aviso">La persona puede cambiarla después con "Olvidé mi contraseña" en el login.</p>
+  </div>
+
+  <div id="grupoUid" class="oculto">
+    <label>UID de la cuenta (Authentication → Usuarios → copiar UID)</label>
+    <input id="fUid" style="font-family:monospace;font-size:.82rem;">
+    <label>Email (informativo)</label>
+    <input id="fEmail2" type="email" inputmode="email">
+  </div>
+
+  <label>Rol</label>
+  <select id="fRol">
+    <option value="colaborador">Colaborador</option>
+    <option value="admin">Administrador</option>
+  </select>
+
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+    <button class="btn" id="mCancelar">Cancelar</button>
+    <button class="btn btn-primario" id="mGuardar"><span class="material-icons">save</span> Guardar</button>
+  </div>
+</dialog>
+
+<script type="module">
+// Regla del 2.0: definiciones primero, suscripción AL FINAL.
+import {
+  db, collection, onSnapshot, doc, setDoc, updateDoc, serverTimestamp,
+  crearCuentaAuth
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+if (!CV2.esAdmin()) { location.href = './index.html'; throw new Error('solo admin'); }
+CV2.renderNav('usuarios');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+let usuarios = [];
+let editUid = null;
+let modo = 'nueva';
+
+// ═══ Render ═══════════════════════════════════════════════
+function render() {
+  const cont = $('lista');
+  if (!usuarios.length) { cont.innerHTML = '<div class="vacio">Sin usuarios.</div>'; return; }
+  cont.innerHTML = usuarios.map((x) => `
+    <div class="usr${x.activo ? '' : ' inactivo'}">
+      <div class="info"><b>${esc(x.nombre ?? '(sin nombre)')}</b>
+        <small>${esc(x.email ?? '')}</small></div>
+      <span class="rol ${x.rol}">${x.rol === 'admin' ? '⭐ Admin' : 'Colaborador'}</span>
+      <button class="btn-mini" onclick="editar('${x.uid}')" title="Editar">
+        <span class="material-icons" style="font-size:17px;">edit</span></button>
+      ${x.uid !== u.uid ? `<button class="btn-mini" onclick="toggleActivo('${x.uid}')" title="${x.activo ? 'Desactivar' : 'Reactivar'}">
+        <span class="material-icons" style="font-size:17px;color:${x.activo ? 'var(--rojo)' : 'var(--ok)'}">${x.activo ? 'person_off' : 'how_to_reg'}</span></button>` : ''}
+    </div>`).join('');
+}
+
+window.toggleActivo = async (uid) => {
+  const x = usuarios.find((y) => y.uid === uid);
+  if (!confirm(x.activo
+    ? `¿Desactivar a ${x.nombre}? No podrá entrar hasta reactivarlo.`
+    : `¿Reactivar a ${x.nombre}?`)) return;
+  try {
+    await updateDoc(doc(db, 'usuarios', uid), { activo: !x.activo, actualizadoEn: serverTimestamp() });
+    CV2.toast(x.activo ? 'Desactivado' : 'Reactivado', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+};
+
+// ═══ Modal ════════════════════════════════════════════════
+const ponerModo = (m) => {
+  modo = m;
+  document.querySelectorAll('#modos .btn').forEach((b) => b.classList.toggle('activo', b.dataset.m === m));
+  $('grupoNueva').classList.toggle('oculto', m !== 'nueva');
+  $('grupoUid').classList.toggle('oculto', m !== 'uid');
+};
+$('modos').addEventListener('click', (ev) => {
+  const b = ev.target.closest('button');
+  if (b && !editUid) ponerModo(b.dataset.m);
+});
+
+$('btnNuevo').addEventListener('click', () => {
+  editUid = null;
+  $('mTit').textContent = 'Agregar usuario';
+  $('modos').classList.remove('oculto');
+  ponerModo('nueva');
+  ['fNombre', 'fEmail', 'fClave', 'fUid', 'fEmail2'].forEach((i) => $(i).value = '');
+  $('fRol').value = 'colaborador';
+  $('modal').showModal();
+  $('fNombre').focus();
+});
+
+window.editar = (uid) => {
+  const x = usuarios.find((y) => y.uid === uid);
+  editUid = uid;
+  $('mTit').textContent = 'Editar usuario';
+  $('modos').classList.add('oculto');
+  $('grupoNueva').classList.add('oculto');
+  $('grupoUid').classList.add('oculto');
+  $('fNombre').value = x.nombre ?? '';
+  $('fRol').value = x.rol ?? 'colaborador';
+  $('modal').showModal();
+};
+
+$('mCancelar').addEventListener('click', () => $('modal').close());
+
+$('mGuardar').addEventListener('click', async () => {
+  const nombre = $('fNombre').value.trim();
+  if (!nombre) { CV2.toast('Falta el nombre', 'error'); return; }
+  const rol = $('fRol').value;
+  $('mGuardar').disabled = true;
+  try {
+    if (editUid) {
+      if (editUid === u.uid && rol !== 'admin') {
+        CV2.toast('No podés quitarte tu propio rol de admin', 'error');
+        return;
+      }
+      await updateDoc(doc(db, 'usuarios', editUid), { nombre, rol, actualizadoEn: serverTimestamp() });
+      CV2.toast('Guardado', 'success');
+    } else if (modo === 'nueva') {
+      const email = $('fEmail').value.trim();
+      const clave = $('fClave').value;
+      if (!email || clave.length < 6) { CV2.toast('Email y contraseña de 6+ caracteres', 'error'); return; }
+      const uid = await crearCuentaAuth(email, clave);
+      await setDoc(doc(db, 'usuarios', uid), {
+        nombre, email, rol, activo: true, permisos: {}, creadoEn: serverTimestamp()
+      });
+      CV2.toast(`✓ ${nombre} creado — pasale email y contraseña`, 'success');
+    } else {
+      const uid = $('fUid').value.trim();
+      if (uid.length < 20) { CV2.toast('Ese UID no parece válido', 'error'); return; }
+      await setDoc(doc(db, 'usuarios', uid), {
+        nombre, email: $('fEmail2').value.trim(), rol, activo: true, permisos: {}, creadoEn: serverTimestamp()
+      });
+      CV2.toast(`✓ ${nombre} vinculado`, 'success');
+    }
+    $('modal').close();
+  } catch (e) {
+    const msj = e.code === 'auth/email-already-in-use'
+      ? 'Ese email ya tiene cuenta: usá la pestaña "Ya existe en Auth" con su UID'
+      : (e.code ?? e.message);
+    CV2.toast('No se pudo: ' + msj, 'error');
+  } finally { $('mGuardar').disabled = false; }
+});
+
+// ═══ Suscripción — AL FINAL ═══════════════════════════════
+onSnapshot(collection(db, 'usuarios'), (snap) => {
+  usuarios = [];
+  snap.forEach((d) => usuarios.push({ uid: d.id, ...d.data() }));
+  usuarios.sort((a, b) => (a.rol === 'admin' ? 0 : 1) - (b.rol === 'admin' ? 0 : 1)
+    || (a.nombre ?? '').localeCompare(b.nombre ?? ''));
+  render();
+}, (e) => { console.error(e); CV2.toast('No se pudieron cargar los usuarios', 'error'); });
+</script>
+</body>
+</html>

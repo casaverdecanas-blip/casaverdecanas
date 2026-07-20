@@ -64,8 +64,8 @@ CV2.NAV = [
   { id: 'comunicacion', label: 'Chat', href: './comunicacion.html', icono: 'forum' },
   { id: 'sesiones', label: 'Sesiones', href: './gestion-sesiones.html', icono: 'schedule' },
   { id: 'horas', label: 'Horas', href: './horas-stats.html', icono: 'insights' },
-  { id: 'honorarios', label: 'Cobros', href: './honorarios.html', icono: 'payments' }
-  // Fase 1 suma: comunicación...
+  { id: 'honorarios', label: 'Cobros', href: './honorarios.html', icono: 'payments' },
+  { id: 'usuarios', label: 'Usuarios', href: './usuarios.html', icono: 'group' }
 ];
 
 CV2.renderNav = function (activo) {
