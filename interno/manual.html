@@ -44,6 +44,7 @@
     <a href="#clientes">Clientes</a>
     <a href="#comunicacion">Chat</a>
     <a href="#calendario">Calendario</a>
+    <a href="#dinero">Dinero</a>
     <a href="#cabanas">Cabañas</a>
     <a href="#usuarios">Usuarios</a>
     <a href="#app">La app</a>
@@ -188,6 +189,23 @@
     futuro desaparece del calendario, la reserva se anula sola (y su limpieza también).
     Los bloqueos "Not available" se ignoran. La primera vez pide la Google API Key (la
     misma del sistema viejo).</p>
+  </section>
+
+  <section id="dinero" class="card">
+    <h2><span class="material-icons">savings</span>Dinero</h2>
+    <p>TODO el dinero del negocio en una sola página, con las cuatro preguntas que
+    importan: ¿entró o salió?, ¿cuánto?, ¿en qué?, ¿quién? Cada movimiento lleva fecha,
+    monto en <b>R$/U$D/$U</b> (con equivalente en reales si hace falta), categoría
+    (lista viva con ➕), quién movió la plata, detalle y <b>foto del comprobante</b>.</p>
+    <ul>
+      <li><b>Pendientes</b>: si alguien puso plata de su bolsillo, marcá "hay que
+      reponerle" — el gasto cuenta ya, y el panel de arriba muestra cuánto se le debe a
+      cada uno (siempre calculado, nunca guardado). "Por cobrar" es lo inverso: no es
+      ingreso hasta que se cobre. El tilde ✓ los salda.</li>
+      <li>Los KPIs (entró/salió/resultado) siguen el período elegido, todo en reales.</li>
+      <li>Los <b>extractos bancarios no entran acá</b>: el flujo define los saldos; la
+      conciliación vive en la planilla (exportación en camino con "Hacer balance").</li>
+    </ul>
   </section>
 
   <section id="cabanas" class="card">

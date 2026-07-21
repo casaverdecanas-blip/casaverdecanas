@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Dinero</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .filtros { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+  .filtros select { width: auto; font-size: .86rem; padding: 8px 10px; }
+  .kpis { display: flex; gap: 10px; flex-wrap: wrap; }
+  .kpi { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 10px 16px; box-shadow: var(--sombra); flex: 1; min-width: 100px; }
+  .kpi b { display: block; font-size: 1.1rem; }
+  .kpi span { font-size: .74rem; color: var(--gris); }
+  .mov { display: flex; align-items: center; gap: 10px; background: #fff;
+    border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 10px 12px; margin: 6px 0; box-shadow: var(--sombra); font-size: .88rem; }
+  .mov .flecha { font-size: 1.1rem; flex: none; }
+  .mov .info { flex: 1; min-width: 0; }
+  .mov .info small { display: block; color: var(--gris); font-size: .76rem; }
+  .mov .monto { font-weight: 700; white-space: nowrap; text-align: right; }
+  .mov .monto small { display: block; font-weight: 400; color: var(--gris); font-size: .72rem; }
+  .pend-chip { font-size: .7rem; padding: 2px 8px; border-radius: 999px;
+    background: #fdf1d8; color: #8a6206; white-space: nowrap; }
+  .pend-chip.saldado { background: var(--verde-claro); color: var(--verde-osc); }
+  .btn-mini { border: 0; background: none; color: var(--gris); cursor: pointer;
+    padding: 3px; display: inline-flex; opacity: .55; }
+  .btn-mini:hover { opacity: 1; }
+  .pendientes .fila { display: flex; align-items: center; gap: 8px; padding: 7px 0;
+    border-bottom: 1px dashed var(--linea); font-size: .88rem; }
+  .pendientes .fila:last-child { border-bottom: 0; }
+  .vacio { text-align: center; color: var(--gris); padding: 26px 10px; }
+  dialog { border: 0; border-radius: 14px; padding: 16px; width: min(500px, 94vw);
+    max-height: 88dvh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(20,30,18,.45); }
+  .fila2c { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tipo-toggle { display: flex; gap: 8px; margin-top: 4px; }
+  .tipo-toggle button { flex: 1; }
+  .tipo-toggle .btn.entro { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .tipo-toggle .btn.salio { background: var(--rojo); border-color: var(--rojo); color: #fff; }
+  .check-linea { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; }
+  .check-linea input { width: auto; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h1 style="margin-right:auto;">Dinero</h1>
+    <button class="btn btn-primario" id="btnNuevo">
+      <span class="material-icons">add</span> Movimiento
+    </button>
+  </div>
+
+  <div class="filtros">
+    <select id="fPeriodo">
+      <option value="mes" selected>Este mes</option>
+      <option value="90">Últimos 3 meses</option>
+      <option value="365">Último año</option>
+      <option value="0">Todo</option>
+    </select>
+    <select id="fTipo">
+      <option value="">Entradas y salidas</option>
+      <option value="entro">Solo entró</option>
+      <option value="salio">Solo salió</option>
+    </select>
+    <select id="fCat"><option value="">Todas las categorías</option></select>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><b id="kEntro" style="color:var(--ok);">—</b><span>Entró</span></div>
+    <div class="kpi"><b id="kSalio" style="color:var(--rojo);">—</b><span>Salió</span></div>
+    <div class="kpi"><b id="kResultado">—</b><span>Resultado</span></div>
+  </div>
+
+  <div class="card pendientes" id="cardPend">
+    <h2 style="margin-top:0;">Pendientes por persona</h2>
+    <div id="pendLista"></div>
+  </div>
+
+  <div id="lista"><div class="vacio">Cargando…</div></div>
+</div>
+
+<dialog id="modal">
+  <h2 id="mTit" style="margin:0 0 6px;">Movimiento</h2>
+
+  <div class="tipo-toggle">
+    <button class="btn" id="tEntro">⬇ Entró</button>
+    <button class="btn" id="tSalio">⬆ Salió</button>
+  </div>
+
+  <div class="fila2c">
+    <div><label>Moneda</label>
+      <select id="fMoneda">
+        <option value="BRL">R$ Reales</option>
+        <option value="USD">U$D Dólares</option>
+        <option value="UYU">$U Pesos uruguayos</option>
+      </select></div>
+    <div><label>Monto</label><input id="fMonto" type="number" min="0" step="0.01" inputmode="decimal"></div>
+  </div>
+  <div id="grupoEquiv" class="oculto">
+    <label>Equivalente en R$ (al cambio de hoy)</label>
+    <input id="fEquiv" type="number" min="0" step="0.01" inputmode="decimal">
+  </div>
+
+  <div class="fila2c">
+    <div><label>Categoría</label><select id="fCategoria"></select></div>
+    <div><label>Fecha</label><input id="fFecha" type="date"></div>
+  </div>
+
+  <label>Quién (movió / puso la plata)</label>
+  <select id="fQuien"></select>
+
+  <label>Detalle</label>
+  <input id="fDetalle" maxlength="200" placeholder="Qué fue, dónde, para qué…">
+
+  <div class="check-linea">
+    <input id="fPendiente" type="checkbox">
+    <span>Queda algo pendiente</span>
+  </div>
+  <div id="grupoPend" class="oculto">
+    <label>Tipo de pendiente</label>
+    <select id="fClasePend">
+      <option value="reponer">Hay que reponerle a quien puso la plata</option>
+      <option value="cobrar">Está por cobrarse (no es ingreso todavía)</option>
+    </select>
+  </div>
+
+  <label>Comprobante (opcional)</label>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button class="btn" id="btnFoto" style="font-size:.84rem;">
+      <span class="material-icons">photo_camera</span> Foto</button>
+    <input id="inputFoto" type="file" accept="image/*" class="oculto">
+    <span id="fotoEstado" class="texto-gris" style="align-self:center;"></span>
+  </div>
+
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+    <button class="btn" id="mCancelar">Cancelar</button>
+    <button class="btn btn-primario" id="mGuardar"><span class="material-icons">save</span> Guardar</button>
+  </div>
+</dialog>
+
+<script type="module">
+// ═══════════════════════════════════════════════════════════
+// DINERO — el modelo SIMPLE como único sistema financiero.
+// Una colección (movimientos), saldos y pendientes SIEMPRE
+// derivados, extractos bancarios AFUERA (la conciliación vive
+// en la planilla). Regla del 2.0: suscripción AL FINAL.
+// ═══════════════════════════════════════════════════════════
+import {
+  db, collection, query, onSnapshot, getDocs, getDoc,
+  doc, addDoc, updateDoc, deleteDoc, setDoc, serverTimestamp, arrayUnion
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('dinero');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+// ═══ Estado ═══════════════════════════════════════════════
+let movs = [];
+let equipo = [];               // [{uid, nombre}]
+let categorias = ['Alquileres', 'Compras', 'Mantenimiento', 'Servicios', 'Honorarios', 'Otros'];
+let tipoSel = 'salio';
+let editId = null;
+let comprobanteUrl = null;
+
+const enBRL = (m) => Number(m.moneda === 'BRL' ? m.monto : m.montoBRL) || 0;
+const nombreDe = (uid) => equipo.find((p) => p.uid === uid)?.nombre ?? '';
+
+// ═══ Cloudinary (comprobantes) ════════════════════════════
+async function subirComprobante(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('upload_preset', 'preset-comprobantes');
+  const r = await fetch('https://api.cloudinary.com/v1_1/dnwfu8ffn/image/upload', { method: 'POST', body: fd });
+  if (!r.ok) throw new Error('Cloudinary ' + r.status);
+  return (await r.json()).secure_url;
+}
+
+// ═══ Filtro y render ══════════════════════════════════════
+function filtrados() {
+  const per = $('fPeriodo').value;
+  let desde = '';
+  if (per === 'mes') desde = CV2.hoyISO().slice(0, 8) + '01';
+  else if (per !== '0') desde = new Date(Date.now() - Number(per) * 86400000).toISOString().slice(0, 10);
+  const t = $('fTipo').value, c = $('fCat').value;
+  return movs.filter((m) =>
+    (!desde || m.fecha >= desde) && (!t || m.tipo === t) && (!c || m.categoria === c));
+}
+
+function render() {
+  const fs = filtrados();
+  let entro = 0, salio = 0;
+  for (const m of fs) (m.tipo === 'entro' ? entro += enBRL(m) : salio += enBRL(m));
+  $('kEntro').textContent = CV2.fmtMonto(entro);
+  $('kSalio').textContent = CV2.fmtMonto(salio);
+  const res = entro - salio;
+  $('kResultado').textContent = CV2.fmtMonto(res);
+  $('kResultado').style.color = res >= 0 ? 'var(--ok)' : 'var(--rojo)';
+
+  // Categorías del filtro
+  const cats = [...new Set([...categorias, ...movs.map((m) => m.categoria).filter(Boolean)])].sort();
+  const catSel = $('fCat').value;
+  $('fCat').innerHTML = '<option value="">Todas las categorías</option>'
+    + cats.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  $('fCat').value = catSel;
+
+  renderPendientes();
+
+  const cont = $('lista');
+  if (!fs.length) {
+    cont.innerHTML = `<div class="vacio">${movs.length ? 'Nada con este filtro.' : 'Sin movimientos todavía.<br>El primero se carga con el botón <b>Movimiento</b>.'}</div>`;
+    return;
+  }
+  cont.innerHTML = fs.map((m) => `
+    <div class="mov">
+      <span class="flecha">${m.tipo === 'entro' ? '⬇' : '⬆'}</span>
+      <div class="info">
+        <b>${esc(m.detalle || m.categoria || '(sin detalle)')}</b>
+        <small>${CV2.fmtFecha(m.fecha)} · ${esc(m.categoria ?? '')} · ${esc(m.nombre ?? '')}
+          ${m.comprobanteUrl ? `· <a href="${esc(m.comprobanteUrl)}" target="_blank">comprobante</a>` : ''}</small>
+      </div>
+      ${m.pendiente ? `<span class="pend-chip${m.pendiente.saldado ? ' saldado' : ''}">${m.pendiente.saldado ? '✓ saldado' : (m.pendiente.clase === 'reponer' ? 'reponer' : 'por cobrar')}</span>` : ''}
+      <span class="monto" style="color:${m.tipo === 'entro' ? 'var(--ok)' : 'var(--rojo)'};">
+        ${m.tipo === 'entro' ? '+' : '−'}${CV2.fmtMonto(m.monto, m.moneda ?? 'BRL')}
+        ${m.moneda && m.moneda !== 'BRL' ? `<small>≈${CV2.fmtMonto(enBRL(m))}</small>` : ''}
+      </span>
+      ${CV2.esAdmin() ? `
+        ${m.pendiente && !m.pendiente.saldado ? `<button class="btn-mini" onclick="saldar('${m.id}')" title="Marcar saldado"><span class="material-icons" style="font-size:17px;color:var(--ok)">task_alt</span></button>` : ''}
+        <button class="btn-mini" onclick="editar('${m.id}')" title="Editar"><span class="material-icons" style="font-size:16px;">edit</span></button>
+        <button class="btn-mini" onclick="borrar('${m.id}')" title="Eliminar"><span class="material-icons" style="font-size:16px;color:var(--rojo)">delete_outline</span></button>` : ''}
+    </div>`).join('');
+}
+
+// Pendientes por persona: SIEMPRE derivados de los movimientos
+function renderPendientes() {
+  const porUid = {};
+  for (const m of movs) {
+    if (!m.pendiente || m.pendiente.saldado) continue;
+    const clave = (m.pendiente.clase ?? 'reponer') + '|' + (m.uid ?? '');
+    (porUid[clave] ??= { clase: m.pendiente.clase, nombre: m.nombre ?? '', total: 0 }).total += enBRL(m);
+  }
+  const filas = Object.values(porUid).sort((a, b) => b.total - a.total);
+  $('cardPend').classList.toggle('oculto', !filas.length);
+  $('pendLista').innerHTML = filas.map((p) => `
+    <div class="fila">
+      <span class="material-icons" style="font-size:18px;color:${p.clase === 'reponer' ? 'var(--amarillo)' : 'var(--azul)'};">
+        ${p.clase === 'reponer' ? 'currency_exchange' : 'schedule'}</span>
+      <span style="flex:1;">${p.clase === 'reponer'
+        ? `Reponerle a <b>${esc(p.nombre)}</b>`
+        : `Por cobrar (<b>${esc(p.nombre)}</b>)`}</span>
+      <b>${CV2.fmtMonto(p.total)}</b>
+    </div>`).join('');
+}
+
+// ═══ Acciones ═════════════════════════════════════════════
+window.saldar = async (id) => {
+  const m = movs.find((x) => x.id === id);
+  if (!confirm(`¿Marcar como saldado este pendiente de ${CV2.fmtMonto(enBRL(m))}?`)) return;
+  try {
+    await updateDoc(doc(db, 'movimientos', id), {
+      'pendiente.saldado': true,
+      actualizadoEn: serverTimestamp()
+    });
+    CV2.toast('✓ Saldado', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+};
+
+window.borrar = async (id) => {
+  if (!confirm('¿Eliminar este movimiento? No se puede deshacer.')) return;
+  try {
+    await deleteDoc(doc(db, 'movimientos', id));
+    CV2.toast('Eliminado', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+};
+
+// ═══ Alta / edición ═══════════════════════════════════════
+const ponerTipo = (t) => {
+  tipoSel = t;
+  $('tEntro').className = 'btn' + (t === 'entro' ? ' entro' : '');
+  $('tSalio').className = 'btn' + (t === 'salio' ? ' salio' : '');
+};
+$('tEntro').addEventListener('click', () => ponerTipo('entro'));
+$('tSalio').addEventListener('click', () => ponerTipo('salio'));
+$('fMoneda').addEventListener('change', () =>
+  $('grupoEquiv').classList.toggle('oculto', $('fMoneda').value === 'BRL'));
+$('fPendiente').addEventListener('change', () =>
+  $('grupoPend').classList.toggle('oculto', !$('fPendiente').checked));
+
+function poblarCategorias(valor) {
+  $('fCategoria').innerHTML = categorias.map((c) =>
+    `<option value="${esc(c)}">${esc(c)}</option>`).join('')
+    + '<option value="__nueva">➕ Agregar nueva…</option>';
+  if (valor) $('fCategoria').value = valor;
+}
+$('fCategoria').addEventListener('change', async () => {
+  if ($('fCategoria').value !== '__nueva') return;
+  const nombre = (prompt('Nombre de la nueva categoría:') ?? '').trim();
+  if (!nombre) { $('fCategoria').selectedIndex = 0; return; }
+  if (!categorias.includes(nombre)) {
+    categorias = [...categorias, nombre].sort();
+    try {
+      await setDoc(doc(db, 'config', 'dinero'), { categorias: arrayUnion(nombre) }, { merge: true });
+    } catch (e) { CV2.toast('No se pudo guardar la categoría', 'error'); }
+  }
+  poblarCategorias(nombre);
+});
+
+$('btnFoto').addEventListener('click', () => $('inputFoto').click());
+$('inputFoto').addEventListener('change', async () => {
+  const f = $('inputFoto').files[0];
+  if (!f) return;
+  $('btnFoto').disabled = true;
+  $('fotoEstado').textContent = 'subiendo…';
+  try {
+    comprobanteUrl = await subirComprobante(f);
+    $('fotoEstado').textContent = '✓ comprobante adjunto';
+  } catch (e) {
+    $('fotoEstado').textContent = 'falló la subida';
+  } finally { $('btnFoto').disabled = false; $('inputFoto').value = ''; }
+});
+
+function abrirModal(m) {
+  editId = m?.id ?? null;
+  $('mTit').textContent = editId ? 'Editar movimiento' : 'Nuevo movimiento';
+  ponerTipo(m?.tipo ?? 'salio');
+  $('fMoneda').value = m?.moneda ?? 'BRL';
+  $('grupoEquiv').classList.toggle('oculto', ($('fMoneda').value) === 'BRL');
+  $('fEquiv').value = m?.montoBRL && m?.moneda !== 'BRL' ? m.montoBRL : '';
+  $('fMonto').value = m?.monto ?? '';
+  poblarCategorias(m?.categoria ?? categorias[0]);
+  $('fFecha').value = m?.fecha ?? CV2.hoyISO();
+  $('fQuien').innerHTML = equipo.map((p) =>
+    `<option value="${p.uid}">${esc(p.nombre)}</option>`).join('');
+  $('fQuien').value = m?.uid ?? u.uid;
+  $('fDetalle').value = m?.detalle ?? '';
+  $('fPendiente').checked = !!m?.pendiente;
+  $('grupoPend').classList.toggle('oculto', !m?.pendiente);
+  $('fClasePend').value = m?.pendiente?.clase ?? 'reponer';
+  comprobanteUrl = m?.comprobanteUrl ?? null;
+  $('fotoEstado').textContent = comprobanteUrl ? '✓ comprobante adjunto' : '';
+  $('modal').showModal();
+  $('fMonto').focus();
+}
+$('btnNuevo').addEventListener('click', () => abrirModal(null));
+window.editar = (id) => abrirModal(movs.find((x) => x.id === id));
+$('mCancelar').addEventListener('click', () => $('modal').close());
+
+$('mGuardar').addEventListener('click', async () => {
+  const monto = Math.max(0, parseFloat($('fMonto').value) || 0);
+  if (!monto) { CV2.toast('Falta el monto', 'error'); return; }
+  const moneda = $('fMoneda').value;
+  const montoBRL = moneda === 'BRL' ? monto : Math.max(0, parseFloat($('fEquiv').value) || 0);
+  if (moneda !== 'BRL' && !montoBRL) { CV2.toast('Cargá el equivalente en R$', 'error'); return; }
+  if ($('fCategoria').value === '__nueva') { CV2.toast('Terminá de agregar la categoría', 'error'); return; }
+
+  const quien = $('fQuien').value;
+  const datos = {
+    fecha: $('fFecha').value || CV2.hoyISO(),
+    tipo: tipoSel,
+    monto, moneda, montoBRL,
+    categoria: $('fCategoria').value,
+    uid: quien,
+    nombre: nombreDe(quien),
+    detalle: $('fDetalle').value.trim(),
+    comprobanteUrl,
+    pendiente: $('fPendiente').checked
+      ? {
+          clase: $('fClasePend').value,
+          uid: quien,
+          saldado: editId ? (movs.find((x) => x.id === editId)?.pendiente?.saldado ?? false) : false,
+          cierreId: null
+        }
+      : null,
+    actualizadoEn: serverTimestamp()
+  };
+  $('mGuardar').disabled = true;
+  try {
+    if (editId) {
+      await updateDoc(doc(db, 'movimientos', editId), datos);
+    } else {
+      await addDoc(collection(db, 'movimientos'), {
+        ...datos, creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
+      });
+    }
+    $('modal').close();
+    CV2.toast(tipoSel === 'entro' ? '⬇ Entrada registrada' : '⬆ Salida registrada', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+  finally { $('mGuardar').disabled = false; }
+});
+
+['fPeriodo', 'fTipo', 'fCat'].forEach((id) => $(id).addEventListener('change', render));
+
+// ═══ Cargas iniciales ═════════════════════════════════════
+try {
+  const s = await getDoc(doc(db, 'config', 'dinero'));
+  if (s.exists() && Array.isArray(s.data().categorias) && s.data().categorias.length) {
+    categorias = [...new Set([...categorias, ...s.data().categorias])].sort();
+  }
+} catch { /* primera vez */ }
+
+try {
+  const su = await getDocs(collection(db, 'usuarios'));
+  su.forEach((d) => { const x = d.data(); if (x.activo === true) equipo.push({ uid: d.id, nombre: x.nombre ?? d.id }); });
+  equipo.sort((a, b) => a.nombre.localeCompare(b.nombre));
+} catch { /* sin equipo */ }
+
+// ═══ Suscripción — AL FINAL ═══════════════════════════════
+onSnapshot(query(collection(db, 'movimientos')), (snap) => {
+  movs = [];
+  snap.forEach((d) => movs.push({ id: d.id, ...d.data() }));
+  movs.sort((a, b) => (b.fecha ?? '').localeCompare(a.fecha ?? '')
+    || (b.creadoEn?.toMillis?.() ?? 0) - (a.creadoEn?.toMillis?.() ?? 0));
+  render();
+}, (e) => { console.error(e); CV2.toast('No se pudo cargar Dinero (' + (e.code ?? e.message) + ')', 'error'); });
+</script>
+</body>
+</html>
