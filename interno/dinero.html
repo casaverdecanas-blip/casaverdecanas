@@ -12,6 +12,8 @@
 <style>
   .filtros { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
   .filtros select { width: auto; font-size: .86rem; padding: 8px 10px; }
+  .acciones { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; }
+  .acciones .btn { font-size: .82rem; padding: 7px 12px; }
   .kpis { display: flex; gap: 10px; flex-wrap: wrap; }
   .kpi { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
     padding: 10px 16px; box-shadow: var(--sombra); flex: 1; min-width: 100px; }
@@ -28,6 +30,7 @@
   .pend-chip { font-size: .7rem; padding: 2px 8px; border-radius: 999px;
     background: #fdf1d8; color: #8a6206; white-space: nowrap; }
   .pend-chip.saldado { background: var(--verde-claro); color: var(--verde-osc); }
+  .pend-chip.sellado { background: #e8e8e8; color: #555; }
   .btn-mini { border: 0; background: none; color: var(--gris); cursor: pointer;
     padding: 3px; display: inline-flex; opacity: .55; }
   .btn-mini:hover { opacity: 1; }
@@ -45,6 +48,19 @@
   .tipo-toggle .btn.salio { background: var(--rojo); border-color: var(--rojo); color: #fff; }
   .check-linea { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; }
   .check-linea input { width: auto; }
+  .bal-resumen { background: var(--verde-claro); border-radius: var(--radio);
+    padding: 10px 12px; margin: 10px 0; font-size: .88rem; }
+  .bal-resumen div { display: flex; justify-content: space-between; padding: 2px 0; }
+  .bal-fila { display: flex; align-items: center; gap: 9px; padding: 8px 0;
+    border-bottom: 1px dashed var(--linea); font-size: .88rem; }
+  .bal-fila:last-child { border-bottom: 0; }
+  .bal-fila input { width: auto; flex: none; }
+  .bal-fila span.txt { flex: 1; }
+  .cierre { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 10px 12px; margin: 8px 0; font-size: .86rem; }
+  .cierre h4 { margin: 0 0 4px; font-size: .92rem; }
+  .cierre .det { color: var(--gris); font-size: .78rem; }
+  .cierre .acc { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 </style>
 </head>
 <body>
@@ -56,6 +72,18 @@
     <h1 style="margin-right:auto;">Dinero</h1>
     <button class="btn btn-primario" id="btnNuevo">
       <span class="material-icons">add</span> Movimiento
+    </button>
+  </div>
+
+  <div class="acciones">
+    <button class="btn" id="btnBalance" hidden>
+      <span class="material-icons">balance</span> Hacer balance
+    </button>
+    <button class="btn" id="btnCierres">
+      <span class="material-icons">history</span> Balances
+    </button>
+    <button class="btn" id="btnExportar">
+      <span class="material-icons">download</span> Exportar
     </button>
   </div>
 
@@ -78,6 +106,7 @@
     <div class="kpi"><b id="kEntro" style="color:var(--ok);">—</b><span>Entró</span></div>
     <div class="kpi"><b id="kSalio" style="color:var(--rojo);">—</b><span>Salió</span></div>
     <div class="kpi"><b id="kResultado">—</b><span>Resultado</span></div>
+    <div class="kpi" id="kpiCobrar" hidden><b id="kCobrar" style="color:var(--gris);">—</b><span>Por cobrar (no cuenta todavía)</span></div>
   </div>
 
   <div class="card pendientes" id="cardPend">
@@ -88,6 +117,7 @@
   <div id="lista"><div class="vacio">Cargando…</div></div>
 </div>
 
+<!-- ═══ Modal: alta / edición de movimiento ═══════════════════ -->
 <dialog id="modal">
   <h2 id="mTit" style="margin:0 0 6px;">Movimiento</h2>
 
@@ -147,12 +177,52 @@
   </div>
 </dialog>
 
+<!-- ═══ Modal: hacer balance ══════════════════════════════════ -->
+<dialog id="modalBal">
+  <h2 style="margin:0 0 4px;">Hacer balance</h2>
+  <p class="texto-gris" style="margin:0 0 10px;font-size:.84rem;">
+    Cierra el período, deja una foto fija de los números y salda los pendientes
+    que marques. Lo que dejes sin marcar arrastra al próximo balance.
+  </p>
+
+  <div class="fila2c">
+    <div><label>Desde</label><input id="bDesde" type="date"></div>
+    <div><label>Hasta</label><input id="bHasta" type="date"></div>
+  </div>
+
+  <div class="bal-resumen" id="bResumen"></div>
+
+  <h3 style="margin:14px 0 2px;font-size:.95rem;">Pendientes a saldar</h3>
+  <div id="bPendientes"></div>
+
+  <label style="margin-top:12px;">Repartición / notas del balance</label>
+  <textarea id="bNota" rows="3" maxlength="600" placeholder="Qué se acordó repartir o dejar pendiente. Queda guardado en la foto del balance."></textarea>
+
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+    <button class="btn" id="bCancelar">Cancelar</button>
+    <button class="btn btn-primario" id="bConfirmar"><span class="material-icons">balance</span> Cerrar balance</button>
+  </div>
+</dialog>
+
+<!-- ═══ Modal: historial de balances ══════════════════════════ -->
+<dialog id="modalCierres">
+  <h2 style="margin:0 0 10px;">Balances cerrados</h2>
+  <div id="listaCierres"></div>
+  <div style="display:flex;justify-content:flex-end;margin-top:14px;">
+    <button class="btn" id="cCerrar">Cerrar</button>
+  </div>
+</dialog>
+
 <script type="module">
 // ═══════════════════════════════════════════════════════════
 // DINERO — el modelo SIMPLE como único sistema financiero.
 // Una colección (movimientos), saldos y pendientes SIEMPRE
 // derivados, extractos bancarios AFUERA (la conciliación vive
 // en la planilla). Regla del 2.0: suscripción AL FINAL.
+//
+// T3.2 — Hacer balance: snapshot inmutable en /cierres/, sellado
+// de los pendientes saldados (arrastre de lo no saldado) y
+// exportación a planilla (CSV) del período o de un balance.
 // ═══════════════════════════════════════════════════════════
 import {
   db, collection, query, onSnapshot, getDocs, getDoc,
@@ -169,6 +239,7 @@ const esc = CV2.esc;
 
 // ═══ Estado ═══════════════════════════════════════════════
 let movs = [];
+let cierres = [];              // [{id, ...}] ordenados: el último primero
 let equipo = [];               // [{uid, nombre}]
 let categorias = ['Alquileres', 'Compras', 'Mantenimiento', 'Servicios', 'Honorarios', 'Otros'];
 let tipoSel = 'salio';
@@ -177,6 +248,14 @@ let comprobanteUrl = null;
 
 const enBRL = (m) => Number(m.moneda === 'BRL' ? m.monto : m.montoBRL) || 0;
 const nombreDe = (uid) => equipo.find((p) => p.uid === uid)?.nombre ?? '';
+
+// Un ingreso "por cobrar" todavía NO es ingreso: no suma a los totales
+// hasta que se salde. Un gasto "a reponer" sí es gasto real desde el día uno.
+const porCobrarVivo = (m) =>
+  m.tipo === 'entro' && !!m.pendiente && m.pendiente.clase === 'cobrar' && !m.pendiente.saldado;
+
+// Sellado por un balance: no se edita ni se borra.
+const sellado = (m) => !!(m.pendiente && m.pendiente.cierreId);
 
 // ═══ Cloudinary (comprobantes) ════════════════════════════
 async function subirComprobante(file) {
@@ -199,15 +278,34 @@ function filtrados() {
     (!desde || m.fecha >= desde) && (!t || m.tipo === t) && (!c || m.categoria === c));
 }
 
+/** Totales derivados de una lista de movimientos (en R$). */
+function totalizar(lista) {
+  let entro = 0, salio = 0, porCobrar = 0;
+  const porCategoria = {};
+  for (const m of lista) {
+    const v = enBRL(m);
+    if (porCobrarVivo(m)) { porCobrar += v; continue; }
+    if (m.tipo === 'entro') entro += v; else salio += v;
+    const c = m.categoria || 'Sin categoría';
+    (porCategoria[c] ??= { categoria: c, entro: 0, salio: 0 });
+    if (m.tipo === 'entro') porCategoria[c].entro += v; else porCategoria[c].salio += v;
+  }
+  return {
+    entroBRL: entro, salioBRL: salio, resultadoBRL: entro - salio,
+    porCobrarBRL: porCobrar, movimientos: lista.length,
+    porCategoria: Object.values(porCategoria).sort((a, b) => (b.entro + b.salio) - (a.entro + a.salio))
+  };
+}
+
 function render() {
   const fs = filtrados();
-  let entro = 0, salio = 0;
-  for (const m of fs) (m.tipo === 'entro' ? entro += enBRL(m) : salio += enBRL(m));
-  $('kEntro').textContent = CV2.fmtMonto(entro);
-  $('kSalio').textContent = CV2.fmtMonto(salio);
-  const res = entro - salio;
-  $('kResultado').textContent = CV2.fmtMonto(res);
-  $('kResultado').style.color = res >= 0 ? 'var(--ok)' : 'var(--rojo)';
+  const t = totalizar(fs);
+  $('kEntro').textContent = CV2.fmtMonto(t.entroBRL);
+  $('kSalio').textContent = CV2.fmtMonto(t.salioBRL);
+  $('kResultado').textContent = CV2.fmtMonto(t.resultadoBRL);
+  $('kResultado').style.color = t.resultadoBRL >= 0 ? 'var(--ok)' : 'var(--rojo)';
+  $('kpiCobrar').hidden = t.porCobrarBRL === 0;
+  $('kCobrar').textContent = CV2.fmtMonto(t.porCobrarBRL);
 
   // Categorías del filtro
   const cats = [...new Set([...categorias, ...movs.map((m) => m.categoria).filter(Boolean)])].sort();
@@ -231,42 +329,56 @@ function render() {
         <small>${CV2.fmtFecha(m.fecha)} · ${esc(m.categoria ?? '')} · ${esc(m.nombre ?? '')}
           ${m.comprobanteUrl ? `· <a href="${esc(m.comprobanteUrl)}" target="_blank">comprobante</a>` : ''}</small>
       </div>
-      ${m.pendiente ? `<span class="pend-chip${m.pendiente.saldado ? ' saldado' : ''}">${m.pendiente.saldado ? '✓ saldado' : (m.pendiente.clase === 'reponer' ? 'reponer' : 'por cobrar')}</span>` : ''}
+      ${m.pendiente ? `<span class="pend-chip${sellado(m) ? ' sellado' : (m.pendiente.saldado ? ' saldado' : '')}">${sellado(m) ? '🔒 en balance' : (m.pendiente.saldado ? '✓ saldado' : (m.pendiente.clase === 'reponer' ? 'reponer' : 'por cobrar'))}</span>` : ''}
       <span class="monto" style="color:${m.tipo === 'entro' ? 'var(--ok)' : 'var(--rojo)'};">
         ${m.tipo === 'entro' ? '+' : '−'}${CV2.fmtMonto(m.monto, m.moneda ?? 'BRL')}
         ${m.moneda && m.moneda !== 'BRL' ? `<small>≈${CV2.fmtMonto(enBRL(m))}</small>` : ''}
       </span>
-      ${CV2.esAdmin() ? `
+      ${CV2.esAdmin() && !sellado(m) ? `
         ${m.pendiente && !m.pendiente.saldado ? `<button class="btn-mini" onclick="saldar('${m.id}')" title="Marcar saldado"><span class="material-icons" style="font-size:17px;color:var(--ok)">task_alt</span></button>` : ''}
         <button class="btn-mini" onclick="editar('${m.id}')" title="Editar"><span class="material-icons" style="font-size:16px;">edit</span></button>
         <button class="btn-mini" onclick="borrar('${m.id}')" title="Eliminar"><span class="material-icons" style="font-size:16px;color:var(--rojo)">delete_outline</span></button>` : ''}
     </div>`).join('');
 }
 
-// Pendientes por persona: SIEMPRE derivados de los movimientos
-function renderPendientes() {
-  const porUid = {};
+/** Pendientes vivos agrupados por persona + clase. SIEMPRE derivado. */
+function pendientesVivos(hasta) {
+  const grupos = {};
   for (const m of movs) {
-    if (!m.pendiente || m.pendiente.saldado) continue;
-    const clave = (m.pendiente.clase ?? 'reponer') + '|' + (m.uid ?? '');
-    (porUid[clave] ??= { clase: m.pendiente.clase, nombre: m.nombre ?? '', total: 0 }).total += enBRL(m);
+    if (!m.pendiente || m.pendiente.saldado || m.pendiente.cierreId) continue;
+    if (hasta && (m.fecha ?? '') > hasta) continue;
+    const clase = m.pendiente.clase ?? 'reponer';
+    const uid = m.pendiente.uid ?? m.uid ?? '';
+    const clave = clase + '|' + uid;
+    (grupos[clave] ??= { clave, clase, uid, nombre: m.nombre ?? nombreDe(uid), totalBRL: 0, movIds: [] });
+    grupos[clave].totalBRL += enBRL(m);
+    grupos[clave].movIds.push(m.id);
   }
-  const filas = Object.values(porUid).sort((a, b) => b.total - a.total);
+  return Object.values(grupos).sort((a, b) => b.totalBRL - a.totalBRL);
+}
+
+function textoPendiente(p) {
+  return p.clase === 'reponer'
+    ? `Reponerle a <b>${esc(p.nombre)}</b>`
+    : `Por cobrar (<b>${esc(p.nombre)}</b>)`;
+}
+
+function renderPendientes() {
+  const filas = pendientesVivos(null);
   $('cardPend').classList.toggle('oculto', !filas.length);
   $('pendLista').innerHTML = filas.map((p) => `
     <div class="fila">
       <span class="material-icons" style="font-size:18px;color:${p.clase === 'reponer' ? 'var(--amarillo)' : 'var(--azul)'};">
         ${p.clase === 'reponer' ? 'currency_exchange' : 'schedule'}</span>
-      <span style="flex:1;">${p.clase === 'reponer'
-        ? `Reponerle a <b>${esc(p.nombre)}</b>`
-        : `Por cobrar (<b>${esc(p.nombre)}</b>)`}</span>
-      <b>${CV2.fmtMonto(p.total)}</b>
+      <span style="flex:1;">${textoPendiente(p)}</span>
+      <b>${CV2.fmtMonto(p.totalBRL)}</b>
     </div>`).join('');
 }
 
-// ═══ Acciones ═════════════════════════════════════════════
+// ═══ Acciones sobre movimientos ═══════════════════════════
 window.saldar = async (id) => {
   const m = movs.find((x) => x.id === id);
+  if (!m || sellado(m)) { CV2.toast('Está sellado en un balance', 'error'); return; }
   if (!confirm(`¿Marcar como saldado este pendiente de ${CV2.fmtMonto(enBRL(m))}?`)) return;
   try {
     await updateDoc(doc(db, 'movimientos', id), {
@@ -278,6 +390,8 @@ window.saldar = async (id) => {
 };
 
 window.borrar = async (id) => {
+  const m = movs.find((x) => x.id === id);
+  if (m && sellado(m)) { CV2.toast('No se borra: está sellado en un balance', 'error'); return; }
   if (!confirm('¿Eliminar este movimiento? No se puede deshacer.')) return;
   try {
     await deleteDoc(doc(db, 'movimientos', id));
@@ -354,7 +468,11 @@ function abrirModal(m) {
   $('fMonto').focus();
 }
 $('btnNuevo').addEventListener('click', () => abrirModal(null));
-window.editar = (id) => abrirModal(movs.find((x) => x.id === id));
+window.editar = (id) => {
+  const m = movs.find((x) => x.id === id);
+  if (m && sellado(m)) { CV2.toast('No se edita: está sellado en un balance', 'error'); return; }
+  abrirModal(m);
+};
 $('mCancelar').addEventListener('click', () => $('modal').close());
 
 $('mGuardar').addEventListener('click', async () => {
@@ -366,6 +484,7 @@ $('mGuardar').addEventListener('click', async () => {
   if ($('fCategoria').value === '__nueva') { CV2.toast('Terminá de agregar la categoría', 'error'); return; }
 
   const quien = $('fQuien').value;
+  const previo = editId ? movs.find((x) => x.id === editId) : null;
   const datos = {
     fecha: $('fFecha').value || CV2.hoyISO(),
     tipo: tipoSel,
@@ -379,8 +498,8 @@ $('mGuardar').addEventListener('click', async () => {
       ? {
           clase: $('fClasePend').value,
           uid: quien,
-          saldado: editId ? (movs.find((x) => x.id === editId)?.pendiente?.saldado ?? false) : false,
-          cierreId: null
+          saldado: previo?.pendiente?.saldado ?? false,
+          cierreId: previo?.pendiente?.cierreId ?? null
         }
       : null,
     actualizadoEn: serverTimestamp()
@@ -402,6 +521,205 @@ $('mGuardar').addEventListener('click', async () => {
 
 ['fPeriodo', 'fTipo', 'fCat'].forEach((id) => $(id).addEventListener('change', render));
 
+// ═══════════════════════════════════════════════════════════
+// BALANCE — la foto fija del período
+// ═══════════════════════════════════════════════════════════
+const sumarDia = (iso) => {
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
+
+/** Movimientos comprendidos entre dos fechas (inclusive). */
+const enRango = (desde, hasta) =>
+  movs.filter((m) => (!desde || (m.fecha ?? '') >= desde) && (!hasta || (m.fecha ?? '') <= hasta));
+
+function desdeSugerido() {
+  const ultimo = cierres[0];
+  if (ultimo?.hasta) return sumarDia(ultimo.hasta);
+  const fechas = movs.map((m) => m.fecha).filter(Boolean).sort();
+  return fechas[0] ?? CV2.hoyISO().slice(0, 8) + '01';
+}
+
+function pintarBalance() {
+  const desde = $('bDesde').value, hasta = $('bHasta').value;
+  const t = totalizar(enRango(desde, hasta));
+  $('bResumen').innerHTML = `
+    <div><span>Movimientos</span><b>${t.movimientos}</b></div>
+    <div><span>Entró</span><b style="color:var(--ok);">${CV2.fmtMonto(t.entroBRL)}</b></div>
+    <div><span>Salió</span><b style="color:var(--rojo);">${CV2.fmtMonto(t.salioBRL)}</b></div>
+    <div><span>Resultado</span><b style="color:${t.resultadoBRL >= 0 ? 'var(--ok)' : 'var(--rojo)'};">${CV2.fmtMonto(t.resultadoBRL)}</b></div>
+    ${t.porCobrarBRL ? `<div><span>Por cobrar (no cuenta)</span><b>${CV2.fmtMonto(t.porCobrarBRL)}</b></div>` : ''}`;
+
+  const pend = pendientesVivos(hasta);
+  $('bPendientes').innerHTML = pend.length
+    ? pend.map((p) => `
+      <label class="bal-fila">
+        <input type="checkbox" class="chkPend" data-clave="${esc(p.clave)}" checked>
+        <span class="txt">${textoPendiente(p)} <small class="texto-gris">(${p.movIds.length})</small></span>
+        <b>${CV2.fmtMonto(p.totalBRL)}</b>
+      </label>`).join('')
+      + '<p class="texto-gris" style="font-size:.78rem;margin:8px 0 0;">Lo que destildes queda vivo y arrastra al próximo balance.</p>'
+    : '<p class="texto-gris" style="font-size:.85rem;margin:4px 0;">No hay pendientes vivos en este período.</p>';
+}
+
+$('btnBalance').hidden = !CV2.esAdmin();
+$('btnBalance').addEventListener('click', () => {
+  $('bDesde').value = desdeSugerido();
+  $('bHasta').value = CV2.hoyISO();
+  $('bNota').value = '';
+  pintarBalance();
+  $('modalBal').showModal();
+});
+$('bDesde').addEventListener('change', pintarBalance);
+$('bHasta').addEventListener('change', pintarBalance);
+$('bCancelar').addEventListener('click', () => $('modalBal').close());
+
+$('bConfirmar').addEventListener('click', async () => {
+  const desde = $('bDesde').value, hasta = $('bHasta').value;
+  if (!desde || !hasta || desde > hasta) { CV2.toast('Revisá las fechas del período', 'error'); return; }
+
+  const t = totalizar(enRango(desde, hasta));
+  const pend = pendientesVivos(hasta);
+  const marcadas = new Set([...document.querySelectorAll('.chkPend')]
+    .filter((c) => c.checked).map((c) => c.dataset.clave));
+  const saldados = pend.filter((p) => marcadas.has(p.clave));
+  const arrastrados = pend.filter((p) => !marcadas.has(p.clave));
+  const limpio = (p) => ({ uid: p.uid, nombre: p.nombre, clase: p.clase, totalBRL: p.totalBRL, movIds: p.movIds });
+
+  if (!confirm(`Se cierra el período ${CV2.fmtFecha(desde)} → ${CV2.fmtFecha(hasta)}.\n\n`
+    + `Resultado: ${CV2.fmtMonto(t.resultadoBRL)}\n`
+    + `Pendientes que se saldan: ${saldados.length}\n`
+    + `Pendientes que arrastran: ${arrastrados.length}\n\n`
+    + 'La foto del balance queda fija y los movimientos saldados no se podrán editar. ¿Confirmás?')) return;
+
+  $('bConfirmar').disabled = true;
+  try {
+    const ref = await addDoc(collection(db, 'cierres'), {
+      fecha: CV2.hoyISO(), desde, hasta,
+      cerradoPor: u.uid, cerradoNombre: u.nombre ?? '',
+      totales: t,
+      pendientesSaldados: saldados.map(limpio),
+      pendientesArrastrados: arrastrados.map(limpio),
+      reparticion: { modo: 'manual', nota: $('bNota').value.trim() },
+      creadoEn: serverTimestamp()
+    });
+
+    // Sellado de los movimientos saldados (uno por uno: son pocos y así
+    // no dependemos de writeBatch; si alguno falla, se ve en el toast).
+    const ids = saldados.flatMap((p) => p.movIds);
+    for (const id of ids) {
+      await updateDoc(doc(db, 'movimientos', id), {
+        'pendiente.saldado': true,
+        'pendiente.cierreId': ref.id,
+        actualizadoEn: serverTimestamp()
+      });
+    }
+
+    await cargarCierres();
+    $('modalBal').close();
+    CV2.toast('✓ Balance cerrado' + (ids.length ? ' · ' + ids.length + ' movimientos sellados' : ''), 'success');
+  } catch (e) {
+    CV2.toast('No se pudo cerrar: ' + (e.code ?? e.message), 'error');
+  } finally { $('bConfirmar').disabled = false; }
+});
+
+// ═══ Historial de balances ════════════════════════════════
+async function cargarCierres() {
+  try {
+    const snap = await getDocs(collection(db, 'cierres'));
+    cierres = [];
+    snap.forEach((d) => cierres.push({ id: d.id, ...d.data() }));
+    cierres.sort((a, b) => (b.hasta ?? '').localeCompare(a.hasta ?? ''));
+  } catch { cierres = []; }
+}
+
+function renderCierres() {
+  $('listaCierres').innerHTML = cierres.length
+    ? cierres.map((c) => `
+      <div class="cierre">
+        <h4>${CV2.fmtFecha(c.desde)} → ${CV2.fmtFecha(c.hasta)}</h4>
+        <div class="det">
+          ${c.totales?.movimientos ?? 0} movimientos ·
+          entró ${CV2.fmtMonto(c.totales?.entroBRL ?? 0)} ·
+          salió ${CV2.fmtMonto(c.totales?.salioBRL ?? 0)} ·
+          <b>resultado ${CV2.fmtMonto(c.totales?.resultadoBRL ?? 0)}</b>
+        </div>
+        <div class="det">
+          Saldados: ${(c.pendientesSaldados ?? []).length} ·
+          Arrastrados: ${(c.pendientesArrastrados ?? []).length} ·
+          cerró ${esc(c.cerradoNombre ?? '')} el ${CV2.fmtFecha(c.fecha)}
+        </div>
+        ${c.reparticion?.nota ? `<div class="det" style="margin-top:5px;">📝 ${esc(c.reparticion.nota)}</div>` : ''}
+        <div class="acc">
+          <button class="btn btn-mini-txt" onclick="exportarCierre('${c.id}')" style="font-size:.8rem;padding:6px 10px;">
+            <span class="material-icons" style="font-size:15px;">download</span> Exportar este período
+          </button>
+        </div>
+      </div>`).join('')
+    : '<div class="vacio">Todavía no se cerró ningún balance.</div>';
+}
+
+$('btnCierres').addEventListener('click', async () => {
+  $('listaCierres').innerHTML = '<div class="vacio">Cargando…</div>';
+  $('modalCierres').showModal();
+  await cargarCierres();
+  renderCierres();
+});
+$('cCerrar').addEventListener('click', () => $('modalCierres').close());
+
+// ═══ Exportación a planilla (CSV) ═════════════════════════
+const COLUMNAS = ['fecha', 'tipo', 'monto', 'moneda', 'monto_BRL', 'categoria',
+  'quien', 'detalle', 'pendiente', 'saldado', 'balance_id', 'comprobante'];
+
+const celda = (v) => '"' + String(v ?? '').replaceAll('"', '""') + '"';
+
+function aCSV(lista) {
+  const filas = [COLUMNAS.join(',')];
+  for (const m of lista) {
+    filas.push([
+      m.fecha ?? '',
+      m.tipo === 'entro' ? 'entró' : 'salió',
+      (Number(m.monto) || 0).toFixed(2),
+      m.moneda ?? 'BRL',
+      enBRL(m).toFixed(2),
+      m.categoria ?? '',
+      m.nombre ?? '',
+      m.detalle ?? '',
+      m.pendiente ? (m.pendiente.clase === 'reponer' ? 'reponer' : 'por cobrar') : '',
+      m.pendiente ? (m.pendiente.saldado ? 'sí' : 'no') : '',
+      m.pendiente?.cierreId ?? '',
+      m.comprobanteUrl ?? ''
+    ].map(celda).join(','));
+  }
+  return filas.join('\r\n');
+}
+
+function bajarCSV(lista, sufijo) {
+  if (!lista.length) { CV2.toast('No hay movimientos para exportar', 'error'); return; }
+  // BOM: para que Numbers/Excel lean bien los acentos.
+  const blob = new Blob(['\uFEFF' + aCSV(lista)], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'casaverde-movimientos-' + sufijo + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  CV2.toast('Planilla generada (' + lista.length + ' movimientos)', 'success');
+}
+
+$('btnExportar').addEventListener('click', () => {
+  const lista = [...filtrados()].sort((a, b) => (a.fecha ?? '').localeCompare(b.fecha ?? ''));
+  bajarCSV(lista, CV2.hoyISO());
+});
+
+window.exportarCierre = (id) => {
+  const c = cierres.find((x) => x.id === id);
+  if (!c) return;
+  const lista = enRango(c.desde, c.hasta).sort((a, b) => (a.fecha ?? '').localeCompare(b.fecha ?? ''));
+  bajarCSV(lista, c.desde + '_' + c.hasta);
+};
+
 // ═══ Cargas iniciales ═════════════════════════════════════
 try {
   const s = await getDoc(doc(db, 'config', 'dinero'));
@@ -415,6 +733,8 @@ try {
   su.forEach((d) => { const x = d.data(); if (x.activo === true) equipo.push({ uid: d.id, nombre: x.nombre ?? d.id }); });
   equipo.sort((a, b) => a.nombre.localeCompare(b.nombre));
 } catch { /* sin equipo */ }
+
+await cargarCierres();
 
 // ═══ Suscripción — AL FINAL ═══════════════════════════════
 onSnapshot(query(collection(db, 'movimientos')), (snap) => {

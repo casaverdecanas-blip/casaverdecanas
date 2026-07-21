@@ -7,7 +7,7 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
-const VERSION = 'cv2-shell-v19';
+const VERSION = 'cv2-shell-v20';
 
 const SHELL = [
   './',
