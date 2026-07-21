@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Cargar datos</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .paso { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 14px; margin: 12px 0; box-shadow: var(--sombra); }
+  .paso h2 { margin: 0 0 4px; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+  .paso .num { background: var(--verde-osc); color: #fff; width: 24px; height: 24px;
+    border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    font-size: .8rem; flex: none; }
+  .paso.hecho { border-left: 4px solid var(--ok); }
+  .paso.bloqueado { opacity: .5; pointer-events: none; }
+  .aclara { font-size: .82rem; color: var(--gris); margin: 4px 0 10px; }
+  .par { display: flex; align-items: center; gap: 10px; padding: 8px 0;
+    border-bottom: 1px dashed var(--linea); font-size: .86rem; flex-wrap: wrap; }
+  .par:last-child { border-bottom: 0; }
+  .par .viejo { flex: 1; min-width: 150px; }
+  .par .viejo small { display: block; color: var(--gris); font-size: .74rem;
+    font-family: var(--mono, monospace); }
+  .par select { width: auto; min-width: 160px; font-size: .84rem; padding: 6px 8px; }
+  .plan { font-size: .86rem; }
+  .plan .fila { display: flex; align-items: center; gap: 10px; padding: 6px 0;
+    border-bottom: 1px dashed var(--linea); }
+  .plan .fila:last-child { border-bottom: 0; }
+  .plan .fila b { margin-left: auto; }
+  .plan .det { font-size: .76rem; color: var(--gris); }
+  .barra { height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin: 10px 0; }
+  .barra > div { height: 100%; background: var(--ok); width: 0%; transition: width .2s; }
+  #log { background: #1e1e1e; color: #cbe6a0; font-family: var(--mono, monospace);
+    font-size: 11px; border-radius: var(--radio); padding: 10px; white-space: pre-wrap;
+    max-height: 320px; overflow-y: auto; margin-top: 10px; display: none; }
+  .alerta { background: #fdf1d8; color: #8a6206; border-radius: var(--radio);
+    padding: 10px 12px; font-size: .84rem; margin: 10px 0; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <h1>Cargar datos del sistema viejo</h1>
+  <p class="aclara">
+    Herramienta de un solo uso, fuera del menú. Escribe con <b>IDs fijos</b>: si la corrés
+    dos veces, <b>pisa</b> lo cargado — nunca duplica. Lo que ya editaste a mano en el 2.0
+    para estos mismos documentos se pierde, así que correla antes de empezar a trabajar.
+  </p>
+
+  <!-- 1 ─ Archivo -->
+  <div class="paso" id="paso1">
+    <h2><span class="num">1</span> El archivo de exportación</h2>
+    <p class="aclara">El <code>casaverde-EXPORT-COMPLETO-….json</code> que bajaste del sistema viejo.</p>
+    <input type="file" id="archivo" accept=".json,application/json">
+    <div id="resumenArchivo" class="aclara"></div>
+  </div>
+
+  <!-- 2 ─ Personas -->
+  <div class="paso bloqueado" id="paso2">
+    <h2><span class="num">2</span> Emparejar las personas</h2>
+    <p class="aclara">
+      El proyecto nuevo tiene otros identificadores de Auth. Decime quién es quién:
+      de esto dependen las 70 sesiones, los cobros y quién ve cada proyecto privado.
+      Lo que dejes en «(no migrar)» se descarta junto con lo que dependa de esa persona.
+    </p>
+    <div id="pares"></div>
+  </div>
+
+  <!-- 3 ─ Plan -->
+  <div class="paso bloqueado" id="paso3">
+    <h2><span class="num">3</span> Qué se va a escribir</h2>
+    <div class="plan" id="plan"></div>
+    <div class="alerta" id="avisos"></div>
+  </div>
+
+  <!-- 4 ─ Carga -->
+  <div class="paso bloqueado" id="paso4">
+    <h2><span class="num">4</span> Cargar</h2>
+    <button class="btn btn-primario" id="btnCargar">
+      <span class="material-icons">cloud_upload</span> Cargar todo en el 2.0
+    </button>
+    <div class="barra" id="barra" style="display:none;"><div id="barraInt"></div></div>
+    <div id="log"></div>
+  </div>
+</div>
+
+<script type="module">
+// ═══════════════════════════════════════════════════════════
+// CARGA DE MIGRACIÓN — sistema viejo → CasaVerde 2.0
+//
+// Criterios (cerrados con el administrador, julio 2026):
+//  · Cabañas 1=Vista al Bosque, 2=Loft, 3=Familiar → IDs c1/c2/c3.
+//  · Los 5 proyectos de obra migran como 'asignados' Mauro+Florencia.
+//  · De clientes solo Nati. Reservas, pagos, gastos, movimientos,
+//    historial_tareas, informes_airbnb y disponibilidad NO migran.
+//  · El inventario de la cabaña 1 se replica a las tres.
+//  · Se crea la rama de limpieza faltante de la cabaña 2.
+//
+// Regla 3.5: IDs deterministas (los del sistema viejo) → correr dos
+// veces no duplica. Regla 3.2: acá no hay onSnapshot.
+// ═══════════════════════════════════════════════════════════
+import {
+  db, collection, doc, getDocs, getDoc, setDoc, serverTimestamp, Timestamp
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('');
+if (!CV2.esAdmin()) {
+  document.querySelector('.contenedor').innerHTML =
+    '<h1>Solo el administrador</h1><p>Esta herramienta escribe sobre toda la base.</p>';
+  throw new Error('no-admin');
+}
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+// ── Constantes del mapeo ─────────────────────────────────────
+const PROYECTOS_PRIVADOS = [
+  '7cm3bKGfBXvPoLYS2ryl',   // Santa fe
+  'Y0psmimACjEEJOSR004o',   // Desarmado Yurta
+  'g86Is0VfFRplGXccuz8J',   // Dgo Aramburú
+  'gMw4WBRMt6MKhLi2VwkB',   // Terraza dormitorios
+  'od8XkGkphmqTlzEAugHi'    // General flores
+];
+const UID_MAURO_VIEJO = 'hftkmTlB55V9AdwawMOlKvMtOf43';
+const UID_FLOR_VIEJO  = 'EJWQ6zyoJQVO4gNWS67IgugT6373';
+const CLIENTE_NATI = 'Nati';
+const COLORES_RAIZ = ['#2d5a27', '#8a6206', '#33506e', '#7e22ce', '#b45309',
+                      '#137333', '#1a56db', '#a3336b', '#4d6b1f'];
+
+let crudo = null;      // el JSON entero
+let mapa = {};         // uid viejo → uid nuevo | ''
+let usuariosNuevos = [];
+let plan = null;
+
+// ── Utilidades ───────────────────────────────────────────────
+const esTS = (v) => v && typeof v === 'object' && v.__tipo === 'timestamp';
+const aTS = (v) => (esTS(v) && v.iso) ? Timestamp.fromDate(new Date(v.iso)) : null;
+const limpio = (s) => String(s ?? '').trim();
+const log = (t) => { const el = $('log'); el.style.display = 'block'; el.textContent += t + '\n'; el.scrollTop = el.scrollHeight; };
+
+function avanzar(paso) { $('paso' + paso).classList.remove('bloqueado'); }
+
+// ── Paso 1: leer el archivo ──────────────────────────────────
+$('archivo').addEventListener('change', async () => {
+  const f = $('archivo').files[0];
+  if (!f) return;
+  try {
+    crudo = JSON.parse(await f.text());
+    const cols = crudo.colecciones || {};
+    const nombres = Object.keys(cols);
+    $('resumenArchivo').innerHTML = '✅ Leído: <b>' + (crudo.totalDocumentos ?? '?') +
+      '</b> documentos en ' + nombres.length + ' colecciones · exportado ' +
+      esc(String(crudo.exportadoEn ?? '').slice(0, 10));
+    $('paso1').classList.add('hecho');
+    await prepararPersonas();
+    avanzar(2);
+  } catch (e) {
+    $('resumenArchivo').textContent = 'No pude leer el archivo: ' + e.message;
+  }
+});
+
+// ── Paso 2: emparejar personas ───────────────────────────────
+async function prepararPersonas() {
+  // Usuarios que ya existen en el 2.0
+  usuariosNuevos = [];
+  const snap = await getDocs(collection(db, 'usuarios'));
+  snap.forEach((d) => {
+    const x = d.data();
+    usuariosNuevos.push({ uid: d.id, nombre: x.nombre || d.id, email: x.email || '' });
+  });
+  usuariosNuevos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  // Usuarios viejos que realmente aparecen en los datos que migran
+  const usados = new Set();
+  const cols = crudo.colecciones || {};
+  (cols.sesiones || []).forEach((s) => usados.add(s.datos.uid));
+  (cols.honorarios || []).forEach((h) => usados.add(h.datos.uid || h.datos.colaboradorId));
+  (cols.actividades || []).forEach((a) => {
+    if (a.datos.creadoPor) usados.add(a.datos.creadoPor);
+    (a.datos.competencias || []).forEach((c) => usados.add(c));
+  });
+
+  const viejos = (cols.usuarios || [])
+    .filter((x) => x.datos.activo === true || usados.has(x.id))
+    .map((x) => ({ uid: x.id, nombre: x.datos.nombre || '(sin nombre)', email: x.datos.email || '' }));
+
+  $('pares').innerHTML = viejos.map((v) => {
+    // Sugerencia automática por email
+    const sug = usuariosNuevos.find((n) => n.email && n.email.toLowerCase() === v.email.toLowerCase());
+    mapa[v.uid] = sug ? sug.uid : '';
+    return '<div class="par">' +
+      '<span class="viejo"><b>' + esc(v.nombre) + '</b> · ' + esc(v.email) +
+      '<small>' + esc(v.uid) + '</small></span>' +
+      '<span class="material-icons" style="color:var(--gris);">arrow_forward</span>' +
+      '<select data-viejo="' + esc(v.uid) + '">' +
+        '<option value="">(no migrar)</option>' +
+        usuariosNuevos.map((n) => '<option value="' + esc(n.uid) + '"' +
+          (sug && sug.uid === n.uid ? ' selected' : '') + '>' +
+          esc(n.nombre) + (n.email ? ' · ' + esc(n.email) : '') + '</option>').join('') +
+      '</select></div>';
+  }).join('');
+
+  [...document.querySelectorAll('#pares select')].forEach((s) => {
+    s.addEventListener('change', () => { mapa[s.dataset.viejo] = s.value; armarPlan(); });
+  });
+
+  armarPlan();
+  avanzar(3);
+  avanzar(4);
+}
+
+const nuevoUid = (viejo) => mapa[viejo] || null;
+const nombreNuevo = (uidNuevo) => {
+  const p = usuariosNuevos.find((x) => x.uid === uidNuevo);
+  return p ? p.nombre : '';
+};
+
+// ── Paso 3: armar el plan completo ───────────────────────────
+function armarPlan() {
+  const cols = crudo.colecciones || {};
+  const avisos = [];
+  const p = { cabanas: [], espacios: [], clientes: [], actividades: [], sesiones: [], honorarios: [], movimientos: [], config: [] };
+
+  // ── CABAÑAS → c1 / c2 / c3 ────────────────────────────────
+  let inventarioBase = [];
+  (cols.cabanas || []).forEach((c) => {
+    const x = c.datos;
+    if (Array.isArray(x.checklistInventario) && x.checklistInventario.length > inventarioBase.length) {
+      inventarioBase = x.checklistInventario;
+    }
+  });
+  (cols.cabanas || []).forEach((c) => {
+    const x = c.datos;
+    const n = Number(x.id) || Number(c.id);
+    const cap = x.capacidad || {};
+    p.cabanas.push({
+      id: 'c' + n,
+      datos: {
+        nombre: x.nombre || {},
+        descripcion: x.descripcion || {},
+        capacidad: { base: Number(cap.base) || 0, max: Number(cap.max) || 0 },
+        orden: Number(x.orden) || n,
+        activa: x.activa !== false,
+        tarifas: {
+          noche: Number((x.tarifas || {}).precioBase) || 0,
+          limpieza: Number((x.tarifas || {}).precioLimpieza) || 0,
+          extraPersona: Number((x.tarifas || {}).precioExtraPersona) || 0,
+          moneda: 'BRL'
+        },
+        amenities: Array.isArray(x.comodidades) ? x.comodidades : [],
+        fotos: (x.fotos || []).map((f) => (typeof f === 'string' ? f : f.url)).filter(Boolean),
+        calendarId: limpio(x.google_calendar_id),
+        airbnbUrl: limpio(x.airbnb_url || x.airbnbUrl),
+        notaEspecial: x.notaEspecial || {},
+        inventarioBase: inventarioBase,
+        migradoEn: serverTimestamp()
+      }
+    });
+  });
+  if (inventarioBase.length) {
+    avisos.push('El inventario de ' + inventarioBase.length + ' ítems se replica a las tres cabañas.');
+  }
+
+  // ── ESPACIOS COMUNES → id = slug ──────────────────────────
+  (cols.espacios_comunes || []).forEach((e) => {
+    const x = e.datos;
+    p.espacios.push({
+      id: limpio(x.slug) || e.id,
+      datos: {
+        nombre: x.nombre || {},
+        slug: limpio(x.slug),
+        orden: Number(x.orden) || 0,
+        fotos: (x.fotos || []).map((f) => (typeof f === 'string' ? f : f.url)).filter(Boolean),
+        migradoEn: serverTimestamp()
+      }
+    });
+  });
+
+  // ── CLIENTES → solo Nati ──────────────────────────────────
+  (cols.clientes || []).forEach((c) => {
+    const x = c.datos;
+    if (!limpio(x.nombre).toLowerCase().includes(CLIENTE_NATI.toLowerCase())) return;
+    p.clientes.push({
+      id: c.id,
+      datos: {
+        nombre: limpio(x.nombre),
+        telefono: limpio(x.telefono || x.whatsapp),
+        email: limpio(x.email),
+        pais: limpio(x.nacionalidad),
+        notas: '',
+        creadoEn: aTS(x.creadoEn) || serverTimestamp()
+      }
+    });
+  });
+
+  // ── ACTIVIDADES ───────────────────────────────────────────
+  const actsViejas = {};
+  (cols.actividades || []).forEach((a) => { actsViejas[a.id] = a.datos; });
+
+  // Raíz de cada actividad (subiendo por parentId, con guarda de ciclos)
+  const raizDe = (id) => {
+    let cur = id, saltos = 0;
+    while (saltos++ < 30) {
+      const a = actsViejas[cur];
+      if (!a) return cur;
+      const padre = limpio(a.parentId);
+      if (!padre || padre === cur || !actsViejas[padre]) return cur;
+      cur = padre;
+    }
+    return cur;
+  };
+
+  const raices = Object.keys(actsViejas).filter((id) => !limpio(actsViejas[id].parentId));
+  raices.sort((a, b) => (actsViejas[a].orden || 0) - (actsViejas[b].orden || 0));
+  const colorDeRaiz = {};
+  raices.forEach((id, i) => { colorDeRaiz[id] = limpio(actsViejas[id].color) || COLORES_RAIZ[i % COLORES_RAIZ.length]; });
+
+  const equipoPrivado = [nuevoUid(UID_MAURO_VIEJO), nuevoUid(UID_FLOR_VIEJO)].filter(Boolean);
+  let sinDuenio = 0;
+
+  Object.keys(actsViejas).forEach((id) => {
+    const x = actsViejas[id];
+    const raiz = raizDe(id);
+    const privado = PROYECTOS_PRIVADOS.includes(raiz);
+
+    let alcance = x.alcance || 'equipo';
+    let competencias = (x.competencias || []).map(nuevoUid).filter(Boolean);
+    if (privado) { alcance = 'asignados'; competencias = equipoPrivado.slice(); }
+    else if (alcance === 'personal' || alcance === 'asignados') {
+      // Fuera de los proyectos privados, lo que no tenga a quién asignar pasa a equipo
+      if (!competencias.length) { alcance = 'equipo'; }
+    }
+
+    const creador = nuevoUid(x.creadoPor);
+    if (!creador) sinDuenio++;
+
+    p.actividades.push({
+      id: id,
+      datos: {
+        titulo: limpio(x.titulo),
+        detalle: limpio(x.detalle),
+        parentId: limpio(x.parentId),
+        color: (id === raiz) ? colorDeRaiz[raiz] : '',
+        tipo: limpio(x.tipo),
+        alcance: alcance,
+        competencias: competencias,
+        prioridad: limpio(x.prioridad) || 'gris',
+        recurrenciaDias: Number(x.recurrencia) || 0,
+        monto: Number(x.monto) || 0,
+        fechaInicio: limpio(x.fechaInicio),
+        fechaVencimiento: limpio(x.fechaVencimiento),
+        hecho: x.hecho === true,
+        estado: 'pendiente',
+        sesionActualId: null,
+        ultimoCierreEn: aTS(x.ultimoCierreEn),
+        orden: Number(x.orden) || 0,
+        cabanaId: x.cabana ? ('c' + Number(x.cabana)) : null,
+        creadoPor: creador || u.uid,
+        creadoNombre: creador ? nombreNuevo(creador) : (u.nombre ?? ''),
+        creadoEn: aTS(x.creadoEn) || serverTimestamp(),
+        migradoEn: serverTimestamp()
+      }
+    });
+  });
+
+  // Rama de limpieza faltante de la cabaña 2 (el Loft)
+  const cab2 = p.cabanas.find((c) => c.id === 'c2');
+  if (cab2 && !actsViejas['limpiezas-cab-2']) {
+    const nom = (cab2.datos.nombre && cab2.datos.nombre.es) || 'Cabaña 2';
+    const comun = {
+      detalle: '', tipo: '', alcance: 'equipo', competencias: [], prioridad: 'gris',
+      recurrenciaDias: 0, monto: 0, fechaInicio: '', fechaVencimiento: '',
+      hecho: false, estado: 'pendiente', sesionActualId: null, ultimoCierreEn: null,
+      color: '', creadoPor: u.uid, creadoNombre: u.nombre ?? '',
+      creadoEn: serverTimestamp(), migradoEn: serverTimestamp()
+    };
+    p.actividades.push({ id: 'limpiezas-cab-2', datos: Object.assign({}, comun,
+      { titulo: nom, parentId: 'proj-limpiezas', orden: 2, cabanaId: 'c2' }) });
+    p.actividades.push({ id: 'faltantes-cab-2', datos: Object.assign({}, comun,
+      { titulo: 'Faltantes o daños — ' + nom, parentId: 'limpiezas-cab-2', orden: 0, cabanaId: 'c2' }) });
+    avisos.push('Se crea la rama de limpieza que le faltaba a la cabaña 2 (Loft).');
+  }
+
+  // ── SESIONES ──────────────────────────────────────────────
+  let sesDescartadas = 0, sesPausadas = 0;
+  (cols.sesiones || []).forEach((s) => {
+    const x = s.datos;
+    const uid = nuevoUid(x.uid);
+    if (!uid) { sesDescartadas++; return; }
+    if (!actsViejas[x.actividadId]) { sesDescartadas++; return; }
+    if (x.estado === 'pausada') sesPausadas++;
+    p.sesiones.push({
+      id: s.id,
+      datos: {
+        actividadId: x.actividadId,
+        actividadTitulo: limpio(x.actividadNombre || x.actividadTitulo),
+        uid: uid,
+        nombre: nombreNuevo(uid),
+        inicio: aTS(x.inicio),
+        fin: aTS(x.fin),
+        horas: Number(x.horas) || 0,
+        estado: 'finalizada',
+        tipo: limpio(x.tipo) || 'manual',
+        notas: limpio(x.notas),
+        creadoEn: aTS(x.creadoEn) || serverTimestamp(),
+        creadoPor: nuevoUid(x.creadoPor) || uid,
+        actualizadoEn: serverTimestamp(),
+        migradoEn: serverTimestamp()
+      }
+    });
+  });
+  if (sesPausadas) avisos.push(sesPausadas + ' sesiones quedaron "pausadas" en el viejo (estado que ya no existe): se cargan como finalizadas con las horas que tenían.');
+  if (sesDescartadas) avisos.push(sesDescartadas + ' sesiones se descartan (persona sin emparejar o actividad inexistente).');
+
+  // ── HONORARIOS y REEMBOLSOS ───────────────────────────────
+  (cols.honorarios || []).forEach((h) => {
+    const x = h.datos;
+    const uidViejo = x.uid || x.colaboradorId;
+    const uid = nuevoUid(uidViejo);
+    if (!uid) return;
+    if (x.tipo === 'reembolso') {
+      // En el 2.0 un reembolso NO es un honorario: es un gasto real con pendiente 'reponer'
+      p.movimientos.push({
+        id: 'mig-' + h.id,
+        datos: {
+          fecha: (esTS(x.creadoEn) ? x.creadoEn.iso.slice(0, 10) : CV2.hoyISO()),
+          tipo: 'salio',
+          monto: Number(x.monto) || 0,
+          moneda: 'BRL',
+          montoBRL: Number(x.monto) || 0,
+          categoria: 'Compras',
+          uid: uid,
+          nombre: nombreNuevo(uid),
+          detalle: limpio(x.concepto),
+          comprobanteUrl: null,
+          pendiente: { clase: 'reponer', uid: uid, saldado: false, cierreId: null },
+          creadoEn: aTS(x.creadoEn) || serverTimestamp(),
+          creadoPor: u.uid,
+          creadoNombre: u.nombre ?? '',
+          migradoEn: serverTimestamp()
+        }
+      });
+    } else {
+      p.honorarios.push({
+        id: h.id,
+        datos: {
+          actividadId: limpio(x.tareaId),
+          concepto: limpio(x.concepto),
+          uid: uid,
+          nombre: nombreNuevo(uid),
+          horas: Number(x.horas) || 0,
+          monto: Number(x.monto) || 0,
+          estado: x.estado === 'pagado' ? 'pagado' : 'pendiente',
+          cicloCerradoEn: aTS(x.creadoEn),
+          cerradoPor: u.uid,
+          cerradoNombre: u.nombre ?? '',
+          pagadoEn: aTS(x.fechaPago),
+          movimientoId: null,
+          nota: 'Migrado del sistema viejo.',
+          migradoEn: serverTimestamp()
+        }
+      });
+    }
+  });
+  if (p.movimientos.length) avisos.push(p.movimientos.length + ' reembolsos pendientes entran a Dinero como salida con pendiente "reponer", no como honorarios.');
+
+  // ── CONFIG ────────────────────────────────────────────────
+  const cfg = {};
+  (cols.config || []).forEach((c) => { cfg[c.id] = c.datos; });
+  if (cfg.integraciones && cfg.integraciones.googleApiKey) {
+    p.config.push({ id: 'integraciones', datos: { googleApiKey: cfg.integraciones.googleApiKey } });
+  }
+  avisos.push('No migran: reservas, presupuestos, pagos, gastos, movimientos bancarios, historial_tareas, informes Airbnb, disponibilidad, cuentas, categorías, destinos, el manual viejo y el token de GitHub.');
+
+  plan = p;
+
+  // ── Render del plan ───────────────────────────────────────
+  const filas = [
+    ['Cabañas', p.cabanas, p.cabanas.map((c) => c.id + ' ' + ((c.datos.nombre || {}).es || '')).join(' · ')],
+    ['Espacios comunes', p.espacios, p.espacios.map((e) => e.id).join(' · ')],
+    ['Clientes', p.clientes, p.clientes.map((c) => c.datos.nombre).join(' · ')],
+    ['Actividades', p.actividades, raices.length + ' proyectos raíz · ' + PROYECTOS_PRIVADOS.length + ' privados (Mauro + Florencia)'],
+    ['Sesiones', p.sesiones, 'histórico de horas'],
+    ['Honorarios', p.honorarios, 'pendientes de cobro'],
+    ['Movimientos (reembolsos)', p.movimientos, 'con pendiente "reponer"'],
+    ['Config', p.config, 'clave de Google Calendar']
+  ];
+  $('plan').innerHTML = filas.map((f) =>
+    '<div class="fila"><span class="material-icons" style="font-size:18px;color:' +
+    (f[1].length ? 'var(--ok)' : 'var(--gris)') + ';">' +
+    (f[1].length ? 'check_circle' : 'remove_circle_outline') + '</span>' +
+    '<span>' + esc(f[0]) + '<span class="det"><br>' + esc(f[2]) + '</span></span>' +
+    '<b>' + f[1].length + '</b></div>').join('');
+
+  if (sinDuenio) avisos.push(sinDuenio + ' actividades no tienen creador emparejado: quedan a tu nombre.');
+  $('avisos').innerHTML = avisos.map((a) => '• ' + esc(a)).join('<br>');
+}
+
+// ── Paso 4: escribir ─────────────────────────────────────────
+$('btnCargar').addEventListener('click', async () => {
+  const total = plan.cabanas.length + plan.espacios.length + plan.clientes.length +
+    plan.actividades.length + plan.sesiones.length + plan.honorarios.length +
+    plan.movimientos.length + plan.config.length;
+
+  if (!confirm('Se van a escribir ' + total + ' documentos con IDs fijos.\n\n' +
+    'Si ya cargaste antes, esto PISA esos documentos.\n\n¿Seguimos?')) return;
+
+  $('btnCargar').disabled = true;
+  $('barra').style.display = 'block';
+  $('log').textContent = '';
+  let hechos = 0, fallos = 0;
+
+  const tandas = [
+    ['cabanas', plan.cabanas],
+    ['espacios_comunes', plan.espacios],
+    ['clientes', plan.clientes],
+    ['actividades', plan.actividades],
+    ['sesiones', plan.sesiones],
+    ['honorarios', plan.honorarios],
+    ['movimientos', plan.movimientos],
+    ['config', plan.config]
+  ];
+
+  for (const [coleccion, docs] of tandas) {
+    if (!docs.length) continue;
+    log('── ' + coleccion + ' (' + docs.length + ')');
+    for (const d of docs) {
+      try {
+        await setDoc(doc(db, coleccion, d.id), d.datos, { merge: true });
+        hechos++;
+      } catch (e) {
+        fallos++;
+        log('  ✗ ' + d.id + ' → ' + (e.code ?? e.message));
+      }
+      $('barraInt').style.width = Math.round(((hechos + fallos) / total) * 100) + '%';
+    }
+    log('  ✓ listo');
+  }
+
+  log('');
+  log('TERMINADO · ' + hechos + ' escritos · ' + fallos + ' con error');
+  $('btnCargar').disabled = false;
+  CV2.toast(fallos ? 'Terminó con ' + fallos + ' errores' : '✓ Carga completa', fallos ? 'error' : 'success');
+});
+</script>
+</body>
+</html>
