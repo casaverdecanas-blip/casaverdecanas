@@ -28,11 +28,18 @@
   }
   .estado.pendiente { background: #fdf1d8; color: #8a6206; }
   .estado.pagado { background: var(--verde-claro); color: var(--verde-osc); }
+  .chip-dinero { font-size: .68rem; padding: 3px 8px; border-radius: 999px;
+    background: #eef4fb; color: #33506e; white-space: nowrap; }
   .persona-t { margin: 16px 0 4px; font-size: .95rem; color: var(--verde-osc); }
   .btn-pagar {
     border: 1px solid var(--ok); background: #fff; color: var(--ok); border-radius: 7px;
     padding: 5px 10px; font: inherit; font-size: .8rem; cursor: pointer;
     display: inline-flex; align-items: center; gap: 4px;
+  }
+  .btn-registrar {
+    border: 1px solid #33506e; background: #fff; color: #33506e; border-radius: 7px;
+    padding: 4px 9px; font: inherit; font-size: .74rem; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
   }
   .btn-nota {
     border: 0; background: none; color: var(--gris); cursor: pointer;
@@ -40,6 +47,12 @@
   }
   .btn-nota:hover { opacity: 1; }
   .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
+  dialog { border: 0; border-radius: 14px; padding: 16px; width: min(420px, 92vw);
+    box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(20,30,18,.45); }
+  .check-linea { display: flex; align-items: flex-start; gap: 9px; margin: 14px 0 0; }
+  .check-linea input { width: auto; flex: none; margin-top: 3px; }
+  .check-linea small { display: block; color: var(--gris); font-size: .76rem; }
 </style>
 </head>
 <body>
@@ -59,7 +72,7 @@
   <div id="lista"><div class="vacio">Cargando…</div></div>
 </div>
 
-<dialog id="mEdit" style="border:0;border-radius:14px;padding:16px;width:min(420px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.25);">
+<dialog id="mEdit">
   <h2 style="margin:0 0 4px;">Editar registro</h2>
   <p class="texto-gris" id="meQue" style="margin:0;"></p>
   <label>Monto (R$)</label>
@@ -72,10 +85,40 @@
   </div>
 </dialog>
 
+<dialog id="mPagar">
+  <h2 style="margin:0 0 4px;">Pagar honorario</h2>
+  <p class="texto-gris" id="mpQue" style="margin:0 0 10px;"></p>
+
+  <div style="display:flex;gap:10px;">
+    <div style="flex:1;"><label>Monto (R$)</label>
+      <input id="mpMonto" type="number" min="0" step="0.01" inputmode="decimal" readonly
+        style="background:#f6f6f4;"></div>
+    <div style="flex:1;"><label>Fecha del pago</label>
+      <input id="mpFecha" type="date"></div>
+  </div>
+
+  <label class="check-linea">
+    <input id="mpDinero" type="checkbox" checked>
+    <span>Registrar la salida en Dinero
+      <small>Crea el movimiento de salida en el libro del negocio, categoría
+        Honorarios, a nombre de quien cobra.</small></span>
+  </label>
+
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+    <button class="btn" id="mpCancelar">Cancelar</button>
+    <button class="btn btn-primario" id="mpConfirmar"><span class="material-icons">paid</span> Pagar</button>
+  </div>
+</dialog>
+
 <script type="module">
 // Regla del 2.0: definiciones primero, suscripción AL FINAL.
+//
+// T3.3b — al marcar un honorario como pagado, el sistema puede crear
+// SOLO el movimiento de salida correspondiente en /movimientos/.
+// El vínculo (honorario.movimientoId ↔ movimiento.refId) es lo que
+// garantiza que tocar dos veces no duplique la plata.
 import {
-  db, collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp
+  db, collection, query, where, onSnapshot, doc, addDoc, updateDoc, serverTimestamp
 } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
 
@@ -109,6 +152,10 @@ function render() {
     </div>
     <span class="monto">${CV2.fmtMonto(h.monto)}</span>
     <span class="estado ${h.estado}">${h.estado === 'pagado' ? '✓ Pagado' : 'Pendiente'}</span>
+    ${h.movimientoId ? '<span class="chip-dinero">→ en Dinero</span>' : ''}
+    ${CV2.esAdmin() && h.estado === 'pagado' && !h.movimientoId
+      ? `<button class="btn-registrar" onclick="registrarEnDinero('${h.id}')" title="Crear el movimiento de salida que falta"><span class="material-icons" style="font-size:14px;">savings</span> A Dinero</button>`
+      : ''}
     ${CV2.esAdmin()
       ? `<button class="btn-nota" onclick="editar('${h.id}')" title="Editar / comentar"><span class="material-icons" style="font-size:16px;">edit_note</span></button>`
       : ''}
@@ -132,6 +179,7 @@ function render() {
   }
 }
 
+// ═══ Editar / comentar ════════════════════════════════════
 let editId = null;
 window.editar = (id) => {
   const h = docs.find((x) => x.id === id);
@@ -155,13 +203,81 @@ $('meGuardar').addEventListener('click', async () => {
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
 });
 
-window.pagar = async (id) => {
-  if (!confirm('¿Marcar este honorario como pagado?')) return;
+// ═══ El puente con Dinero ═════════════════════════════════
+/**
+ * Crea el movimiento de salida del honorario y devuelve su id.
+ * NO se llama si el honorario ya tiene movimientoId: el vínculo es
+ * lo que impide pagar dos veces la misma plata.
+ */
+async function crearMovimiento(h, fecha) {
+  const ref = await addDoc(collection(db, 'movimientos'), {
+    fecha: fecha || CV2.hoyISO(),
+    tipo: 'salio',
+    monto: Number(h.monto) || 0,
+    moneda: 'BRL',
+    montoBRL: Number(h.monto) || 0,
+    categoria: 'Honorarios',
+    uid: h.uid,                       // quien cobra
+    nombre: h.nombre ?? '',
+    detalle: 'Honorario — ' + (h.concepto ?? 'Actividad'),
+    comprobanteUrl: null,
+    pendiente: null,                  // ya pagado: no queda nada colgando
+    refTipo: 'honorario',
+    refId: h.id,
+    creadoEn: serverTimestamp(),
+    creadoPor: u.uid,
+    creadoNombre: u.nombre ?? '',
+    actualizadoEn: serverTimestamp()
+  });
+  return ref.id;
+}
+
+let pagarId = null;
+window.pagar = (id) => {
+  const h = docs.find((x) => x.id === id);
+  if (!h) return;
+  pagarId = id;
+  $('mpQue').textContent = `${h.nombre ?? ''} · ${h.concepto ?? ''}`;
+  $('mpMonto').value = Number(h.monto ?? 0).toFixed(2);
+  $('mpFecha').value = CV2.hoyISO();
+  $('mpDinero').checked = !h.movimientoId;
+  $('mpDinero').disabled = !!h.movimientoId;
+  $('mPagar').showModal();
+};
+$('mpCancelar').addEventListener('click', () => $('mPagar').close());
+
+$('mpConfirmar').addEventListener('click', async () => {
+  const h = docs.find((x) => x.id === pagarId);
+  if (!h) return;
+  $('mpConfirmar').disabled = true;
   try {
-    await updateDoc(doc(db, 'honorarios', id), {
-      estado: 'pagado', pagadoEn: serverTimestamp()
+    let movimientoId = h.movimientoId ?? null;
+    if ($('mpDinero').checked && !movimientoId) {
+      movimientoId = await crearMovimiento(h, $('mpFecha').value);
+    }
+    await updateDoc(doc(db, 'honorarios', pagarId), {
+      estado: 'pagado',
+      pagadoEn: serverTimestamp(),
+      pagadoFecha: $('mpFecha').value || CV2.hoyISO(),
+      movimientoId,
+      actualizadoEn: serverTimestamp()
     });
-    CV2.toast('✓ Pagado', 'success');
+    $('mPagar').close();
+    CV2.toast(movimientoId ? '✓ Pagado y registrado en Dinero' : '✓ Pagado', 'success');
+  } catch (e) {
+    CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error');
+  } finally { $('mpConfirmar').disabled = false; }
+});
+
+/** Para los honorarios que se pagaron ANTES de existir este puente. */
+window.registrarEnDinero = async (id) => {
+  const h = docs.find((x) => x.id === id);
+  if (!h || h.movimientoId) return;
+  if (!confirm(`¿Registrar en Dinero la salida de ${CV2.fmtMonto(h.monto)} a ${h.nombre ?? ''}?`)) return;
+  try {
+    const movimientoId = await crearMovimiento(h, CV2.hoyISO());
+    await updateDoc(doc(db, 'honorarios', id), { movimientoId, actualizadoEn: serverTimestamp() });
+    CV2.toast('✓ Registrado en Dinero', 'success');
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
 };
 

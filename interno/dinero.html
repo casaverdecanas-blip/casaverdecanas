@@ -12,6 +12,14 @@
 <style>
   .filtros { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
   .filtros select { width: auto; font-size: .86rem; padding: 8px 10px; }
+  .libros { display: flex; gap: 6px; margin: 4px 0 12px; border-bottom: 2px solid var(--linea); }
+  .libros button { border: 0; background: none; cursor: pointer; font: inherit;
+    font-size: .92rem; padding: 9px 16px; color: var(--gris); border-bottom: 3px solid transparent;
+    margin-bottom: -2px; display: inline-flex; align-items: center; gap: 6px; }
+  .libros button.activo { color: var(--verde-osc); font-weight: 700; border-bottom-color: var(--verde-osc); }
+  .libros .material-icons { font-size: 18px; }
+  .aviso-personal { background: #eef4fb; border-radius: var(--radio); padding: 9px 12px;
+    font-size: .8rem; color: #33506e; margin-bottom: 10px; }
   .acciones { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; }
   .acciones .btn { font-size: .82rem; padding: 7px 12px; }
   .kpis { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -73,6 +81,16 @@
     <button class="btn btn-primario" id="btnNuevo">
       <span class="material-icons">add</span> Movimiento
     </button>
+  </div>
+
+  <div class="libros">
+    <button id="tabNegocio" class="activo"><span class="material-icons">store</span> Negocio</button>
+    <button id="tabPersonal"><span class="material-icons">person</span> Mi libro personal</button>
+  </div>
+
+  <div class="aviso-personal" id="avisoPersonal" hidden>
+    Este libro es tuyo y de nadie más: no se cruza con la plata del negocio, no entra
+    a los balances y nadie más lo ve.
   </div>
 
   <div class="acciones">
@@ -145,13 +163,15 @@
     <div><label>Fecha</label><input id="fFecha" type="date"></div>
   </div>
 
-  <label>Quién (movió / puso la plata)</label>
-  <select id="fQuien"></select>
+  <div id="grupoQuien">
+    <label>Quién (movió / puso la plata)</label>
+    <select id="fQuien"></select>
+  </div>
 
   <label>Detalle</label>
   <input id="fDetalle" maxlength="200" placeholder="Qué fue, dónde, para qué…">
 
-  <div class="check-linea">
+  <div class="check-linea" id="grupoPendCheck">
     <input id="fPendiente" type="checkbox">
     <span>Queda algo pendiente</span>
   </div>
@@ -246,6 +266,30 @@ let tipoSel = 'salio';
 let editId = null;
 let comprobanteUrl = null;
 
+// ── Libro activo ─────────────────────────────────────────
+// 'negocio'  → /movimientos/            (compartido, con pendientes y balance)
+// 'personal' → /usuarios/{uid}/movimientos_personales/
+//              Subcolección a propósito: la RUTA ya aísla el libro, así la regla
+//              de Firestore es una línea y no hace falta where() ni índices.
+let libro = 'negocio';
+let desuscribir = null;
+
+const esPersonal = () => libro === 'personal';
+const colMovs = () => esPersonal()
+  ? collection(db, 'usuarios', u.uid, 'movimientos_personales')
+  : collection(db, 'movimientos');
+const docMov = (id) => esPersonal()
+  ? doc(db, 'usuarios', u.uid, 'movimientos_personales', id)
+  : doc(db, 'movimientos', id);
+
+// Categorías del negocio: config/dinero (compartidas).
+// Categorías personales: NACEN DEL USO — se derivan de los propios movimientos.
+// Un libro de una sola persona no necesita un catálogo aparte que mantener.
+const CAT_PERSONAL_BASE = ['Casa', 'Comida', 'Salud', 'Transporte', 'Ingresos', 'Otros'];
+const catsActuales = () => esPersonal()
+  ? [...new Set([...CAT_PERSONAL_BASE, ...movs.map((m) => m.categoria).filter(Boolean)])].sort()
+  : categorias;
+
 const enBRL = (m) => Number(m.moneda === 'BRL' ? m.monto : m.montoBRL) || 0;
 const nombreDe = (uid) => equipo.find((p) => p.uid === uid)?.nombre ?? '';
 
@@ -308,7 +352,7 @@ function render() {
   $('kCobrar').textContent = CV2.fmtMonto(t.porCobrarBRL);
 
   // Categorías del filtro
-  const cats = [...new Set([...categorias, ...movs.map((m) => m.categoria).filter(Boolean)])].sort();
+  const cats = [...new Set([...catsActuales(), ...movs.map((m) => m.categoria).filter(Boolean)])].sort();
   const catSel = $('fCat').value;
   $('fCat').innerHTML = '<option value="">Todas las categorías</option>'
     + cats.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
@@ -329,13 +373,14 @@ function render() {
         <small>${CV2.fmtFecha(m.fecha)} · ${esc(m.categoria ?? '')} · ${esc(m.nombre ?? '')}
           ${m.comprobanteUrl ? `· <a href="${esc(m.comprobanteUrl)}" target="_blank">comprobante</a>` : ''}</small>
       </div>
+      ${m.refTipo === 'honorario' ? '<span class="pend-chip" style="background:#eef4fb;color:#33506e;">honorario</span>' : ''}
       ${m.pendiente ? `<span class="pend-chip${sellado(m) ? ' sellado' : (m.pendiente.saldado ? ' saldado' : '')}">${sellado(m) ? '🔒 en balance' : (m.pendiente.saldado ? '✓ saldado' : (m.pendiente.clase === 'reponer' ? 'reponer' : 'por cobrar'))}</span>` : ''}
       <span class="monto" style="color:${m.tipo === 'entro' ? 'var(--ok)' : 'var(--rojo)'};">
         ${m.tipo === 'entro' ? '+' : '−'}${CV2.fmtMonto(m.monto, m.moneda ?? 'BRL')}
         ${m.moneda && m.moneda !== 'BRL' ? `<small>≈${CV2.fmtMonto(enBRL(m))}</small>` : ''}
       </span>
-      ${CV2.esAdmin() && !sellado(m) ? `
-        ${m.pendiente && !m.pendiente.saldado ? `<button class="btn-mini" onclick="saldar('${m.id}')" title="Marcar saldado"><span class="material-icons" style="font-size:17px;color:var(--ok)">task_alt</span></button>` : ''}
+      ${(esPersonal() || CV2.esAdmin()) && !sellado(m) ? `
+        ${!esPersonal() && m.pendiente && !m.pendiente.saldado ? `<button class="btn-mini" onclick="saldar('${m.id}')" title="Marcar saldado"><span class="material-icons" style="font-size:17px;color:var(--ok)">task_alt</span></button>` : ''}
         <button class="btn-mini" onclick="editar('${m.id}')" title="Editar"><span class="material-icons" style="font-size:16px;">edit</span></button>
         <button class="btn-mini" onclick="borrar('${m.id}')" title="Eliminar"><span class="material-icons" style="font-size:16px;color:var(--rojo)">delete_outline</span></button>` : ''}
     </div>`).join('');
@@ -364,7 +409,8 @@ function textoPendiente(p) {
 }
 
 function renderPendientes() {
-  const filas = pendientesVivos(null);
+  // El libro personal no tiene pendientes: no hay entre quiénes repartir.
+  const filas = esPersonal() ? [] : pendientesVivos(null);
   $('cardPend').classList.toggle('oculto', !filas.length);
   $('pendLista').innerHTML = filas.map((p) => `
     <div class="fila">
@@ -381,7 +427,7 @@ window.saldar = async (id) => {
   if (!m || sellado(m)) { CV2.toast('Está sellado en un balance', 'error'); return; }
   if (!confirm(`¿Marcar como saldado este pendiente de ${CV2.fmtMonto(enBRL(m))}?`)) return;
   try {
-    await updateDoc(doc(db, 'movimientos', id), {
+    await updateDoc(docMov(id), {
       'pendiente.saldado': true,
       actualizadoEn: serverTimestamp()
     });
@@ -392,9 +438,19 @@ window.saldar = async (id) => {
 window.borrar = async (id) => {
   const m = movs.find((x) => x.id === id);
   if (m && sellado(m)) { CV2.toast('No se borra: está sellado en un balance', 'error'); return; }
-  if (!confirm('¿Eliminar este movimiento? No se puede deshacer.')) return;
+  const deHonorario = m && m.refTipo === 'honorario' && m.refId;
+  const aviso = deHonorario
+    ? 'Este movimiento nació de un honorario pagado.\n\nSi lo borrás, el honorario queda pagado pero SIN su salida registrada, '
+      + 'y en Cobros vas a poder volver a registrarlo con el botón "A Dinero".\n\n¿Seguimos?'
+    : '¿Eliminar este movimiento? No se puede deshacer.';
+  if (!confirm(aviso)) return;
   try {
-    await deleteDoc(doc(db, 'movimientos', id));
+    await deleteDoc(docMov(id));
+    // Soltamos el vínculo del lado del honorario: si no, queda apuntando al vacío.
+    if (deHonorario) {
+      try { await updateDoc(doc(db, 'honorarios', m.refId), { movimientoId: null }); }
+      catch { CV2.toast('Borrado, pero no se pudo soltar el vínculo del honorario', 'error'); }
+    }
     CV2.toast('Eliminado', 'success');
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
 };
@@ -412,8 +468,11 @@ $('fMoneda').addEventListener('change', () =>
 $('fPendiente').addEventListener('change', () =>
   $('grupoPend').classList.toggle('oculto', !$('fPendiente').checked));
 
+let catExtra = [];   // categoría tipeada recién, todavía sin movimiento que la sostenga
+
 function poblarCategorias(valor) {
-  $('fCategoria').innerHTML = categorias.map((c) =>
+  const lista = [...new Set([...catsActuales(), ...catExtra])].sort();
+  $('fCategoria').innerHTML = lista.map((c) =>
     `<option value="${esc(c)}">${esc(c)}</option>`).join('')
     + '<option value="__nueva">➕ Agregar nueva…</option>';
   if (valor) $('fCategoria').value = valor;
@@ -422,7 +481,10 @@ $('fCategoria').addEventListener('change', async () => {
   if ($('fCategoria').value !== '__nueva') return;
   const nombre = (prompt('Nombre de la nueva categoría:') ?? '').trim();
   if (!nombre) { $('fCategoria').selectedIndex = 0; return; }
-  if (!categorias.includes(nombre)) {
+  catExtra = [...new Set([...catExtra, nombre])];
+  // En el negocio la categoría se guarda en el catálogo compartido.
+  // En el libro personal no hace falta: queda viva mientras haya un movimiento con ella.
+  if (!esPersonal() && !categorias.includes(nombre)) {
     categorias = [...categorias, nombre].sort();
     try {
       await setDoc(doc(db, 'config', 'dinero'), { categorias: arrayUnion(nombre) }, { merge: true });
@@ -453,14 +515,17 @@ function abrirModal(m) {
   $('grupoEquiv').classList.toggle('oculto', ($('fMoneda').value) === 'BRL');
   $('fEquiv').value = m?.montoBRL && m?.moneda !== 'BRL' ? m.montoBRL : '';
   $('fMonto').value = m?.monto ?? '';
-  poblarCategorias(m?.categoria ?? categorias[0]);
+  poblarCategorias(m?.categoria ?? catsActuales()[0]);
   $('fFecha').value = m?.fecha ?? CV2.hoyISO();
   $('fQuien').innerHTML = equipo.map((p) =>
     `<option value="${p.uid}">${esc(p.nombre)}</option>`).join('');
   $('fQuien').value = m?.uid ?? u.uid;
+  // En el libro personal no hay "quién" (siempre vos) ni pendientes (no hay con quién).
+  $('grupoQuien').hidden = esPersonal();
+  $('grupoPendCheck').hidden = esPersonal();
   $('fDetalle').value = m?.detalle ?? '';
-  $('fPendiente').checked = !!m?.pendiente;
-  $('grupoPend').classList.toggle('oculto', !m?.pendiente);
+  $('fPendiente').checked = !esPersonal() && !!m?.pendiente;
+  $('grupoPend').classList.toggle('oculto', esPersonal() || !m?.pendiente);
   $('fClasePend').value = m?.pendiente?.clase ?? 'reponer';
   comprobanteUrl = m?.comprobanteUrl ?? null;
   $('fotoEstado').textContent = comprobanteUrl ? '✓ comprobante adjunto' : '';
@@ -483,7 +548,7 @@ $('mGuardar').addEventListener('click', async () => {
   if (moneda !== 'BRL' && !montoBRL) { CV2.toast('Cargá el equivalente en R$', 'error'); return; }
   if ($('fCategoria').value === '__nueva') { CV2.toast('Terminá de agregar la categoría', 'error'); return; }
 
-  const quien = $('fQuien').value;
+  const quien = esPersonal() ? u.uid : $('fQuien').value;
   const previo = editId ? movs.find((x) => x.id === editId) : null;
   const datos = {
     fecha: $('fFecha').value || CV2.hoyISO(),
@@ -491,10 +556,10 @@ $('mGuardar').addEventListener('click', async () => {
     monto, moneda, montoBRL,
     categoria: $('fCategoria').value,
     uid: quien,
-    nombre: nombreDe(quien),
+    nombre: esPersonal() ? (u.nombre ?? '') : nombreDe(quien),
     detalle: $('fDetalle').value.trim(),
     comprobanteUrl,
-    pendiente: $('fPendiente').checked
+    pendiente: !esPersonal() && $('fPendiente').checked
       ? {
           clase: $('fClasePend').value,
           uid: quien,
@@ -507,9 +572,9 @@ $('mGuardar').addEventListener('click', async () => {
   $('mGuardar').disabled = true;
   try {
     if (editId) {
-      await updateDoc(doc(db, 'movimientos', editId), datos);
+      await updateDoc(docMov(editId), datos);
     } else {
-      await addDoc(collection(db, 'movimientos'), {
+      await addDoc(colMovs(), {
         ...datos, creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
       });
     }
@@ -563,7 +628,6 @@ function pintarBalance() {
     : '<p class="texto-gris" style="font-size:.85rem;margin:4px 0;">No hay pendientes vivos en este período.</p>';
 }
 
-$('btnBalance').hidden = !CV2.esAdmin();
 $('btnBalance').addEventListener('click', () => {
   $('bDesde').value = desdeSugerido();
   $('bHasta').value = CV2.hoyISO();
@@ -701,7 +765,7 @@ function bajarCSV(lista, sufijo) {
   const blob = new Blob(['\uFEFF' + aCSV(lista)], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'casaverde-movimientos-' + sufijo + '.csv';
+  a.download = (esPersonal() ? 'personal-movimientos-' : 'casaverde-movimientos-') + sufijo + '.csv';
   document.body.appendChild(a);
   a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
@@ -736,14 +800,48 @@ try {
 
 await cargarCierres();
 
-// ═══ Suscripción — AL FINAL ═══════════════════════════════
-onSnapshot(query(collection(db, 'movimientos')), (snap) => {
+// ═══ Cambio de libro ══════════════════════════════════════
+function pintarLibro() {
+  $('tabNegocio').classList.toggle('activo', !esPersonal());
+  $('tabPersonal').classList.toggle('activo', esPersonal());
+  $('avisoPersonal').hidden = !esPersonal();
+  $('btnBalance').hidden = esPersonal() || !CV2.esAdmin();
+  $('btnCierres').hidden = esPersonal();
+  $('cardPend').classList.toggle('oculto', esPersonal());
+}
+
+function cambiarLibro(cual) {
+  if (libro === cual) return;
+  libro = cual;
+  catExtra = [];
   movs = [];
-  snap.forEach((d) => movs.push({ id: d.id, ...d.data() }));
-  movs.sort((a, b) => (b.fecha ?? '').localeCompare(a.fecha ?? '')
-    || (b.creadoEn?.toMillis?.() ?? 0) - (a.creadoEn?.toMillis?.() ?? 0));
-  render();
-}, (e) => { console.error(e); CV2.toast('No se pudo cargar Dinero (' + (e.code ?? e.message) + ')', 'error'); });
+  $('lista').innerHTML = '<div class="vacio">Cargando…</div>';
+  pintarLibro();
+  suscribir();
+}
+$('tabNegocio').addEventListener('click', () => cambiarLibro('negocio'));
+$('tabPersonal').addEventListener('click', () => cambiarLibro('personal'));
+
+// ═══ Suscripción — AL FINAL ═══════════════════════════════
+function suscribir() {
+  if (desuscribir) { desuscribir(); desuscribir = null; }
+  const destino = libro;
+  desuscribir = onSnapshot(query(colMovs()), (snap) => {
+    if (destino !== libro) return;   // llegó tarde: ya cambiamos de libro
+    movs = [];
+    snap.forEach((d) => movs.push({ id: d.id, ...d.data() }));
+    movs.sort((a, b) => (b.fecha ?? '').localeCompare(a.fecha ?? '')
+      || (b.creadoEn?.toMillis?.() ?? 0) - (a.creadoEn?.toMillis?.() ?? 0));
+    render();
+  }, (e) => {
+    console.error(e);
+    CV2.toast('No se pudo cargar ' + (destino === 'personal' ? 'el libro personal' : 'Dinero')
+      + ' (' + (e.code ?? e.message) + ')', 'error');
+  });
+}
+
+pintarLibro();
+suscribir();
 </script>
 </body>
 </html>
