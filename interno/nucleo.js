@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 //  CASAVERDE 2.0 — nucleo.js
-//  Corazón compartido del panel: auth + perfil, navegación,
+//  Corazón compartido del panel: auth + perfil, permisos, navegación,
 //  helpers de formato y color, toasts, registro del service worker.
 //  Namespace único: CV2 (import { CV2 } from './nucleo.js')
 // ═══════════════════════════════════════════════════════════════
@@ -40,10 +40,45 @@ CV2.verificarAuth = function () {
   });
 };
 
+// ── Permisos ─────────────────────────────────────────────────
+// FUENTE ÚNICA del catálogo: lo usan la navegación, el editor de
+// usuarios y cada página que gobierne una acción fuerte. Si un permiso
+// nuevo no está acá, no existe.
+//
+// El rol 'admin' es UNA sola cuenta (CasaVerde): mantenimiento y acceso
+// sin restricciones. Todos los demás trabajan con permisos explícitos.
+CV2.PERMISOS = [
+  {
+    id: 'reservas', label: 'Reservas', icono: 'king_bed',
+    detalle: 'Reservas, presupuestos y clientes.'
+  },
+  {
+    id: 'dinero', label: 'Registrar gastos', icono: 'savings',
+    detalle: 'Carga movimientos y ve SOLO los suyos. Sin balances ni totales del negocio.'
+  },
+  {
+    id: 'finanzas', label: 'Finanzas completas', icono: 'account_balance',
+    detalle: 'Ve todo el dinero, hace balance y exporta. Incluye lo de "Registrar gastos".'
+  },
+  {
+    id: 'contenido', label: 'Contenido del sitio', icono: 'cottage',
+    detalle: 'Editar cabañas y espacios comunes.'
+  },
+  {
+    id: 'horas', label: 'Horas del equipo', icono: 'insights',
+    detalle: 'Gestor de sesiones y análisis de horas de todas las personas.'
+  }
+];
+
 CV2.esAdmin = () => CV2.usuario?.rol === 'admin';
 
-CV2.puede = (seccion) =>
-  CV2.esAdmin() || CV2.usuario?.permisos?.[seccion] === true;
+/** ¿Tiene este permiso? El admin siempre puede. */
+CV2.puede = (permiso) =>
+  CV2.esAdmin() || CV2.usuario?.permisos?.[permiso] === true;
+
+/** ¿Tiene alguno de estos permisos? */
+CV2.puedeAlguno = (lista) =>
+  CV2.esAdmin() || (lista || []).some((p) => CV2.usuario?.permisos?.[p] === true);
 
 CV2.cerrarSesion = async function () {
   await signOut(auth);
@@ -60,28 +95,37 @@ CV2._listonAdmin = function () {
   document.body.appendChild(el);
 };
 
-// ── Navegación (crece por fase; T0.3 = mínima) ───────────────
+// ── Navegación ───────────────────────────────────────────────
+// `permiso: null`  → visible para cualquiera activo.
+// `permiso: 'x'`   → requiere ese permiso.
+// `permiso: [...]` → requiere alguno de esos.
+// `soloAdmin: true`→ únicamente la cuenta CasaVerde.
 CV2.NAV = [
-  { id: 'inicio', label: 'Inicio', href: './index.html', icono: 'home' },
-  { id: 'actividades', label: 'Actividades', href: './actividades.html', icono: 'checklist' },
-  { id: 'reservas', label: 'Reservas', href: './reservas.html', icono: 'king_bed' },
-  { id: 'calendario', label: 'Calendario', href: './calendario.html', icono: 'calendar_month' },
-  { id: 'clientes', label: 'Clientes', href: './clientes.html', icono: 'contacts' },
-  { id: 'comunicacion', label: 'Chat', href: './comunicacion.html', icono: 'forum' },
-  { id: 'sesiones', label: 'Sesiones', href: './gestion-sesiones.html', icono: 'schedule' },
-  { id: 'horas', label: 'Horas', href: './horas-stats.html', icono: 'insights' },
-  { id: 'honorarios', label: 'Cobros', href: './honorarios.html', icono: 'payments' },
-  { id: 'dinero', label: 'Dinero', href: './dinero.html', icono: 'savings' },
-  { id: 'cabanas', label: 'Cabañas', href: './cabanas.html', icono: 'cottage' },
-  { id: 'usuarios', label: 'Usuarios', href: './usuarios.html', icono: 'group' }
+  { id: 'inicio', label: 'Inicio', href: './index.html', icono: 'home', permiso: null },
+  { id: 'actividades', label: 'Actividades', href: './actividades.html', icono: 'checklist', permiso: null },
+  { id: 'reservas', label: 'Reservas', href: './reservas.html', icono: 'king_bed', permiso: 'reservas' },
+  { id: 'calendario', label: 'Calendario', href: './calendario.html', icono: 'calendar_month', permiso: null },
+  { id: 'clientes', label: 'Clientes', href: './clientes.html', icono: 'contacts', permiso: 'reservas' },
+  { id: 'comunicacion', label: 'Chat', href: './comunicacion.html', icono: 'forum', permiso: null },
+  { id: 'sesiones', label: 'Sesiones', href: './gestion-sesiones.html', icono: 'schedule', permiso: null },
+  { id: 'horas', label: 'Horas', href: './horas-stats.html', icono: 'insights', permiso: 'horas' },
+  { id: 'honorarios', label: 'Cobros', href: './honorarios.html', icono: 'payments', permiso: null },
+  { id: 'dinero', label: 'Dinero', href: './dinero.html', icono: 'savings', permiso: ['dinero', 'finanzas'] },
+  { id: 'cabanas', label: 'Cabañas', href: './cabanas.html', icono: 'cottage', permiso: 'contenido' },
+  { id: 'usuarios', label: 'Usuarios', href: './usuarios.html', icono: 'group', permiso: null, soloAdmin: true }
 ];
+
+CV2.verItem = function (it) {
+  if (it.soloAdmin) return CV2.esAdmin();
+  if (!it.permiso) return true;
+  return Array.isArray(it.permiso) ? CV2.puedeAlguno(it.permiso) : CV2.puede(it.permiso);
+};
 
 CV2.renderNav = function (activo) {
   const cont = document.getElementById('nav');
   if (!cont) return;
-  const SIEMPRE = ['inicio', 'actividades', 'reservas', 'calendario', 'clientes', 'comunicacion', 'sesiones', 'horas', 'honorarios'];
   const items = CV2.NAV
-    .filter(it => CV2.puede(it.id) || SIEMPRE.includes(it.id))
+    .filter(CV2.verItem)
     .map(it => `
       <a href="${it.href}" class="nav-item ${it.id === activo ? 'activo' : ''}">
         <span class="material-icons">${it.icono}</span>${it.label}

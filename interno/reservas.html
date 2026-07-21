@@ -271,21 +271,21 @@ function render() {
             <span>${CV2.fmtFecha(p.fecha)}</span>
             <span style="flex:1;">${CONC[p.concepto] ?? 'Pago'} · ${esc(p.metodo ?? '')}${p.categoria ? ' · ' + esc(p.categoria) : ''}${p.cuentaDestino ? ' → ' + esc(p.cuentaDestino) : ''}${p.nota ? ' · ' + esc(p.nota) : ''}</span>
             <b style="color:var(--tinta);">${CV2.fmtMonto(p.monto, p.moneda ?? 'BRL')}${p.moneda && p.moneda !== 'BRL' ? ' <span style="font-weight:400;color:var(--gris);">(≈' + CV2.fmtMonto(enBRL(p)) + ')</span>' : ''}</b>
-            ${CV2.esAdmin() ? `<button class="btn-ico" style="border:0;padding:2px;" onclick="borrarPago('${p.id}')" title="Eliminar pago"><span class="material-icons" style="font-size:15px;color:var(--rojo)">delete_outline</span></button>` : ''}
+            ${CV2.puede('finanzas') ? `<button class="btn-ico" style="border:0;padding:2px;" onclick="borrarPago('${p.id}')" title="Eliminar pago"><span class="material-icons" style="font-size:15px;color:var(--rojo)">delete_outline</span></button>` : ''}
           </div>`).join('')}
         </div>` : ''}
         ${r.notas ? `<div>📝 ${esc(r.notas)}</div>` : ''}
         ${ultimos ? `<div class="hist">${ultimos}</div>` : ''}
         <div class="acciones">
-          ${CV2.esAdmin() && r.estado === 'presupuesto'
+          ${CV2.puede('reservas') && r.estado === 'presupuesto'
             ? `<button class="btn-ico" style="border-color:var(--ok);color:var(--ok);" onclick="cambiarEstado('${r.id}','confirmada')"><span class="material-icons">check_circle</span> Confirmar</button>` : ''}
-          ${CV2.esAdmin() && r.estado === 'confirmada' && r.checkOut <= CV2.hoyISO()
+          ${CV2.puede('reservas') && r.estado === 'confirmada' && r.checkOut <= CV2.hoyISO()
             ? `<button class="btn-ico" onclick="cambiarEstado('${r.id}','finalizada')"><span class="material-icons">flag</span> Finalizar</button>` : ''}
-          ${CV2.esAdmin() && (r.estado === 'presupuesto' || r.estado === 'confirmada')
+          ${CV2.puede('reservas') && (r.estado === 'presupuesto' || r.estado === 'confirmada')
             ? `<button class="btn-ico" style="color:var(--rojo);" onclick="cambiarEstado('${r.id}','anulada')"><span class="material-icons">cancel</span> Anular</button>` : ''}
-          ${CV2.esAdmin() && r.estado !== 'anulada'
+          ${CV2.puede('reservas') && r.estado !== 'anulada'
             ? `<button class="btn-ico" style="border-color:var(--verde);color:var(--verde-osc);" onclick="abrirPago('${r.id}')"><span class="material-icons">attach_money</span> Pago</button>` : ''}
-          ${CV2.esAdmin()
+          ${CV2.puede('reservas')
             ? `<button class="btn-ico" onclick="editar('${r.id}')"><span class="material-icons">edit</span> Editar</button>` : ''}
         </div>
       </div>`;
@@ -563,7 +563,7 @@ window.borrarPago = async (pid) => {
 };
 
 // ═══ Sync Airbnb (admin) ══════════════════════════════════
-if (CV2.esAdmin()) {
+if (CV2.puede('reservas')) {
   $('btnAirbnb').classList.remove('oculto');
   $('btnAirbnb').addEventListener('click', async () => {
     $('btnAirbnb').disabled = true;
@@ -608,7 +608,7 @@ try {
   cabanas.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
 
   if (!cabanas.length) {
-    $('lista').innerHTML = CV2.esAdmin()
+    $('lista').innerHTML = CV2.puede('contenido')
       ? '<div class="vacio">Primero cargá las cabañas: <a href="./cabanas.html">abrí Cabañas</a> y creá las 3 base.</div>'
       : '<div class="vacio">No hay cabañas cargadas todavía. Avisale al administrador.</div>';
   }

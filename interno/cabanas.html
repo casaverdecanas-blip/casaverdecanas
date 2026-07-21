@@ -95,7 +95,7 @@ import { CV2 } from './nucleo.js';
 
 CV2.registrarSW();
 const u = await CV2.verificarAuth();
-if (!CV2.esAdmin()) { location.href = './index.html'; throw new Error('solo admin'); }
+if (!CV2.puede('contenido')) { location.href = './index.html'; throw new Error('sin permiso de contenido'); }
 CV2.renderNav('cabanas');
 
 const $ = (id) => document.getElementById(id);

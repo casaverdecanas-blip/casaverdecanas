@@ -87,7 +87,7 @@
 // Regla del 2.0: definiciones primero, suscripción AL FINAL.
 import {
   db, collection, query, where, onSnapshot, getDocs,
-  doc, addDoc, updateDoc, deleteDoc, Timestamp, serverTimestamp, or, and
+  doc, addDoc, setDoc, updateDoc, deleteDoc, Timestamp, serverTimestamp, or, and
 } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
 import { Core } from './actividades-core.js';
@@ -135,7 +135,7 @@ const tipoIcono = (t) => t === 'manual' ? '📝' : (t === 'tilde' ? '✔' : '⏱
 
 // ═══ Render ═══════════════════════════════════════════════
 function filtradas() {
-  const fu = CV2.esAdmin() ? $('fUsuario').value : u.uid;
+  const fu = CV2.puede('horas') ? $('fUsuario').value : u.uid;
   const fp = $('fProyecto').value;
   return sesiones.filter((s) =>
     (!fu || s.uid === fu) &&
@@ -182,7 +182,7 @@ function render() {
           <span class="tot">${CV2.fmtHM(horasAct)}</span></div>`;
         if (abiertos['a-' + aid]) {
           for (const s of ss) {
-            const puede = CV2.esAdmin() || s.uid === u.uid;
+            const puede = CV2.puede('horas') || s.uid === u.uid;
             h += `<div class="gses">
               <span class="tipoch" title="${s.tipo}">${tipoIcono(s.tipo)}</span>
               <div class="qn">${esc(s.nombre ?? '')}
@@ -272,7 +272,7 @@ window.borrarSes = async (id) => {
 // el admin recalcula los honorarios de los ciclos de esa actividad.
 // Ciclos con pagos hechos no se tocan (se avisa para ajuste manual).
 async function recalcularSiCorresponde(actividadId) {
-  if (!actividadId || !CV2.esAdmin()) return;
+  if (!actividadId || !CV2.puede('horas')) return;
   try {
     const r = await Core.recalcularCiclos(actividadId);
     if (r.recalculados > 0) {
@@ -282,6 +282,38 @@ async function recalcularSiCorresponde(actividadId) {
       CV2.toast(`Ese ciclo ya tiene pagos hechos: ajustá el cobro a mano en Cobros`, 'info');
     }
   } catch (e) { CV2.toast('No se pudieron recalcular los cobros: ' + (e.code ?? e.message), 'error'); }
+}
+
+// ═══ Aviso de horas cargadas a mano ═══════════════════════
+// Cuando alguien SIN permiso de horas carga tiempo a mano, queda un
+// mensaje en el Chat para que quien gobierna las sesiones lo revise.
+// Se usa la conversación que ya existe (ID fijo, regla 3.5): un solo
+// hilo que crece, en vez de un tema nuevo por cada registro.
+const HILO_HORAS = 'horas-manuales';
+
+async function avisarHorasManuales(actividadTitulo, horas, fecha, nota) {
+  const texto = '📝 ' + (u.nombre ?? 'Alguien') + ' cargó ' + CV2.fmtHM(horas) +
+    ' a mano en "' + actividadTitulo + '" (' + CV2.fmtFecha(fecha) + ')' +
+    (nota ? ' — ' + nota : '') + '. Revisalo en el Gestor de Sesiones.';
+  try {
+    // Crea el hilo si no existe y actualiza su encabezado en un solo gesto.
+    await setDoc(doc(db, 'comunicaciones', HILO_HORAS), {
+      titulo: '📝 Horas cargadas a mano',
+      audiencia: 'equipo',
+      ultimoMensaje: texto.slice(0, 120),
+      ultimoAutorUid: u.uid,
+      ultimoAutorNombre: u.nombre ?? '',
+      ultimaActividad: serverTimestamp(),
+      creadoPor: u.uid,
+      creadoNombre: u.nombre ?? ''
+    }, { merge: true });
+    await addDoc(collection(db, 'comunicaciones', HILO_HORAS, 'mensajes'), {
+      texto, autorUid: u.uid, autorNombre: u.nombre ?? '', creadoEn: serverTimestamp()
+    });
+  } catch (e) {
+    // El aviso nunca debe hacer fracasar el registro de horas.
+    console.warn('aviso de horas:', e);
+  }
 }
 
 $('mCancelar').addEventListener('click', () => $('modal').close());
@@ -313,6 +345,10 @@ $('mGuardar').addEventListener('click', async () => {
         creadoEn: serverTimestamp(), creadoPor: u.uid, actualizadoEn: serverTimestamp()
       });
       CV2.toast(`📝 ${CV2.fmtHM(horas)} registradas`, 'success');
+      // Quien gobierna las sesiones no se avisa a sí mismo.
+      if (!CV2.puede('horas')) {
+        await avisarHorasManuales(actIdx[aid]?.titulo ?? '', horas, f, $('fNota').value.trim());
+      }
     }
     $('modal').close();
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
@@ -345,8 +381,8 @@ $('mGuardar').addEventListener('click', async () => {
     arbolPlano.map((n) => `<option value="${n.id}">${'\u00A0'.repeat(n.nivel * 4)}${n.esRaiz ? '🏠 ' : '· '}${esc(n.titulo)}</option>`).join('');
 }
 
-// Filtro de usuario (solo admin; colaborador ve lo suyo)
-if (CV2.esAdmin()) {
+// Filtro de persona: solo con permiso de horas. Sin él, cada uno ve lo suyo.
+if (CV2.puede('horas')) {
   $('fUsuario').classList.remove('oculto');
   const su = await getDocs(collection(db, 'usuarios'));
   const ops = [];
@@ -360,7 +396,7 @@ $('fProyecto').addEventListener('change', render);
 
 // ═══ Suscripción — AL FINAL ═══════════════════════════════
 const cs = collection(db, 'sesiones');
-const qs = CV2.esAdmin() ? query(cs) : query(cs, where('uid', '==', u.uid));
+const qs = CV2.puede('horas') ? query(cs) : query(cs, where('uid', '==', u.uid));
 
 onSnapshot(qs, (snap) => {
   sesiones = [];

@@ -130,7 +130,7 @@ const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
 let docs = [];
 
-if (CV2.esAdmin()) $('titulo').textContent = 'Honorarios del equipo';
+if (CV2.puede('finanzas')) $('titulo').textContent = 'Honorarios del equipo';
 
 function render() {
   let pend = 0, pag = 0;
@@ -153,18 +153,18 @@ function render() {
     <span class="monto">${CV2.fmtMonto(h.monto)}</span>
     <span class="estado ${h.estado}">${h.estado === 'pagado' ? '✓ Pagado' : 'Pendiente'}</span>
     ${h.movimientoId ? '<span class="chip-dinero">→ en Dinero</span>' : ''}
-    ${CV2.esAdmin() && h.estado === 'pagado' && !h.movimientoId
+    ${CV2.puede('finanzas') && h.estado === 'pagado' && !h.movimientoId
       ? `<button class="btn-registrar" onclick="registrarEnDinero('${h.id}')" title="Crear el movimiento de salida que falta"><span class="material-icons" style="font-size:14px;">savings</span> A Dinero</button>`
       : ''}
-    ${CV2.esAdmin()
+    ${CV2.puede('finanzas')
       ? `<button class="btn-nota" onclick="editar('${h.id}')" title="Editar / comentar"><span class="material-icons" style="font-size:16px;">edit_note</span></button>`
       : ''}
-    ${CV2.esAdmin() && h.estado !== 'pagado'
+    ${CV2.puede('finanzas') && h.estado !== 'pagado'
       ? `<button class="btn-pagar" onclick="pagar('${h.id}')"><span class="material-icons" style="font-size:15px;">paid</span> Pagar</button>`
       : ''}
   </div>`;
 
-  if (CV2.esAdmin()) {
+  if (CV2.puede('finanzas')) {
     // Agrupado por persona, pendientes primero
     const porUid = {};
     for (const h of docs) (porUid[h.uid] ??= { nombre: h.nombre ?? h.uid, items: [], pend: 0 }).items.push(h);
@@ -283,7 +283,7 @@ window.registrarEnDinero = async (id) => {
 
 // ═══ Suscripción — AL FINAL ═══════════════════════════════
 const col = collection(db, 'honorarios');
-const consulta = CV2.esAdmin() ? query(col) : query(col, where('uid', '==', u.uid));
+const consulta = CV2.puede('finanzas') ? query(col) : query(col, where('uid', '==', u.uid));
 
 onSnapshot(consulta, (snap) => {
   docs = [];
