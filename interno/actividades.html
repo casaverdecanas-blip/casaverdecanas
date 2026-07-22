@@ -431,8 +431,9 @@ function nodoHTML(id) {
         ${!it.hecho ? (miCrono
           ? `<button class="btn-ico stop" onclick="cronoStop('${id}')" title="Frenar y registrar"><span class="material-icons">stop</span></button>`
           : `<button class="btn-ico play" onclick="cronoPlay('${id}')" title="Iniciar cronómetro"><span class="material-icons">play_arrow</span></button>`) : ''}
-        ${!it.hecho && !miCrono ? `<button class="btn-ico" onclick="realizada('${id}')" title="Realizada sin cronómetro"><span class="material-icons" style="color:var(--ok)">task_alt</span></button>` : ''}
-        ${(it.reservaId && it.cabanaId) ? `<button class="btn-ico" onclick="abrirChequeo('${id}')" title="Chequeo de inventario"><span class="material-icons" style="color:#33506e">inventory</span></button>` : ''}
+        ${!it.hecho && !miCrono ? `<button class="btn-ico" onclick="realizada('${id}')" title="${it.reservaId && it.fase === 'entrada' ? 'Limpieza terminada' : 'Realizada sin cronómetro'}"><span class="material-icons" style="color:var(--ok)">task_alt</span></button>` : ''}
+        ${(it.reservaId && it.cabanaId && it.fase === 'entrada') ? `<button class="btn-ico" onclick="abrirChequeo('${id}')" title="Control de inventario (entrada)"><span class="material-icons" style="color:${it.controlEntradaHecho ? 'var(--ok)' : '#33506e'}">inventory</span></button>` : ''}
+        ${(it.reservaId && it.cabanaId && it.fase === 'salida') ? `<button class="btn-ico" onclick="abrirChequeo('${id}')" title="Control de salida (check-out)"><span class="material-icons" style="color:#8a6206">logout</span></button>` : ''}
         ${it.hecho && CV2.esAdmin() ? `<button class="btn-ico" onclick="restaurar('${id}')" title="Restaurar"><span class="material-icons">restart_alt</span></button>` : ''}
         ${!it.hecho ? `<button class="btn-ico" onclick="abrirAlta('${id}')" title="Agregar sub-ítem"><span class="material-icons">add</span></button>` : ''}
         <button class="btn-ico" onclick="toggleEstrella('${id}')" title="Destacar">
@@ -507,6 +508,12 @@ document.addEventListener('visibilitychange', () => {
 });
 
 window.realizada = async (id) => {
+  const it = byId[id];
+  // La limpieza de entrada no se cierra sin el control de inventario hecho.
+  if (it && it.reservaId && it.fase === 'entrada' && !it.controlEntradaHecho) {
+    CV2.toast('Primero hacé el control de inventario de entrada (botón 📦).', 'error');
+    return;
+  }
   try {
     const r = await Core.tildar(id, u);
     delete horasCache[id];
@@ -752,6 +759,7 @@ let chInTmp = [];        // [{item, cantidad}] entrada en edición
 let chOutTmp = [];       // [{item, cantidad}] salida en edición
 let chDaniosTmp = [];    // [{desc, foto}] daños en edición
 let chFotoPend = null;   // url de la última foto subida, aún sin agregar
+let chFaseActual = 'in'; // 'in' (entrada) | 'out' (salida) según la actividad
 
 window.abrirChequeo = async (actId) => {
   const it = byId[actId];
@@ -760,6 +768,8 @@ window.abrirChequeo = async (actId) => {
   chFotoPend = null;
   $('chDanioEstado').textContent = '';
   $('chDanioDesc').value = '';
+  // La FASE la define la actividad: limp- prepara (entrada), checkout- controla (salida).
+  chFaseActual = (it.fase === 'salida' || String(actId).startsWith('checkout-')) ? 'out' : 'in';
   try {
     const cs = await getDoc(doc(db, 'cabanas', it.cabanaId));
     chCab = cs.exists() ? { id: cs.id, ...cs.data() } : null;
@@ -772,24 +782,36 @@ window.abrirChequeo = async (actId) => {
     chDoc = chs.exists() ? chs.data() : null;
   } catch { chDoc = null; }
 
-  // Entrada: lo ya confirmado, o las cantidades de referencia de la cabaña.
   chInTmp = (chDoc && chDoc.entrada && chDoc.entrada.items)
     ? chDoc.entrada.items.map((x) => ({ item: x.item, cantidad: Number(x.cantidad) || 0 }))
     : inv.map((x) => ({ item: x.item, cantidad: x.cantidad }));
-
-  // Salida: lo ya cargado, o parte de la entrada como sugerencia.
   chOutTmp = (chDoc && chDoc.salida && chDoc.salida.items)
     ? chDoc.salida.items.map((x) => ({ item: x.item, cantidad: Number(x.cantidad) || 0 }))
     : chInTmp.map((x) => ({ item: x.item, cantidad: x.cantidad }));
   chDaniosTmp = (chDoc && chDoc.salida && chDoc.salida.danios) ? chDoc.salida.danios.slice() : [];
 
   const nom = (chCab.nombre && chCab.nombre.es) || chCab.id;
-  $('chSub').innerHTML = esc(nom) + ' · reserva ' + esc(it.reservaId) +
-    (chDoc && chDoc.entrada && chDoc.entrada.confirmadaEn ? ' · entrada confirmada' : ' · entrada sin confirmar');
-  chFase('in');
-  renderChIn();
-  renderChOut();
-  renderChDanios();
+  const entradaHecha = !!(chDoc && chDoc.entrada && chDoc.entrada.confirmadaEn);
+
+  // Mostrar SOLO la fase de esta actividad. Las pestañas se ocultan: cada
+  // actividad es su propio control, no un modal con las dos mitades.
+  $('chTabIn').style.display = 'none';
+  $('chTabOut').style.display = 'none';
+  if (chFaseActual === 'in') {
+    $('chSub').innerHTML = '🔑 Control de ENTRADA · ' + esc(nom) + ' · reserva ' + esc(it.reservaId);
+    $('chIn').classList.remove('oculto');
+    $('chOut').classList.add('oculto');
+    renderChIn();
+  } else {
+    $('chSub').innerHTML = '🚪 Control de SALIDA · ' + esc(nom) +
+      (entradaHecha ? '' : ' · ⚠ sin control de entrada previo');
+    $('chIn').classList.add('oculto');
+    $('chOut').classList.remove('oculto');
+    $('chOutAviso').classList.add('oculto');
+    $('chOutCuerpo').classList.remove('oculto');
+    renderChOut();
+    renderChDanios();
+  }
   $('mChequeo').showModal();
 };
 
@@ -880,7 +902,6 @@ $('chGuardarIn').addEventListener('click', async () => {
     await setDoc(doc(db, 'chequeos', 'chequeo-' + chAct.reservaId), {
       reservaId: chAct.reservaId,
       cabanaId: chAct.cabanaId,
-      actividadId: chAct.id,
       entrada: {
         items: chInTmp.map((x) => ({ item: x.item, cantidad: Number(x.cantidad) || 0 })),
         confirmadaEn: serverTimestamp(),
@@ -889,11 +910,13 @@ $('chGuardarIn').addEventListener('click', async () => {
       },
       actualizadoEn: serverTimestamp()
     }, { merge: true });
-    chDoc = chDoc || {};
-    chDoc.entrada = { items: chInTmp.slice(), confirmadaEn: true };
-    CV2.toast('✓ Entrada confirmada', 'success');
-    $('chSub').innerHTML = $('chSub').innerHTML.replace('entrada sin confirmar', 'entrada confirmada');
-    chFase('out');
+    // Marca en la propia actividad que el control de entrada ya se hizo:
+    // "Limpieza terminada" lo exige antes de dejar cerrar.
+    await updateDoc(doc(db, 'actividades', chAct.id), {
+      controlEntradaHecho: true, actualizadoEn: serverTimestamp()
+    });
+    CV2.toast('✓ Control de entrada confirmado. Ya podés marcar la limpieza terminada.', 'success');
+    $('mChequeo').close();
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
   finally { $('chGuardarIn').disabled = false; }
 });
@@ -922,14 +945,10 @@ $('chGuardarOut').addEventListener('click', async () => {
       actualizadoEn: serverTimestamp()
     }, { merge: true });
 
-    // 2) Si hay faltantes o daños, se crea (o actualiza) UNA actividad en la
-    //    rama de faltantes de esa cabaña. ID determinista falta-<reservaId>:
-    //    correr el check-out dos veces actualiza la misma, no duplica.
-    //    Se denormalizan huésped y fechas: la actividad no puede depender de
-    //    que la reserva siga existiendo.
+    // 2) Faltante colgado de la PROPIA actividad de check-out (queda
+    //    agrupado bajo ella). Solo si hay novedades reales.
     const hayNovedades = faltantes.length || chDaniosTmp.length;
     if (hayNovedades) {
-      // Datos de la reserva (denormalizados, tolerante a que no exista).
       let huesped = '', checkIn = '', checkOut = '';
       try {
         const rs = await getDoc(doc(db, 'reservas', chAct.reservaId));
@@ -938,49 +957,37 @@ $('chGuardarOut').addEventListener('click', async () => {
           huesped = r.clienteNombre || r.nombre || '';
           checkIn = r.checkIn || ''; checkOut = r.checkOut || '';
         }
-      } catch { /* reserva Airbnb sin doc propio: seguimos sin sus datos */ }
+      } catch { /* reserva sin doc propio */ }
 
       const nomCab = (chCab.nombre && chCab.nombre.es) || chCab.id;
-      const ramaFaltantes = 'faltantes-cab-' + String(chCab.id).replace(/^c/, '');
-
-      // Detalle legible: lista de faltantes + daños + la reserva de origen.
       const lineas = [];
       faltantes.forEach((f) => lineas.push('• Falta ' + f.faltan + '× ' + f.item + ' (entró ' + f.entrada + ', quedó ' + f.salida + ')'));
       chDaniosTmp.forEach((d) => lineas.push('• Daño: ' + d.desc + (d.foto ? ' [foto]' : '')));
-      const origen = 'Reserva ' + (huesped ? huesped + ' · ' : '') +
-        (checkIn ? CV2.fmtFecha(checkIn) + '→' + CV2.fmtFecha(checkOut) : chAct.reservaId);
-      const detalle = lineas.join('\n') + '\n' + origen;
 
-      const ref = doc(db, 'actividades', 'falta-' + chAct.reservaId);
-      const gestionados = {
-        titulo: 'Faltantes · ' + nomCab + (checkOut ? ' · salida ' + CV2.fmtFecha(checkOut) : ''),
-        detalle,
-        parentId: ramaFaltantes,
-        tipo: 'normal', alcance: 'equipo',
+      await setDoc(doc(db, 'actividades', 'falta-' + chAct.reservaId), {
+        titulo: 'Faltantes/daños · ' + nomCab,
+        detalle: lineas.join('\n') + '\nReserva ' + (huesped || chAct.reservaId),
+        parentId: chAct.id,            // cuelga de la actividad de check-out
+        tipo: 'normal', alcance: 'equipo', competencias: [],
         cabanaId: chCab.id, reservaId: chAct.reservaId,
-        // Datos estructurados por si una vista los quiere mostrar lindo.
         faltantesData: { faltantes, danios: chDaniosTmp.slice(), huesped, checkIn, checkOut },
-        prioridad: 'rojo',
+        prioridad: 'rojo', recurrenciaDias: 0, monto: 0,
+        fechaInicio: CV2.hoyISO(), fechaVencimiento: '',
+        esCompra: false, hecho: false, estado: 'pendiente',
+        sesionActualId: null, ultimoCierreEn: null, orden: 0,
+        creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? '',
         actualizadoEn: serverTimestamp()
-      };
-      const ex = await getDoc(ref);
-      if (ex.exists()) {
-        await setDoc(ref, gestionados, { merge: true });
-      } else {
-        await setDoc(ref, {
-          ...gestionados,
-          competencias: [], recurrenciaDias: 0, monto: 0,
-          fechaInicio: checkOut || CV2.hoyISO(), fechaVencimiento: '',
-          esCompra: false, hecho: false, estado: 'pendiente',
-          sesionActualId: null, ultimoCierreEn: null, orden: 0,
-          creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
-        });
-      }
-    }
+      }, { merge: true });
 
-    CV2.toast(hayNovedades
-      ? '✓ Salida registrada · faltante creado en Actividades'
-      : '✓ Salida registrada · sin novedades', 'success');
+      CV2.toast('✓ Salida registrada · faltante abierto (la actividad queda abierta hasta resolverlo)', 'success');
+    } else {
+      // Todo OK: se cierra la actividad de check-out.
+      await updateDoc(doc(db, 'actividades', chAct.id), {
+        hecho: true, estado: 'finalizada',
+        hechoPor: u.uid, hechoEn: serverTimestamp(), actualizadoEn: serverTimestamp()
+      });
+      CV2.toast('✓ Salida OK · check-out cerrado', 'success');
+    }
     $('mChequeo').close();
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
   finally { $('chGuardarOut').disabled = false; }

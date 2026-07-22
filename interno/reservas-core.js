@@ -165,46 +165,115 @@ RCore.sincronizarAirbnb = async (reservas, cabanas, u) => {
   return stats;
 };
 
+// Días de anticipación con que se materializa cada actividad.
+const VENTANA_DIAS = 7;
+const sumarDias = (iso, n) => {
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+const restarDias = (iso, n) => sumarDias(iso, -n);
+
+// Base común de una actividad de limpieza/control (campos que el árbol y
+// el semáforo esperan). Solo se escribe en la CREACIÓN; el merge posterior
+// nunca pisa hecho/estado/sesión ni el trabajo humano (regla 3.6).
+function baseActividad(u, extra) {
+  return Object.assign({
+    parentId: 'proj-limpiezas', tipo: 'normal', alcance: 'equipo',
+    competencias: [], recurrenciaDias: 0, monto: 0,
+    esCompra: false, proveedor: null,
+    hecho: false, estado: 'pendiente', sesionActualId: null,
+    ultimoCierreEn: null, orden: 0,
+    creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
+  }, extra);
+}
+
+/**
+ * Barre TODAS las reservas y materializa las que entran en la ventana de 7
+ * días. Como no hay servidor, se llama al abrir la app (Actividades y
+ * Reservas). Idempotente: los IDs deterministas no duplican.
+ */
+RCore.materializarPendientes = async (reservas, cabanas, u) => {
+  const hoy = hoyISO();
+  const enVentana = reservas.filter((r) =>
+    r.estado === 'confirmada'
+    && typeof r.checkIn === 'string' && typeof r.checkOut === 'string'
+    && (
+      (r.checkIn >= hoy && restarDias(r.checkIn, VENTANA_DIAS) <= hoy) ||
+      (r.checkOut >= hoy && restarDias(r.checkOut, VENTANA_DIAS) <= hoy)
+    ));
+  if (!enVentana.length) return { creadas: 0, actualizadas: 0, borradas: 0 };
+  return RCore.sincronizarLimpiezas(enVentana, cabanas, u);
+};
+
+/**
+ * Materializa, para una lista de reservas, las actividades que entran en la
+ * ventana de 7 días:
+ *   · limp-<id>      LIMPIEZA de entrada  (se hace ANTES del check-in;
+ *                    rojo un día antes; lleva la tarifa → genera honorarios)
+ *   · checkout-<id>  CONTROL de salida    (se hace en el check-out)
+ * Idempotente (IDs deterministas + merge). Anular borra lo no hecho.
+ * Mantiene el nombre sincronizarLimpiezas por compatibilidad de llamadas.
+ */
 RCore.sincronizarLimpiezas = async (reservas, cabanas, u) => {
   await asegurarProyecto(u);
   const hoy = hoyISO();
   let creadas = 0, actualizadas = 0, borradas = 0;
 
-  for (const r of reservas) {
-    const ref = doc(db, 'actividades', 'limp-' + r.id);
+  const upsert = async (id, gestionados, nuevos) => {
+    const ref = doc(db, 'actividades', id);
+    const s = await getDoc(ref);
+    if (s.exists()) {
+      await setDoc(ref, gestionados, { merge: true });
+      actualizadas++;
+    } else {
+      await setDoc(ref, Object.assign({}, gestionados, nuevos));
+      creadas++;
+    }
+  };
 
-    if (r.estado === 'confirmada' && r.checkOut >= hoy) {
-      const s = await getDoc(ref);
-      const gestionados = {
-        titulo: `Limpieza ${nomCab(cabanas, r.cabanaId)} · salida ${r.checkOut}`,
-        detalle: `Salida de ${r.clienteNombre ?? ''}`.trim(),
-        parentId: 'proj-limpiezas',
-        tipo: 'normal', alcance: 'equipo',
-        monto: tarifaLimpieza(cabanas, r.cabanaId),
-        fechaInicio: r.checkOut,
-        cabanaId: r.cabanaId, reservaId: r.id,
-        actualizadoEn: serverTimestamp()
-      };
-      if (s.exists()) {
-        await setDoc(ref, gestionados, { merge: true });
-        actualizadas++;
-      } else {
-        await setDoc(ref, {
-          ...gestionados,
-          competencias: [], prioridad: null, recurrenciaDias: 0,
-          fechaVencimiento: r.checkOut,
-          esCompra: false, proveedor: null,
-          hecho: false, estado: 'pendiente', sesionActualId: null,
-          ultimoCierreEn: null, orden: 0,
-          creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
-        });
-        creadas++;
+  for (const r of reservas) {
+    const cab = nomCab(cabanas, r.cabanaId);
+    const okFechas = typeof r.checkIn === 'string' && typeof r.checkOut === 'string';
+
+    if (r.estado === 'confirmada' && okFechas) {
+      // ── LIMPIEZA DE ENTRADA (se prepara antes del check-in) ──
+      // Se materializa una semana antes del check-in; se pone urgente
+      // (rojo) un día antes. La hace quien prepara: lleva la tarifa.
+      if (r.checkIn >= hoy && restarDias(r.checkIn, VENTANA_DIAS) <= hoy) {
+        await upsert('limp-' + r.id,
+          {
+            titulo: 'Limpieza ' + cab + ' · entrada ' + r.checkIn,
+            detalle: ('Preparar para ' + (r.clienteNombre || '')).trim(),
+            cabanaId: r.cabanaId, reservaId: r.id,
+            fase: 'entrada',
+            monto: tarifaLimpieza(cabanas, r.cabanaId),
+            fechaInicio: restarDias(r.checkIn, 1),
+            fechaVencimiento: r.checkIn,
+            actualizadoEn: serverTimestamp()
+          },
+          baseActividad(u, {}));
+      }
+      // ── CONTROL DE SALIDA (check-out) ────────────────────────
+      // Independiente de la limpieza de entrada de la próxima reserva.
+      // No lleva tarifa (es control, no limpieza facturable).
+      if (r.checkOut >= hoy && restarDias(r.checkOut, VENTANA_DIAS) <= hoy) {
+        await upsert('checkout-' + r.id,
+          {
+            titulo: 'Check-out ' + cab + ' · salida ' + r.checkOut,
+            detalle: ('Control de salida de ' + (r.clienteNombre || '')).trim(),
+            cabanaId: r.cabanaId, reservaId: r.id,
+            fase: 'salida',
+            fechaInicio: restarDias(r.checkOut, 1),
+            fechaVencimiento: r.checkOut,
+            actualizadoEn: serverTimestamp()
+          },
+          baseActividad(u, {}));
       }
     } else if (r.estado === 'anulada') {
-      const s = await getDoc(ref);
-      if (s.exists() && !s.data().hecho) {
-        await deleteDoc(ref);
-        borradas++;
+      for (const id of ['limp-' + r.id, 'checkout-' + r.id]) {
+        const s = await getDoc(doc(db, 'actividades', id));
+        if (s.exists() && !s.data().hecho) { await deleteDoc(doc(db, 'actividades', id)); borradas++; }
       }
     }
   }

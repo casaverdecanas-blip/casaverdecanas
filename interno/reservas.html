@@ -182,6 +182,7 @@ const esc = CV2.esc;
 // ═══ Estado ═══════════════════════════════════════════════
 let reservas = [];
 let cabanas = [];              // [{id, nombre, color}]
+let materializado = false;     // materializar una sola vez por carga
 let pagos = [];                // colección plana; se agrupa por reservaId
 let filtro = 'vigentes';
 let abierta = null;
@@ -635,6 +636,14 @@ onSnapshot(query(collection(db, 'reservas')), (snap) => {
   snap.forEach((d) => reservas.push({ id: d.id, ...d.data() }));
   reservas.sort((a, b) => (b.checkIn ?? '').localeCompare(a.checkIn ?? ''));
   render();
+  // Materializa (sin bloquear el render) las limpiezas y controles que
+  // entran en la ventana de 7 días. Idempotente: no duplica.
+  if (cabanas.length && !materializado) {
+    materializado = true;
+    RCore.materializarPendientes(reservas, cabanas, u)
+      .then((r) => { if (r.creadas) CV2.toast('🧹 ' + r.creadas + ' limpieza(s)/control(es) programados', 'info'); })
+      .catch((e) => console.warn('materializar:', e));
+  }
 }, (e) => { console.error(e); CV2.toast('No se pudieron cargar las reservas', 'error'); });
 </script>
 </body>
