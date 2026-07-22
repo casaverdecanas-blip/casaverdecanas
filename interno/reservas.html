@@ -440,7 +440,7 @@ $('mGuardar').addEventListener('click', async () => {
       try { await RCore.sincronizarLimpiezas([{ ...rPrev, ...datos, id: editId }], cabanas, u); }
       catch (e2) { console.warn('limpiezas:', e2); }
     } else {
-      await addDoc(collection(db, 'reservas'), {
+      const nuevaRef = await addDoc(collection(db, 'reservas'), {
         ...datos,
         estado,
         origen: 'directa',
@@ -449,6 +449,15 @@ $('mGuardar').addEventListener('click', async () => {
         creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
       });
       CV2.toast('Creada', 'success');
+      // Si nace confirmada, se le crea la limpieza ya mismo (mismo camino
+      // que al confirmar una existente). El id lo devuelve el addDoc.
+      if (estado === 'confirmada') {
+        try {
+          const s = await RCore.sincronizarLimpiezas(
+            [{ ...datos, id: nuevaRef.id, estado }], cabanas, u);
+          if (s.creadas) CV2.toast(`🧹 Limpieza programada para el ${CV2.fmtFecha(co)}`, 'info');
+        } catch (e2) { console.warn('limpiezas:', e2); }
+      }
     }
     $('modal').close();
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
