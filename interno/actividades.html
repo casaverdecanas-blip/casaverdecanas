@@ -907,7 +907,9 @@ $('chGuardarOut').addEventListener('click', async () => {
     const falta = base - (Number(x.cantidad) || 0);
     if (falta > 0) faltantes.push({ item: x.item, entrada: base, salida: Number(x.cantidad) || 0, faltan: falta });
   });
+
   try {
+    // 1) El chequeo guarda el registro completo de la salida.
     await setDoc(doc(db, 'chequeos', 'chequeo-' + chAct.reservaId), {
       salida: {
         items: chOutTmp.map((x) => ({ item: x.item, cantidad: Number(x.cantidad) || 0 })),
@@ -920,29 +922,64 @@ $('chGuardarOut').addEventListener('click', async () => {
       actualizadoEn: serverTimestamp()
     }, { merge: true });
 
-    // Acumular en la cabaña, con la reserva de origen. Cada entrada trae su
-    // reservaId para poder resolverla después. Se usa arrayUnion sobre
-    // objetos con marca de tiempo textual (serverTimestamp no va dentro de
-    // arrays); 'resuelto:false' es lo que la hará contar en el semáforo.
-    const hoy = CV2.hoyISO();
-    const nuevos = [];
-    faltantes.forEach((f) => nuevos.push({
-      tipo: 'faltante', item: f.item, faltan: f.faltan,
-      reservaId: chAct.reservaId, fecha: hoy, resuelto: false
-    }));
-    chDaniosTmp.forEach((d) => nuevos.push({
-      tipo: 'danio', desc: d.desc, foto: d.foto || null,
-      reservaId: chAct.reservaId, fecha: hoy, resuelto: false
-    }));
-    if (nuevos.length) {
-      await updateDoc(doc(db, 'cabanas', chAct.cabanaId), {
-        faltantesAbiertos: arrayUnion(...nuevos),
+    // 2) Si hay faltantes o daños, se crea (o actualiza) UNA actividad en la
+    //    rama de faltantes de esa cabaña. ID determinista falta-<reservaId>:
+    //    correr el check-out dos veces actualiza la misma, no duplica.
+    //    Se denormalizan huésped y fechas: la actividad no puede depender de
+    //    que la reserva siga existiendo.
+    const hayNovedades = faltantes.length || chDaniosTmp.length;
+    if (hayNovedades) {
+      // Datos de la reserva (denormalizados, tolerante a que no exista).
+      let huesped = '', checkIn = '', checkOut = '';
+      try {
+        const rs = await getDoc(doc(db, 'reservas', chAct.reservaId));
+        if (rs.exists()) {
+          const r = rs.data();
+          huesped = r.clienteNombre || r.nombre || '';
+          checkIn = r.checkIn || ''; checkOut = r.checkOut || '';
+        }
+      } catch { /* reserva Airbnb sin doc propio: seguimos sin sus datos */ }
+
+      const nomCab = (chCab.nombre && chCab.nombre.es) || chCab.id;
+      const ramaFaltantes = 'faltantes-cab-' + String(chCab.id).replace(/^c/, '');
+
+      // Detalle legible: lista de faltantes + daños + la reserva de origen.
+      const lineas = [];
+      faltantes.forEach((f) => lineas.push('• Falta ' + f.faltan + '× ' + f.item + ' (entró ' + f.entrada + ', quedó ' + f.salida + ')'));
+      chDaniosTmp.forEach((d) => lineas.push('• Daño: ' + d.desc + (d.foto ? ' [foto]' : '')));
+      const origen = 'Reserva ' + (huesped ? huesped + ' · ' : '') +
+        (checkIn ? CV2.fmtFecha(checkIn) + '→' + CV2.fmtFecha(checkOut) : chAct.reservaId);
+      const detalle = lineas.join('\n') + '\n' + origen;
+
+      const ref = doc(db, 'actividades', 'falta-' + chAct.reservaId);
+      const gestionados = {
+        titulo: 'Faltantes · ' + nomCab + (checkOut ? ' · salida ' + CV2.fmtFecha(checkOut) : ''),
+        detalle,
+        parentId: ramaFaltantes,
+        tipo: 'normal', alcance: 'equipo',
+        cabanaId: chCab.id, reservaId: chAct.reservaId,
+        // Datos estructurados por si una vista los quiere mostrar lindo.
+        faltantesData: { faltantes, danios: chDaniosTmp.slice(), huesped, checkIn, checkOut },
+        prioridad: 'rojo',
         actualizadoEn: serverTimestamp()
-      });
+      };
+      const ex = await getDoc(ref);
+      if (ex.exists()) {
+        await setDoc(ref, gestionados, { merge: true });
+      } else {
+        await setDoc(ref, {
+          ...gestionados,
+          competencias: [], recurrenciaDias: 0, monto: 0,
+          fechaInicio: checkOut || CV2.hoyISO(), fechaVencimiento: '',
+          esCompra: false, hecho: false, estado: 'pendiente',
+          sesionActualId: null, ultimoCierreEn: null, orden: 0,
+          creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
+        });
+      }
     }
 
-    CV2.toast(nuevos.length
-      ? '✓ Salida registrada · ' + faltantes.length + ' faltante(s), ' + chDaniosTmp.length + ' daño(s)'
+    CV2.toast(hayNovedades
+      ? '✓ Salida registrada · faltante creado en Actividades'
       : '✓ Salida registrada · sin novedades', 'success');
     $('mChequeo').close();
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
