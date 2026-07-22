@@ -197,11 +197,8 @@ RCore.materializarPendientes = async (reservas, cabanas, u) => {
   const hoy = hoyISO();
   const enVentana = reservas.filter((r) =>
     r.estado === 'confirmada'
-    && typeof r.checkIn === 'string' && typeof r.checkOut === 'string'
-    && (
-      (r.checkIn >= hoy && restarDias(r.checkIn, VENTANA_DIAS) <= hoy) ||
-      (r.checkOut >= hoy && restarDias(r.checkOut, VENTANA_DIAS) <= hoy)
-    ));
+    && typeof r.checkIn === 'string'
+    && r.checkIn >= hoy && restarDias(r.checkIn, VENTANA_DIAS) <= hoy);
   if (!enVentana.length) return { creadas: 0, actualizadas: 0, borradas: 0 };
   return RCore.sincronizarLimpiezas(enVentana, cabanas, u);
 };
@@ -238,8 +235,10 @@ RCore.sincronizarLimpiezas = async (reservas, cabanas, u) => {
 
     if (r.estado === 'confirmada' && okFechas) {
       // ── LIMPIEZA DE ENTRADA (se prepara antes del check-in) ──
-      // Se materializa una semana antes del check-in; se pone urgente
-      // (rojo) un día antes. La hace quien prepara: lleva la tarifa.
+      // Único que se materializa por fecha: una semana antes del check-in,
+      // rojo un día antes. Lleva la tarifa → genera honorarios.
+      // El CONTROL DE SALIDA ya NO nace acá: lo crea "terminar la limpieza"
+      // como hijo de esta actividad (ver actividades.html).
       if (r.checkIn >= hoy && restarDias(r.checkIn, VENTANA_DIAS) <= hoy) {
         await upsert('limp-' + r.id,
           {
@@ -254,27 +253,12 @@ RCore.sincronizarLimpiezas = async (reservas, cabanas, u) => {
           },
           baseActividad(u, {}));
       }
-      // ── CONTROL DE SALIDA (check-out) ────────────────────────
-      // Independiente de la limpieza de entrada de la próxima reserva.
-      // No lleva tarifa (es control, no limpieza facturable).
-      if (r.checkOut >= hoy && restarDias(r.checkOut, VENTANA_DIAS) <= hoy) {
-        await upsert('checkout-' + r.id,
-          {
-            titulo: 'Check-out ' + cab + ' · salida ' + r.checkOut,
-            detalle: ('Control de salida de ' + (r.clienteNombre || '')).trim(),
-            cabanaId: r.cabanaId, reservaId: r.id,
-            fase: 'salida',
-            fechaInicio: restarDias(r.checkOut, 1),
-            fechaVencimiento: r.checkOut,
-            actualizadoEn: serverTimestamp()
-          },
-          baseActividad(u, {}));
-      }
     } else if (r.estado === 'anulada') {
-      for (const id of ['limp-' + r.id, 'checkout-' + r.id]) {
-        const s = await getDoc(doc(db, 'actividades', id));
-        if (s.exists() && !s.data().hecho) { await deleteDoc(doc(db, 'actividades', id)); borradas++; }
-      }
+      // Solo se borra lo que NO se hizo. Si el check-out ya existe (la
+      // limpieza se terminó, alguien estuvo en la cabaña), la anulación no
+      // lo toca: el control de salida hay que hacerlo igual.
+      const sl = await getDoc(doc(db, 'actividades', 'limp-' + r.id));
+      if (sl.exists() && !sl.data().hecho) { await deleteDoc(doc(db, 'actividades', 'limp-' + r.id)); borradas++; }
     }
   }
   return { creadas, actualizadas, borradas };

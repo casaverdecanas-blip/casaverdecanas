@@ -517,6 +517,27 @@ window.realizada = async (id) => {
   try {
     const r = await Core.tildar(id, u);
     delete horasCache[id];
+    // Al terminar una limpieza de ENTRADA nace su control de CHECK-OUT como
+    // hijo: queda abierto hasta que alguien haga el control de inventario de
+    // salida. No depende de fechas — nace de esta acción.
+    if (it && it.reservaId && it.fase === 'entrada') {
+      const nom = it.titulo ? it.titulo.replace(/^Limpieza\s+/, '').replace(/\s+·\s+entrada.*$/, '') : (it.cabanaId || '');
+      await setDoc(doc(db, 'actividades', 'checkout-' + it.reservaId), {
+        titulo: 'Check-out ' + nom,
+        detalle: 'Control de salida — inventario y faltantes',
+        parentId: id,                 // hijo de la limpieza de entrada
+        tipo: 'normal', alcance: 'equipo', competencias: [],
+        cabanaId: it.cabanaId, reservaId: it.reservaId, fase: 'salida',
+        prioridad: 'rojo', recurrenciaDias: 0, monto: 0,
+        fechaInicio: CV2.hoyISO(), fechaVencimiento: '',
+        esCompra: false, hecho: false, estado: 'pendiente',
+        sesionActualId: null, ultimoCierreEn: null, orden: 0,
+        creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? '',
+        actualizadoEn: serverTimestamp()
+      }, { merge: true });
+      CV2.toast('✔ Limpieza terminada · se abrió el control de check-out', 'success');
+      return;
+    }
     CV2.toast(r.recurrente
       ? `↻ Hecha — vuelve el ${CV2.fmtFecha(r.proxima)}`
       : '✔ Terminada (queda tachada hasta que un admin la elimine)', 'success');
