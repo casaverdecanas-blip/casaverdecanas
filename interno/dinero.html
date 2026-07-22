@@ -133,6 +133,11 @@
     <div id="pendLista"></div>
   </div>
 
+  <div class="card" id="cardCuentas" hidden>
+    <h2 style="margin-top:0;">Saldo por cuenta <span class="texto-gris" style="font-weight:400;font-size:.8rem;">— calculado desde los movimientos</span></h2>
+    <div id="cuentasLista"></div>
+  </div>
+
   <div id="lista"><div class="vacio">Cargando…</div></div>
 </div>
 
@@ -162,6 +167,11 @@
   <div class="fila2c">
     <div><label>Categoría</label><select id="fCategoria"></select></div>
     <div><label>Fecha</label><input id="fFecha" type="date"></div>
+  </div>
+
+  <div id="grupoCuenta">
+    <label>Cuenta <span class="texto-gris" style="font-weight:400;font-size:.78rem;">— dónde entró / de dónde salió</span></label>
+    <select id="fCuenta"></select>
   </div>
 
   <div id="grupoQuien">
@@ -366,6 +376,7 @@ function render() {
   $('fCat').value = catSel;
 
   renderPendientes();
+  renderCuentas();
 
   const cont = $('lista');
   if (!fs.length) {
@@ -377,8 +388,8 @@ function render() {
       <span class="flecha">${m.tipo === 'entro' ? '⬇' : '⬆'}</span>
       <div class="info">
         <b>${esc(m.detalle || m.categoria || '(sin detalle)')}</b>
-        <small>${CV2.fmtFecha(m.fecha)} · ${esc(m.categoria ?? '')} · ${esc(m.nombre ?? '')}
-          ${m.comprobanteUrl ? `· <a href="${esc(m.comprobanteUrl)}" target="_blank">comprobante</a>` : ''}</small>
+        <small>${CV2.fmtFecha(m.fecha)} · ${esc(m.categoria ?? '')} · ${esc(m.nombre ?? '')}${m.cuenta ? ' · 🏦 ' + esc(m.cuenta) : ''}
+          ${m.comprobanteUrl ? `· <a href="${esc(m.comprobanteUrl)}" target="_blank">comprobante</a>` : ''}${m.editadoEn ? '<br><span style="color:var(--gris);font-style:italic;">editado por ' + esc(m.editadoNombre || '') + ' · ' + CV2.fmtFecha(m.editadoEn) + '</span>' : ''}</small>
       </div>
       ${m.refTipo === 'honorario' ? '<span class="pend-chip" style="background:#eef4fb;color:#33506e;">honorario</span>' : ''}
       ${m.pendiente ? `<span class="pend-chip${sellado(m) ? ' sellado' : (m.pendiente.saldado ? ' saldado' : '')}">${sellado(m) ? '🔒 en balance' : (m.pendiente.saldado ? '✓ saldado' : (m.pendiente.clase === 'reponer' ? 'reponer' : 'por cobrar'))}</span>` : ''}
@@ -413,6 +424,25 @@ function textoPendiente(p) {
   return p.clase === 'reponer'
     ? `Reponerle a <b>${esc(p.nombre)}</b>`
     : `Por cobrar (<b>${esc(p.nombre)}</b>)`;
+}
+
+function renderCuentas() {
+  // Saldo por cuenta = suma de lo que entró menos lo que salió, en R$.
+  // Solo en el negocio y solo con finanzas (es un total del negocio).
+  if (esPersonal() || !verFinanzas()) { $('cardCuentas').hidden = true; return; }
+  const saldos = {};
+  for (const m of movs) {
+    if (porCobrarVivo(m)) continue;      // lo por cobrar no cuenta hasta saldarse
+    const c = m.cuenta || '(sin definir)';
+    saldos[c] = (saldos[c] || 0) + (m.tipo === 'entro' ? enBRL(m) : -enBRL(m));
+  }
+  const filas = Object.keys(saldos).sort();
+  $('cardCuentas').hidden = filas.length === 0;
+  $('cuentasLista').innerHTML = filas.map((c) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed var(--linea);font-size:.9rem;">
+      <span style="flex:1;">🏦 ${esc(c)}</span>
+      <b style="color:${saldos[c] >= 0 ? 'var(--ok)' : 'var(--rojo)'};">${CV2.fmtMonto(saldos[c])}</b>
+    </div>`).join('');
 }
 
 function renderPendientes() {
@@ -476,6 +506,31 @@ $('fPendiente').addEventListener('change', () =>
   $('grupoPend').classList.toggle('oculto', !$('fPendiente').checked));
 
 let catExtra = [];   // categoría tipeada recién, todavía sin movimiento que la sostenga
+let ctaExtra = [];   // cuenta tipeada recién, ídem
+
+// Las cuentas son etiquetas dinámicas puras (CONVENCIONES: sin catálogo).
+// El select ofrece las que ya aparecen en movimientos + las recién tipeadas.
+function cuentasActuales() {
+  return [...new Set([
+    ...movs.map((m) => m.cuenta).filter(Boolean),
+    ...ctaExtra
+  ])].sort();
+}
+function poblarCuentas(valor) {
+  const lista = cuentasActuales();
+  $('fCuenta').innerHTML =
+    '<option value="">(sin definir)</option>'
+    + lista.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('')
+    + '<option value="__nueva">➕ Agregar nueva…</option>';
+  $('fCuenta').value = valor || '';
+}
+$('fCuenta').addEventListener('change', () => {
+  if ($('fCuenta').value !== '__nueva') return;
+  const nombre = (prompt('Nombre de la cuenta (banco, efectivo, quién la tiene…):') ?? '').trim();
+  if (!nombre) { $('fCuenta').value = ''; return; }
+  ctaExtra = [...new Set([...ctaExtra, nombre])];
+  poblarCuentas(nombre);
+});
 
 function poblarCategorias(valor) {
   const lista = [...new Set([...catsActuales(), ...catExtra])].sort();
@@ -523,6 +578,8 @@ function abrirModal(m) {
   $('fEquiv').value = m?.montoBRL && m?.moneda !== 'BRL' ? m.montoBRL : '';
   $('fMonto').value = m?.monto ?? '';
   poblarCategorias(m?.categoria ?? catsActuales()[0]);
+  poblarCuentas(m?.cuenta ?? '');
+  $('grupoCuenta').hidden = esPersonal();
   $('fFecha').value = m?.fecha ?? CV2.hoyISO();
   $('fQuien').innerHTML = equipo.map((p) =>
     `<option value="${p.uid}">${esc(p.nombre)}</option>`).join('');
@@ -555,6 +612,8 @@ $('mGuardar').addEventListener('click', async () => {
   if (moneda !== 'BRL' && !montoBRL) { CV2.toast('Cargá el equivalente en R$', 'error'); return; }
   if ($('fCategoria').value === '__nueva') { CV2.toast('Terminá de agregar la categoría', 'error'); return; }
 
+  if ($('fCuenta').value === '__nueva') { CV2.toast('Terminá de agregar la cuenta', 'error'); return; }
+
   const quien = esPersonal() ? u.uid : $('fQuien').value;
   const previo = editId ? movs.find((x) => x.id === editId) : null;
   const datos = {
@@ -562,6 +621,7 @@ $('mGuardar').addEventListener('click', async () => {
     tipo: tipoSel,
     monto, moneda, montoBRL,
     categoria: $('fCategoria').value,
+    cuenta: esPersonal() ? null : ($('fCuenta').value || null),
     uid: quien,
     nombre: esPersonal() ? (u.nombre ?? '') : nombreDe(quien),
     detalle: $('fDetalle').value.trim(),
@@ -576,6 +636,8 @@ $('mGuardar').addEventListener('click', async () => {
       : null,
     actualizadoEn: serverTimestamp()
   };
+  // Sello de edición: solo cuando se edita algo ya existente.
+  if (editId) { datos.editadoPor = u.uid; datos.editadoNombre = u.nombre ?? ''; datos.editadoEn = serverTimestamp(); }
   $('mGuardar').disabled = true;
   try {
     if (editId) {
@@ -819,6 +881,7 @@ function pintarLibro() {
   $('btnCierres').hidden = !finanzasNeg;
   $('btnExportar').hidden = !finanzasNeg;
   $('cardPend').classList.toggle('oculto', esPersonal() || !verFinanzas());
+  if ($('cardCuentas')) $('cardCuentas').hidden = esPersonal() || !verFinanzas();
   // Los KPIs son totales del negocio: sin 'finanzas' no se muestran (quien
   // solo registra gastos ve su lista, no el resultado del negocio).
   const kpis = document.querySelector('.kpis');

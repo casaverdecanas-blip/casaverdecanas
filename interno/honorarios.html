@@ -97,11 +97,14 @@
       <input id="mpFecha" type="date"></div>
   </div>
 
+  <label>¿De qué cuenta sale?</label>
+  <select id="mpCuenta"></select>
+
   <label class="check-linea">
     <input id="mpDinero" type="checkbox" checked>
     <span>Registrar la salida en Dinero
       <small>Crea el movimiento de salida en el libro del negocio, categoría
-        Honorarios, a nombre de quien cobra.</small></span>
+        Honorarios, a nombre de quien cobra, desde la cuenta elegida.</small></span>
   </label>
 
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
@@ -118,7 +121,7 @@
 // El vínculo (honorario.movimientoId ↔ movimiento.refId) es lo que
 // garantiza que tocar dos veces no duplique la plata.
 import {
-  db, collection, query, where, onSnapshot, doc, addDoc, updateDoc, serverTimestamp
+  db, collection, query, where, onSnapshot, getDocs, doc, addDoc, updateDoc, serverTimestamp
 } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
 
@@ -209,7 +212,7 @@ $('meGuardar').addEventListener('click', async () => {
  * NO se llama si el honorario ya tiene movimientoId: el vínculo es
  * lo que impide pagar dos veces la misma plata.
  */
-async function crearMovimiento(h, fecha) {
+async function crearMovimiento(h, fecha, cuenta) {
   const ref = await addDoc(collection(db, 'movimientos'), {
     fecha: fecha || CV2.hoyISO(),
     tipo: 'salio',
@@ -217,6 +220,7 @@ async function crearMovimiento(h, fecha) {
     moneda: 'BRL',
     montoBRL: Number(h.monto) || 0,
     categoria: 'Honorarios',
+    cuenta: cuenta || null,
     uid: h.uid,                       // quien cobra
     nombre: h.nombre ?? '',
     detalle: 'Honorario — ' + (h.concepto ?? 'Actividad'),
@@ -233,7 +237,29 @@ async function crearMovimiento(h, fecha) {
 }
 
 let pagarId = null;
-window.pagar = (id) => {
+// Cuentas ya usadas en movimientos, para ofrecerlas en el pago.
+async function cargarCuentas(sel) {
+  let cuentas = [];
+  try {
+    const snap = await getDocs(collection(db, 'movimientos'));
+    const set = new Set();
+    snap.forEach((d) => { const c = d.data().cuenta; if (c) set.add(c); });
+    cuentas = [...set].sort();
+  } catch { /* sin permiso o vacío */ }
+  sel.innerHTML = '<option value="">(sin definir)</option>'
+    + cuentas.map((c) => '<option value="' + esc(c) + '">' + esc(c) + '</option>').join('')
+    + '<option value="__nueva">➕ Agregar nueva…</option>';
+}
+$('mpCuenta').addEventListener('change', () => {
+  if ($('mpCuenta').value !== '__nueva') return;
+  const nombre = (prompt('Nombre de la cuenta de donde sale el pago:') ?? '').trim();
+  if (!nombre) { $('mpCuenta').value = ''; return; }
+  const opt = document.createElement('option');
+  opt.value = nombre; opt.textContent = nombre; opt.selected = true;
+  $('mpCuenta').insertBefore(opt, $('mpCuenta').lastElementChild);
+});
+
+window.pagar = async (id) => {
   const h = docs.find((x) => x.id === id);
   if (!h) return;
   pagarId = id;
@@ -242,6 +268,7 @@ window.pagar = (id) => {
   $('mpFecha').value = CV2.hoyISO();
   $('mpDinero').checked = !h.movimientoId;
   $('mpDinero').disabled = !!h.movimientoId;
+  await cargarCuentas($('mpCuenta'));
   $('mPagar').showModal();
 };
 $('mpCancelar').addEventListener('click', () => $('mPagar').close());
@@ -253,7 +280,7 @@ $('mpConfirmar').addEventListener('click', async () => {
   try {
     let movimientoId = h.movimientoId ?? null;
     if ($('mpDinero').checked && !movimientoId) {
-      movimientoId = await crearMovimiento(h, $('mpFecha').value);
+      movimientoId = await crearMovimiento(h, $('mpFecha').value, $('mpCuenta').value);
     }
     await updateDoc(doc(db, 'honorarios', pagarId), {
       estado: 'pagado',
