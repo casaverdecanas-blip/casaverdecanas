@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Reparar actividades</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .fila { display: flex; align-items: center; gap: 8px; background: #fff;
+    border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 9px 11px; margin: 5px 0; font-size: .84rem; }
+  .fila.mala { border-left: 4px solid var(--rojo); }
+  .fila.ok { border-left: 4px solid var(--ok); }
+  .fila .t { flex: 1; min-width: 0; }
+  .fila .t small { display: block; color: var(--gris); font-size: .72rem;
+    font-family: monospace; overflow-wrap: anywhere; }
+  .tag { font-size: .68rem; padding: 2px 7px; border-radius: 999px; white-space: nowrap;
+    background: #fdecea; color: var(--rojo); }
+  .resumen { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 12px 14px; margin: 12px 0; box-shadow: var(--sombra); }
+  .resumen b { font-size: 1.4rem; }
+  #log { background: #1e1e1e; color: #cbe6a0; font-family: monospace; font-size: 11px;
+    border-radius: var(--radio); padding: 10px; white-space: pre-wrap;
+    max-height: 260px; overflow-y: auto; margin-top: 12px; display: none; }
+  .vacio { text-align: center; color: var(--gris); padding: 26px; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <h1>Reparar actividades</h1>
+  <p class="texto-gris" style="margin-top:-6px;">
+    Los colaboradores ven solo lo que crean ellos porque las actividades migradas no
+    tienen los campos que la regla compara (<code>alcance</code>, <code>creadoPor</code>,
+    <code>competencias</code>). Esto los detecta y los completa, sin tocar nada más.
+  </p>
+
+  <div class="resumen" id="resumen">Leyendo…</div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;">
+    <button class="btn btn-primario" id="btnReparar" hidden>
+      <span class="material-icons">build</span> Reparar las que faltan
+    </button>
+  </div>
+
+  <div id="lista"></div>
+  <div id="log"></div>
+</div>
+
+<script type="module">
+// Diagnóstico + normalización de actividades. Corre como admin (ve todo).
+// Escribe SOLO los campos que faltan, con merge, respetando lo humano.
+import {
+  db, collection, query, getDocs, doc, updateDoc, serverTimestamp
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+if (!CV2.esAdmin()) {
+  document.querySelector('.contenedor').innerHTML =
+    '<h1>Solo el administrador</h1><p>Esta herramienta la corre CasaVerde.</p>';
+  throw new Error('no admin');
+}
+CV2.renderNav('');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+const ALCANCES = ['equipo', 'asignados', 'personal'];
+let actos = [];        // [{id, datos, problemas:[], arreglo:{}}]
+
+// Detecta qué le falta a un documento para que la CONSULTA del colaborador
+// lo alcance. La regla compara: alcance ∈ {equipo,asignados,personal},
+// creadoPor (para personal/asignados) y competencias como lista (asignados).
+function diagnosticar(id, x) {
+  const problemas = [];
+  const arreglo = {};
+  const alcance = x.alcance;
+
+  if (!ALCANCES.includes(alcance)) {
+    // Sin alcance válido, ninguna rama lo cubre → rompe la consulta entera.
+    problemas.push('alcance ' + (alcance == null ? 'ausente' : 'inválido: ' + alcance));
+    arreglo.alcance = 'equipo';   // el valor más seguro: visible para el equipo
+  }
+  // 'competencias' debe ser SIEMPRE una lista: la consulta hace
+  // array-contains y un documento sin el campo como lista puede tumbarla.
+  if (!Array.isArray(x.competencias)) {
+    problemas.push('competencias no es lista');
+    arreglo.competencias = [];
+  }
+  // 'creadoPor' se compara en dos ramas: si falta, esas ramas fallan al
+  // evaluarse contra este documento.
+  if (typeof x.creadoPor !== 'string' || !x.creadoPor) {
+    problemas.push('creadoPor ' + (x.creadoPor == null ? 'ausente' : 'vacío'));
+    arreglo.creadoPor = u.uid;              // queda a nombre de CasaVerde
+    if (!x.creadoNombre) arreglo.creadoNombre = u.nombre ?? 'CasaVerde';
+  }
+  return { problemas, arreglo };
+}
+
+function render() {
+  const malas = actos.filter((a) => a.problemas.length);
+  $('resumen').innerHTML =
+    'Total: <b>' + actos.length + '</b> actividades · ' +
+    'con problemas: <b style="color:' + (malas.length ? 'var(--rojo)' : 'var(--ok)') + '">' +
+    malas.length + '</b>';
+  $('btnReparar').hidden = malas.length === 0;
+
+  const cont = $('lista');
+  if (!actos.length) { cont.innerHTML = '<div class="vacio">No hay actividades.</div>'; return; }
+  if (!malas.length) {
+    cont.innerHTML = '<div class="vacio">✓ Todas tienen los campos correctos. ' +
+      'Si el colaborador sigue sin verlas, el problema es otro — avisá.</div>';
+    return;
+  }
+  cont.innerHTML = malas.map((a) => `
+    <div class="fila mala">
+      <span class="material-icons" style="color:var(--rojo);font-size:19px;">error_outline</span>
+      <div class="t"><b>${esc(a.datos.titulo ?? '(sin título)')}</b>
+        <small>${esc(a.id)}</small></div>
+      ${a.problemas.map((p) => '<span class="tag">' + esc(p) + '</span>').join('')}
+    </div>`).join('');
+}
+
+window.reparar = null;
+$('btnReparar').addEventListener('click', async () => {
+  const malas = actos.filter((a) => a.problemas.length);
+  if (!confirm('Se van a completar los campos faltantes de ' + malas.length +
+    ' actividades.\n\nNo se toca título, estado, ni nada que ya esté bien. ¿Seguimos?')) return;
+  $('btnReparar').disabled = true;
+  $('log').style.display = 'block';
+  $('log').textContent = '';
+  let ok = 0, err = 0;
+  for (const a of malas) {
+    try {
+      await updateDoc(doc(db, 'actividades', a.id), {
+        ...a.arreglo, actualizadoEn: serverTimestamp()
+      });
+      ok++;
+      $('log').textContent += '✓ ' + a.id + '  ' + JSON.stringify(a.arreglo) + '\n';
+    } catch (e) {
+      err++;
+      $('log').textContent += '✗ ' + a.id + '  ' + (e.code ?? e.message) + '\n';
+    }
+    $('log').scrollTop = $('log').scrollHeight;
+  }
+  $('log').textContent += '\nLISTO · ' + ok + ' reparadas · ' + err + ' con error\n';
+  CV2.toast(err ? 'Terminó con ' + err + ' errores' : '✓ ' + ok + ' reparadas — probá con un colaborador', err ? 'error' : 'success');
+  await cargar();
+  $('btnReparar').disabled = false;
+});
+
+async function cargar() {
+  const snap = await getDocs(query(collection(db, 'actividades')));
+  actos = [];
+  snap.forEach((d) => {
+    const x = d.data();
+    const { problemas, arreglo } = diagnosticar(d.id, x);
+    actos.push({ id: d.id, datos: x, problemas, arreglo });
+  });
+  actos.sort((a, b) => b.problemas.length - a.problemas.length);
+  render();
+}
+
+await cargar();
+</script>
+</body>
+</html>
