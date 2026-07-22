@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Diagnóstico actividades</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .caja { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 12px 14px; margin: 10px 0; box-shadow: var(--sombra); }
+  .caja h2 { margin: 0 0 6px; font-size: .95rem; }
+  .res { font-family: monospace; font-size: 12px; white-space: pre-wrap;
+    overflow-wrap: anywhere; }
+  .ok { color: var(--ok); font-weight: 700; }
+  .mal { color: var(--rojo); font-weight: 700; }
+  .link { display: block; margin-top: 10px; padding: 10px; background: #eef4fb;
+    border-radius: var(--radio); font-family: monospace; font-size: 11px;
+    overflow-wrap: anywhere; }
+  .link a { color: #1a56db; font-weight: 700; }
+  button.btn { margin: 4px 0; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <h1>Diagnóstico de actividades</h1>
+  <p class="texto-gris" style="margin-top:-6px;">
+    Corre, una por una, las cuatro ramas de la consulta del colaborador con
+    <b>tu</b> sesión. La que falle muestra el error completo y —si es un índice que
+    falta— el enlace para crearlo con un toque.
+  </p>
+
+  <div class="caja">
+    <h2>Tu sesión</h2>
+    <div class="res" id="quien">…</div>
+  </div>
+
+  <button class="btn btn-primario" id="btnProbar">
+    <span class="material-icons">play_arrow</span> Probar las consultas
+  </button>
+
+  <div id="resultados"></div>
+</div>
+
+<script type="module">
+import {
+  db, collection, query, where, or, and, getDocs
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+$('quien').textContent =
+  'uid:  ' + u.uid + '\n' +
+  'rol:  ' + (u.rol ?? '?') + '\n' +
+  'nombre: ' + (u.nombre ?? '?');
+
+const col = collection(db, 'actividades');
+
+// Las mismas ramas que arma Core.consultaActividades, cada una por
+// separado + la consulta completa. Así se ve EXACTAMENTE cuál pide índice.
+const PRUEBAS = [
+  { nombre: 'Rama 1 — alcance == equipo',
+    q: () => query(col, where('alcance', '==', 'equipo')) },
+  { nombre: 'Rama 2 — personal + creadoPor',
+    q: () => query(col, and(where('alcance', '==', 'personal'), where('creadoPor', '==', u.uid))) },
+  { nombre: 'Rama 3 — asignados + competencias',
+    q: () => query(col, and(where('alcance', '==', 'asignados'), where('competencias', 'array-contains', u.uid))) },
+  { nombre: 'Rama 4 — asignados + creadoPor',
+    q: () => query(col, and(where('alcance', '==', 'asignados'), where('creadoPor', '==', u.uid))) },
+  { nombre: 'CONSULTA COMPLETA (or de las 4)',
+    q: () => query(col, or(
+      where('alcance', '==', 'equipo'),
+      and(where('alcance', '==', 'personal'), where('creadoPor', '==', u.uid)),
+      and(where('alcance', '==', 'asignados'), where('competencias', 'array-contains', u.uid)),
+      and(where('alcance', '==', 'asignados'), where('creadoPor', '==', u.uid))
+    )) }
+];
+
+// Extrae el link de creación de índice del texto del error, si lo trae.
+function linkIndice(msj) {
+  const m = String(msj).match(/https?:\/\/console\.firebase\.google\.com[^\s"')]+/);
+  return m ? m[0] : null;
+}
+
+$('btnProbar').addEventListener('click', async () => {
+  $('btnProbar').disabled = true;
+  const cont = $('resultados');
+  cont.innerHTML = '';
+  for (const p of PRUEBAS) {
+    const caja = document.createElement('div');
+    caja.className = 'caja';
+    caja.innerHTML = '<h2>' + esc(p.nombre) + '</h2><div class="res">corriendo…</div>';
+    cont.appendChild(caja);
+    const salida = caja.querySelector('.res');
+    try {
+      const snap = await getDocs(p.q());
+      salida.innerHTML = '<span class="ok">✓ OK — ' + snap.size + ' documento(s)</span>';
+    } catch (e) {
+      const code = e.code ?? '(sin code)';
+      const msj = e.message ?? String(e);
+      salida.innerHTML = '<span class="mal">✗ ' + esc(code) + '</span>\n' + esc(msj);
+      const link = linkIndice(msj);
+      if (link) {
+        const box = document.createElement('div');
+        box.className = 'link';
+        box.innerHTML = 'Enlace para crear el índice que falta:<br>' +
+          '<a href="' + esc(link) + '" target="_blank" rel="noopener">Abrir y crear índice →</a>';
+        caja.appendChild(box);
+      }
+    }
+  }
+  $('btnProbar').disabled = false;
+});
+</script>
+</body>
+</html>
