@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Diagnóstico limpieza</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .caja { background:#fff;border:1px solid var(--linea);border-radius:var(--radio);
+    padding:12px 14px;margin:10px 0;box-shadow:var(--sombra); }
+  .caja h2 { margin:0 0 6px;font-size:.95rem; }
+  .res { font-family:monospace;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere; }
+  .ok { color:var(--ok);font-weight:700; }
+  .mal { color:var(--rojo);font-weight:700; }
+  select,button { font:inherit; }
+</style>
+</head>
+<body>
+<div id="nav"></div>
+<div class="contenedor">
+  <h1>Diagnóstico de limpieza</h1>
+  <p class="texto-gris" style="margin-top:-6px;">
+    Reproduce, paso a paso, lo que pasa al confirmar una reserva: leer el proyecto de
+    limpiezas, crearlo si falta, y hacer el upsert de la limpieza. Cada paso muestra su
+    resultado o el error exacto.</p>
+
+  <div class="caja">
+    <h2>Tu sesión</h2>
+    <div class="res" id="quien">…</div>
+  </div>
+
+  <div class="caja">
+    <h2>Elegí una reserva confirmada</h2>
+    <select id="sel" style="width:100%;padding:8px;"></select>
+  </div>
+
+  <button class="btn btn-primario" id="btn"><span class="material-icons">play_arrow</span> Correr diagnóstico</button>
+  <div id="out"></div>
+</div>
+
+<script type="module">
+import {
+  db, collection, query, onSnapshot, getDoc, getDocs, setDoc, doc, serverTimestamp
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+$('quien').textContent = 'uid: ' + u.uid + '\nrol: ' + (u.rol ?? '?') +
+  '\npuede reservas: ' + CV2.puede('reservas');
+
+let reservas = [], cabanas = [];
+
+function pintarSelect() {
+  const conf = reservas.filter((r) => r.estado === 'confirmada');
+  $('sel').innerHTML = conf.length
+    ? conf.map((r) => '<option value="' + esc(r.id) + '">' +
+        esc(r.clienteNombre || r.nombre || r.id) + ' · ' + esc(r.cabanaId || '?') +
+        ' · salida ' + esc(r.checkOut || '?') + '  [' + typeof r.checkOut + ']</option>').join('')
+    : '<option value="">No hay reservas confirmadas</option>';
+}
+
+function log(caja, txt, cls) {
+  const d = document.createElement('div');
+  d.className = 'res' + (cls ? ' ' + cls : '');
+  d.innerHTML = txt;
+  caja.appendChild(d);
+}
+
+$('btn').addEventListener('click', async () => {
+  const id = $('sel').value;
+  const out = $('out');
+  out.innerHTML = '';
+  if (!id) { out.innerHTML = '<div class="caja mal">Elegí una reserva.</div>'; return; }
+  const r = reservas.find((x) => x.id === id);
+
+  // Paso 0 — datos de la reserva
+  let c = document.createElement('div'); c.className = 'caja'; out.appendChild(c);
+  log(c, '<b>Paso 0 — la reserva</b>');
+  log(c, 'estado: ' + r.estado);
+  log(c, 'checkOut: ' + JSON.stringify(r.checkOut) + '  (tipo: ' + typeof r.checkOut + ')');
+  log(c, 'cabanaId: ' + JSON.stringify(r.cabanaId));
+  const hoy = new Date().toISOString().slice(0, 10);
+  const pasaFiltro = r.estado === 'confirmada' && (typeof r.checkOut === 'string') && r.checkOut >= hoy;
+  log(c, 'hoy: ' + hoy);
+  log(c, '¿pasa el filtro (confirmada && checkOut string && checkOut>=hoy)?  ' + pasaFiltro,
+      pasaFiltro ? 'ok' : 'mal');
+  if (typeof r.checkOut !== 'string') {
+    log(c, '⚠ checkOut NO es string — la comparación del core falla en silencio. Ésta es la causa.', 'mal');
+  }
+
+  // Paso 1 — leer proyecto de limpiezas
+  c = document.createElement('div'); c.className = 'caja'; out.appendChild(c);
+  log(c, '<b>Paso 1 — leer proj-limpiezas</b>');
+  try {
+    const s = await getDoc(doc(db, 'actividades', 'proj-limpiezas'));
+    log(c, s.exists() ? '✓ existe' : '✗ no existe (habría que crearlo)', s.exists() ? 'ok' : 'mal');
+  } catch (e) { log(c, '✗ ' + (e.code ?? e.message), 'mal'); }
+
+  // Paso 2 — crear el proyecto si falta
+  c = document.createElement('div'); c.className = 'caja'; out.appendChild(c);
+  log(c, '<b>Paso 2 — asegurar proj-limpiezas (setDoc)</b>');
+  try {
+    const s = await getDoc(doc(db, 'actividades', 'proj-limpiezas'));
+    if (!s.exists()) {
+      await setDoc(doc(db, 'actividades', 'proj-limpiezas'), {
+        titulo: 'Limpiezas', detalle: 'Generadas por reservas', tipo: 'normal',
+        parentId: null, color: '#2a9d8f', alcance: 'equipo', competencias: [],
+        prioridad: null, recurrenciaDias: 0, monto: 0, hecho: false, estado: 'pendiente',
+        sesionActualId: null, ultimoCierreEn: null, orden: 0,
+        creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
+      });
+      log(c, '✓ creado ahora', 'ok');
+    } else { log(c, '✓ ya existía, no se toca', 'ok'); }
+  } catch (e) { log(c, '✗ ' + (e.code ?? e.message) + '\n' + (e.message ?? ''), 'mal'); }
+
+  // Paso 3 — upsert de la limpieza (lo que de verdad falla)
+  c = document.createElement('div'); c.className = 'caja'; out.appendChild(c);
+  log(c, '<b>Paso 3 — upsert limp-' + esc(id) + '</b>');
+  try {
+    const ref = doc(db, 'actividades', 'limp-' + id);
+    const ex = await getDoc(ref);
+    log(c, ex.exists() ? 'ya existe → merge' : 'no existe → create completo');
+    const nomCab = (cabanas.find((x) => x.id === r.cabanaId)?.nombre?.es) || r.cabanaId || '?';
+    const base = {
+      titulo: 'Limpieza ' + nomCab + ' · salida ' + r.checkOut,
+      detalle: 'Salida de ' + (r.clienteNombre || ''),
+      parentId: 'proj-limpiezas', tipo: 'normal', alcance: 'equipo',
+      cabanaId: r.cabanaId, reservaId: id,
+      fechaInicio: r.checkOut, actualizadoEn: serverTimestamp()
+    };
+    if (ex.exists()) {
+      await setDoc(ref, base, { merge: true });
+    } else {
+      await setDoc(ref, {
+        ...base, competencias: [], prioridad: null, recurrenciaDias: 0,
+        fechaVencimiento: r.checkOut, esCompra: false, hecho: false,
+        estado: 'pendiente', sesionActualId: null, ultimoCierreEn: null, orden: 0,
+        creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
+      });
+    }
+    log(c, '✓ ESCRITA. Andá a Actividades → proyecto Limpiezas y fijate si aparece.', 'ok');
+  } catch (e) {
+    log(c, '✗ ' + (e.code ?? e.message), 'mal');
+    log(c, e.message ?? String(e), 'mal');
+  }
+});
+
+// Cargas
+onSnapshot(query(collection(db, 'reservas')), (snap) => {
+  reservas = []; snap.forEach((d) => reservas.push({ id: d.id, ...d.data() }));
+  pintarSelect();
+});
+try {
+  const cs = await getDocs(collection(db, 'cabanas'));
+  cs.forEach((d) => cabanas.push({ id: d.id, ...d.data() }));
+} catch { /* */ }
+</script>
+</body>
+</html>
