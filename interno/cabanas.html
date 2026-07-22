@@ -69,7 +69,16 @@
   <label>Amenities (separadas por coma)</label>
   <input id="fAmenities" placeholder="Wifi, Piscina, Aire acondicionado…">
 
-  <label>Google Calendar ID (sync Airbnb — se conecta en la próxima tanda)</label>
+  <label style="margin-top:12px;">Inventario base <span class="texto-gris" style="font-weight:400;font-size:.8rem;">— con cuánto debería quedar la cabaña</span></label>
+  <div id="invEdit"></div>
+  <div style="display:flex;gap:8px;margin-top:6px;">
+    <input id="invNombre" placeholder="Ítem (ej: Toallas grandes)" style="flex:1;">
+    <input id="invCant" type="number" min="0" inputmode="numeric" value="1" style="width:70px;">
+    <button class="btn" id="btnInvAgregar" style="font-size:.84rem;white-space:nowrap;">
+      <span class="material-icons">add</span></button>
+  </div>
+
+  <label style="margin-top:12px;">Google Calendar ID (sync Airbnb — se conecta en la próxima tanda)</label>
   <input id="fCalendar" style="font-family:monospace;font-size:.8rem;" placeholder="xxxx@group.calendar.google.com">
 
   <label>Fotos</label>
@@ -104,6 +113,17 @@ const esc = CV2.esc;
 let cabanas = [];
 let editId = null;
 let fotosTmp = [];
+let invTmp = [];   // [{item, cantidad}] mientras se edita la cabaña
+
+// Normaliza el inventario venga como lista de strings (formato viejo
+// migrado) o como lista de {item, cantidad} (formato nuevo).
+function normalizarInventario(inv) {
+  if (!Array.isArray(inv)) return [];
+  return inv.map((x) => typeof x === 'string'
+    ? { item: x, cantidad: 0 }
+    : { item: String(x.item ?? ''), cantidad: Number(x.cantidad) || 0 })
+    .filter((x) => x.item);
+}
 
 const nom = (c) => c.nombre?.es ?? c.nombre?.pt ?? c.nombre?.en ?? c.id;
 
@@ -178,6 +198,29 @@ function renderFotosEdit() {
 }
 window.quitarFoto = (i) => { fotosTmp.splice(i, 1); renderFotosEdit(); };
 
+// ── Inventario editable ──────────────────────────────────────
+function renderInvEdit() {
+  $('invEdit').innerHTML = invTmp.length
+    ? invTmp.map((x, i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px dashed var(--linea);font-size:.88rem;">
+        <span style="flex:1;">${esc(x.item)}</span>
+        <input type="number" min="0" inputmode="numeric" value="${x.cantidad}" onchange="invCant(${i}, this.value)" style="width:64px;">
+        <button class="btn-ico" onclick="invQuitar(${i})"><span class="material-icons" style="font-size:18px;color:var(--rojo)">delete_outline</span></button>
+      </div>`).join('')
+    : '<p class="texto-gris" style="margin:4px 0 0;font-size:.82rem;">Sin ítems todavía. Agregá abajo.</p>';
+}
+window.invCant = (i, v) => { invTmp[i].cantidad = Math.max(0, parseInt(v) || 0); };
+window.invQuitar = (i) => { invTmp.splice(i, 1); renderInvEdit(); };
+$('btnInvAgregar').addEventListener('click', () => {
+  const nombre = $('invNombre').value.trim();
+  if (!nombre) { $('invNombre').focus(); return; }
+  const cant = Math.max(0, parseInt($('invCant').value) || 0);
+  invTmp.push({ item: nombre, cantidad: cant });
+  $('invNombre').value = ''; $('invCant').value = '1';
+  renderInvEdit();
+  $('invNombre').focus();
+});
+
 window.editar = (id) => {
   const c = cabanas.find((x) => x.id === id);
   editId = id;
@@ -191,7 +234,9 @@ window.editar = (id) => {
   $('fAmenities').value = (c.amenities ?? []).join(', ');
   $('fCalendar').value = c.calendarId ?? '';
   fotosTmp = (c.fotos ?? []).slice();
+  invTmp = normalizarInventario(c.inventarioBase);
   renderFotosEdit();
+  renderInvEdit();
   $('modal').showModal();
 };
 
@@ -231,6 +276,7 @@ $('mGuardar').addEventListener('click', async () => {
         moneda: 'BRL'
       },
       amenities: $('fAmenities').value.split(',').map((x) => x.trim()).filter(Boolean),
+      inventarioBase: invTmp.filter((x) => x.item).map((x) => ({ item: x.item, cantidad: Number(x.cantidad) || 0 })),
       calendarId: $('fCalendar').value.trim() || null,
       fotos: fotosTmp,
       actualizadoEn: serverTimestamp()

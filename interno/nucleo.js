@@ -195,6 +195,47 @@ CV2.toast = function (msj, tipo = 'info') {
   setTimeout(() => { el.classList.remove('visible'); setTimeout(() => el.remove(), 300); }, 3200);
 };
 
+// ── Imágenes: comprimir y subir a Cloudinary ─────────────────
+// Un solo camino para toda foto del sistema (comprobantes, daños): se
+// reduce a 2000px lado mayor y JPEG 0.85 ANTES de subir — así una foto de
+// teléfono de 8 MB viaja como ~300 KB. Devuelve la secure_url.
+CV2.CLOUDINARY = { cloud: 'dnwfu8ffn', preset: 'preset-comprobantes' };
+
+CV2.comprimirImagen = function (file, maxLado) {
+  const max = maxLado || 2000;
+  return new Promise((resolver, rechazar) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > max) { h = h * max / w; w = max; }
+      if (h > max) { w = w * max / h; h = max; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(
+        (blob) => blob ? resolver(blob) : rechazar(new Error('no se pudo comprimir')),
+        'image/jpeg', 0.85
+      );
+    };
+    img.onerror = () => rechazar(new Error('imagen inválida'));
+    img.src = URL.createObjectURL(file);
+  });
+};
+
+/** file (de <input type=file capture>) → secure_url en Cloudinary. */
+CV2.subirImagen = async function (file) {
+  const blob = await CV2.comprimirImagen(file);
+  const fd = new FormData();
+  fd.append('file', blob);
+  fd.append('upload_preset', CV2.CLOUDINARY.preset);
+  const r = await fetch(
+    'https://api.cloudinary.com/v1_1/' + CV2.CLOUDINARY.cloud + '/image/upload',
+    { method: 'POST', body: fd }
+  );
+  if (!r.ok) throw new Error('Cloudinary ' + r.status);
+  return (await r.json()).secure_url;
+};
+
 // ── PWA: registro del service worker ─────────────────────────
 CV2.registrarSW = async function () {
   if (!('serviceWorker' in navigator)) return null;

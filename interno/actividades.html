@@ -73,6 +73,8 @@
   .act-row.hecha { opacity: .75; }
   .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
 
+  .chtab { opacity: .6; }
+  .chtab.activo { opacity: 1; background: #eef4fb; border-color: #33506e; color: #33506e; font-weight: 700; }
   dialog {
     border: 0; border-radius: 14px; padding: 0; width: min(560px, 94vw);
     max-height: 88dvh; box-shadow: 0 10px 40px rgba(0, 0, 0, .25);
@@ -190,6 +192,60 @@
     <button class="btn btn-primario" id="mGuardar">
       <span class="material-icons">save</span> Guardar
     </button>
+  </div>
+</dialog>
+
+<!-- ═══ Chequeo de inventario (limpieza de una reserva) ═══════ -->
+<dialog id="mChequeo" style="width:min(560px,96vw);">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+    <h2 style="margin:0;flex:1;font-size:1.05rem;">Chequeo de inventario</h2>
+    <button class="btn-ico" onclick="cerrarChequeo()"><span class="material-icons">close</span></button>
+  </div>
+  <p class="texto-gris" id="chSub" style="margin:0 0 10px;font-size:.84rem;"></p>
+
+  <div style="display:flex;gap:6px;margin-bottom:12px;">
+    <button class="btn chtab activo" id="chTabIn" onclick="chFase('in')" style="flex:1;">🔑 Entrada (check-in)</button>
+    <button class="btn chtab" id="chTabOut" onclick="chFase('out')" style="flex:1;">🚪 Salida (check-out)</button>
+  </div>
+
+  <!-- ENTRADA -->
+  <div id="chIn">
+    <p class="texto-gris" style="font-size:.82rem;margin-top:0;">
+      Ajustá las cantidades a lo que <b>realmente</b> dejás en la cabaña. Esto fija la
+      línea de base con la que se va a comparar la salida.</p>
+    <div id="chInLista"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+      <button class="btn btn-primario" id="chGuardarIn"><span class="material-icons">check</span> Confirmar entrada</button>
+    </div>
+  </div>
+
+  <!-- SALIDA -->
+  <div id="chOut" class="oculto">
+    <div id="chOutAviso" class="oculto" style="background:#fdf1d8;color:#8a6206;border-radius:8px;padding:9px 12px;font-size:.84rem;margin-bottom:10px;">
+      Todavía no se confirmó la entrada. La salida compara contra la entrada: confirmala primero.
+    </div>
+    <div id="chOutCuerpo">
+      <p class="texto-gris" style="font-size:.82rem;margin-top:0;">
+        Contá lo que queda. Lo que falte respecto de la entrada se anota como faltante de
+        esta reserva.</p>
+      <div id="chOutLista"></div>
+
+      <h3 style="margin:16px 0 4px;font-size:.95rem;">Daños</h3>
+      <div id="chDanios"></div>
+      <div style="border:1px dashed var(--linea);border-radius:8px;padding:10px;margin-top:8px;">
+        <input id="chDanioDesc" placeholder="Descripción del daño (ej: mancha en sábana grande)" style="width:100%;">
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+          <button class="btn" id="chDanioFoto" style="font-size:.82rem;"><span class="material-icons">photo_camera</span> Foto</button>
+          <input id="chDanioInput" type="file" accept="image/*" capture="environment" class="oculto">
+          <span id="chDanioEstado" class="texto-gris" style="font-size:.78rem;"></span>
+          <button class="btn" id="chDanioAgregar" style="font-size:.82rem;margin-left:auto;"><span class="material-icons">add</span> Agregar daño</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+        <button class="btn btn-primario" id="chGuardarOut"><span class="material-icons">save</span> Registrar salida</button>
+      </div>
+    </div>
   </div>
 </dialog>
 
@@ -376,6 +432,7 @@ function nodoHTML(id) {
           ? `<button class="btn-ico stop" onclick="cronoStop('${id}')" title="Frenar y registrar"><span class="material-icons">stop</span></button>`
           : `<button class="btn-ico play" onclick="cronoPlay('${id}')" title="Iniciar cronómetro"><span class="material-icons">play_arrow</span></button>`) : ''}
         ${!it.hecho && !miCrono ? `<button class="btn-ico" onclick="realizada('${id}')" title="Realizada sin cronómetro"><span class="material-icons" style="color:var(--ok)">task_alt</span></button>` : ''}
+        ${(it.reservaId && it.cabanaId) ? `<button class="btn-ico" onclick="abrirChequeo('${id}')" title="Chequeo de inventario"><span class="material-icons" style="color:#33506e">inventory</span></button>` : ''}
         ${it.hecho && CV2.esAdmin() ? `<button class="btn-ico" onclick="restaurar('${id}')" title="Restaurar"><span class="material-icons">restart_alt</span></button>` : ''}
         ${!it.hecho ? `<button class="btn-ico" onclick="abrirAlta('${id}')" title="Agregar sub-ítem"><span class="material-icons">add</span></button>` : ''}
         <button class="btn-ico" onclick="toggleEstrella('${id}')" title="Destacar">
@@ -681,6 +738,216 @@ try {
     renderBanner();   // lo primero que se ve al volver, incluso antes de los datos
   }
 } catch { /* sin sesión activa */ }
+
+// ═══ Chequeo de inventario ════════════════════════════════
+// Un documento por reserva: chequeo-<reservaId>. La ENTRADA fija la línea
+// de base (cantidades reales dejadas); la SALIDA compara y produce la lista
+// de faltantes + los daños. Faltantes y daños se acumulan también en la
+// cabaña, con su reserva de origen, para que la cabaña arrastre sus
+// problemas independientemente de la reserva que venga después.
+let chAct = null;        // la actividad-limpieza abierta
+let chCab = null;        // la cabaña
+let chDoc = null;        // el chequeo guardado (o null)
+let chInTmp = [];        // [{item, cantidad}] entrada en edición
+let chOutTmp = [];       // [{item, cantidad}] salida en edición
+let chDaniosTmp = [];    // [{desc, foto}] daños en edición
+let chFotoPend = null;   // url de la última foto subida, aún sin agregar
+
+window.abrirChequeo = async (actId) => {
+  const it = byId[actId];
+  if (!it || !it.reservaId || !it.cabanaId) return;
+  chAct = it;
+  chFotoPend = null;
+  $('chDanioEstado').textContent = '';
+  $('chDanioDesc').value = '';
+  try {
+    const cs = await getDoc(doc(db, 'cabanas', it.cabanaId));
+    chCab = cs.exists() ? { id: cs.id, ...cs.data() } : null;
+  } catch { chCab = null; }
+  if (!chCab) { CV2.toast('No se encontró la cabaña de esta limpieza', 'error'); return; }
+
+  const inv = normalizarInv(chCab.inventarioBase);
+  try {
+    const chs = await getDoc(doc(db, 'chequeos', 'chequeo-' + it.reservaId));
+    chDoc = chs.exists() ? chs.data() : null;
+  } catch { chDoc = null; }
+
+  // Entrada: lo ya confirmado, o las cantidades de referencia de la cabaña.
+  chInTmp = (chDoc && chDoc.entrada && chDoc.entrada.items)
+    ? chDoc.entrada.items.map((x) => ({ item: x.item, cantidad: Number(x.cantidad) || 0 }))
+    : inv.map((x) => ({ item: x.item, cantidad: x.cantidad }));
+
+  // Salida: lo ya cargado, o parte de la entrada como sugerencia.
+  chOutTmp = (chDoc && chDoc.salida && chDoc.salida.items)
+    ? chDoc.salida.items.map((x) => ({ item: x.item, cantidad: Number(x.cantidad) || 0 }))
+    : chInTmp.map((x) => ({ item: x.item, cantidad: x.cantidad }));
+  chDaniosTmp = (chDoc && chDoc.salida && chDoc.salida.danios) ? chDoc.salida.danios.slice() : [];
+
+  const nom = (chCab.nombre && chCab.nombre.es) || chCab.id;
+  $('chSub').innerHTML = esc(nom) + ' · reserva ' + esc(it.reservaId) +
+    (chDoc && chDoc.entrada && chDoc.entrada.confirmadaEn ? ' · entrada confirmada' : ' · entrada sin confirmar');
+  chFase('in');
+  renderChIn();
+  renderChOut();
+  renderChDanios();
+  $('mChequeo').showModal();
+};
+
+window.cerrarChequeo = () => $('mChequeo').close();
+
+window.chFase = (f) => {
+  const entradaHecha = !!(chDoc && chDoc.entrada && chDoc.entrada.confirmadaEn);
+  $('chTabIn').classList.toggle('activo', f === 'in');
+  $('chTabOut').classList.toggle('activo', f === 'out');
+  $('chIn').classList.toggle('oculto', f !== 'in');
+  $('chOut').classList.toggle('oculto', f !== 'out');
+  if (f === 'out') {
+    $('chOutAviso').classList.toggle('oculto', entradaHecha);
+    $('chOutCuerpo').classList.toggle('oculto', !entradaHecha);
+  }
+};
+
+// Acepta inventario viejo (strings) o nuevo ({item,cantidad}).
+function normalizarInv(inv) {
+  if (!Array.isArray(inv)) return [];
+  return inv.map((x) => typeof x === 'string'
+    ? { item: x, cantidad: 0 }
+    : { item: String(x.item || ''), cantidad: Number(x.cantidad) || 0 })
+    .filter((x) => x.item);
+}
+
+function renderChIn() {
+  $('chInLista').innerHTML = chInTmp.length
+    ? chInTmp.map((x, i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed var(--linea);font-size:.9rem;">
+        <span style="flex:1;">${esc(x.item)}</span>
+        <input type="number" min="0" inputmode="numeric" value="${x.cantidad}" onchange="chInCant(${i}, this.value)" style="width:66px;">
+      </div>`).join('')
+    : '<p class="texto-gris" style="font-size:.82rem;">Esta cabaña no tiene inventario cargado. Cargalo en Cabañas.</p>';
+}
+window.chInCant = (i, v) => { chInTmp[i].cantidad = Math.max(0, parseInt(v) || 0); };
+
+function renderChOut() {
+  $('chOutLista').innerHTML = chOutTmp.map((x, i) => {
+    const base = (chInTmp[i] && chInTmp[i].cantidad) || 0;
+    const falta = base - x.cantidad;
+    return `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed var(--linea);font-size:.9rem;">
+        <span style="flex:1;">${esc(x.item)} <small class="texto-gris">(entró ${base})</small></span>
+        ${falta > 0 ? `<span style="font-size:.72rem;color:var(--rojo);white-space:nowrap;">faltan ${falta}</span>` : ''}
+        <input type="number" min="0" inputmode="numeric" value="${x.cantidad}" onchange="chOutCant(${i}, this.value)" style="width:66px;">
+      </div>`;
+  }).join('');
+}
+window.chOutCant = (i, v) => { chOutTmp[i].cantidad = Math.max(0, parseInt(v) || 0); renderChOut(); };
+
+function renderChDanios() {
+  $('chDanios').innerHTML = chDaniosTmp.map((d, i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed var(--linea);font-size:.88rem;">
+      ${d.foto ? `<a href="${esc(d.foto)}" target="_blank"><img src="${esc(d.foto)}" style="width:34px;height:34px;object-fit:cover;border-radius:6px;"></a>` : '<span class="material-icons" style="color:var(--gris)">report</span>'}
+      <span style="flex:1;">${esc(d.desc)}</span>
+      <button class="btn-ico" onclick="chQuitarDanio(${i})"><span class="material-icons" style="font-size:18px;color:var(--rojo)">delete_outline</span></button>
+    </div>`).join('') || '<p class="texto-gris" style="font-size:.82rem;margin:4px 0 0;">Sin daños registrados.</p>';
+}
+window.chQuitarDanio = (i) => { chDaniosTmp.splice(i, 1); renderChDanios(); };
+
+$('chDanioFoto').addEventListener('click', () => $('chDanioInput').click());
+$('chDanioInput').addEventListener('change', async () => {
+  const f = $('chDanioInput').files[0];
+  if (!f) return;
+  $('chDanioFoto').disabled = true;
+  $('chDanioEstado').textContent = 'subiendo…';
+  try {
+    chFotoPend = await CV2.subirImagen(f);
+    $('chDanioEstado').textContent = '✓ foto lista';
+  } catch (e) {
+    $('chDanioEstado').textContent = 'falló la foto';
+  } finally { $('chDanioFoto').disabled = false; $('chDanioInput').value = ''; }
+});
+$('chDanioAgregar').addEventListener('click', () => {
+  const desc = $('chDanioDesc').value.trim();
+  if (!desc) { $('chDanioDesc').focus(); return; }
+  chDaniosTmp.push({ desc, foto: chFotoPend });
+  chFotoPend = null;
+  $('chDanioDesc').value = '';
+  $('chDanioEstado').textContent = '';
+  renderChDanios();
+});
+
+$('chGuardarIn').addEventListener('click', async () => {
+  $('chGuardarIn').disabled = true;
+  try {
+    await setDoc(doc(db, 'chequeos', 'chequeo-' + chAct.reservaId), {
+      reservaId: chAct.reservaId,
+      cabanaId: chAct.cabanaId,
+      actividadId: chAct.id,
+      entrada: {
+        items: chInTmp.map((x) => ({ item: x.item, cantidad: Number(x.cantidad) || 0 })),
+        confirmadaEn: serverTimestamp(),
+        confirmadaPor: u.uid,
+        confirmadaNombre: u.nombre ?? ''
+      },
+      actualizadoEn: serverTimestamp()
+    }, { merge: true });
+    chDoc = chDoc || {};
+    chDoc.entrada = { items: chInTmp.slice(), confirmadaEn: true };
+    CV2.toast('✓ Entrada confirmada', 'success');
+    $('chSub').innerHTML = $('chSub').innerHTML.replace('entrada sin confirmar', 'entrada confirmada');
+    chFase('out');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+  finally { $('chGuardarIn').disabled = false; }
+});
+
+$('chGuardarOut').addEventListener('click', async () => {
+  $('chGuardarOut').disabled = true;
+  // Faltantes = lo que bajó respecto de la entrada.
+  const faltantes = [];
+  chOutTmp.forEach((x, i) => {
+    const base = (chInTmp[i] && chInTmp[i].cantidad) || 0;
+    const falta = base - (Number(x.cantidad) || 0);
+    if (falta > 0) faltantes.push({ item: x.item, entrada: base, salida: Number(x.cantidad) || 0, faltan: falta });
+  });
+  try {
+    await setDoc(doc(db, 'chequeos', 'chequeo-' + chAct.reservaId), {
+      salida: {
+        items: chOutTmp.map((x) => ({ item: x.item, cantidad: Number(x.cantidad) || 0 })),
+        faltantes,
+        danios: chDaniosTmp.slice(),
+        registradaEn: serverTimestamp(),
+        registradaPor: u.uid,
+        registradaNombre: u.nombre ?? ''
+      },
+      actualizadoEn: serverTimestamp()
+    }, { merge: true });
+
+    // Acumular en la cabaña, con la reserva de origen. Cada entrada trae su
+    // reservaId para poder resolverla después. Se usa arrayUnion sobre
+    // objetos con marca de tiempo textual (serverTimestamp no va dentro de
+    // arrays); 'resuelto:false' es lo que la hará contar en el semáforo.
+    const hoy = CV2.hoyISO();
+    const nuevos = [];
+    faltantes.forEach((f) => nuevos.push({
+      tipo: 'faltante', item: f.item, faltan: f.faltan,
+      reservaId: chAct.reservaId, fecha: hoy, resuelto: false
+    }));
+    chDaniosTmp.forEach((d) => nuevos.push({
+      tipo: 'danio', desc: d.desc, foto: d.foto || null,
+      reservaId: chAct.reservaId, fecha: hoy, resuelto: false
+    }));
+    if (nuevos.length) {
+      await updateDoc(doc(db, 'cabanas', chAct.cabanaId), {
+        faltantesAbiertos: arrayUnion(...nuevos),
+        actualizadoEn: serverTimestamp()
+      });
+    }
+
+    CV2.toast(nuevos.length
+      ? '✓ Salida registrada · ' + faltantes.length + ' faltante(s), ' + chDaniosTmp.length + ' daño(s)'
+      : '✓ Salida registrada · sin novedades', 'success');
+    $('mChequeo').close();
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+  finally { $('chGuardarOut').disabled = false; }
+});
 
 // ═══ Suscripción en vivo — SIEMPRE AL FINAL ═══════════════
 if (typeof Core.consultaActividades !== 'function') {
