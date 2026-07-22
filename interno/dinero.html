@@ -23,6 +23,7 @@
   .acciones { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; }
   .acciones .btn { font-size: .82rem; padding: 7px 12px; }
   .kpis { display: flex; gap: 10px; flex-wrap: wrap; }
+  .kpis.oculto, .acciones .btn[hidden] { display: none !important; }
   .kpi { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
     padding: 10px 16px; box-shadow: var(--sombra); flex: 1; min-width: 100px; }
   .kpi b { display: block; font-size: 1.1rem; }
@@ -245,7 +246,7 @@
 // exportación a planilla (CSV) del período o de un balance.
 // ═══════════════════════════════════════════════════════════
 import {
-  db, collection, query, onSnapshot, getDocs, getDoc,
+  db, collection, query, where, onSnapshot, getDocs, getDoc,
   doc, addDoc, updateDoc, deleteDoc, setDoc, serverTimestamp, arrayUnion
 } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
@@ -273,6 +274,12 @@ let comprobanteUrl = null;
 //              de Firestore es una línea y no hace falta where() ni índices.
 let libro = 'negocio';
 let desuscribir = null;
+
+// Quien tiene 'dinero' pero no 'finanzas' registra gastos y ve SOLO los
+// suyos: nada de KPIs del negocio, balance, pendientes del equipo ni
+// exportación. 'finanzas' (y el admin) ven el libro completo.
+const verFinanzas = () => CV2.puede('finanzas');
+const soloMios = () => !verFinanzas();
 
 const esPersonal = () => libro === 'personal';
 const colMovs = () => esPersonal()
@@ -379,7 +386,7 @@ function render() {
         ${m.tipo === 'entro' ? '+' : '−'}${CV2.fmtMonto(m.monto, m.moneda ?? 'BRL')}
         ${m.moneda && m.moneda !== 'BRL' ? `<small>≈${CV2.fmtMonto(enBRL(m))}</small>` : ''}
       </span>
-      ${(esPersonal() || CV2.esAdmin()) && !sellado(m) ? `
+      ${(esPersonal() || verFinanzas()) && !sellado(m) ? `
         ${!esPersonal() && m.pendiente && !m.pendiente.saldado ? `<button class="btn-mini" onclick="saldar('${m.id}')" title="Marcar saldado"><span class="material-icons" style="font-size:17px;color:var(--ok)">task_alt</span></button>` : ''}
         <button class="btn-mini" onclick="editar('${m.id}')" title="Editar"><span class="material-icons" style="font-size:16px;">edit</span></button>
         <button class="btn-mini" onclick="borrar('${m.id}')" title="Eliminar"><span class="material-icons" style="font-size:16px;color:var(--rojo)">delete_outline</span></button>` : ''}
@@ -805,9 +812,17 @@ function pintarLibro() {
   $('tabNegocio').classList.toggle('activo', !esPersonal());
   $('tabPersonal').classList.toggle('activo', esPersonal());
   $('avisoPersonal').hidden = !esPersonal();
-  $('btnBalance').hidden = esPersonal() || !CV2.esAdmin();
-  $('btnCierres').hidden = esPersonal();
-  $('cardPend').classList.toggle('oculto', esPersonal());
+  // El balance, el historial de cierres y la exportación son de 'finanzas'.
+  // Los pendientes del equipo también (se reparten entre personas).
+  const finanzasNeg = !esPersonal() && verFinanzas();
+  $('btnBalance').hidden = !finanzasNeg;
+  $('btnCierres').hidden = !finanzasNeg;
+  $('btnExportar').hidden = !finanzasNeg;
+  $('cardPend').classList.toggle('oculto', esPersonal() || !verFinanzas());
+  // Los KPIs son totales del negocio: sin 'finanzas' no se muestran (quien
+  // solo registra gastos ve su lista, no el resultado del negocio).
+  const kpis = document.querySelector('.kpis');
+  if (kpis) kpis.classList.toggle('oculto', !esPersonal() && !verFinanzas());
 }
 
 function cambiarLibro(cual) {
@@ -826,7 +841,13 @@ $('tabPersonal').addEventListener('click', () => cambiarLibro('personal'));
 function suscribir() {
   if (desuscribir) { desuscribir(); desuscribir = null; }
   const destino = libro;
-  desuscribir = onSnapshot(query(colMovs()), (snap) => {
+  // En el negocio sin 'finanzas', la consulta trae SOLO los propios: la
+  // regla rechaza una lectura amplia, así que hay que pedir de entrada
+  // lo que se tiene permiso de ver. El libro personal ya es propio.
+  const q = (!esPersonal() && soloMios())
+    ? query(colMovs(), where('creadoPor', '==', u.uid))
+    : query(colMovs());
+  desuscribir = onSnapshot(q, (snap) => {
     if (destino !== libro) return;   // llegó tarde: ya cambiamos de libro
     movs = [];
     snap.forEach((d) => movs.push({ id: d.id, ...d.data() }));
