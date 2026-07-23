@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Balance</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .pasos { display:flex; gap:4px; margin:10px 0 16px; }
+  .pasos div { flex:1; height:5px; border-radius:3px; background:var(--linea); }
+  .pasos div.hecho { background:var(--ok); }
+  .pasos div.actual { background:var(--verde-osc); }
+  .etapa { background:#fff; border:1px solid var(--linea); border-radius:var(--radio);
+    padding:14px; box-shadow:var(--sombra); }
+  .etapa h2 { margin:0 0 4px; font-size:1.05rem; }
+  .etapa .guia { font-size:.84rem; color:var(--gris); margin:0 0 12px; }
+  .lin { display:flex; align-items:center; gap:9px; padding:8px 0;
+    border-bottom:1px dashed var(--linea); font-size:.88rem; }
+  .lin:last-child { border-bottom:0; }
+  .lin input[type=checkbox] { width:auto; flex:none; }
+  .lin .txt { flex:1; min-width:0; }
+  .lin .txt small { display:block; color:var(--gris); font-size:.74rem; }
+  .lin b { white-space:nowrap; }
+  .cta { display:flex; align-items:center; gap:9px; padding:9px 0;
+    border-bottom:1px dashed var(--linea); font-size:.9rem; flex-wrap:wrap; }
+  .cta .nom { flex:1; min-width:110px; }
+  .cta input[type=number] { width:104px; }
+  .dif { font-size:.76rem; white-space:nowrap; }
+  .navbtns { display:flex; gap:8px; justify-content:space-between; margin-top:16px; }
+  .aviso { background:#fdf1d8; color:#8a6206; border-radius:var(--radio);
+    padding:10px 12px; font-size:.84rem; margin:10px 0; }
+  .ok-box { background:var(--verde-claro); color:var(--verde-osc); border-radius:var(--radio);
+    padding:10px 12px; font-size:.84rem; margin:10px 0; }
+  .resumen div { display:flex; justify-content:space-between; padding:3px 0; font-size:.9rem; }
+  .vacio { text-align:center; color:var(--gris); padding:20px; font-size:.88rem; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <h1 style="margin-right:auto;">Hacer balance</h1>
+    <a class="btn" href="./dinero.html"><span class="material-icons">arrow_back</span> Dinero</a>
+  </div>
+
+  <div class="pasos">
+    <div id="p1"></div><div id="p2"></div><div id="p3"></div><div id="p4"></div><div id="p5"></div>
+  </div>
+
+  <!-- ETAPA 1 — revisar movimientos -->
+  <div class="etapa" id="e1">
+    <h2>1 · Revisar los movimientos</h2>
+    <p class="guia">Repasá línea por línea que los importes estén bien. Lo que esté mal,
+      corregilo en Dinero antes de seguir. Tildá cada línea que ya verificaste.</p>
+    <div id="listaMovs"></div>
+    <div style="margin-top:10px;">
+      <button class="btn" id="btnTodas" style="font-size:.82rem;">Tildar todas</button>
+      <span class="texto-gris" id="contadorRev" style="font-size:.82rem;margin-left:8px;"></span>
+    </div>
+    <div class="navbtns">
+      <span></span>
+      <button class="btn btn-primario" id="n1">Siguiente <span class="material-icons">arrow_forward</span></button>
+    </div>
+  </div>
+
+  <!-- ETAPA 2 — saldar cobros -->
+  <div class="etapa oculto" id="e2">
+    <h2>2 · Saldar los cobros pendientes</h2>
+    <p class="guia">Honorarios que el negocio le debe al equipo. Al pagarlos se registra
+      la salida en Dinero desde la cuenta que elijas. Los que dejes sin pagar quedan
+      pendientes para el próximo balance.</p>
+    <div id="listaCobros"></div>
+    <div class="navbtns">
+      <button class="btn" onclick="irA(1)"><span class="material-icons">arrow_back</span> Atrás</button>
+      <button class="btn btn-primario" id="n2">Siguiente <span class="material-icons">arrow_forward</span></button>
+    </div>
+  </div>
+
+  <!-- ETAPA 3 — saldo calculado -->
+  <div class="etapa oculto" id="e3">
+    <h2>3 · Lo que dice el sistema</h2>
+    <p class="guia">Saldo de cada cuenta según las líneas registradas, a hoy.</p>
+    <div id="listaCalculado"></div>
+    <div class="navbtns">
+      <button class="btn" onclick="irA(2)"><span class="material-icons">arrow_back</span> Atrás</button>
+      <button class="btn btn-primario" id="n3">Siguiente <span class="material-icons">arrow_forward</span></button>
+    </div>
+  </div>
+
+  <!-- ETAPA 4 — saldo real -->
+  <div class="etapa oculto" id="e4">
+    <h2>4 · Lo que hay de verdad</h2>
+    <p class="guia">Contá cuánto hay realmente en cada cuenta ahora mismo. La diferencia
+      con lo calculado es tu <b>gasto no registrado</b> — no es un error del sistema, es
+      información.</p>
+    <div id="listaReal"></div>
+    <div class="ok-box" id="cajaDif"></div>
+    <div class="navbtns">
+      <button class="btn" onclick="irA(3)"><span class="material-icons">arrow_back</span> Atrás</button>
+      <button class="btn btn-primario" id="n4">Siguiente <span class="material-icons">arrow_forward</span></button>
+    </div>
+  </div>
+
+  <!-- ETAPA 5 — cerrar -->
+  <div class="etapa oculto" id="e5">
+    <h2>5 · Cerrar y poner el cero</h2>
+    <p class="guia">Se guarda la foto del período, las líneas revisadas pasan al
+      histórico, y cada cuenta arranca de nuevo con su saldo real.</p>
+    <div class="resumen" id="resumenFinal"></div>
+    <label>Nota del balance (opcional)</label>
+    <textarea id="bNota" rows="3" maxlength="600" placeholder="Qué se acordó, qué quedó pendiente…"></textarea>
+    <div class="aviso">Después de cerrar, las líneas de este período no se pueden editar.</div>
+    <div class="navbtns">
+      <button class="btn" onclick="irA(4)"><span class="material-icons">arrow_back</span> Atrás</button>
+      <button class="btn btn-primario" id="cerrar"><span class="material-icons">balance</span> Cerrar balance</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+// ═══════════════════════════════════════════════════════════
+// BALANCE — asistente por etapas (T8.2)
+//
+// El balance NO busca cuadrar con el banco: es un corte de control
+// entre dos momentos. La diferencia entre lo que el sistema calcula
+// y lo que hay de verdad ES el gasto no registrado (dato personal,
+// fuera del negocio). Por eso el ajuste no "corrige un error":
+// absorbe esa diferencia y la deja registrada para leerla después.
+//
+// El CERO: al cerrar, las líneas del período quedan selladas con el
+// cierreId (salen de la vista de Dinero, viven en el histórico) y
+// cada cuenta recibe una línea de APERTURA con su saldo real. Desde
+// ahí arrancan los próximos registros.
+//
+// Regla 3.2: suscripciones al final. Acá se usa getDocs (una foto),
+// no onSnapshot: un balance se hace sobre datos quietos.
+// ═══════════════════════════════════════════════════════════
+import {
+  db, collection, query, where, getDocs, doc, addDoc, updateDoc,
+  serverTimestamp
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+if (!CV2.puede('finanzas')) {
+  document.querySelector('.contenedor').innerHTML =
+    '<h1>Sin acceso</h1><p>El balance lo hace quien tiene permiso de finanzas.</p>';
+  throw new Error('sin finanzas');
+}
+CV2.renderNav('dinero');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+let etapa = 1;
+let movs = [];        // movimientos vigentes (sin cierreId)
+let cobros = [];      // honorarios pendientes
+let revisados = new Set();
+let cuentas = [];     // [{cuenta, calculado, real}]
+let cobrosSaldados = [];
+
+const enBRL = (m) => Number(m.moneda === 'BRL' ? m.monto : m.montoBRL) || 0;
+// Un ingreso "por cobrar" no cuenta hasta saldarse (mismo criterio que Dinero).
+const porCobrarVivo = (m) =>
+  m.tipo === 'entro' && m.pendiente && m.pendiente.clase === 'cobrar' && !m.pendiente.saldado;
+
+// ── Navegación ───────────────────────────────────────────────
+window.irA = (n) => {
+  etapa = n;
+  for (let i = 1; i <= 5; i++) {
+    $('e' + i).classList.toggle('oculto', i !== n);
+    const p = $('p' + i);
+    p.className = i < n ? 'hecho' : (i === n ? 'actual' : '');
+  }
+  window.scrollTo(0, 0);
+  if (n === 3) calcularCuentas();
+  if (n === 4) pintarReal();
+  if (n === 5) pintarResumen();
+};
+
+// ── Etapa 1: revisar movimientos ─────────────────────────────
+function pintarMovs() {
+  if (!movs.length) {
+    $('listaMovs').innerHTML = '<div class="vacio">No hay movimientos sin balancear.</div>';
+    return;
+  }
+  $('listaMovs').innerHTML = movs.map((m) => `
+    <label class="lin">
+      <input type="checkbox" class="chkRev" data-id="${esc(m.id)}" ${revisados.has(m.id) ? 'checked' : ''}>
+      <span class="txt">${esc(m.detalle || m.categoria || '(sin detalle)')}
+        <small>${CV2.fmtFecha(m.fecha)} · ${esc(m.categoria || '')}${m.cuenta ? ' · 🏦 ' + esc(m.cuenta) : ' · sin cuenta'}</small></span>
+      <b style="color:${m.tipo === 'entro' ? 'var(--ok)' : 'var(--rojo)'};">
+        ${m.tipo === 'entro' ? '+' : '−'}${CV2.fmtMonto(enBRL(m))}</b>
+    </label>`).join('');
+  document.querySelectorAll('.chkRev').forEach((c) => {
+    c.addEventListener('change', () => {
+      if (c.checked) revisados.add(c.dataset.id); else revisados.delete(c.dataset.id);
+      contador();
+    });
+  });
+  contador();
+}
+function contador() {
+  $('contadorRev').textContent = revisados.size + ' de ' + movs.length + ' revisadas';
+}
+$('btnTodas').addEventListener('click', () => {
+  movs.forEach((m) => revisados.add(m.id));
+  document.querySelectorAll('.chkRev').forEach((c) => { c.checked = true; });
+  contador();
+});
+$('n1').addEventListener('click', () => {
+  if (movs.length && revisados.size < movs.length) {
+    if (!confirm('Quedan ' + (movs.length - revisados.size) + ' líneas sin revisar.\n\n¿Seguir igual?')) return;
+  }
+  irA(2);
+});
+
+// ── Etapa 2: saldar cobros ───────────────────────────────────
+function pintarCobros() {
+  const pend = cobros.filter((c) => c.estado !== 'pagado');
+  if (!pend.length) {
+    $('listaCobros').innerHTML = '<div class="vacio">✓ No hay cobros pendientes.</div>';
+    return;
+  }
+  const opts = ['<option value="">(elegí cuenta)</option>']
+    .concat(cuentasUsadas().map((c) => '<option value="' + esc(c) + '">' + esc(c) + '</option>'))
+    .join('');
+  $('listaCobros').innerHTML = pend.map((c) => `
+    <div class="cta" id="cob-${esc(c.id)}">
+      <span class="nom">👤 <b>${esc(c.nombre || '')}</b><br>
+        <small class="texto-gris">${esc(c.concepto || '')}</small></span>
+      <b>${CV2.fmtMonto(c.monto)}</b>
+      <select class="selCta" data-id="${esc(c.id)}" style="width:auto;">${opts}</select>
+      <button class="btn" style="font-size:.8rem;" onclick="pagarCobro('${esc(c.id)}')">Pagar</button>
+    </div>`).join('');
+}
+
+function cuentasUsadas() {
+  return [...new Set(movs.map((m) => m.cuenta).filter(Boolean))].sort();
+}
+
+window.pagarCobro = async (id) => {
+  const c = cobros.find((x) => x.id === id);
+  const sel = document.querySelector('.selCta[data-id="' + id + '"]');
+  const cuenta = sel ? sel.value : '';
+  if (!cuenta) { CV2.toast('Elegí de qué cuenta sale', 'error'); return; }
+  if (!confirm('¿Pagar ' + CV2.fmtMonto(c.monto) + ' a ' + (c.nombre || '') + ' desde ' + cuenta + '?')) return;
+  try {
+    const ref = await addDoc(collection(db, 'movimientos'), {
+      fecha: CV2.hoyISO(), tipo: 'salio',
+      monto: Number(c.monto) || 0, moneda: 'BRL', montoBRL: Number(c.monto) || 0,
+      categoria: 'Honorarios', cuenta,
+      uid: c.uid, nombre: c.nombre || '',
+      detalle: 'Honorario — ' + (c.concepto || ''),
+      comprobanteUrl: null, pendiente: null,
+      refTipo: 'honorario', refId: c.id,
+      creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? '',
+      actualizadoEn: serverTimestamp()
+    });
+    await updateDoc(doc(db, 'honorarios', c.id), {
+      estado: 'pagado', pagadoEn: serverTimestamp(), pagadoFecha: CV2.hoyISO(),
+      movimientoId: ref.id, actualizadoEn: serverTimestamp()
+    });
+    c.estado = 'pagado';
+    cobrosSaldados.push({ honorarioId: c.id, uid: c.uid, nombre: c.nombre || '', monto: Number(c.monto) || 0, cuenta });
+    // El pago recién hecho también entra al período que se está cerrando.
+    movs.push({ id: ref.id, fecha: CV2.hoyISO(), tipo: 'salio', monto: Number(c.monto) || 0,
+      moneda: 'BRL', montoBRL: Number(c.monto) || 0, categoria: 'Honorarios', cuenta,
+      detalle: 'Honorario — ' + (c.concepto || '') });
+    revisados.add(ref.id);
+    CV2.toast('✓ Pagado', 'success');
+    pintarCobros();
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+};
+
+$('n2').addEventListener('click', () => irA(3));
+
+// ── Etapa 3: saldo calculado ─────────────────────────────────
+function calcularCuentas() {
+  const saldos = {};
+  for (const m of movs) {
+    if (porCobrarVivo(m)) continue;
+    const c = m.cuenta || '(sin definir)';
+    saldos[c] = (saldos[c] || 0) + (m.tipo === 'entro' ? enBRL(m) : -enBRL(m));
+  }
+  // Conserva los valores reales ya tipeados si se vuelve atrás.
+  const previos = {};
+  cuentas.forEach((x) => { previos[x.cuenta] = x.real; });
+  cuentas = Object.keys(saldos).sort().map((c) => ({
+    cuenta: c, calculado: saldos[c],
+    real: (previos[c] !== undefined ? previos[c] : saldos[c])
+  }));
+  $('listaCalculado').innerHTML = cuentas.length
+    ? cuentas.map((x) => `
+      <div class="cta">
+        <span class="nom">🏦 ${esc(x.cuenta)}</span>
+        <b style="color:${x.calculado >= 0 ? 'var(--ok)' : 'var(--rojo)'};">${CV2.fmtMonto(x.calculado)}</b>
+      </div>`).join('')
+    : '<div class="vacio">No hay cuentas con movimientos.</div>';
+}
+$('n3').addEventListener('click', () => irA(4));
+
+// ── Etapa 4: saldo real ──────────────────────────────────────
+function pintarReal() {
+  $('listaReal').innerHTML = cuentas.map((x, i) => `
+    <div class="cta">
+      <span class="nom">🏦 ${esc(x.cuenta)}<br>
+        <small class="texto-gris">sistema: ${CV2.fmtMonto(x.calculado)}</small></span>
+      <input type="number" step="0.01" inputmode="decimal" value="${x.real}"
+        onchange="setReal(${i}, this.value)">
+      <span class="dif" id="dif-${i}"></span>
+    </div>`).join('');
+  pintarDifs();
+}
+window.setReal = (i, v) => { cuentas[i].real = parseFloat(v) || 0; pintarDifs(); };
+
+function pintarDifs() {
+  let total = 0;
+  cuentas.forEach((x, i) => {
+    const d = x.real - x.calculado;
+    total += d;
+    const el = $('dif-' + i);
+    if (el) {
+      el.textContent = d === 0 ? '✓ igual' : (d > 0 ? '+' : '') + CV2.fmtMonto(d);
+      el.style.color = d === 0 ? 'var(--ok)' : 'var(--rojo)';
+    }
+  });
+  $('cajaDif').innerHTML = total === 0
+    ? '✓ Todo coincide: no hay gasto sin registrar.'
+    : 'Diferencia total: <b>' + CV2.fmtMonto(total) + '</b>. ' +
+      (total < 0
+        ? 'Falta plata respecto de lo registrado: eso es gasto no registrado (personal).'
+        : 'Hay más de lo registrado: entró plata que no se cargó.');
+}
+$('n4').addEventListener('click', () => irA(5));
+
+// ── Etapa 5: cerrar ──────────────────────────────────────────
+function pintarResumen() {
+  let entro = 0, salio = 0;
+  for (const m of movs) {
+    if (porCobrarVivo(m)) continue;
+    if (m.tipo === 'entro') entro += enBRL(m); else salio += enBRL(m);
+  }
+  const ajuste = cuentas.reduce((a, x) => a + (x.real - x.calculado), 0);
+  $('resumenFinal').innerHTML = `
+    <div><span>Líneas del período</span><b>${movs.length}</b></div>
+    <div><span>Entró</span><b style="color:var(--ok);">${CV2.fmtMonto(entro)}</b></div>
+    <div><span>Salió</span><b style="color:var(--rojo);">${CV2.fmtMonto(salio)}</b></div>
+    <div><span>Cobros saldados</span><b>${cobrosSaldados.length}</b></div>
+    <div><span>Ajuste total (gasto no registrado)</span><b style="color:${ajuste === 0 ? 'var(--ok)' : 'var(--rojo)'};">${CV2.fmtMonto(ajuste)}</b></div>
+    <div><span>Cuentas que arrancan de nuevo</span><b>${cuentas.length}</b></div>`;
+}
+
+$('cerrar').addEventListener('click', async () => {
+  if (!confirm('Se cierra el balance:\n\n· ' + movs.length + ' líneas pasan al histórico\n'
+    + '· ' + cuentas.length + ' cuenta(s) arrancan con su saldo real\n\n'
+    + 'Esto no se puede deshacer. ¿Confirmás?')) return;
+  $('cerrar').disabled = true;
+  try {
+    let entro = 0, salio = 0;
+    for (const m of movs) {
+      if (porCobrarVivo(m)) continue;
+      if (m.tipo === 'entro') entro += enBRL(m); else salio += enBRL(m);
+    }
+    const fechas = movs.map((m) => m.fecha).filter(Boolean).sort();
+
+    // 1) La foto del balance. Los ajustes por cuenta quedan acá: sumándolos
+    //    entre balances se lee el bruto no registrado (por eso no se guarda
+    //    aparte — decisión del administrador).
+    const ref = await addDoc(collection(db, 'cierres'), {
+      fecha: CV2.hoyISO(),
+      desde: fechas[0] || CV2.hoyISO(),
+      hasta: CV2.hoyISO(),
+      cerradoPor: u.uid, cerradoNombre: u.nombre ?? '',
+      totales: { entroBRL: entro, salioBRL: salio, resultadoBRL: entro - salio, movimientos: movs.length },
+      cuentas: cuentas.map((x) => ({
+        cuenta: x.cuenta, calculado: x.calculado, real: x.real, ajuste: x.real - x.calculado
+      })),
+      cobrosSaldados,
+      nota: $('bNota').value.trim(),
+      creadoEn: serverTimestamp()
+    });
+
+    // 2) Sellar las líneas del período: salen de la vista de Dinero y
+    //    quedan en el histórico de este cierre.
+    for (const m of movs) {
+      try { await updateDoc(doc(db, 'movimientos', m.id), { cierreId: ref.id }); }
+      catch (e) { console.warn('sellar', m.id, e); }
+    }
+
+    // 3) El CERO: cada cuenta arranca con una línea de apertura por su saldo
+    //    real. Desde acá cuentan los próximos registros.
+    for (const x of cuentas) {
+      if (!x.real) continue;
+      await addDoc(collection(db, 'movimientos'), {
+        fecha: CV2.hoyISO(),
+        tipo: x.real >= 0 ? 'entro' : 'salio',
+        monto: Math.abs(x.real), moneda: 'BRL', montoBRL: Math.abs(x.real),
+        categoria: 'Balance', cuenta: x.cuenta,
+        uid: u.uid, nombre: u.nombre ?? '',
+        detalle: 'Balance ' + CV2.fmtFecha(CV2.hoyISO()) + ' · apertura de ' + x.cuenta
+          + (x.real - x.calculado ? ' (ajuste ' + CV2.fmtMonto(x.real - x.calculado) + ')' : ''),
+        comprobanteUrl: null, pendiente: null,
+        esApertura: true, cierreOrigen: ref.id,
+        creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? '',
+        actualizadoEn: serverTimestamp()
+      });
+    }
+
+    CV2.toast('✓ Balance cerrado · el sistema arranca de nuevo', 'success');
+    setTimeout(() => { location.href = './dinero.html'; }, 1200);
+  } catch (e) {
+    CV2.toast('No se pudo cerrar: ' + (e.code ?? e.message), 'error');
+    $('cerrar').disabled = false;
+  }
+});
+
+// ── Carga inicial (foto, no suscripción) ─────────────────────
+try {
+  const snap = await getDocs(collection(db, 'movimientos'));
+  snap.forEach((d) => {
+    const x = d.data();
+    if (!x.cierreId) movs.push({ id: d.id, ...x });   // solo lo no balanceado
+  });
+  movs.sort((a, b) => (a.fecha ?? '').localeCompare(b.fecha ?? ''));
+} catch (e) { CV2.toast('No se pudieron cargar los movimientos', 'error'); }
+
+try {
+  const snap = await getDocs(query(collection(db, 'honorarios'), where('estado', '==', 'pendiente')));
+  snap.forEach((d) => cobros.push({ id: d.id, ...d.data() }));
+} catch { /* sin cobros pendientes */ }
+
+pintarMovs();
+pintarCobros();
+irA(1);
+</script>
+</body>
+</html>

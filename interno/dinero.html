@@ -209,32 +209,6 @@
 </dialog>
 
 <!-- ═══ Modal: hacer balance ══════════════════════════════════ -->
-<dialog id="modalBal">
-  <h2 style="margin:0 0 4px;">Hacer balance</h2>
-  <p class="texto-gris" style="margin:0 0 10px;font-size:.84rem;">
-    Cierra el período, deja una foto fija de los números y salda los pendientes
-    que marques. Lo que dejes sin marcar arrastra al próximo balance.
-  </p>
-
-  <div class="fila2c">
-    <div><label>Desde</label><input id="bDesde" type="date"></div>
-    <div><label>Hasta</label><input id="bHasta" type="date"></div>
-  </div>
-
-  <div class="bal-resumen" id="bResumen"></div>
-
-  <h3 style="margin:14px 0 2px;font-size:.95rem;">Pendientes a saldar</h3>
-  <div id="bPendientes"></div>
-
-  <label style="margin-top:12px;">Repartición / notas del balance</label>
-  <textarea id="bNota" rows="3" maxlength="600" placeholder="Qué se acordó repartir o dejar pendiente. Queda guardado en la foto del balance."></textarea>
-
-  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
-    <button class="btn" id="bCancelar">Cancelar</button>
-    <button class="btn btn-primario" id="bConfirmar"><span class="material-icons">balance</span> Cerrar balance</button>
-  </div>
-</dialog>
-
 <!-- ═══ Modal: historial de balances ══════════════════════════ -->
 <dialog id="modalCierres">
   <h2 style="margin:0 0 10px;">Balances cerrados</h2>
@@ -335,8 +309,11 @@ function filtrados() {
   if (per === 'mes') desde = CV2.hoyISO().slice(0, 8) + '01';
   else if (per !== '0') desde = new Date(Date.now() - Number(per) * 86400000).toISOString().slice(0, 10);
   const t = $('fTipo').value, c = $('fCat').value;
+  // Las líneas selladas por un balance salen de la vista: viven en el
+  // histórico de su cierre. Dinero muestra siempre desde el último cero.
   return movs.filter((m) =>
-    (!desde || m.fecha >= desde) && (!t || m.tipo === t) && (!c || m.categoria === c));
+    !m.cierreId
+    && (!desde || m.fecha >= desde) && (!t || m.tipo === t) && (!c || m.categoria === c));
 }
 
 /** Totales derivados de una lista de movimientos (en R$). */
@@ -432,6 +409,7 @@ function renderCuentas() {
   if (esPersonal() || !verFinanzas()) { $('cardCuentas').hidden = true; return; }
   const saldos = {};
   for (const m of movs) {
+    if (m.cierreId) continue;            // ya balanceado: vive en el histórico
     if (porCobrarVivo(m)) continue;      // lo por cobrar no cuenta hasta saldarse
     const c = m.cuenta || '(sin definir)';
     saldos[c] = (saldos[c] || 0) + (m.tipo === 'entro' ? enBRL(m) : -enBRL(m));
@@ -668,95 +646,9 @@ const sumarDia = (iso) => {
 const enRango = (desde, hasta) =>
   movs.filter((m) => (!desde || (m.fecha ?? '') >= desde) && (!hasta || (m.fecha ?? '') <= hasta));
 
-function desdeSugerido() {
-  const ultimo = cierres[0];
-  if (ultimo?.hasta) return sumarDia(ultimo.hasta);
-  const fechas = movs.map((m) => m.fecha).filter(Boolean).sort();
-  return fechas[0] ?? CV2.hoyISO().slice(0, 8) + '01';
-}
-
-function pintarBalance() {
-  const desde = $('bDesde').value, hasta = $('bHasta').value;
-  const t = totalizar(enRango(desde, hasta));
-  $('bResumen').innerHTML = `
-    <div><span>Movimientos</span><b>${t.movimientos}</b></div>
-    <div><span>Entró</span><b style="color:var(--ok);">${CV2.fmtMonto(t.entroBRL)}</b></div>
-    <div><span>Salió</span><b style="color:var(--rojo);">${CV2.fmtMonto(t.salioBRL)}</b></div>
-    <div><span>Resultado</span><b style="color:${t.resultadoBRL >= 0 ? 'var(--ok)' : 'var(--rojo)'};">${CV2.fmtMonto(t.resultadoBRL)}</b></div>
-    ${t.porCobrarBRL ? `<div><span>Por cobrar (no cuenta)</span><b>${CV2.fmtMonto(t.porCobrarBRL)}</b></div>` : ''}`;
-
-  const pend = pendientesVivos(hasta);
-  $('bPendientes').innerHTML = pend.length
-    ? pend.map((p) => `
-      <label class="bal-fila">
-        <input type="checkbox" class="chkPend" data-clave="${esc(p.clave)}" checked>
-        <span class="txt">${textoPendiente(p)} <small class="texto-gris">(${p.movIds.length})</small></span>
-        <b>${CV2.fmtMonto(p.totalBRL)}</b>
-      </label>`).join('')
-      + '<p class="texto-gris" style="font-size:.78rem;margin:8px 0 0;">Lo que destildes queda vivo y arrastra al próximo balance.</p>'
-    : '<p class="texto-gris" style="font-size:.85rem;margin:4px 0;">No hay pendientes vivos en este período.</p>';
-}
-
-$('btnBalance').addEventListener('click', () => {
-  $('bDesde').value = desdeSugerido();
-  $('bHasta').value = CV2.hoyISO();
-  $('bNota').value = '';
-  pintarBalance();
-  $('modalBal').showModal();
-});
-$('bDesde').addEventListener('change', pintarBalance);
-$('bHasta').addEventListener('change', pintarBalance);
-$('bCancelar').addEventListener('click', () => $('modalBal').close());
-
-$('bConfirmar').addEventListener('click', async () => {
-  const desde = $('bDesde').value, hasta = $('bHasta').value;
-  if (!desde || !hasta || desde > hasta) { CV2.toast('Revisá las fechas del período', 'error'); return; }
-
-  const t = totalizar(enRango(desde, hasta));
-  const pend = pendientesVivos(hasta);
-  const marcadas = new Set([...document.querySelectorAll('.chkPend')]
-    .filter((c) => c.checked).map((c) => c.dataset.clave));
-  const saldados = pend.filter((p) => marcadas.has(p.clave));
-  const arrastrados = pend.filter((p) => !marcadas.has(p.clave));
-  const limpio = (p) => ({ uid: p.uid, nombre: p.nombre, clase: p.clase, totalBRL: p.totalBRL, movIds: p.movIds });
-
-  if (!confirm(`Se cierra el período ${CV2.fmtFecha(desde)} → ${CV2.fmtFecha(hasta)}.\n\n`
-    + `Resultado: ${CV2.fmtMonto(t.resultadoBRL)}\n`
-    + `Pendientes que se saldan: ${saldados.length}\n`
-    + `Pendientes que arrastran: ${arrastrados.length}\n\n`
-    + 'La foto del balance queda fija y los movimientos saldados no se podrán editar. ¿Confirmás?')) return;
-
-  $('bConfirmar').disabled = true;
-  try {
-    const ref = await addDoc(collection(db, 'cierres'), {
-      fecha: CV2.hoyISO(), desde, hasta,
-      cerradoPor: u.uid, cerradoNombre: u.nombre ?? '',
-      totales: t,
-      pendientesSaldados: saldados.map(limpio),
-      pendientesArrastrados: arrastrados.map(limpio),
-      reparticion: { modo: 'manual', nota: $('bNota').value.trim() },
-      creadoEn: serverTimestamp()
-    });
-
-    // Sellado de los movimientos saldados (uno por uno: son pocos y así
-    // no dependemos de writeBatch; si alguno falla, se ve en el toast).
-    const ids = saldados.flatMap((p) => p.movIds);
-    for (const id of ids) {
-      await updateDoc(doc(db, 'movimientos', id), {
-        'pendiente.saldado': true,
-        'pendiente.cierreId': ref.id,
-        actualizadoEn: serverTimestamp()
-      });
-    }
-
-    await cargarCierres();
-    $('modalBal').close();
-    CV2.toast('✓ Balance cerrado' + (ids.length ? ' · ' + ids.length + ' movimientos sellados' : ''), 'success');
-  } catch (e) {
-    CV2.toast('No se pudo cerrar: ' + (e.code ?? e.message), 'error');
-  } finally { $('bConfirmar').disabled = false; }
-});
-
+// El balance simple (modal) fue reemplazado por el asistente por etapas:
+// revisar línea a línea → saldar cobros → calculado vs real → cero.
+$('btnBalance').addEventListener('click', () => { location.href = './balance.html'; });
 // ═══ Historial de balances ════════════════════════════════
 async function cargarCierres() {
   try {
@@ -779,11 +671,11 @@ function renderCierres() {
           <b>resultado ${CV2.fmtMonto(c.totales?.resultadoBRL ?? 0)}</b>
         </div>
         <div class="det">
-          Saldados: ${(c.pendientesSaldados ?? []).length} ·
-          Arrastrados: ${(c.pendientesArrastrados ?? []).length} ·
+          Cobros saldados: ${(c.cobrosSaldados ?? []).length} ·
           cerró ${esc(c.cerradoNombre ?? '')} el ${CV2.fmtFecha(c.fecha)}
         </div>
-        ${c.reparticion?.nota ? `<div class="det" style="margin-top:5px;">📝 ${esc(c.reparticion.nota)}</div>` : ''}
+        ${(c.cuentas ?? []).length ? `<div class="det" style="margin-top:5px;">${c.cuentas.map((x) => '🏦 ' + esc(x.cuenta) + ': sistema ' + CV2.fmtMonto(x.calculado) + ' → real ' + CV2.fmtMonto(x.real) + (x.ajuste ? ' <b style="color:var(--rojo);">(ajuste ' + CV2.fmtMonto(x.ajuste) + ')</b>' : '')).join('<br>')}</div>` : ''}
+        ${(c.nota || c.reparticion?.nota) ? `<div class="det" style="margin-top:5px;">📝 ${esc(c.nota || c.reparticion.nota)}</div>` : ''}
         <div class="acc">
           <button class="btn btn-mini-txt" onclick="exportarCierre('${c.id}')" style="font-size:.8rem;padding:6px 10px;">
             <span class="material-icons" style="font-size:15px;">download</span> Exportar este período
@@ -849,8 +741,11 @@ $('btnExportar').addEventListener('click', () => {
 window.exportarCierre = (id) => {
   const c = cierres.find((x) => x.id === id);
   if (!c) return;
-  const lista = enRango(c.desde, c.hasta).sort((a, b) => (a.fecha ?? '').localeCompare(b.fecha ?? ''));
-  bajarCSV(lista, c.desde + '_' + c.hasta);
+  // Por cierreId, no por fechas: es exactamente lo que ese balance selló.
+  const lista = movs.filter((m) => m.cierreId === id)
+    .sort((a, b) => (a.fecha ?? '').localeCompare(b.fecha ?? ''));
+  if (!lista.length) { CV2.toast('Ese balance no tiene líneas selladas', 'error'); return; }
+  bajarCSV(lista, (c.desde || '') + '_' + (c.hasta || ''));
 };
 
 // ═══ Cargas iniciales ═════════════════════════════════════
