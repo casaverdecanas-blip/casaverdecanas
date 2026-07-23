@@ -7,22 +7,35 @@
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <link rel="stylesheet" href="design-system.css">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#2d5a27">
 <style>
-  .indice { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 4px; }
-  .indice a {
-    font-size: .8rem; text-decoration: none; border: 1px solid var(--linea);
-    background: #fff; border-radius: 999px; padding: 5px 12px; color: var(--verde-osc);
-  }
-  section { scroll-margin-top: 70px; }
-  section h2 { display: flex; align-items: center; gap: 8px; color: var(--verde-osc); }
-  section h2 .material-icons { font-size: 20px; }
-  .card p { margin: .5em 0; }
-  .card ul { margin: .4em 0; padding-left: 1.2em; }
-  .card li { margin: .3em 0; }
-  kbd { background: var(--verde-claro); border-radius: 5px; padding: 1px 7px; font-family: inherit; font-size: .85em; }
-  .tip { border-left: 4px solid var(--amarillo); background: #fdf8ea; border-radius: 0 8px 8px 0; padding: 8px 12px; font-size: .86rem; }
+  .indice { background:#fff; border:1px solid var(--linea); border-radius:var(--radio);
+    padding:14px; box-shadow:var(--sombra); margin-bottom:20px; }
+  .indice a { display:inline-flex; align-items:center; gap:5px; text-decoration:none;
+    background:var(--verde-claro); color:var(--verde-osc); padding:5px 12px;
+    border-radius:999px; font-size:.84rem; margin:3px 3px 3px 0; }
+  .indice .material-icons { font-size:16px; }
+  .cap { background:#fff; border:1px solid var(--linea); border-radius:var(--radio);
+    padding:18px; box-shadow:var(--sombra); margin-bottom:16px; scroll-margin-top:70px; }
+  .cap h2 { margin:0 0 4px; font-size:1.25rem; color:var(--verde-osc);
+    display:flex; align-items:center; gap:8px; }
+  .cap h3 { margin:16px 0 4px; font-size:1rem; }
+  .cap p { margin:8px 0; font-size:.92rem; }
+  .cap ol, .cap ul { margin:8px 0; padding-left:20px; font-size:.92rem; }
+  .cap li { margin:5px 0; }
+  .nota { background:var(--verde-claro); color:var(--verde-osc); border-radius:8px;
+    padding:10px 13px; font-size:.87rem; margin:12px 0; }
+  .ojo { background:#fdf1d8; color:#8a6206; border-radius:8px;
+    padding:10px 13px; font-size:.87rem; margin:12px 0; }
+  .paso { display:flex; gap:11px; margin:10px 0; align-items:flex-start; }
+  .paso .n { flex:none; width:24px; height:24px; border-radius:50%; background:var(--verde-osc);
+    color:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:.78rem; font-weight:700; }
+  .paso div { font-size:.92rem; }
+  kbd { background:#f2f1ec; border:1px solid var(--linea); border-radius:5px;
+    padding:1px 6px; font-size:.85em; font-family:inherit; }
+  .arriba { display:block; text-align:right; font-size:.8rem; color:var(--gris);
+    text-decoration:none; margin-top:10px; }
 </style>
 </head>
 <body>
@@ -30,232 +43,393 @@
 <div id="nav"></div>
 
 <div class="contenedor">
-  <h1>Manual de CasaVerde 2.0</h1>
-  <p class="texto-gris" style="margin-top:-6px;">Versión Fase 1 · el manual vive con el
-  código: siempre describe exactamente lo que el sistema hace.</p>
+  <h1>Manual del sistema</h1>
+  <p class="texto-gris" style="margin-top:-6px;">Cómo se usa cada parte. Desde cualquier
+  página, el signo de pregunta del menú te trae directo a su capítulo.</p>
 
   <div class="indice">
-    <a href="#actividades">Actividades</a>
-    <a href="#cronometro">Cronómetro</a>
-    <a href="#cobros">Cobros</a>
-    <a href="#sesiones">Sesiones</a>
-    <a href="#horas">Horas</a>
-    <a href="#reservas">Reservas</a>
-    <a href="#clientes">Clientes</a>
-    <a href="#comunicacion">Chat</a>
-    <a href="#calendario">Calendario</a>
-    <a href="#dinero">Dinero</a>
-    <a href="#cabanas">Cabañas</a>
-    <a href="#usuarios">Usuarios</a>
-    <a href="#app">La app</a>
+    <a href="#inicio"><span class="material-icons">login</span>Entrar</a>
+    <a href="#actividades"><span class="material-icons">checklist</span>Actividades</a>
+    <a href="#limpiezas"><span class="material-icons">cleaning_services</span>Limpiezas</a>
+    <a href="#reservas"><span class="material-icons">king_bed</span>Reservas</a>
+    <a href="#calendario"><span class="material-icons">calendar_month</span>Calendario</a>
+    <a href="#clientes"><span class="material-icons">contacts</span>Clientes</a>
+    <a href="#comunicacion"><span class="material-icons">forum</span>Chat</a>
+    <a href="#sesiones"><span class="material-icons">schedule</span>Sesiones</a>
+    <a href="#horas"><span class="material-icons">insights</span>Horas</a>
+    <a href="#honorarios"><span class="material-icons">payments</span>Cobros</a>
+    <a href="#dinero"><span class="material-icons">savings</span>Dinero</a>
+    <a href="#cabanas"><span class="material-icons">cottage</span>Sitio</a>
+    <a href="#usuarios"><span class="material-icons">group</span>Usuarios</a>
+    <a href="#problemas"><span class="material-icons">help</span>Si algo falla</a>
   </div>
 
-  <section id="actividades" class="card">
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="cap" id="inicio">
+    <h2><span class="material-icons">login</span>Entrar al sistema</h2>
+    <p>Se entra con tu email y contraseña. Si la olvidaste, usá "Olvidé mi contraseña"
+    en el login: te llega un correo para cambiarla.</p>
+    <p>Al entrar caés en <b>Actividades</b>, que es la página principal para todos.
+    Arriba está el menú con las secciones a las que tenés acceso.</p>
+    <div class="nota">No todos ven lo mismo. El menú te muestra solo lo que tenés
+    habilitado; si necesitás algo que no ves, pedíselo al administrador.</div>
+    <p>Es una aplicación web, pero funciona como app: podés agregarla a la pantalla de
+    inicio del teléfono desde el navegador ("Agregar a inicio" o "Instalar").</p>
+    <div class="ojo"><b>Después de una actualización:</b> si algo se ve raro o faltan
+    datos, cerrá la app <b>por completo</b> (no solo minimizarla) y volvé a abrirla.
+    Resuelve casi todo.</div>
+    <a class="arriba" href="#">↑ Volver al índice</a>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="cap" id="actividades">
     <h2><span class="material-icons">checklist</span>Actividades</h2>
-    <p>Todo el trabajo del complejo vive en un árbol: <b>proyectos</b> 📁 (con su color,
-    que toda su línea hereda como fondo) y adentro actividades y sub-ítems sin límite de
-    niveles. Tocá una fila para abrir su detalle y acciones; el triangulito ▸ despliega
-    los hijos.</p>
+    <p>Todo el trabajo vive acá, organizado como un árbol: <b>proyectos</b> que contienen
+    tareas, que a su vez pueden contener otras. Tocá un proyecto para abrirlo.</p>
+
+    <h3>El semáforo</h3>
+    <p>El color del punto dice qué tan urgente está algo:</p>
     <ul>
-      <li><b>Recurrentes (rutina)</b>: se repiten cada X días. Al realizarse quedan grises
-      "Vuelve el…" y al llegar su fecha se rehabilitan solas, recorriendo el semáforo:
-      🟢 toca hacerla → 🟡 atrasada → 🔴 muy atrasada.</li>
-      <li><b>Únicas</b>: al terminarse quedan <s>tachadas</s> a la vista, hasta que un
-      administrador las elimine (o restaure).</li>
-      <li><b>Alcances</b>: Equipo (todos), Asignados (elegís quiénes 👥) o Personal 🔒.</li>
-      <li><b>Precio (R$)</b>: si una actividad tiene precio, al cerrarse su ciclo genera
-      los cobros automáticamente (ver Cobros).</li>
-      <li><b>Filtros</b>: Todas · Hoy (lo que toca o está vencido) · ★ Destacadas (tus
-      estrellas, personales).</li>
+      <li><b>Gris</b> — sin fecha, cuando se pueda.</li>
+      <li><b>Verde</b> — tiene fecha, falta bastante.</li>
+      <li><b>Amarillo</b> — se acerca el vencimiento.</li>
+      <li><b>Rojo</b> — vencida o urgente. Es lo que hay que mirar primero.</li>
     </ul>
-  </section>
 
-  <section id="cronometro" class="card">
-    <h2><span class="material-icons">timer</span>Cronómetro: Play y Stop</h2>
-    <p>Registrar tiempo es simple: <kbd>▶</kbd> cuando empezás, <kbd>⏹</kbd> cuando
-    terminás. No hay pausa: si cortás, frená; al retomar, Play de nuevo — quedan dos
-    sesiones y está perfecto. Un solo cronómetro por persona.</p>
-    <p><b>Si hay un reloj corriendo, es lo primero que ves</b>: el cartel verde arriba de
-    todo, con la actividad, el tiempo y el botón STOP — aunque hayas cerrado el navegador
-    o se te haya reiniciado el teléfono.</p>
-    <p>Al frenar una <b>recurrente</b>, el sistema pregunta si quedó <b>terminada</b>:</p>
+    <h3>Hacer una tarea</h3>
+    <p>Tocá la tarea para abrir su detalle. Vas a ver:</p>
+    <div class="paso"><span class="n">▶</span><div><b>Cronómetro</b> — arrancalo cuando
+      empezás a trabajar y paralo al terminar. Queda registrado cuánto tardaste, y si la
+      tarea tiene precio, eso genera tu cobro.</div></div>
+    <div class="paso"><span class="n">✓</span><div><b>Realizada</b> — si la hiciste sin
+      cronometrar. La marca como hecha igual.</div></div>
+    <p>Si dos personas trabajan en lo mismo, cada una arranca su propio cronómetro. Al
+    cerrar la tarea se frenan todos y las horas se reparten como corresponde.</p>
+
+    <div class="nota">Solo podés tener <b>un cronómetro andando</b> a la vez. Si arrancás
+    otro, el sistema te avisa.</div>
+
+    <h3>Tareas que se repiten</h3>
+    <p>Algunas tareas vuelven solas cada tantos días (limpiar la piscina, revisar el
+    filtro). Cuando la marcás hecha, el sistema te dice cuándo vuelve.</p>
+
+    <h3>Crear un proyecto o una tarea</h3>
+    <p>El botón <kbd>Proyecto</kbd> arriba crea uno nuevo. Dentro de cualquier tarea o
+    proyecto podés agregar una tarea hija. Al crearla elegís:</p>
     <ul>
-      <li><b>Sí</b> → se reprograma para el próximo ciclo, y se frenan también los relojes
-      de tus compañeros en esa actividad (sus horas quedan registradas e incluidas en el
-      reparto de este ciclo).</li>
-      <li><b>Todavía no</b> → tu tiempo queda registrado igual y la actividad sigue
-      pendiente; los relojes ajenos siguen corriendo.</li>
+      <li><b>Para el equipo</b> — la ve y la puede hacer cualquiera.</li>
+      <li><b>Asignada</b> — solo la ven las personas que elijas.</li>
+      <li><b>Personal</b> — solo vos.</li>
     </ul>
-    <p>El botón <kbd>✔</kbd> marca la actividad como realizada <b>sin</b> cronómetro
-    (queda un registro de 0 horas con tu nombre).</p>
-  </section>
+    <a class="arriba" href="#">↑ Volver al índice</a>
+  </div>
 
-  <section id="cobros" class="card">
-    <h2><span class="material-icons">payments</span>Cobros (honorarios)</h2>
-    <p>Se generan solos: al cerrar el ciclo de una actividad <b>con precio</b>, el monto
-    se reparte entre quienes trabajaron en el ciclo, <b>en proporción a sus horas</b>.
-    Ejemplo: precio R$ 100, Flor 3 h y Mauro 1 h → Flor R$ 75, Mauro R$ 25. Si nadie
-    cronometró (tilde puro), todo va a quien cerró.</p>
-    <ul>
-      <li>Cada colaborador ve <b>sus</b> cobros con el total pendiente.</li>
-      <li>El admin ve todo agrupado por persona, marca <b>Pagado</b>, y con el lapicito
-      discreto puede corregir el monto y dejar un <b>comentario</b> 💬 aclaratorio.</li>
-    </ul>
-    <div class="tip">Si el admin edita o borra sesiones en el Gestor, los cobros de los
-    ciclos afectados se <b>recalculan solos</b> conservando el pozo del ciclo. Los ciclos
-    con pagos ya hechos no se tocan: esos se ajustan a mano acá.</div>
-  </section>
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="cap" id="limpiezas">
+    <h2><span class="material-icons">cleaning_services</span>Limpiezas y control de inventario</h2>
+    <p>Este es el circuito más importante del día a día. Cada reserva confirmada genera
+    su trabajo automáticamente dentro del proyecto <b>Limpiezas</b>.</p>
 
-  <section id="sesiones" class="card">
-    <h2><span class="material-icons">schedule</span>Gestor de Sesiones</h2>
-    <p>El registro completo de tiempo, agrupado proyecto → actividad → sesiones, cada
-    proyecto con su color. Es <b>la fuente que gobierna</b> las horas, las estadísticas y
-    los cobros.</p>
-    <ul>
-      <li><b>Registrar horas</b> a mano: elegís el <b>proyecto</b> primero y después la
-      actividad dentro de él (cualquier nivel, incluso "el proyecto en sí"), fecha y horas
-      de inicio/fin — el total se calcula solo. Se marcan con 📝 (⏱ cronómetro, ✔ tilde).</li>
-      <li>Cada uno edita o borra <b>sus</b> registros; el admin, todos.</li>
-      <li>Filtros por persona (admin) y por proyecto o cualquier subcategoría.</li>
-    </ul>
-  </section>
+    <h3>1 · La limpieza de entrada</h3>
+    <p>Aparece <b>una semana antes</b> de que llegue el huésped y se pone <b>roja un día
+    antes</b>. Es la preparación: dejar la cabaña lista.</p>
+    <div class="paso"><span class="n">1</span><div>Abrí la limpieza y arrancá el
+      <b>cronómetro</b> si vas a cobrar por el trabajo.</div></div>
+    <div class="paso"><span class="n">2</span><div>Tocá el botón de <b>inventario</b> (📦).
+      Aparece la lista de la cabaña con las cantidades. <b>Corregí lo que realmente
+      dejás</b>: los platos, las sábanas y las ollas cambian, los ventiladores no.</div></div>
+    <div class="paso"><span class="n">3</span><div>Guardá el control de entrada. Eso fija
+      con cuánto queda la cabaña.</div></div>
+    <div class="paso"><span class="n">4</span><div>Marcá <b>Limpieza terminada</b>.</div></div>
+    <div class="ojo">No podés cerrar la limpieza sin hacer el control de inventario
+    primero. Es a propósito: sin ese número no se puede controlar la salida.</div>
 
-  <section id="horas" class="card">
-    <h2><span class="material-icons">insights</span>Análisis de horas</h2>
-    <p>Las estadísticas del tiempo trabajado: elegí el período (7/30/90 días, año o
-    todo), y mirá los totales, la torta por proyecto con sus colores y la tabla por
-    persona con porcentajes. El admin filtra por persona y por proyecto o subcategoría;
-    cada colaborador ve lo suyo.</p>
-  </section>
+    <h3>2 · El control de salida</h3>
+    <p>Al terminar la limpieza <b>nace solo</b> el control de check-out, colgado debajo.
+    Queda abierto hasta que alguien lo cierre.</p>
+    <div class="paso"><span class="n">1</span><div>Cuando el huésped se va, abrí el control
+      de salida (botón de salida).</div></div>
+    <div class="paso"><span class="n">2</span><div>Contá lo que quedó. El sistema compara
+      con lo que dejaste en la entrada y te marca en rojo lo que falta.</div></div>
+    <div class="paso"><span class="n">3</span><div>Si hay algo roto, cargá un <b>daño</b>:
+      descripción y foto con la cámara. Podés agregar varios.</div></div>
+    <div class="paso"><span class="n">4</span><div>Registrá la salida.</div></div>
+    <p><b>Si está todo bien</b>, el control se cierra y listo.<br>
+    <b>Si falta algo o hay daños</b>, se crea una tarea de <b>faltantes</b> colgada
+    debajo, y el control queda abierto hasta que se resuelva.</p>
 
-  <section id="reservas" class="card">
+    <h3>3 · Resolver un faltante</h3>
+    <p>La tarea de faltantes dice qué falta, qué se rompió y de qué reserva vino. Cuando
+    lo repusiste, marcala como hecha.</p>
+    <p>Si tuviste que comprar algo, el botón de <b>Dinero</b> (💰) te pide cuánto costó y
+    lo registra como gasto, ya vinculado a ese faltante.</p>
+    <a class="arriba" href="#">↑ Volver al índice</a>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="cap" id="reservas">
     <h2><span class="material-icons">king_bed</span>Reservas</h2>
-    <p>Toda reserva vive un ciclo: <b>presupuesto → confirmada → finalizada</b> (o
-    anulada). El presupuesto ES una reserva sin confirmar — no hay dos listas.</p>
+    <p>Una reserva pasa por tres estados:</p>
     <ul>
-      <li>La tarjeta muestra huésped, cabaña (con su color), fechas y noches, personas y
-      total. La etiqueta 🏠 <b>En casa</b> marca a quien está alojado hoy.</li>
-      <li>Tocá la tarjeta para abrir acciones (admin): <b>Confirmar</b>, <b>Finalizar</b>
-      (al pasar la salida), <b>Anular</b> y Editar. Cada cambio queda en el historial con
-      fecha y autor.</li>
-      <li>Al confirmar, el sistema avisa si las fechas se <b>superponen</b> con otra
-      confirmada en la misma cabaña.</li>
-      <li>Filtros: <b>Vigentes</b> (presupuestos + confirmadas por venir o en curso),
-      por estado, o todas.</li>
-      <li><b>Pagos y señas</b> (admin): el botón 💰 registra cada pago en <b>R$, U$D o
-      $U</b> — si no es en reales, cargás el <b>equivalente en R$</b> al cambio del día,
-      y el saldo de la reserva cierra siempre en reales. Cada pago lleva su
-      <b>categoría</b> y la <b>cuenta de destino</b> donde entró el dinero: las dos
-      listas se mantienen solas y podés agregar una opción nueva ahí mismo con ➕.
-      La tarjeta muestra el saldo derivado y la etiqueta <b>señada</b>; todo queda en
-      el historial.</li>
-      <li><b>Horarios</b>: cada reserva registra hora de entrada y salida (14:00 y
-      10:00 por defecto), visibles en la tarjeta y el calendario.</li>
+      <li><b>Presupuesto</b> — todavía no está cerrada. No bloquea la cabaña.</li>
+      <li><b>Confirmada</b> — el huésped viene. Bloquea la cabaña, genera la limpieza y
+        aparece como ocupada en el sitio público.</li>
+      <li><b>Finalizada</b> — ya se fue.</li>
     </ul>
-    <div class="tip">Próximamente en esta fase: clientes y pagos por reserva, calendario,
-    generación automática de limpiezas y la sincronización con Airbnb.</div>
-  </section>
+    <p>Una reserva no es otra cosa que un presupuesto confirmado: no hay que cargarla dos
+    veces.</p>
 
-  <section id="clientes" class="card">
+    <h3>Cargar una reserva</h3>
+    <p>Botón <kbd>Reserva</kbd>. Elegís cabaña, fechas, cuántas personas y el total.
+    Podés crearla directo como confirmada o dejarla en presupuesto.</p>
+    <div class="nota">Al confirmar, el sistema te avisa si creó la limpieza o si va a
+    aparecer más adelante (se materializa una semana antes de la entrada).</div>
+
+    <h3>Registrar un cobro</h3>
+    <p>Botón <kbd>Pago</kbd> dentro de la reserva. Cargás monto, concepto (seña o saldo),
+    método y <b>en qué cuenta entró</b>.</p>
+    <p>Ese cobro aparece automáticamente en <b>Dinero</b> como un ingreso. No hay que
+    cargarlo dos veces.</p>
+    <p>Si el pago fue en otra moneda, cargá también el equivalente en reales del día:
+    el saldo de la reserva siempre cierra en R$.</p>
+
+    <h3>Anular</h3>
+    <p>Anular libera la cabaña y borra la limpieza si todavía no se hizo. Si ya se hizo,
+    la limpieza queda: alguien trabajó.</p>
+    <a class="arriba" href="#">↑ Volver al índice</a>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="cap" id="calendario">
+    <h2><span class="material-icons">calendar_month</span>Calendario</h2>
+    <p>La vista mensual de las tres cabañas: quién entra, quién sale y qué está libre.
+    Sirve para responder rápido "¿tenés lugar del 10 al 15?".</p>
+    <p>Tocá una reserva para abrirla.</p>
+    <a class="arriba" href="#">↑ Volver al índice</a>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="cap" id="clientes">
     <h2><span class="material-icons">contacts</span>Clientes</h2>
-    <p>La ficha de cada huésped: nombre, teléfono (con acceso directo a
-    <b>WhatsApp</b>), email, país y notas. Tocá un cliente para ver su historial de
-    reservas. Al cargar una reserva podés elegir un cliente existente, crear uno nuevo
-    con ➕ sin salir del formulario, o poner solo el nombre sin ficha.</p>
-  </section>
+    <p>La agenda de huéspedes. Cada uno guarda teléfono, email y notas, y desde el
+    teléfono podés escribirle directo por WhatsApp.</p>
+    <p>Al cargar una reserva podés elegir un cliente que ya existe o crear uno nuevo en
+    el momento.</p>
+    <div class="nota">Un cliente con reservas cargadas no se puede borrar: primero hay
+    que resolver sus reservas.</div>
+    <a class="arriba" href="#">↑ Volver al índice</a>
+  </div>
 
-  <section id="comunicacion" class="card">
-    <h2><span class="material-icons">forum</span>Chat del equipo</h2>
-    <p>Temas de conversación con su historial. La lista muestra el último mensaje, quién
-    y cuándo, y el globo azul <b>nuevo</b> cuando hay algo sin leer. Adentro es
-    mensajería común: tus burbujas en verde, <kbd>Enter</kbd> envía, la lectura se marca
-    sola. El botón <b>Tema</b> abre uno nuevo con su primer mensaje.</p>
-  </section>
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="cap" id="comunicacion">
+    <h2><span class="material-icons">forum</span>Chat</h2>
+    <p>Las conversaciones del equipo, organizadas por tema en vez de un chat único donde
+    se pierde todo.</p>
+    <p>Creá un tema nuevo con el botón de arriba, o entrá a uno existente para responder.
+    El menú te marca en azul cuántos mensajes sin leer tenés.</p>
+    <p>Hay un tema que se llena solo: <b>📝 Horas cargadas a mano</b>, donde queda
+    registrado cuando alguien carga tiempo manualmente.</p>
+    <a class="arriba" href="#">↑ Volver al índice</a>
+  </div>
 
-  <section id="calendario" class="card">
-    <h2><span class="material-icons">calendar_month</span>Calendario y limpiezas</h2>
-    <p>El mes de un vistazo: cada barra de color es una reserva confirmada en su cabaña
-    (el borde oscuro marca el día de entrada). Tocá un día para ver <b>entradas</b>,
-    <b>salidas</b> y quién está <b>en casa</b>.</p>
-    <p><b>Limpiezas automáticas</b>: al confirmar una reserva se crea sola la actividad
-    "Limpieza [cabaña] · salida [fecha]" en el proyecto <b>Limpiezas</b>, con el
-    <b>precio de limpieza de la ficha de la cabaña</b> — quien la haga (Play/Stop o ✔)
-    cobra por el reparto normal de honorarios. Si la reserva se anula, la limpieza
-    desaparece (salvo que ya esté hecha); si cambian las fechas, se realinea sola.
-    El botón 🧹 del calendario (admin) revisa y regenera todas de una pasada.</p>
-    <p><b>Sync Airbnb</b> (admin, botón ↔ en Reservas): lee el Google Calendar de cada
-    cabaña (la ficha guarda su Calendar ID) y trae las reservas de Airbnb — nuevas se
-    crean confirmadas con su limpieza, cambios de fechas se actualizan, y si un evento
-    futuro desaparece del calendario, la reserva se anula sola (y su limpieza también).
-    Los bloqueos "Not available" se ignoran. La primera vez pide la Google API Key (la
-    misma del sistema viejo).</p>
-  </section>
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="cap" id="sesiones">
+    <h2><span class="material-icons">schedule</span>Sesiones</h2>
+    <p>El registro de todo el tiempo trabajado. Cada vez que usás el cronómetro queda
+    una sesión acá.</p>
 
-  <section id="dinero" class="card">
+    <h3>Cargar horas a mano</h3>
+    <p>Si trabajaste sin cronómetro, podés cargarlo después: elegís la actividad, la
+    fecha, cuánto tiempo y una nota.</p>
+    <div class="nota">Cuando cargás horas a mano, queda un aviso en el <b>Chat</b> para
+    que quien lleva las horas lo revise. No es control: es para que nadie se entere
+    tarde de un trabajo que hubo que hacer.</div>
+
+    <h3>Corregir</h3>
+    <p>Cada uno puede editar o borrar <b>sus propias</b> sesiones. Quien tiene permiso de
+    horas puede corregir las de todo el equipo.</p>
+    <div class="ojo">Si corregís una sesión de una tarea que ya generó cobros, el sistema
+    recalcula el reparto. Pero si algún cobro <b>ya se pagó</b>, no lo toca: eso se
+    arregla a mano en Cobros.</div>
+    <a class="arriba" href="#">↑ Volver al índice</a>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="cap" id="horas">
+    <h2><span class="material-icons">insights</span>Horas</h2>
+    <p>El análisis del tiempo del equipo: cuántas horas se fueron en cada proyecto, quién
+    trabajó cuánto, y cuánto cuesta cada cosa.</p>
+    <p>Sirve para decidir precios: si una limpieza lleva sistemáticamente tres horas,
+    sabés cuánto tiene que costar.</p>
+    <a class="arriba" href="#">↑ Volver al índice</a>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="cap" id="honorarios">
+    <h2><span class="material-icons">payments</span>Cobros</h2>
+    <p>Lo que el negocio le debe a cada persona por su trabajo.</p>
+    <p>Los cobros <b>se generan solos</b>: cuando se cierra el ciclo de una actividad que
+    tiene precio, el monto se reparte entre quienes trabajaron, <b>en proporción a las
+    horas</b> de cada uno.</p>
+    <p>Si sos colaborador, ves solo los tuyos. Quien tiene permiso de finanzas ve los de
+    todo el equipo, agrupados por persona.</p>
+
+    <h3>Pagar un cobro</h3>
+    <p>Botón <kbd>Pagar</kbd>. Elegís la fecha real del pago y <b>de qué cuenta sale</b>.
+    Eso registra automáticamente la salida en Dinero.</p>
+    <div class="nota">Si tocás Pagar dos veces por error, no se duplica: el sistema sabe
+    que ese cobro ya tiene su movimiento.</div>
+    <a class="arriba" href="#">↑ Volver al índice</a>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="cap" id="dinero">
     <h2><span class="material-icons">savings</span>Dinero</h2>
-    <p>TODO el dinero del negocio en una sola página, con las cuatro preguntas que
-    importan: ¿entró o salió?, ¿cuánto?, ¿en qué?, ¿quién? Cada movimiento lleva fecha,
-    monto en <b>R$/U$D/$U</b> (con equivalente en reales si hace falta), categoría
-    (lista viva con ➕), quién movió la plata, detalle y <b>foto del comprobante</b>.</p>
+    <p>El libro del negocio. <b>Todo</b> lo que entra y sale es una línea acá: cobros de
+    reservas, compras, pagos de honorarios, lo que sea.</p>
+
+    <h3>Las líneas</h3>
+    <p>Cada movimiento tiene fecha, si entró o salió, monto, categoría, quién lo movió y
+    <b>en qué cuenta</b>. La cuenta es simplemente dónde está esa plata: un banco, el
+    efectivo, el bolsillo de alguien. Se elige de la lista o se agrega una nueva en el
+    momento.</p>
+    <p>Si el movimiento fue en otra moneda, se carga también el equivalente en reales del
+    día. Todo cierra en R$.</p>
+    <p>Las líneas se pueden editar para corregir. Queda anotado quién las editó y cuándo.</p>
+
+    <h3>Lo que queda pendiente</h3>
+    <p>Al cargar un movimiento podés marcar que algo queda colgando:</p>
     <ul>
-      <li><b>Pendientes</b>: si alguien puso plata de su bolsillo, marcá "hay que
-      reponerle" — el gasto cuenta ya, y el panel de arriba muestra cuánto se le debe a
-      cada uno (siempre calculado, nunca guardado). "Por cobrar" es lo inverso: no es
-      ingreso hasta que se cobre. El tilde ✓ los salda.</li>
-      <li>Los KPIs (entró/salió/resultado) siguen el período elegido, todo en reales.</li>
-      <li>Los <b>extractos bancarios no entran acá</b>: el flujo define los saldos; la
-      conciliación vive en la planilla (exportación en camino con "Hacer balance").</li>
+      <li><b>Hay que reponerle a alguien</b> — puso plata de su bolsillo. Cuenta como
+        gasto desde el día uno, y queda anotado que se le debe.</li>
+      <li><b>Está por cobrarse</b> — todavía no entró. <b>No cuenta como ingreso</b>
+        hasta que se cobre, para que los números no mientan.</li>
     </ul>
-  </section>
+    <p>Abajo se ve, siempre calculado, cuánto se le debe a cada persona y cuánto hay en
+    cada cuenta.</p>
 
-  <section id="cabanas" class="card">
-    <h2><span class="material-icons">cottage</span>Cabañas (solo admin)</h2>
-    <p>La ficha de cada cabaña: <b>nombre y descripción en tres idiomas</b> (es/pt/en —
-    lo que se ve en el sitio público), capacidad, <b>tarifas</b> de noche y limpieza,
-    amenities, el <b>Google Calendar ID</b> para la sincronización con Airbnb, y las
-    <b>fotos</b> — subilas directo desde el teléfono (van a Cloudinary) o pegá una URL.
-    Si completás solo el español, los otros idiomas usan ese texto hasta que los
-    traduzcas.</p>
-  </section>
+    <h3>Mi libro personal</h3>
+    <p>La pestaña de arriba cambia a tu libro privado. Mismo formato, pero <b>solo vos lo
+    ves</b> — ni el administrador entra. No se mezcla con el negocio, no entra en los
+    balances.</p>
 
-  <section id="usuarios" class="card">
-    <h2><span class="material-icons">group</span>Usuarios (solo admin)</h2>
+    <h3>Hacer un balance</h3>
+    <p>El balance cierra un período y pone el sistema en cero. Es un asistente de cinco
+    pasos:</p>
+    <div class="paso"><span class="n">1</span><div><b>Revisar</b> las líneas una por una y
+      tildar lo que verificaste.</div></div>
+    <div class="paso"><span class="n">2</span><div><b>Saldar los cobros</b> pendientes del
+      equipo, eligiendo de qué cuenta sale cada uno.</div></div>
+    <div class="paso"><span class="n">3</span><div>Ver el <b>saldo que calcula el
+      sistema</b> para cada cuenta.</div></div>
+    <div class="paso"><span class="n">4</span><div>Cargar <b>cuánto hay de verdad</b> en
+      cada cuenta.</div></div>
+    <div class="paso"><span class="n">5</span><div><b>Cerrar</b>.</div></div>
+    <div class="nota">La diferencia entre lo calculado y lo real <b>no es un error</b>:
+    es el gasto que no se registró. Es información, no algo que haya que corregir.</div>
+    <p>Al cerrar, las líneas del período pasan al histórico (botón <kbd>Balances</kbd>) y
+    cada cuenta arranca de nuevo con su saldo real. Desde ahí cuentan los próximos
+    movimientos.</p>
+    <div class="ojo">Un balance no se puede deshacer, y las líneas que cerró no se editan
+    más. Revisá bien antes del último paso.</div>
+    <a class="arriba" href="#">↑ Volver al índice</a>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="cap" id="cabanas">
+    <h2><span class="material-icons">cottage</span>Sitio</h2>
+    <p>Desde acá se controla <b>todo lo que se ve en casaverdecanas.com.br</b>.</p>
+
+    <h3>Cabañas</h3>
+    <p>Nombre y descripción en los tres idiomas, fotos, capacidad, tarifas y amenities.
+    Todo eso alimenta el sitio, y además las reservas y las limpiezas.</p>
+    <p>El <b>inventario</b> de cada cabaña es la lista de lo que tiene que haber adentro,
+    con su cantidad. Es lo que aparece en los controles de entrada y salida: si un ítem
+    no está acá, no se controla.</p>
+
+    <h3>Espacios</h3>
+    <p>Las áreas comunes que se muestran en la web: piscina, parrilla, living, juegos.
+    Nombre en tres idiomas, fotos y el orden en que aparecen.</p>
+
+    <h3>Textos y contacto</h3>
+    <p>El título de la portada, la bajada, los destacados y el pie, en los tres idiomas.
+    Y el <b>número de WhatsApp</b> que recibe las consultas del sitio.</p>
+    <div class="ojo">Sin ese número cargado, el botón de consulta del sitio no funciona.
+    Va con código de país y sin signos: por ejemplo <kbd>5548999999999</kbd>.</div>
+    <p>Lo que dejes vacío usa el texto por defecto, así que podés cambiar solo lo que
+    quieras.</p>
+    <a class="arriba" href="#">↑ Volver al índice</a>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="cap" id="usuarios">
+    <h2><span class="material-icons">group</span>Usuarios</h2>
+    <p>Solo el administrador entra acá.</p>
+    <p>Hay <b>una sola cuenta administradora</b> (CasaVerde), que se usa para
+    mantenimiento y emergencias. Todos los demás trabajan con permisos explícitos:</p>
     <ul>
-      <li><b>Cuenta nueva</b>: nombre, email y contraseña inicial — la cuenta se crea
-      desde el panel, sin perder tu sesión. La persona después la cambia con "Olvidé mi
-      contraseña".</li>
-      <li><b>Ya existe en Auth</b>: vincula por UID una cuenta creada en la consola.</li>
-      <li><b>Desactivar</b> corta el acceso al instante sin borrar historial; se puede
-      reactivar. No podés desactivarte ni quitarte tu propio rol de admin.</li>
+      <li><b>Reservas</b> — reservas, presupuestos y clientes.</li>
+      <li><b>Registrar gastos</b> — carga movimientos y ve <b>solo los suyos</b>.</li>
+      <li><b>Finanzas completas</b> — todo el dinero, balances y exportación.</li>
+      <li><b>Contenido del sitio</b> — cabañas, espacios y textos.</li>
+      <li><b>Horas del equipo</b> — sesiones y análisis de todas las personas.</li>
     </ul>
-  </section>
+    <p>Sin ningún permiso, una persona igual puede trabajar: ve Actividades, Calendario,
+    Chat, sus propias horas y sus propios cobros. Eso es lo mínimo.</p>
+    <p>Desactivar a alguien le corta el acceso pero <b>no borra su historial</b>: las
+    horas que trabajó y los cobros que tuvo quedan.</p>
+    <a class="arriba" href="#">↑ Volver al índice</a>
+  </div>
 
-  <section id="app" class="card">
-    <h2><span class="material-icons">install_mobile</span>La app</h2>
-    <ul>
-      <li><b>Instalala</b>: iPhone/iPad → Compartir → "Agregar a inicio" · Android → menú
-      → "Instalar app". Abre al instante, con ícono propio.</li>
-      <li><b>Funciona sin señal</b>: podés mirar todo y hasta cronometrar en modo avión;
-      al volver la conexión, se sincroniza solo.</li>
-      <li>Los datos se actualizan <b>en vivo</b>: lo que carga un compañero aparece en tu
-      pantalla sin recargar.</li>
-      <li>El listón amarillo/negro arriba indica que la sesión es de un administrador.</li>
-    </ul>
-  </section>
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="cap" id="problemas">
+    <h2><span class="material-icons">help</span>Si algo falla</h2>
 
-  <p class="texto-gris" style="text-align:center;">CasaVerde 2.0 · Fase 1 · el botón
-  <span class="material-icons" style="font-size:15px;vertical-align:middle;">help</span>
-  de la barra te trae siempre a la sección de la página donde estás.</p>
+    <h3>Se ve raro o faltan datos después de una actualización</h3>
+    <p>Cerrá la app <b>por completo</b> y volvé a abrirla. Es lo primero que hay que
+    probar y resuelve la mayoría de los casos.</p>
+
+    <h3>No veo una sección del menú</h3>
+    <p>No tenés ese permiso. Pedíselo al administrador.</p>
+
+    <h3>Aparece un cartel rojo con un código raro</h3>
+    <p>Ese código dice qué pasó. Sacale una captura y mandásela al administrador: con eso
+    se identifica el problema mucho más rápido que con "no anda".</p>
+
+    <h3>No me deja cerrar una limpieza</h3>
+    <p>Falta el control de inventario de entrada. Hacelo primero (botón 📦).</p>
+
+    <h3>No me deja cerrar un control de salida</h3>
+    <p>Si generó un faltante, la tarea queda abierta hasta que el faltante se resuelva.
+    Resolvé el faltante y después cerrá.</p>
+
+    <h3>Cargué algo mal en Dinero</h3>
+    <p>Se puede editar, mientras el balance no lo haya cerrado. Una vez que un balance
+    selló esa línea, ya no se toca.</p>
+
+    <h3>El cronómetro quedó andando de ayer</h3>
+    <p>Paralo desde Sesiones y corregí las horas a mano. Si la tarea ya se cerró, el
+    cronómetro se frenó solo.</p>
+    <a class="arriba" href="#">↑ Volver al índice</a>
+  </div>
 </div>
 
 <script type="module">
 import { CV2 } from './nucleo.js';
 CV2.registrarSW();
 await CV2.verificarAuth();
-CV2.renderNav('manual');
-// Ir al ancla pedida (ayuda contextual)
-if (location.hash) {
-  document.querySelector(location.hash)?.scrollIntoView({ behavior: 'smooth' });
+CV2.renderNav('');
+// El menú enlaza a ./manual.html#<seccion>: si viene ancla, resaltarla un
+// momento para que se note dónde quedó la página.
+const id = location.hash.slice(1);
+if (id) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el.style.transition = 'box-shadow .4s';
+    el.style.boxShadow = '0 0 0 3px var(--verde)';
+    setTimeout(() => { el.style.boxShadow = 'var(--sombra)'; }, 1600);
+  }
 }
 </script>
 </body>
