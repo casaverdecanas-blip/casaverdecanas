@@ -91,6 +91,27 @@
   label{display:block;font-size:.82rem;font-weight:500;margin-bottom:5px}
   input,select{width:100%;padding:10px 12px;border:1px solid var(--linea);border-radius:9px;
     font:inherit;font-size:.92rem;background:var(--crema)}
+  /* Calendario */
+  .cal{margin-top:16px;border:1px solid var(--linea);border-radius:12px;padding:14px;background:var(--crema)}
+  .calCab{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .calCab b{flex:1;text-align:center;font-family:Fraunces,serif;font-size:1.02rem;color:var(--verde-osc)}
+  .calCab button{border:1px solid var(--linea);background:#fff;width:34px;height:34px;
+    border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .calCab button:disabled{opacity:.35;cursor:not-allowed}
+  .calGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+  .calGrid .dow{text-align:center;font-size:.7rem;color:var(--gris);padding:4px 0;font-weight:600}
+  .dia{aspect-ratio:1;border:0;background:#fff;border-radius:9px;cursor:pointer;font:inherit;
+    font-size:.86rem;display:flex;align-items:center;justify-content:center;color:var(--tinta);
+    padding:0}
+  .dia:hover:not(:disabled){background:var(--verde-claro)}
+  .dia:disabled{background:transparent;color:#c9ccc5;cursor:not-allowed}
+  .dia.ocupado{background:#f7e4e2;color:#b8574d;text-decoration:line-through;cursor:not-allowed}
+  .dia.vacio{background:transparent;cursor:default}
+  .dia.sel{background:var(--verde);color:#fff;font-weight:600}
+  .dia.rango{background:var(--verde-claro);color:var(--verde-osc);border-radius:0}
+  .calPie{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:.74rem;color:var(--gris)}
+  .calPie i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;
+    vertical-align:-1px}
   .estado{margin:16px 0 0;padding:12px 14px;border-radius:10px;font-size:.9rem}
   .libre{background:var(--verde-claro);color:var(--verde-osc)}
   .ocupado{background:#fdeceb;color:#a32b22}
@@ -154,16 +175,21 @@
         <select id="qCabana"></select>
       </div>
       <div>
-        <label data-t="lIn">Entrada</label>
-        <input type="date" id="qIn">
-      </div>
-      <div>
-        <label data-t="lOut">Saída</label>
-        <input type="date" id="qOut">
-      </div>
-      <div>
         <label data-t="lPax">Pessoas</label>
         <input type="number" id="qPax" min="1" value="2">
+      </div>
+    </div>
+
+    <div class="cal">
+      <div class="calCab">
+        <button id="calPrev"><span class="material-icons">chevron_left</span></button>
+        <b id="calMes"></b>
+        <button id="calNext"><span class="material-icons">chevron_right</span></button>
+      </div>
+      <div class="calGrid" id="calGrid"></div>
+      <div class="calPie">
+        <span><i style="background:#f7e4e2"></i><span data-t="lOcupado">Ocupado</span></span>
+        <span><i style="background:var(--verde)"></i><span data-t="lElegido">Suas datas</span></span>
       </div>
     </div>
     <div class="estado neutro" id="estado" data-t="elegir">Escolha o espaço e as datas.</div>
@@ -215,6 +241,8 @@ const T = {
     elegir:'Escolha o espaço e as datas.', pedir:'Pedir orçamento pelo WhatsApp',
     cargando:'Carregando…', pie:'Reservas e consultas pelo WhatsApp.', panel:'Acesso da equipe',
     libre:'Disponível nessas datas', ocupado:'Ocupado nessas datas',
+    lOcupado:'Ocupado', lElegido:'Suas datas', elegirIn:'Escolha o dia de entrada',
+    elegirOut:'Agora o dia de saída', chocan:'Há dias ocupados no meio. Escolha outro período.',
     noches:'noites', hasta:'até', pers:'pessoas', desde:'a partir de', noite:'a noite' },
   es: { consultar:'Consultar', titulo:'A tres cuadras del mar, rodeado de verde',
     bajada:'Cabañas y departamentos en Canasvieiras, Florianópolis. Piscina, parrilla y lugar para toda la familia.',
@@ -224,6 +252,8 @@ const T = {
     elegir:'Elegí el espacio y las fechas.', pedir:'Pedir presupuesto por WhatsApp',
     cargando:'Cargando…', pie:'Reservas y consultas por WhatsApp.', panel:'Acceso del equipo',
     libre:'Disponible en esas fechas', ocupado:'Ocupado en esas fechas',
+    lOcupado:'Ocupado', lElegido:'Tus fechas', elegirIn:'Elegí el día de entrada',
+    elegirOut:'Ahora el día de salida', chocan:'Hay días ocupados en el medio. Elegí otro período.',
     noches:'noches', hasta:'hasta', pers:'personas', desde:'desde', noite:'la noche' },
   en: { consultar:'Enquire', titulo:'Three blocks from the sea, surrounded by green',
     bajada:'Cabins and apartments in Canasvieiras, Florianópolis. Pool, barbecue and room for the whole family.',
@@ -233,6 +263,8 @@ const T = {
     elegir:'Choose a place and your dates.', pedir:'Ask for a quote on WhatsApp',
     cargando:'Loading…', pie:'Bookings and enquiries via WhatsApp.', panel:'Team access',
     libre:'Available on those dates', ocupado:'Not available on those dates',
+    lOcupado:'Taken', lElegido:'Your dates', elegirIn:'Pick your arrival day',
+    elegirOut:'Now the departure day', chocan:'There are booked days in between. Pick another period.',
     noches:'nights', hasta:'to', pers:'guests', desde:'from', noite:'per night' }
 };
 let lang = (navigator.language || 'pt').slice(0, 2);
@@ -246,7 +278,9 @@ function aplicarIdioma() {
   document.querySelectorAll('[data-t]').forEach((el) => { el.textContent = t(el.dataset.t); });
   document.querySelectorAll('.idiomas button').forEach((b) =>
     b.classList.toggle('on', b.dataset.i === lang));
-  pintarCabanas(); pintarEspacios(); pintarSelect(); revisar();
+  pintarCabanas(); pintarEspacios(); pintarSelect();
+  if (document.getElementById('calGrid')) pintarCal();
+  revisar();
 }
 document.querySelectorAll('.idiomas button').forEach((b) =>
   b.addEventListener('click', () => { lang = b.dataset.i; aplicarIdioma(); }));
@@ -314,24 +348,131 @@ function pintarSelect() {
     `<option value="${esc(c.id)}">${esc(txt(c.nombre))}</option>`).join('');
 }
 
+
+// ═══ Calendario de disponibilidad ════════════════════════════
+// Se eligen las fechas con dos toques: entrada y salida. Un tercer
+// toque vuelve a empezar. Las noches ocupadas no se pueden tocar.
+// Ojo con el criterio hotelero: la reserva ocupa las NOCHES desde
+// 'desde' hasta 'hasta' SIN incluir la última — el día de salida la
+// cabaña ya queda libre para el que entra.
+let mesVista = new Date();
+let selIn = null, selOut = null;
+
+const iso = (d) => d.toISOString().slice(0, 10);
+const hoyIso = iso(new Date());
+const MESES = {
+  pt:['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'],
+  es:['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'],
+  en:['January','February','March','April','May','June','July','August','September','October','November','December']
+};
+const DOW = { pt:['D','S','T','Q','Q','S','S'], es:['D','L','M','M','J','V','S'], en:['S','M','T','W','T','F','S'] };
+
+/** ¿Esa noche está ocupada en la cabaña elegida? */
+function nocheOcupada(dia) {
+  const cab = $('qCabana').value;
+  return ocupacion.some((o) => o.cabanaId === cab && dia >= o.desde && dia < o.hasta);
+}
+
+/** ¿Hay alguna noche ocupada entre dos fechas? */
+function hayChoque(a, b) {
+  const d = new Date(a + 'T12:00:00');
+  while (iso(d) < b) {
+    if (nocheOcupada(iso(d))) return true;
+    d.setDate(d.getDate() + 1);
+  }
+  return false;
+}
+
+function pintarCal() {
+  const y = mesVista.getFullYear(), m = mesVista.getMonth();
+  $('calMes').textContent = (MESES[lang] || MESES.pt)[m] + ' ' + y;
+  // No se puede retroceder más allá del mes actual.
+  const ahora = new Date();
+  $('calPrev').disabled = (y === ahora.getFullYear() && m === ahora.getMonth());
+
+  const dow = DOW[lang] || DOW.pt;
+  let html = dow.map((d) => '<span class="dow">' + d + '</span>').join('');
+  const primero = new Date(y, m, 1).getDay();
+  const dias = new Date(y, m + 1, 0).getDate();
+  for (let i = 0; i < primero; i++) html += '<button class="dia vacio" disabled></button>';
+
+  for (let d = 1; d <= dias; d++) {
+    const f = iso(new Date(y, m, d));
+    const pasado = f < hoyIso;
+    const ocup = nocheOcupada(f);
+    // El día de salida elegido puede estar "ocupado" como noche siguiente:
+    // igual se muestra como elegido.
+    const esSel = (f === selIn || f === selOut);
+    const enRango = selIn && selOut && f > selIn && f < selOut;
+    const clases = ['dia'];
+    if (ocup && !esSel) clases.push('ocupado');
+    if (esSel) clases.push('sel');
+    else if (enRango) clases.push('rango');
+    html += '<button class="' + clases.join(' ') + '"'
+      + ((pasado || (ocup && !esSel)) ? ' disabled' : '')
+      + ' onclick="tocarDia(\'' + f + '\')">' + d + '</button>';
+  }
+  $('calGrid').innerHTML = html;
+}
+
+window.tocarDia = (f) => {
+  if (!selIn || (selIn && selOut)) {
+    // Empezar de nuevo
+    selIn = f; selOut = null;
+  } else if (f === selIn) {
+    // Tocar el mismo día lo deselecciona
+    selIn = null; selOut = null;
+  } else if (f < selIn) {
+    selIn = f;
+  } else {
+    if (hayChoque(selIn, f)) {
+      mostrar(t('chocan'), 'ocupado');
+      pintarCal();
+      return;
+    }
+    selOut = f;
+  }
+  pintarCal();
+  revisar();
+};
+
+$('calPrev').addEventListener('click', () => {
+  mesVista = new Date(mesVista.getFullYear(), mesVista.getMonth() - 1, 1);
+  pintarCal();
+});
+$('calNext').addEventListener('click', () => {
+  mesVista = new Date(mesVista.getFullYear(), mesVista.getMonth() + 1, 1);
+  pintarCal();
+});
+
+function mostrar(txt, clase) {
+  const el = $('estado');
+  el.className = 'estado ' + clase;
+  el.textContent = txt;
+}
+
 // ── Disponibilidad ───────────────────────────────────────────
 // Dos rangos se pisan si uno empieza antes de que el otro termine.
 // Se compara con strings YYYY-MM-DD: el orden alfabético es cronológico.
 const seSolapa = (aIn, aOut, bIn, bOut) => aIn < bOut && bIn < aOut;
 
 function revisar() {
-  const cab = $('qCabana').value, ci = $('qIn').value, co = $('qOut').value;
-  const el = $('estado');
-  if (!cab || !ci || !co || ci >= co) {
-    el.className = 'estado neutro'; el.textContent = t('elegir');
+  const cab = $('qCabana').value;
+  if (!cab || !selIn) {
+    mostrar(t('elegirIn'), 'neutro');
     $('btnWa').style.pointerEvents = 'none'; $('btnWa').style.opacity = '.55';
     return;
   }
-  const choque = ocupacion.some((o) => o.cabanaId === cab && seSolapa(ci, co, o.desde, o.hasta));
-  el.className = 'estado ' + (choque ? 'ocupado' : 'libre');
-  el.textContent = (choque ? '✕ ' : '✓ ') + t(choque ? 'ocupado' : 'libre');
+  if (!selOut) {
+    mostrar(t('elegirOut'), 'neutro');
+    $('btnWa').style.pointerEvents = 'none'; $('btnWa').style.opacity = '.55';
+    return;
+  }
+  // Si llegó acá, el rango ya se validó al elegirlo: está libre.
+  const noches = Math.round((new Date(selOut) - new Date(selIn)) / 86400000);
+  mostrar('✓ ' + t('libre') + ' · ' + noches + ' ' + t('noches'), 'libre');
   $('btnWa').style.pointerEvents = ''; $('btnWa').style.opacity = '1';
-  armarLink(cab, ci, co, choque);
+  armarLink(cab, selIn, selOut, false);
 }
 
 function armarLink(cab, ci, co, choque) {
@@ -355,8 +496,12 @@ function armarLink(cab, ci, co, choque) {
   $('waTop').href = url;
 }
 
-['qCabana', 'qIn', 'qOut', 'qPax'].forEach((id) =>
-  $(id).addEventListener('change', revisar));
+$('qCabana').addEventListener('change', () => {
+  // Otra cabaña tiene otra ocupación: se limpia la selección.
+  selIn = null; selOut = null;
+  pintarCal(); revisar();
+});
+$('qPax').addEventListener('change', revisar);
 
 // ── Carga (lectura pública, una sola vez) ────────────────────
 try {
@@ -385,11 +530,8 @@ try {
   os.forEach((d) => ocupacion.push(d.data()));
 } catch (e) { console.warn('disponibilidad', e); }
 
-// Fechas por defecto: hoy y mañana.
-const hoy = new Date().toISOString().slice(0, 10);
-const man = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-$('qIn').min = hoy; $('qOut').min = man;
 aplicarIdioma();
+pintarCal();
 </script>
 </body>
 </html>
