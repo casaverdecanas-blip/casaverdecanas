@@ -5,134 +5,166 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Casa Verde Canas · Canasvieiras, Florianópolis</title>
 <meta name="description" content="Cabañas y departamentos a tres cuadras del mar en Canasvieiras, Florianópolis. Piscina, parrilla y espacios verdes.">
+<link rel="icon" href="./interno/icono-192.png">
+<link rel="apple-touch-icon" href="./interno/apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<meta name="theme-color" content="#2d5a27">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#225b38">
 <style>
+  /* ═══════════════════════════════════════════════════════════
+     IDENTIDAD — colores muestreados de la ilustración del logo.
+     La crema es el aire, el verde selva es la voz, la terracota
+     es la acción. La flor roja aparece una vez o ninguna.
+     ═══════════════════════════════════════════════════════════ */
   :root{
-    --verde:#2d5a27; --verde-osc:#1e3d1a; --verde-claro:#e8f0e4;
-    --crema:#faf8f3; --tinta:#22271f; --gris:#6b7268; --linea:#e0ded6;
-    --sombra:0 2px 12px rgba(30,61,26,.07);
+    --menta:#9fd2b0; --crema:#f4e8cb; --papel:#faf4e6;
+    --terracota:#b86d4c; --terracota-osc:#9c5738;
+    --selva:#305e30; --selva-osc:#225b38; --selva-clara:#9aba94;
+    --flor:#be402c; --tinta:#2b3327; --gris:#6f7a68;
+    --linea:#e6dcc2; --sombra:0 2px 14px rgba(34,91,56,.08);
   }
   *{box-sizing:border-box}
-  body{margin:0;font-family:Inter,system-ui,sans-serif;color:var(--tinta);
-    background:var(--crema);line-height:1.55;-webkit-font-smoothing:antialiased}
-  h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:700;line-height:1.15;margin:0}
+  body{margin:0;font-family:Figtree,system-ui,sans-serif;color:var(--tinta);
+    background:var(--papel);line-height:1.6;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:600;line-height:1.14;margin:0;
+    font-variation-settings:'SOFT' 40,'WONK' 1}
   a{color:inherit}
   .wrap{max-width:1060px;margin:0 auto;padding:0 20px}
 
-  /* ── Barra ── */
-  header{position:sticky;top:0;z-index:50;background:rgba(250,248,243,.93);
+  /* ── Barra ─────────────────────────────────────────────── */
+  header{position:sticky;top:0;z-index:50;background:rgba(250,244,230,.94);
     backdrop-filter:blur(8px);border-bottom:1px solid var(--linea)}
-  .barra{display:flex;align-items:center;gap:14px;padding:12px 0}
-  .marca{font-family:Fraunces,serif;font-weight:700;font-size:1.15rem;color:var(--verde-osc);
-    margin-right:auto;letter-spacing:-.01em}
+  .barra{display:flex;align-items:center;gap:14px;padding:9px 0}
+  .marca{margin-right:auto;display:flex;align-items:center;text-decoration:none;
+    font-family:Fraunces,serif;font-weight:600;color:var(--selva-osc);font-size:1.05rem}
+  .marca img{height:42px;width:auto;display:block}
   .idiomas{display:flex;gap:2px}
   .idiomas button{border:0;background:none;font:inherit;font-size:.8rem;cursor:pointer;
     padding:5px 9px;border-radius:7px;color:var(--gris)}
-  .idiomas button.on{background:var(--verde-claro);color:var(--verde-osc);font-weight:600}
-  .wa{display:inline-flex;align-items:center;gap:6px;background:var(--verde);color:#fff;
-    text-decoration:none;padding:8px 15px;border-radius:999px;font-size:.86rem;font-weight:600}
-  .wa:hover{background:var(--verde-osc)}
+  .idiomas button.on{background:var(--menta);color:var(--selva-osc);font-weight:600}
+  .wa{display:inline-flex;align-items:center;gap:6px;background:var(--terracota);color:#fff;
+    text-decoration:none;padding:8px 15px;border-radius:999px;font-size:.86rem;font-weight:600;
+    box-shadow:0 2px 8px rgba(184,109,76,.28)}
+  .wa:hover{background:var(--terracota-osc)}
 
-  /* ── Portada ── */
-  .hero{padding:60px 0 44px;text-align:center}
-  .hero h1{font-size:clamp(2rem,6vw,3.3rem);color:var(--verde-osc);letter-spacing:-.02em}
-  .hero p{font-size:1.05rem;color:var(--gris);max-width:560px;margin:14px auto 0}
+  /* ── Portada: la ilustración ES el sitio ───────────────── */
+  .hero{padding:22px 0 8px}
+  .dibujo{width:100%;max-width:1000px;margin:0 auto;display:block;border-radius:20px;
+    background:var(--crema);box-shadow:0 6px 30px rgba(34,91,56,.14)}
+  .hero-txt{text-align:center;padding-top:26px}
+  .hero-txt h1{font-size:clamp(1.9rem,5.4vw,3.1rem);color:var(--selva-osc);letter-spacing:-.015em}
+  .hero-txt p{font-size:1.06rem;color:var(--gris);max-width:580px;margin:14px auto 0}
   .chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:22px}
   .chip{background:#fff;border:1px solid var(--linea);border-radius:999px;
     padding:6px 14px;font-size:.82rem;display:inline-flex;align-items:center;gap:6px}
-  .chip .material-icons{font-size:16px;color:var(--verde)}
+  .chip .material-icons{font-size:16px;color:var(--selva)}
 
-  /* ── Secciones ── */
-  section{padding:44px 0}
+  /* ── Guirnalda: la firma visual, tomada del techo del dibujo ── */
+  .guirnalda{display:block;margin:6px auto;max-width:620px;padding:0 20px}
+  .guirnalda svg{width:100%;height:auto;display:block}
+  .guirnalda .cordel{fill:none;stroke:var(--selva-clara);stroke-width:1.6}
+  .guirnalda .luz{fill:var(--crema);stroke:var(--selva-clara);stroke-width:.8}
+  @media (prefers-reduced-motion:no-preference){
+    .guirnalda .luz{animation:parpadeo 4s ease-in-out infinite}
+    .guirnalda .luz:nth-child(even){animation-delay:2s}
+  }
+  @keyframes parpadeo{0%,100%{opacity:.72}50%{opacity:1}}
+
+  /* ── Secciones ─────────────────────────────────────────── */
+  section{padding:34px 0}
   .titulo{display:flex;align-items:baseline;gap:12px;margin-bottom:22px}
-  .titulo h2{font-size:1.7rem;color:var(--verde-osc)}
+  .titulo h2{font-size:1.75rem;color:var(--selva-osc)}
   .titulo span{font-size:.85rem;color:var(--gris)}
+  .cargando{color:var(--gris);padding:26px 0;text-align:center}
 
-  /* ── Cabañas ── */
-  .cab{background:#fff;border:1px solid var(--linea);border-radius:16px;overflow:hidden;
+  /* ── Cabañas ───────────────────────────────────────────── */
+  .cab{background:#fff;border:1px solid var(--linea);border-radius:18px;overflow:hidden;
     box-shadow:var(--sombra);margin-bottom:26px}
   @media(min-width:760px){ .cab{display:grid;grid-template-columns:1.05fr 1fr} }
-  .slider{position:relative;background:#eceae3;aspect-ratio:4/3;overflow:hidden}
+  .slider{position:relative;background:var(--crema);aspect-ratio:4/3;overflow:hidden}
   .slider img{width:100%;height:100%;object-fit:cover;display:none}
   .slider img.on{display:block}
   .slider .nav{position:absolute;top:50%;transform:translateY(-50%);border:0;
-    background:rgba(255,255,255,.9);width:36px;height:36px;border-radius:50%;cursor:pointer;
-    display:flex;align-items:center;justify-content:center;box-shadow:0 1px 6px rgba(0,0,0,.15)}
+    background:rgba(250,244,230,.92);width:36px;height:36px;border-radius:50%;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 1px 6px rgba(34,91,56,.2);
+    color:var(--selva-osc)}
   .slider .prev{left:10px} .slider .next{right:10px}
   .slider .puntos{position:absolute;bottom:10px;left:0;right:0;display:flex;
     gap:5px;justify-content:center}
-  .slider .puntos i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.6)}
-  .slider .puntos i.on{background:#fff;width:16px;border-radius:3px}
-  .cab .cuerpo{padding:22px}
-  .cab h3{font-size:1.3rem;color:var(--verde-osc);margin-bottom:6px}
-  .cab .desc{font-size:.93rem;color:var(--gris);margin:0 0 14px}
-  .datos{display:flex;gap:14px;flex-wrap:wrap;font-size:.84rem;color:var(--gris);
-    padding-bottom:14px;border-bottom:1px solid var(--linea);margin-bottom:14px}
+  .slider .puntos i{width:6px;height:6px;border-radius:50%;background:rgba(244,232,203,.65)}
+  .slider .puntos i.on{background:var(--crema);width:16px;border-radius:3px}
+  .cab .cuerpo{padding:24px}
+  .cab h3{font-size:1.35rem;color:var(--selva-osc);margin-bottom:6px}
+  .cab .desc{font-size:.94rem;color:var(--gris);margin:0 0 14px}
+  .datos{display:flex;gap:14px;flex-wrap:wrap;font-size:.85rem;color:var(--gris);
+    padding-bottom:14px;border-bottom:1px solid var(--linea);margin-bottom:14px;align-items:baseline}
   .datos b{color:var(--tinta)}
   .amen{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
-  .amen span{font-size:.76rem;background:var(--verde-claro);color:var(--verde-osc);
+  .amen span{font-size:.76rem;background:var(--menta);color:var(--selva-osc);
     padding:3px 10px;border-radius:999px}
-  .precio{font-size:1.15rem;font-weight:700;color:var(--verde-osc)}
-  .precio small{font-weight:400;font-size:.8rem;color:var(--gris)}
+  .precio{font-size:1.16rem;font-weight:700;color:var(--terracota);font-family:Fraunces,serif}
+  .precio small{font-weight:400;font-size:.8rem;color:var(--gris);font-family:Figtree,sans-serif}
 
-  /* ── Espacios ── */
+  /* ── Espacios comunes ──────────────────────────────────── */
   .espacios{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
-  .esp{background:#fff;border:1px solid var(--linea);border-radius:14px;overflow:hidden;
+  .esp{background:#fff;border:1px solid var(--linea);border-radius:15px;overflow:hidden;
     box-shadow:var(--sombra)}
-  .esp img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:#eceae3}
+  .esp img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:var(--crema)}
   .esp p{margin:0;padding:11px 14px;font-size:.9rem;font-weight:500}
 
-  /* ── Consulta ── */
-  .consulta{background:#fff;border:1px solid var(--linea);border-radius:16px;
+  /* ── Consulta ──────────────────────────────────────────── */
+  .consulta{background:#fff;border:1px solid var(--linea);border-radius:18px;
     padding:24px;box-shadow:var(--sombra)}
   .campos{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
-  label{display:block;font-size:.82rem;font-weight:500;margin-bottom:5px}
-  input,select{width:100%;padding:10px 12px;border:1px solid var(--linea);border-radius:9px;
-    font:inherit;font-size:.92rem;background:var(--crema)}
+  label{display:block;font-size:.82rem;font-weight:600;margin-bottom:5px;color:var(--selva-osc)}
+  input,select{width:100%;padding:10px 12px;border:1px solid var(--linea);border-radius:10px;
+    font:inherit;font-size:.92rem;background:var(--papel);color:var(--tinta)}
   /* Calendario */
-  .cal{margin-top:16px;border:1px solid var(--linea);border-radius:12px;padding:14px;background:var(--crema)}
+  .cal{margin-top:16px;border:1px solid var(--linea);border-radius:14px;padding:14px;background:var(--papel)}
   .calCab{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-  .calCab b{flex:1;text-align:center;font-family:Fraunces,serif;font-size:1.02rem;color:var(--verde-osc)}
+  .calCab b{flex:1;text-align:center;font-family:Fraunces,serif;font-size:1.04rem;
+    color:var(--selva-osc);text-transform:capitalize}
   .calCab button{border:1px solid var(--linea);background:#fff;width:34px;height:34px;
-    border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    color:var(--selva-osc)}
   .calCab button:disabled{opacity:.35;cursor:not-allowed}
   .calGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
   .calGrid .dow{text-align:center;font-size:.7rem;color:var(--gris);padding:4px 0;font-weight:600}
-  .dia{aspect-ratio:1;border:0;background:#fff;border-radius:9px;cursor:pointer;font:inherit;
+  .dia{aspect-ratio:1;border:0;background:#fff;border-radius:10px;cursor:pointer;font:inherit;
     font-size:.86rem;display:flex;align-items:center;justify-content:center;color:var(--tinta);
     padding:0}
-  .dia:hover:not(:disabled){background:var(--verde-claro)}
-  .dia:disabled{background:transparent;color:#c9ccc5;cursor:not-allowed}
-  .dia.ocupado{background:#f7e4e2;color:#b8574d;text-decoration:line-through;cursor:not-allowed}
+  .dia:hover:not(:disabled){background:var(--menta)}
+  .dia:disabled{background:transparent;color:#c8c9bd;cursor:not-allowed}
+  .dia.ocupado{background:#f6e0da;color:#a8503c;text-decoration:line-through;cursor:not-allowed}
   .dia.vacio{background:transparent;cursor:default}
-  .dia.sel{background:var(--verde);color:#fff;font-weight:600}
-  .dia.rango{background:var(--verde-claro);color:var(--verde-osc);border-radius:0}
+  .dia.sel{background:var(--selva);color:#fff;font-weight:600}
+  .dia.rango{background:var(--menta);color:var(--selva-osc);border-radius:0}
   .calPie{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:.74rem;color:var(--gris)}
   .calPie i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;
     vertical-align:-1px}
-  .estado{margin:16px 0 0;padding:12px 14px;border-radius:10px;font-size:.9rem}
-  .libre{background:var(--verde-claro);color:var(--verde-osc)}
-  .ocupado{background:#fdeceb;color:#a32b22}
-  .neutro{background:#f2f1ec;color:var(--gris)}
+  .estado{margin:16px 0 0;padding:12px 14px;border-radius:11px;font-size:.9rem}
+  .libre{background:var(--menta);color:var(--selva-osc);font-weight:500}
+  .ocupado{background:#f8e3de;color:var(--flor)}
+  .neutro{background:var(--crema);color:var(--gris)}
   .btn-wa{display:inline-flex;align-items:center;justify-content:center;gap:8px;
-    background:var(--verde);color:#fff;border:0;border-radius:999px;padding:13px 26px;
-    font:inherit;font-size:.95rem;font-weight:600;cursor:pointer;margin-top:18px;
-    text-decoration:none;width:100%}
-  .btn-wa:hover{background:var(--verde-osc)}
-  .btn-wa:disabled{background:#c3c8bf;cursor:not-allowed}
+    background:var(--terracota);color:#fff;border:0;border-radius:999px;padding:14px 28px;
+    font:inherit;font-size:.98rem;font-weight:600;text-decoration:none;margin-top:16px;width:100%;
+    box-shadow:0 3px 12px rgba(184,109,76,.3)}
+  .btn-wa:hover{background:var(--terracota-osc)}
 
-  footer{background:var(--verde-osc);color:#cfe0c9;padding:34px 0;margin-top:30px;font-size:.88rem}
-  footer a{color:#fff}
-  .cargando{text-align:center;color:var(--gris);padding:40px}
+  /* ── Pie ───────────────────────────────────────────────── */
+  footer{background:var(--selva-osc);color:#cfe3d2;padding:40px 0 34px;margin-top:34px;
+    font-size:.9rem;text-align:center}
+  footer img{height:74px;width:auto;margin-bottom:14px;opacity:.95}
+  footer b{color:var(--crema)}
+  footer a{color:var(--menta)}
 </style>
 </head>
 <body>
 
 <header>
   <div class="wrap barra">
-    <span class="marca">🌿 Casa Verde Canas</span>
+    <a class="marca" href="#top"><img src="./img/logo-sitio.png" alt="Casa Verde Canas"></a>
     <div class="idiomas">
       <button data-i="pt">PT</button>
       <button data-i="es">ES</button>
@@ -145,15 +177,36 @@
   </div>
 </header>
 
-<div class="wrap hero">
-  <h1 data-t="titulo">A três quadras do mar, cercado de verde</h1>
-  <p data-t="bajada">Cabanas e apartamentos em Canasvieiras, Florianópolis. Piscina, churrasqueira e espaço para toda a família.</p>
-  <div class="chips">
-    <span class="chip"><span class="material-icons">pool</span><span data-t="c1">Piscina</span></span>
-    <span class="chip"><span class="material-icons">outdoor_grill</span><span data-t="c2">Churrasqueira</span></span>
-    <span class="chip"><span class="material-icons">beach_access</span><span data-t="c3">3 quadras do mar</span></span>
-    <span class="chip"><span class="material-icons">wifi</span>Wi-Fi</span>
+<div class="hero" id="top">
+  <div class="wrap">
+    <img class="dibujo" src="./img/ilustracion-hero.jpg" alt="Casa Verde Canas entre el verde"
+         onerror="this.style.display='none'">
   </div>
+  <div class="wrap hero-txt">
+    <h1 data-t="titulo">A três quadras do mar, cercado de verde</h1>
+    <p data-t="bajada">Cabanas e apartamentos em Canasvieiras, Florianópolis. Piscina, churrasqueira e espaço para toda a família.</p>
+    <div class="chips">
+      <span class="chip"><span class="material-icons">pool</span><span data-t="c1">Piscina</span></span>
+      <span class="chip"><span class="material-icons">outdoor_grill</span><span data-t="c2">Churrasqueira</span></span>
+      <span class="chip"><span class="material-icons">beach_access</span><span data-t="c3">3 quadras do mar</span></span>
+      <span class="chip"><span class="material-icons">wifi</span>Wi-Fi</span>
+    </div>
+  </div>
+</div>
+
+<div class="guirnalda" aria-hidden="true">
+  <svg viewBox="0 0 600 46">
+    <path class="cordel" d="M0,8 Q300,44 600,8"/>
+    <g><line class="cordel" x1="60" y1="14.5" x2="60" y2="20"/><circle class="luz" cx="60" cy="23" r="3"/></g>
+    <g><line class="cordel" x1="120" y1="19.5" x2="120" y2="25"/><circle class="luz" cx="120" cy="28" r="3"/></g>
+    <g><line class="cordel" x1="180" y1="23" x2="180" y2="28.5"/><circle class="luz" cx="180" cy="31.5" r="3"/></g>
+    <g><line class="cordel" x1="240" y1="25.3" x2="240" y2="30.8"/><circle class="luz" cx="240" cy="33.8" r="3"/></g>
+    <g><line class="cordel" x1="300" y1="26" x2="300" y2="31.5"/><circle class="luz" cx="300" cy="34.5" r="3"/></g>
+    <g><line class="cordel" x1="360" y1="25.3" x2="360" y2="30.8"/><circle class="luz" cx="360" cy="33.8" r="3"/></g>
+    <g><line class="cordel" x1="420" y1="23" x2="420" y2="28.5"/><circle class="luz" cx="420" cy="31.5" r="3"/></g>
+    <g><line class="cordel" x1="480" y1="19.5" x2="480" y2="25"/><circle class="luz" cx="480" cy="28" r="3"/></g>
+    <g><line class="cordel" x1="540" y1="14.5" x2="540" y2="20"/><circle class="luz" cx="540" cy="23" r="3"/></g>
+  </svg>
 </div>
 
 <section class="wrap">
@@ -161,10 +214,40 @@
   <div id="cabanas"><div class="cargando" data-t="cargando">Carregando…</div></div>
 </section>
 
+<div class="guirnalda" aria-hidden="true">
+  <svg viewBox="0 0 600 46">
+    <path class="cordel" d="M0,8 Q300,44 600,8"/>
+    <g><line class="cordel" x1="60" y1="14.5" x2="60" y2="20"/><circle class="luz" cx="60" cy="23" r="3"/></g>
+    <g><line class="cordel" x1="120" y1="19.5" x2="120" y2="25"/><circle class="luz" cx="120" cy="28" r="3"/></g>
+    <g><line class="cordel" x1="180" y1="23" x2="180" y2="28.5"/><circle class="luz" cx="180" cy="31.5" r="3"/></g>
+    <g><line class="cordel" x1="240" y1="25.3" x2="240" y2="30.8"/><circle class="luz" cx="240" cy="33.8" r="3"/></g>
+    <g><line class="cordel" x1="300" y1="26" x2="300" y2="31.5"/><circle class="luz" cx="300" cy="34.5" r="3"/></g>
+    <g><line class="cordel" x1="360" y1="25.3" x2="360" y2="30.8"/><circle class="luz" cx="360" cy="33.8" r="3"/></g>
+    <g><line class="cordel" x1="420" y1="23" x2="420" y2="28.5"/><circle class="luz" cx="420" cy="31.5" r="3"/></g>
+    <g><line class="cordel" x1="480" y1="19.5" x2="480" y2="25"/><circle class="luz" cx="480" cy="28" r="3"/></g>
+    <g><line class="cordel" x1="540" y1="14.5" x2="540" y2="20"/><circle class="luz" cx="540" cy="23" r="3"/></g>
+  </svg>
+</div>
+
 <section class="wrap">
   <div class="titulo"><h2 data-t="tComunes">Áreas comuns</h2></div>
   <div class="espacios" id="espacios"></div>
 </section>
+
+<div class="guirnalda" aria-hidden="true">
+  <svg viewBox="0 0 600 46">
+    <path class="cordel" d="M0,8 Q300,44 600,8"/>
+    <g><line class="cordel" x1="60" y1="14.5" x2="60" y2="20"/><circle class="luz" cx="60" cy="23" r="3"/></g>
+    <g><line class="cordel" x1="120" y1="19.5" x2="120" y2="25"/><circle class="luz" cx="120" cy="28" r="3"/></g>
+    <g><line class="cordel" x1="180" y1="23" x2="180" y2="28.5"/><circle class="luz" cx="180" cy="31.5" r="3"/></g>
+    <g><line class="cordel" x1="240" y1="25.3" x2="240" y2="30.8"/><circle class="luz" cx="240" cy="33.8" r="3"/></g>
+    <g><line class="cordel" x1="300" y1="26" x2="300" y2="31.5"/><circle class="luz" cx="300" cy="34.5" r="3"/></g>
+    <g><line class="cordel" x1="360" y1="25.3" x2="360" y2="30.8"/><circle class="luz" cx="360" cy="33.8" r="3"/></g>
+    <g><line class="cordel" x1="420" y1="23" x2="420" y2="28.5"/><circle class="luz" cx="420" cy="31.5" r="3"/></g>
+    <g><line class="cordel" x1="480" y1="19.5" x2="480" y2="25"/><circle class="luz" cx="480" cy="28" r="3"/></g>
+    <g><line class="cordel" x1="540" y1="14.5" x2="540" y2="20"/><circle class="luz" cx="540" cy="23" r="3"/></g>
+  </svg>
+</div>
 
 <section class="wrap" id="consulta">
   <div class="titulo"><h2 data-t="tConsulta">Consultar disponibilidade</h2></div>
@@ -188,8 +271,8 @@
       </div>
       <div class="calGrid" id="calGrid"></div>
       <div class="calPie">
-        <span><i style="background:#f7e4e2"></i><span data-t="lOcupado">Ocupado</span></span>
-        <span><i style="background:var(--verde)"></i><span data-t="lElegido">Suas datas</span></span>
+        <span><i style="background:#f6e0da"></i><span data-t="lOcupado">Ocupado</span></span>
+        <span><i style="background:var(--selva)"></i><span data-t="lElegido">Suas datas</span></span>
       </div>
     </div>
     <div class="estado neutro" id="estado" data-t="elegir">Escolha o espaço e as datas.</div>
@@ -202,7 +285,8 @@
 
 <footer>
   <div class="wrap">
-    <b>Casa Verde Canas</b> · Canasvieiras, Florianópolis — SC, Brasil<br>
+    <img src="./img/logo-pie.png" alt="Casa Verde Canas" onerror="this.style.display='none'">
+    <div><b>Casa Verde Canas</b> · Canasvieiras, Florianópolis — SC, Brasil</div>
     <span data-t="pie">Reservas e consultas pelo WhatsApp.</span>
     · <a href="./interno/login.html" data-t="panel">Acesso da equipe</a>
   </div>
