@@ -58,7 +58,8 @@
   <div class="idioma"><span>🇬🇧 en</span><textarea id="dEn" rows="2"></textarea></div>
 
   <div class="fila2c">
-    <div><label>Capacidad (personas)</label><input id="fCap" type="number" min="1" step="1" inputmode="numeric"></div>
+    <div><label>Capacidad base</label><input id="fCapBase" type="number" min="1" step="1" inputmode="numeric"></div>
+    <div><label>Capacidad máxima</label><input id="fCapMax" type="number" min="1" step="1" inputmode="numeric"></div>
     <div><label>Orden en el sitio</label><input id="fOrden" type="number" min="1" step="1" inputmode="numeric"></div>
   </div>
   <div class="fila2c">
@@ -117,6 +118,20 @@ let invTmp = [];   // [{item, cantidad}] mientras se edita la cabaña
 
 // Normaliza el inventario venga como lista de strings (formato viejo
 // migrado) o como lista de {item, cantidad} (formato nuevo).
+// La migración cargó capacidad como {base,max}; el formato viejo era un
+// número suelto. Se aceptan los dos para no romper cabañas migradas.
+function normalizarCap(c) {
+  if (c && typeof c === 'object') {
+    return { base: Number(c.base) || 1, max: Number(c.max) || Number(c.base) || 1 };
+  }
+  const n = Number(c) || 4;
+  return { base: n, max: n };
+}
+function capTexto(c) {
+  const x = normalizarCap(c);
+  return x.base === x.max ? String(x.base) : x.base + '–' + x.max;
+}
+
 function normalizarInventario(inv) {
   if (!Array.isArray(inv)) return [];
   return inv.map((x) => typeof x === 'string'
@@ -155,7 +170,7 @@ function render() {
         <button class="btn-ico" onclick="editar('${c.id}')"><span class="material-icons">edit</span> Editar</button>
       </div>
       <div class="datos">
-        <span>👥 ${c.capacidad ?? '—'}</span>
+        <span>👥 ${capTexto(c.capacidad)}</span>
         <span>🌙 ${CV2.fmtMonto(c.tarifas?.noche ?? 0)}/noche</span>
         <span>🧹 ${CV2.fmtMonto(c.tarifas?.limpieza ?? 0)} limpieza</span>
         <span>📅 ${c.calendarId ? 'calendario conectado' : 'sin calendario Airbnb'}</span>
@@ -177,7 +192,7 @@ window.crearBase = async () => {
     for (const c of base) {
       await setDoc(doc(db, 'cabanas', c.id), {
         nombre: c.nombre, descripcion: { es: '', pt: '', en: '' },
-        capacidad: 4, tarifas: { noche: 0, limpieza: 0, moneda: 'BRL' },
+        capacidad: { base: 4, max: 4 }, tarifas: { noche: 0, limpieza: 0, moneda: 'BRL' },
         amenities: [], fotos: [], calendarId: null,
         inventarioBase: [], orden: c.orden, activa: true,
         creadoEn: serverTimestamp()
@@ -227,7 +242,9 @@ window.editar = (id) => {
   $('mTit').textContent = 'Editar · ' + nom(c);
   $('nEs').value = c.nombre?.es ?? ''; $('nPt').value = c.nombre?.pt ?? ''; $('nEn').value = c.nombre?.en ?? '';
   $('dEs').value = c.descripcion?.es ?? ''; $('dPt').value = c.descripcion?.pt ?? ''; $('dEn').value = c.descripcion?.en ?? '';
-  $('fCap').value = c.capacidad ?? 4;
+  const cap = normalizarCap(c.capacidad);
+  $('fCapBase').value = cap.base;
+  $('fCapMax').value = cap.max;
   $('fOrden').value = c.orden ?? 1;
   $('fNoche').value = c.tarifas?.noche ?? 0;
   $('fLimpieza').value = c.tarifas?.limpieza ?? 0;
@@ -268,7 +285,10 @@ $('mGuardar').addEventListener('click', async () => {
     await updateDoc(doc(db, 'cabanas', editId), {
       nombre: { es, pt: $('nPt').value.trim() || es, en: $('nEn').value.trim() || es },
       descripcion: { es: $('dEs').value.trim(), pt: $('dPt').value.trim(), en: $('dEn').value.trim() },
-      capacidad: Math.max(1, parseInt($('fCap').value) || 1),
+      capacidad: {
+        base: Math.max(1, parseInt($('fCapBase').value) || 1),
+        max: Math.max(1, parseInt($('fCapMax').value) || parseInt($('fCapBase').value) || 1)
+      },
       orden: Math.max(1, parseInt($('fOrden').value) || 1),
       tarifas: {
         noche: Math.max(0, parseFloat($('fNoche').value) || 0),

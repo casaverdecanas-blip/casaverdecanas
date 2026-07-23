@@ -434,6 +434,8 @@ function nodoHTML(id) {
         ${!it.hecho && !miCrono ? `<button class="btn-ico" onclick="realizada('${id}')" title="${it.reservaId && it.fase === 'entrada' ? 'Limpieza terminada' : 'Realizada sin cronómetro'}"><span class="material-icons" style="color:var(--ok)">task_alt</span></button>` : ''}
         ${(it.reservaId && it.cabanaId && it.fase === 'entrada') ? `<button class="btn-ico" onclick="abrirChequeo('${id}')" title="Control de inventario (entrada)"><span class="material-icons" style="color:${it.controlEntradaHecho ? 'var(--ok)' : '#33506e'}">inventory</span></button>` : ''}
         ${(it.reservaId && it.cabanaId && it.fase === 'salida') ? `<button class="btn-ico" onclick="abrirChequeo('${id}')" title="Control de salida (check-out)"><span class="material-icons" style="color:#8a6206">logout</span></button>` : ''}
+        ${(it.faltantesData && !it.gastoMovimientoId && CV2.puede('dinero')) ? `<button class="btn-ico" onclick="gastoDeFaltante('${id}')" title="Registrar el gasto de reponer en Dinero"><span class="material-icons" style="color:#2d5a27">savings</span></button>` : ''}
+        ${it.gastoMovimientoId ? `<span title="Gasto ya registrado en Dinero" style="font-size:.68rem;padding:2px 7px;border-radius:999px;background:#eef4fb;color:#33506e;">→ Dinero</span>` : ''}
         ${it.hecho && CV2.esAdmin() ? `<button class="btn-ico" onclick="restaurar('${id}')" title="Restaurar"><span class="material-icons">restart_alt</span></button>` : ''}
         ${!it.hecho ? `<button class="btn-ico" onclick="abrirAlta('${id}')" title="Agregar sub-ítem"><span class="material-icons">add</span></button>` : ''}
         <button class="btn-ico" onclick="toggleEstrella('${id}')" title="Destacar">
@@ -1013,6 +1015,35 @@ $('chGuardarOut').addEventListener('click', async () => {
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
   finally { $('chGuardarOut').disabled = false; }
 });
+
+// Reponer un faltante cuesta plata: este botón lleva ese gasto a Dinero.
+// Es OPCIONAL (no todo faltante se repone comprando) y por eso no es
+// automático. La cuenta se completa después editando en Dinero.
+window.gastoDeFaltante = async (id) => {
+  const it = byId[id];
+  if (!it || !it.faltantesData || it.gastoMovimientoId) return;
+  const txt = prompt('¿Cuánto costó reponer/reparar? (R$)', '');
+  if (txt === null) return;
+  const monto = Math.max(0, parseFloat(String(txt).replace(',', '.')) || 0);
+  if (!monto) { CV2.toast('Monto inválido', 'error'); return; }
+  try {
+    const ref = await setDoc(doc(db, 'movimientos', 'gasto-' + id), {
+      fecha: CV2.hoyISO(), tipo: 'salio',
+      monto, moneda: 'BRL', montoBRL: monto,
+      categoria: 'Mantenimiento', cuenta: null,
+      uid: u.uid, nombre: u.nombre ?? '',
+      detalle: 'Reposición — ' + (it.titulo || ''),
+      comprobanteUrl: null, pendiente: null,
+      refTipo: 'faltante', refId: id,
+      creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? '',
+      actualizadoEn: serverTimestamp()
+    }, { merge: true });
+    await updateDoc(doc(db, 'actividades', id), {
+      gastoMovimientoId: 'gasto-' + id, actualizadoEn: serverTimestamp()
+    });
+    CV2.toast('✓ Gasto registrado en Dinero (completá la cuenta ahí)', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+};
 
 // ═══ Suscripción en vivo — SIEMPRE AL FINAL ═══════════════
 if (typeof Core.consultaActividades !== 'function') {
