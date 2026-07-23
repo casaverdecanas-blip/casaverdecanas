@@ -192,12 +192,14 @@
 // cero backend, y el contacto llega directo.
 // ═══════════════════════════════════════════════════════════
 import {
-  db, collection, getDocs
+  db, collection, getDocs, doc, getDoc
 } from './interno/firebase-init.js';
 
-// ⚠ EDITAR: número de WhatsApp que recibe las consultas (con código de país,
-// sin espacios ni signos). Ej. Brasil: 5548999999999
-const WHATSAPP = '5548000000000';
+// El WhatsApp y los textos se editan desde el panel (Contenido del sitio →
+// Textos y contacto) y viven en config/sitio, de lectura pública. Acá solo
+// queda el respaldo por si ese documento todavía no existe.
+let WHATSAPP = '';
+let TEXTOS = {};
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
@@ -235,7 +237,9 @@ const T = {
 };
 let lang = (navigator.language || 'pt').slice(0, 2);
 if (!T[lang]) lang = 'pt';
-const t = (k) => (T[lang] && T[lang][k]) || T.pt[k] || k;
+// Prioridad: lo editado en el panel → el diccionario por defecto → la clave.
+const t = (k) => (TEXTOS[lang] && TEXTOS[lang][k])
+  || (T[lang] && T[lang][k]) || T.pt[k] || k;
 
 function aplicarIdioma() {
   document.documentElement.lang = lang;
@@ -341,6 +345,11 @@ function armarLink(cab, ci, co, choque) {
     + (choque ? (lang === 'es' ? ' Vi que está ocupado, ¿hay otra opción?' :
                  lang === 'en' ? ' I saw it is taken, any alternative?' :
                  ' Vi que está ocupado, tem outra opção?') : '');
+  if (!WHATSAPP) {
+    // Sin número cargado en el panel, el botón no lleva a ningún lado.
+    $('btnWa').href = '#'; $('waTop').href = '#';
+    return;
+  }
   const url = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(msj);
   $('btnWa').href = url;
   $('waTop').href = url;
@@ -361,6 +370,15 @@ try {
   es.forEach((d) => espacios.push({ id: d.id, ...d.data() }));
   espacios.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
 } catch (e) { console.warn('espacios', e); }
+
+try {
+  const cfg = await getDoc(doc(db, 'config', 'sitio'));
+  if (cfg.exists()) {
+    const x = cfg.data();
+    WHATSAPP = (x.whatsapp || '').replace(/[^0-9]/g, '');
+    TEXTOS = x.textos || {};
+  }
+} catch (e) { console.warn('config sitio', e); }
 
 try {
   const os = await getDocs(collection(db, 'disponibilidad'));
