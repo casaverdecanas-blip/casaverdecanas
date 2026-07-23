@@ -111,7 +111,7 @@ CV2.NAV = [
   { id: 'horas', label: 'Horas', href: './horas-stats.html', icono: 'insights', permiso: 'horas' },
   { id: 'honorarios', label: 'Cobros', href: './honorarios.html', icono: 'payments', permiso: null },
   { id: 'dinero', label: 'Dinero', href: './dinero.html', icono: 'savings', permiso: ['dinero', 'finanzas'] },
-  { id: 'cabanas', label: 'Cabañas', href: './cabanas.html', icono: 'cottage', permiso: 'contenido' },
+  { id: 'cabanas', label: 'Sitio', href: './cabanas.html', icono: 'cottage', permiso: 'contenido' },
   { id: 'espacios', label: 'Espacios', href: './espacios.html', icono: 'deck', permiso: 'contenido' },
   { id: 'usuarios', label: 'Usuarios', href: './usuarios.html', icono: 'group', permiso: null, soloAdmin: true }
 ];

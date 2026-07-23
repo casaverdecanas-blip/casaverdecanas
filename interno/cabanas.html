@@ -38,11 +38,61 @@
 <div id="nav"></div>
 
 <div class="contenedor">
-  <h1>Cabañas</h1>
-  <p class="texto-gris" style="margin-top:-6px;">La información de cada cabaña alimenta
-  las reservas, las limpiezas y —en la Fase 4— el sitio público en tres idiomas.</p>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h1 style="margin-right:auto;">Contenido del sitio</h1>
+    <a class="btn" href="./espacios.html"><span class="material-icons">deck</span> Espacios</a>
+    <button class="btn btn-primario" id="btnSitio">
+      <span class="material-icons">tune</span> Textos y contacto</button>
+  </div>
+  <p class="texto-gris" style="margin-top:-6px;">Todo lo que se ve en
+  <b>casaverdecanas.com.br</b>: las cabañas con sus fotos y descripciones, los espacios
+  comunes, los textos de la portada y el WhatsApp que recibe las consultas.</p>
+  <h2 style="font-size:1.05rem;margin:18px 0 6px;">Cabañas</h2>
   <div id="lista"><div class="vacio">Cargando…</div></div>
 </div>
+
+<!-- ═══ Textos del sitio y contacto ═══════════════════════════ -->
+<dialog id="mSitio" style="width:min(560px,95vw);">
+  <h2 style="margin:0 0 4px;">Textos y contacto del sitio</h2>
+  <p class="texto-gris" style="margin:0 0 12px;font-size:.84rem;">
+    Lo que queda vacío usa el texto por defecto del sitio.</p>
+
+  <label>WhatsApp que recibe las consultas</label>
+  <input id="sWa" inputmode="tel" placeholder="5548999999999"
+    style="font-family:monospace;">
+  <p class="texto-gris" style="font-size:.78rem;margin:4px 0 12px;">
+    Con código de país, sin espacios ni signos. Brasil: 55 + DDD + número.</p>
+
+  <div style="display:flex;gap:6px;margin-bottom:12px;">
+    <button class="btn sIdi activo" data-i="pt" style="flex:1;">Português</button>
+    <button class="btn sIdi" data-i="es" style="flex:1;">Español</button>
+    <button class="btn sIdi" data-i="en" style="flex:1;">English</button>
+  </div>
+
+  <label>Título de portada</label>
+  <input id="sTitulo" maxlength="90">
+  <label>Bajada</label>
+  <textarea id="sBajada" rows="2" maxlength="220"></textarea>
+
+  <label>Destacados (los tres globitos)</label>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+    <input id="sC1" maxlength="24"><input id="sC2" maxlength="24"><input id="sC3" maxlength="24">
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+    <div><label>Título "cabañas"</label><input id="sTCab" maxlength="40"></div>
+    <div><label>Título "áreas comunes"</label><input id="sTCom" maxlength="40"></div>
+  </div>
+  <label>Título de la consulta</label>
+  <input id="sTCons" maxlength="50">
+  <label>Pie de página</label>
+  <input id="sPie" maxlength="120">
+
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+    <button class="btn" id="sCancelar">Cancelar</button>
+    <button class="btn btn-primario" id="sGuardar"><span class="material-icons">save</span> Guardar</button>
+  </div>
+</dialog>
 
 <dialog id="modal">
   <h2 id="mTit" style="margin:0 0 6px;">Editar cabaña</h2>
@@ -100,7 +150,7 @@
 
 <script type="module">
 // Regla del 2.0: definiciones primero, suscripción AL FINAL.
-import { db, collection, onSnapshot, doc, updateDoc, setDoc, serverTimestamp } from './firebase-init.js';
+import { db, collection, onSnapshot, doc, getDoc, updateDoc, setDoc, serverTimestamp } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
 
 CV2.registrarSW();
@@ -308,6 +358,72 @@ $('mGuardar').addEventListener('click', async () => {
 });
 
 // ═══ Suscripción — AL FINAL ═══════════════════════════════
+
+// ═══ Textos y contacto del sitio público ══════════════════
+// Viven en config/sitio, que la regla deja leer SIN sesión (el sitio no
+// tiene login). Lo que quede vacío no se guarda: el sitio cae en su
+// texto por defecto. Un solo lugar para todo el contenido público.
+const CAMPOS = { sTitulo:'titulo', sBajada:'bajada', sC1:'c1', sC2:'c2', sC3:'c3',
+  sTCab:'tCabanas', sTCom:'tComunes', sTCons:'tConsulta', sPie:'pie' };
+let sitio = { whatsapp: '', textos: { pt:{}, es:{}, en:{} } };
+let idiomaSitio = 'pt';
+
+function cargarIdioma(i) {
+  idiomaSitio = i;
+  document.querySelectorAll('.sIdi').forEach((b) => b.classList.toggle('activo', b.dataset.i === i));
+  const t = (sitio.textos && sitio.textos[i]) || {};
+  Object.keys(CAMPOS).forEach((id) => { $(id).value = t[CAMPOS[id]] || ''; });
+}
+
+function guardarIdiomaActual() {
+  const t = {};
+  Object.keys(CAMPOS).forEach((id) => {
+    const v = $(id).value.trim();
+    if (v) t[CAMPOS[id]] = v;
+  });
+  sitio.textos = sitio.textos || {};
+  sitio.textos[idiomaSitio] = t;
+}
+
+document.querySelectorAll('.sIdi').forEach((b) => b.addEventListener('click', () => {
+  guardarIdiomaActual();          // no perder lo tipeado al cambiar de idioma
+  cargarIdioma(b.dataset.i);
+}));
+
+$('btnSitio').addEventListener('click', async () => {
+  try {
+    const d = await getDoc(doc(db, 'config', 'sitio'));
+    if (d.exists()) {
+      const x = d.data();
+      sitio = { whatsapp: x.whatsapp || '', textos: x.textos || { pt:{}, es:{}, en:{} } };
+    }
+  } catch (e) { CV2.toast('No se pudo leer la configuración', 'error'); }
+  $('sWa').value = sitio.whatsapp || '';
+  cargarIdioma('pt');
+  $('mSitio').showModal();
+});
+
+$('sCancelar').addEventListener('click', () => $('mSitio').close());
+
+$('sGuardar').addEventListener('click', async () => {
+  guardarIdiomaActual();
+  const wa = $('sWa').value.replace(/[^0-9]/g, '');
+  if (wa && wa.length < 10) { CV2.toast('El número de WhatsApp parece incompleto', 'error'); return; }
+  $('sGuardar').disabled = true;
+  try {
+    await setDoc(doc(db, 'config', 'sitio'), {
+      whatsapp: wa,
+      textos: sitio.textos,
+      actualizadoEn: serverTimestamp(),
+      actualizadoPor: u.uid
+    }, { merge: true });
+    sitio.whatsapp = wa;
+    $('mSitio').close();
+    CV2.toast('✓ Sitio actualizado', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+  finally { $('sGuardar').disabled = false; }
+});
+
 onSnapshot(collection(db, 'cabanas'), (snap) => {
   cabanas = [];
   snap.forEach((d) => cabanas.push({ id: d.id, ...d.data() }));
