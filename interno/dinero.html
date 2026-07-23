@@ -328,9 +328,20 @@ function totalizar(lista) {
     (porCategoria[c] ??= { categoria: c, entro: 0, salio: 0 });
     if (m.tipo === 'entro') porCategoria[c].entro += v; else porCategoria[c].salio += v;
   }
+  // Totales POR MONEDA. Reales y dólares no se suman nunca entre sí: la
+  // cuenta define la moneda y cada una cierra su propio resultado.
+  const porMoneda = {};
+  for (const m of lista) {
+    if (porCobrarVivo(m)) continue;
+    const mo = m.moneda || 'BRL';
+    (porMoneda[mo] ??= { moneda: mo, entro: 0, salio: 0 });
+    const v = Number(m.monto) || 0;
+    if (m.tipo === 'entro') porMoneda[mo].entro += v; else porMoneda[mo].salio += v;
+  }
   return {
     entroBRL: entro, salioBRL: salio, resultadoBRL: entro - salio,
     porCobrarBRL: porCobrar, movimientos: lista.length,
+    porMoneda: Object.values(porMoneda).sort((a, b) => a.moneda.localeCompare(b.moneda)),
     porCategoria: Object.values(porCategoria).sort((a, b) => (b.entro + b.salio) - (a.entro + a.salio))
   };
 }
@@ -338,10 +349,27 @@ function totalizar(lista) {
 function render() {
   const fs = filtrados();
   const t = totalizar(fs);
-  $('kEntro').textContent = CV2.fmtMonto(t.entroBRL);
-  $('kSalio').textContent = CV2.fmtMonto(t.salioBRL);
-  $('kResultado').textContent = CV2.fmtMonto(t.resultadoBRL);
-  $('kResultado').style.color = t.resultadoBRL >= 0 ? 'var(--ok)' : 'var(--rojo)';
+  // Si hay más de una moneda, se muestran los tres KPIs por cada una.
+  const ms = t.porMoneda.length ? t.porMoneda : [{ moneda: 'BRL', entro: 0, salio: 0 }];
+  const brl = ms.find((x) => x.moneda === 'BRL') || { entro: 0, salio: 0 };
+  $('kEntro').textContent = CV2.fmtMonto(brl.entro, 'BRL');
+  $('kSalio').textContent = CV2.fmtMonto(brl.salio, 'BRL');
+  $('kResultado').textContent = CV2.fmtMonto(brl.entro - brl.salio, 'BRL');
+  $('kResultado').style.color = (brl.entro - brl.salio) >= 0 ? 'var(--ok)' : 'var(--rojo)';
+  // Las demás monedas van en su propia fila, debajo.
+  const otras = ms.filter((x) => x.moneda !== 'BRL');
+  let cajaOtras = document.getElementById('kpisOtras');
+  if (!cajaOtras) {
+    cajaOtras = document.createElement('div');
+    cajaOtras.id = 'kpisOtras';
+    document.querySelector('.kpis').insertAdjacentElement('afterend', cajaOtras);
+  }
+  cajaOtras.innerHTML = otras.map((x) => `
+    <div class="kpis" style="margin-top:8px;">
+      <div class="kpi"><b style="color:var(--ok);">${CV2.fmtMonto(x.entro, x.moneda)}</b><span>Entró (${esc(x.moneda)})</span></div>
+      <div class="kpi"><b style="color:var(--rojo);">${CV2.fmtMonto(x.salio, x.moneda)}</b><span>Salió (${esc(x.moneda)})</span></div>
+      <div class="kpi"><b style="color:${(x.entro - x.salio) >= 0 ? 'var(--ok)' : 'var(--rojo)'};">${CV2.fmtMonto(x.entro - x.salio, x.moneda)}</b><span>Resultado (${esc(x.moneda)})</span></div>
+    </div>`).join('');
   $('kpiCobrar').hidden = t.porCobrarBRL === 0;
   $('kCobrar').textContent = CV2.fmtMonto(t.porCobrarBRL);
 
@@ -411,16 +439,22 @@ function renderCuentas() {
   for (const m of movs) {
     if (m.cierreId) continue;            // ya balanceado: vive en el histórico
     if (porCobrarVivo(m)) continue;      // lo por cobrar no cuenta hasta saldarse
-    const c = m.cuenta || '(sin definir)';
-    saldos[c] = (saldos[c] || 0) + (m.tipo === 'entro' ? enBRL(m) : -enBRL(m));
+    // La cuenta define la moneda: se agrupa por cuenta+moneda y cada una
+    // muestra su propio saldo, sin mezclar.
+    const c = (m.cuenta || '(sin definir)') + '|' + (m.moneda || 'BRL');
+    const v = Number(m.monto) || 0;
+    saldos[c] = (saldos[c] || 0) + (m.tipo === 'entro' ? v : -v);
   }
   const filas = Object.keys(saldos).sort();
   $('cardCuentas').hidden = filas.length === 0;
-  $('cuentasLista').innerHTML = filas.map((c) => `
+  $('cuentasLista').innerHTML = filas.map((k) => {
+    const [nombre, mon] = k.split('|');
+    return `
     <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed var(--linea);font-size:.9rem;">
-      <span style="flex:1;">🏦 ${esc(c)}</span>
-      <b style="color:${saldos[c] >= 0 ? 'var(--ok)' : 'var(--rojo)'};">${CV2.fmtMonto(saldos[c])}</b>
-    </div>`).join('');
+      <span style="flex:1;">🏦 ${esc(nombre)} <small class="texto-gris">${esc(mon)}</small></span>
+      <b style="color:${saldos[k] >= 0 ? 'var(--ok)' : 'var(--rojo)'};">${CV2.fmtMonto(saldos[k], mon)}</b>
+    </div>`;
+  }).join('');
 }
 
 function renderPendientes() {
