@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Casa Verde Canas · Canasvieiras, Florianópolis</title>
 <meta name="description" content="Cabañas y departamentos a tres cuadras del mar en Canasvieiras, Florianópolis. Piscina, parrilla y espacios verdes.">
-<link rel="icon" href="./interno/icono-192.png">
-<link rel="apple-touch-icon" href="./interno/apple-touch-icon.png">
+<link rel="icon" href="./img/icono-192.png">
+<link rel="apple-touch-icon" href="./img/apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <meta name="theme-color" content="#225b38">
@@ -38,6 +38,8 @@
   .marca{margin-right:auto;display:flex;align-items:center;text-decoration:none;
     font-family:Fraunces,serif;font-weight:600;color:var(--selva-osc);font-size:1.05rem}
   .marca img{height:42px;width:auto;display:block}
+  .marca-txt{display:none;font-family:Fraunces,serif;font-weight:600;font-size:1.12rem;
+    color:var(--selva-osc);letter-spacing:-.01em}
   .idiomas{display:flex;gap:2px}
   .idiomas button{border:0;background:none;font:inherit;font-size:.8rem;cursor:pointer;
     padding:5px 9px;border-radius:7px;color:var(--gris)}
@@ -164,7 +166,9 @@
 
 <header>
   <div class="wrap barra">
-    <a class="marca" href="#top"><img src="./img/logo-sitio.png" alt="Casa Verde Canas"></a>
+    <a class="marca" href="#top"><img src="./img/logo-sitio.png" alt=""
+       onerror="if(!this.dataset.r){this.dataset.r=1;this.src='./logo-sitio.png';}else{this.remove();document.getElementById('marcaTxt').style.display='block';}"><span
+       id="marcaTxt" class="marca-txt">Casa Verde Canas</span></a>
     <div class="idiomas">
       <button data-i="pt">PT</button>
       <button data-i="es">ES</button>
@@ -179,8 +183,8 @@
 
 <div class="hero" id="top">
   <div class="wrap">
-    <img class="dibujo" src="./img/ilustracion-hero.jpg" alt="Casa Verde Canas entre el verde"
-         onerror="this.style.display='none'">
+    <img class="dibujo" src="./img/ilustracion-hero.jpg" alt=""
+         onerror="if(!this.dataset.r){this.dataset.r=1;this.src='./ilustracion-hero.jpg';}else{this.style.display='none';}">
   </div>
   <div class="wrap hero-txt">
     <h1 data-t="titulo">A três quadras do mar, cercado de verde</h1>
@@ -285,7 +289,8 @@
 
 <footer>
   <div class="wrap">
-    <img src="./img/logo-pie.png" alt="Casa Verde Canas" onerror="this.style.display='none'">
+    <img src="./img/logo-pie.png" alt=""
+         onerror="if(!this.dataset.r){this.dataset.r=1;this.src='./logo-pie.png';}else{this.style.display='none';}">
     <div><b>Casa Verde Canas</b> · Canasvieiras, Florianópolis — SC, Brasil</div>
     <span data-t="pie">Reservas e consultas pelo WhatsApp.</span>
     · <a href="./interno/login.html" data-t="panel">Acesso da equipe</a>
