@@ -188,6 +188,32 @@ function baseActividad(u, extra) {
   }, extra);
 }
 
+
+/**
+ * Espejo público de ocupación. La colección 'disponibilidad' existe para que
+ * el sitio (sin sesión) pueda mostrar qué está ocupado SIN exponer nombres,
+ * teléfonos ni montos: guarda únicamente cabaña y fechas.
+ * Se mantiene desde acá para que no haya un segundo lugar donde actualizarla.
+ */
+async function espejarDisponibilidad(r) {
+  const ref = doc(db, 'disponibilidad', r.id);
+  const ocupa = r.estado === 'confirmada'
+    && typeof r.checkIn === 'string' && typeof r.checkOut === 'string';
+  try {
+    if (ocupa) {
+      await setDoc(ref, {
+        cabanaId: r.cabanaId, desde: r.checkIn, hasta: r.checkOut,
+        actualizadoEn: serverTimestamp()
+      });
+    } else {
+      await deleteDoc(ref);
+    }
+  } catch (e) {
+    // Nunca hacer fracasar la reserva por el espejo público.
+    console.warn('disponibilidad:', e);
+  }
+}
+
 /**
  * Barre TODAS las reservas y materializa las que entran en la ventana de 7
  * días. Como no hay servidor, se llama al abrir la app (Actividades y
@@ -230,6 +256,7 @@ RCore.sincronizarLimpiezas = async (reservas, cabanas, u) => {
   };
 
   for (const r of reservas) {
+    await espejarDisponibilidad(r);
     const cab = nomCab(cabanas, r.cabanaId);
     const okFechas = typeof r.checkIn === 'string' && typeof r.checkOut === 'string';
 
