@@ -166,7 +166,7 @@
 <script type="module">
 // Regla del 2.0: definiciones primero, suscripción AL FINAL.
 import {
-  db, collection, query, onSnapshot, getDocs,
+  db, collection, query, where, onSnapshot, getDocs,
   doc, addDoc, updateDoc, setDoc, deleteDoc, serverTimestamp, arrayUnion, Timestamp
 } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
@@ -317,9 +317,13 @@ window.cambiarEstado = async (id, nuevo) => {
     // Limpieza automática: confirmar la crea, anular la borra (si no se hizo)
     try {
       const s = await RCore.sincronizarLimpiezas([{ ...r, estado: nuevo }], cabanas, u);
-      if (s.creadas) CV2.toast(`🧹 Limpieza programada para el ${CV2.fmtFecha(r.checkOut)}`, 'info');
+      if (s.creadas) CV2.toast(`🧹 Limpieza creada para el ${CV2.fmtFecha(r.checkIn)}`, 'info');
+      else if (nuevo === 'confirmada') CV2.toast(`La limpieza aparecerá una semana antes del ${CV2.fmtFecha(r.checkIn)}`, 'info');
       if (s.borradas) CV2.toast('🧹 Limpieza cancelada', 'info');
-    } catch (e2) { console.warn('limpiezas:', e2); }
+    } catch (e2) {
+      console.warn('limpiezas:', e2);
+      CV2.toast('No se pudo crear la limpieza: ' + (e2.code ?? e2.message), 'error');
+    }
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
 };
 
@@ -450,14 +454,19 @@ $('mGuardar').addEventListener('click', async () => {
         creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
       });
       CV2.toast('Creada', 'success');
-      // Si nace confirmada, se le crea la limpieza ya mismo (mismo camino
-      // que al confirmar una existente). El id lo devuelve el addDoc.
+      // Si nace confirmada, se le crea la limpieza ya mismo. Si el check-in
+      // está a más de 7 días, todavía no se materializa: se avisa para no
+      // dejar al usuario esperando algo que no va a aparecer.
       if (estado === 'confirmada') {
         try {
           const s = await RCore.sincronizarLimpiezas(
             [{ ...datos, id: nuevaRef.id, estado }], cabanas, u);
-          if (s.creadas) CV2.toast(`🧹 Limpieza programada para el ${CV2.fmtFecha(co)}`, 'info');
-        } catch (e2) { console.warn('limpiezas:', e2); }
+          if (s.creadas) CV2.toast(`🧹 Limpieza creada para el ${CV2.fmtFecha(ci)}`, 'info');
+          else CV2.toast(`La limpieza aparecerá una semana antes del ${CV2.fmtFecha(ci)}`, 'info');
+        } catch (e2) {
+          console.warn('limpiezas:', e2);
+          CV2.toast('No se pudo crear la limpieza: ' + (e2.code ?? e2.message), 'error');
+        }
       }
     }
     $('modal').close();
@@ -542,7 +551,7 @@ $('pGuardar').addEventListener('click', async () => {
   $('pGuardar').disabled = true;
   try {
     const r = reservas.find((x) => x.id === pagoReservaId);
-    await addDoc(collection(db, 'pagos'), {
+    const pagoRef = await addDoc(collection(db, 'pagos'), {
       reservaId: pagoReservaId,
       monto, moneda, montoBRL,
       categoria: $('pCategoria').value || null,
@@ -554,20 +563,45 @@ $('pGuardar').addEventListener('click', async () => {
       comprobanteUrl: null,
       creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
     });
+    // Puente a Dinero: todo cobro de reserva es una percepción del negocio.
+    // Entra como ingreso, categoría fija "Reservas" (para identificar que
+    // viene de la página de reservas), con la cuenta donde se recibió.
+    // Vínculo refTipo/refId → no se duplica si se reprocesa.
+    await addDoc(collection(db, 'movimientos'), {
+      fecha: $('pFecha').value || CV2.hoyISO(),
+      tipo: 'entro',
+      monto, moneda, montoBRL,
+      categoria: 'Reservas',
+      cuenta: $('pCuenta').value || null,
+      uid: u.uid,
+      nombre: (r && r.clienteNombre) || '',
+      detalle: 'Reserva ' + ((r && r.clienteNombre) || '') + ' · ' + $('pConcepto').value,
+      comprobanteUrl: null,
+      pendiente: null,
+      refTipo: 'pago', refId: pagoRef.id,
+      creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? '',
+      actualizadoEn: serverTimestamp()
+    });
     await updateDoc(doc(db, 'reservas', pagoReservaId), {
       historial: registrarCambio(`pago ${$('pConcepto').value} ${CV2.fmtMonto(monto, moneda)}${moneda !== 'BRL' ? ' (≈' + CV2.fmtMonto(montoBRL) + ')' : ''} → ${$('pCuenta').value || 'sin cuenta'}`),
       actualizadoEn: serverTimestamp()
     });
     $('mPago').close();
-    CV2.toast('💰 Pago registrado', 'success');
+    CV2.toast('💰 Pago registrado · ingreso en Dinero', 'success');
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
   finally { $('pGuardar').disabled = false; }
 });
 
 window.borrarPago = async (pid) => {
-  if (!confirm('¿Eliminar este pago?')) return;
+  if (!confirm('¿Eliminar este pago?\n\nTambién se borra el ingreso que generó en Dinero.')) return;
   try {
     await deleteDoc(doc(db, 'pagos', pid));
+    // El ingreso vinculado se va con él: si no, Dinero mostraría plata que
+    // ya no está respaldada por ningún cobro.
+    try {
+      const q = await getDocs(query(collection(db, 'movimientos'), where('refId', '==', pid)));
+      for (const d of q.docs) await deleteDoc(doc(db, 'movimientos', d.id));
+    } catch (e2) { console.warn('mov vinculado:', e2); }
     CV2.toast('Pago eliminado', 'success');
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
 };
