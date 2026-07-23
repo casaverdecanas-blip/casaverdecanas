@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Casa Verde Canas · Canasvieiras, Florianópolis</title>
+<meta name="description" content="Cabañas y departamentos a tres cuadras del mar en Canasvieiras, Florianópolis. Piscina, parrilla y espacios verdes.">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  :root{
+    --verde:#2d5a27; --verde-osc:#1e3d1a; --verde-claro:#e8f0e4;
+    --crema:#faf8f3; --tinta:#22271f; --gris:#6b7268; --linea:#e0ded6;
+    --sombra:0 2px 12px rgba(30,61,26,.07);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,sans-serif;color:var(--tinta);
+    background:var(--crema);line-height:1.55;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:700;line-height:1.15;margin:0}
+  a{color:inherit}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 20px}
+
+  /* ── Barra ── */
+  header{position:sticky;top:0;z-index:50;background:rgba(250,248,243,.93);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--linea)}
+  .barra{display:flex;align-items:center;gap:14px;padding:12px 0}
+  .marca{font-family:Fraunces,serif;font-weight:700;font-size:1.15rem;color:var(--verde-osc);
+    margin-right:auto;letter-spacing:-.01em}
+  .idiomas{display:flex;gap:2px}
+  .idiomas button{border:0;background:none;font:inherit;font-size:.8rem;cursor:pointer;
+    padding:5px 9px;border-radius:7px;color:var(--gris)}
+  .idiomas button.on{background:var(--verde-claro);color:var(--verde-osc);font-weight:600}
+  .wa{display:inline-flex;align-items:center;gap:6px;background:var(--verde);color:#fff;
+    text-decoration:none;padding:8px 15px;border-radius:999px;font-size:.86rem;font-weight:600}
+  .wa:hover{background:var(--verde-osc)}
+
+  /* ── Portada ── */
+  .hero{padding:60px 0 44px;text-align:center}
+  .hero h1{font-size:clamp(2rem,6vw,3.3rem);color:var(--verde-osc);letter-spacing:-.02em}
+  .hero p{font-size:1.05rem;color:var(--gris);max-width:560px;margin:14px auto 0}
+  .chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:22px}
+  .chip{background:#fff;border:1px solid var(--linea);border-radius:999px;
+    padding:6px 14px;font-size:.82rem;display:inline-flex;align-items:center;gap:6px}
+  .chip .material-icons{font-size:16px;color:var(--verde)}
+
+  /* ── Secciones ── */
+  section{padding:44px 0}
+  .titulo{display:flex;align-items:baseline;gap:12px;margin-bottom:22px}
+  .titulo h2{font-size:1.7rem;color:var(--verde-osc)}
+  .titulo span{font-size:.85rem;color:var(--gris)}
+
+  /* ── Cabañas ── */
+  .cab{background:#fff;border:1px solid var(--linea);border-radius:16px;overflow:hidden;
+    box-shadow:var(--sombra);margin-bottom:26px}
+  @media(min-width:760px){ .cab{display:grid;grid-template-columns:1.05fr 1fr} }
+  .slider{position:relative;background:#eceae3;aspect-ratio:4/3;overflow:hidden}
+  .slider img{width:100%;height:100%;object-fit:cover;display:none}
+  .slider img.on{display:block}
+  .slider .nav{position:absolute;top:50%;transform:translateY(-50%);border:0;
+    background:rgba(255,255,255,.9);width:36px;height:36px;border-radius:50%;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 1px 6px rgba(0,0,0,.15)}
+  .slider .prev{left:10px} .slider .next{right:10px}
+  .slider .puntos{position:absolute;bottom:10px;left:0;right:0;display:flex;
+    gap:5px;justify-content:center}
+  .slider .puntos i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.6)}
+  .slider .puntos i.on{background:#fff;width:16px;border-radius:3px}
+  .cab .cuerpo{padding:22px}
+  .cab h3{font-size:1.3rem;color:var(--verde-osc);margin-bottom:6px}
+  .cab .desc{font-size:.93rem;color:var(--gris);margin:0 0 14px}
+  .datos{display:flex;gap:14px;flex-wrap:wrap;font-size:.84rem;color:var(--gris);
+    padding-bottom:14px;border-bottom:1px solid var(--linea);margin-bottom:14px}
+  .datos b{color:var(--tinta)}
+  .amen{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+  .amen span{font-size:.76rem;background:var(--verde-claro);color:var(--verde-osc);
+    padding:3px 10px;border-radius:999px}
+  .precio{font-size:1.15rem;font-weight:700;color:var(--verde-osc)}
+  .precio small{font-weight:400;font-size:.8rem;color:var(--gris)}
+
+  /* ── Espacios ── */
+  .espacios{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+  .esp{background:#fff;border:1px solid var(--linea);border-radius:14px;overflow:hidden;
+    box-shadow:var(--sombra)}
+  .esp img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:#eceae3}
+  .esp p{margin:0;padding:11px 14px;font-size:.9rem;font-weight:500}
+
+  /* ── Consulta ── */
+  .consulta{background:#fff;border:1px solid var(--linea);border-radius:16px;
+    padding:24px;box-shadow:var(--sombra)}
+  .campos{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+  label{display:block;font-size:.82rem;font-weight:500;margin-bottom:5px}
+  input,select{width:100%;padding:10px 12px;border:1px solid var(--linea);border-radius:9px;
+    font:inherit;font-size:.92rem;background:var(--crema)}
+  .estado{margin:16px 0 0;padding:12px 14px;border-radius:10px;font-size:.9rem}
+  .libre{background:var(--verde-claro);color:var(--verde-osc)}
+  .ocupado{background:#fdeceb;color:#a32b22}
+  .neutro{background:#f2f1ec;color:var(--gris)}
+  .btn-wa{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    background:var(--verde);color:#fff;border:0;border-radius:999px;padding:13px 26px;
+    font:inherit;font-size:.95rem;font-weight:600;cursor:pointer;margin-top:18px;
+    text-decoration:none;width:100%}
+  .btn-wa:hover{background:var(--verde-osc)}
+  .btn-wa:disabled{background:#c3c8bf;cursor:not-allowed}
+
+  footer{background:var(--verde-osc);color:#cfe0c9;padding:34px 0;margin-top:30px;font-size:.88rem}
+  footer a{color:#fff}
+  .cargando{text-align:center;color:var(--gris);padding:40px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap barra">
+    <span class="marca">🌿 Casa Verde Canas</span>
+    <div class="idiomas">
+      <button data-i="pt">PT</button>
+      <button data-i="es">ES</button>
+      <button data-i="en">EN</button>
+    </div>
+    <a class="wa" id="waTop" href="#consulta">
+      <span class="material-icons" style="font-size:17px;">chat</span>
+      <span data-t="consultar">Consultar</span>
+    </a>
+  </div>
+</header>
+
+<div class="wrap hero">
+  <h1 data-t="titulo">A três quadras do mar, cercado de verde</h1>
+  <p data-t="bajada">Cabanas e apartamentos em Canasvieiras, Florianópolis. Piscina, churrasqueira e espaço para toda a família.</p>
+  <div class="chips">
+    <span class="chip"><span class="material-icons">pool</span><span data-t="c1">Piscina</span></span>
+    <span class="chip"><span class="material-icons">outdoor_grill</span><span data-t="c2">Churrasqueira</span></span>
+    <span class="chip"><span class="material-icons">beach_access</span><span data-t="c3">3 quadras do mar</span></span>
+    <span class="chip"><span class="material-icons">wifi</span>Wi-Fi</span>
+  </div>
+</div>
+
+<section class="wrap">
+  <div class="titulo"><h2 data-t="tCabanas">Nossos espaços</h2></div>
+  <div id="cabanas"><div class="cargando" data-t="cargando">Carregando…</div></div>
+</section>
+
+<section class="wrap">
+  <div class="titulo"><h2 data-t="tComunes">Áreas comuns</h2></div>
+  <div class="espacios" id="espacios"></div>
+</section>
+
+<section class="wrap" id="consulta">
+  <div class="titulo"><h2 data-t="tConsulta">Consultar disponibilidade</h2></div>
+  <div class="consulta">
+    <div class="campos">
+      <div>
+        <label data-t="lCabana">Espaço</label>
+        <select id="qCabana"></select>
+      </div>
+      <div>
+        <label data-t="lIn">Entrada</label>
+        <input type="date" id="qIn">
+      </div>
+      <div>
+        <label data-t="lOut">Saída</label>
+        <input type="date" id="qOut">
+      </div>
+      <div>
+        <label data-t="lPax">Pessoas</label>
+        <input type="number" id="qPax" min="1" value="2">
+      </div>
+    </div>
+    <div class="estado neutro" id="estado" data-t="elegir">Escolha o espaço e as datas.</div>
+    <a class="btn-wa" id="btnWa" href="#">
+      <span class="material-icons" style="font-size:19px;">chat</span>
+      <span data-t="pedir">Pedir orçamento pelo WhatsApp</span>
+    </a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <b>Casa Verde Canas</b> · Canasvieiras, Florianópolis — SC, Brasil<br>
+    <span data-t="pie">Reservas e consultas pelo WhatsApp.</span>
+    · <a href="./interno/login.html" data-t="panel">Acesso da equipe</a>
+  </div>
+</footer>
+
+<script type="module">
+// ═══════════════════════════════════════════════════════════
+// SITIO PÚBLICO — sin sesión.
+// Lee 'cabanas' y 'espacios_comunes' (lectura pública por regla) y
+// 'disponibilidad', que es el espejo de ocupación SIN datos de
+// huéspedes. /reservas/ nunca se toca desde acá.
+// El pedido de presupuesto sale por WhatsApp: cero escritura pública,
+// cero backend, y el contacto llega directo.
+// ═══════════════════════════════════════════════════════════
+import {
+  db, collection, getDocs
+} from './interno/firebase-init.js';
+
+// ⚠ EDITAR: número de WhatsApp que recibe las consultas (con código de país,
+// sin espacios ni signos). Ej. Brasil: 5548999999999
+const WHATSAPP = '5548000000000';
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
+  (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// ── Idiomas ──────────────────────────────────────────────────
+const T = {
+  pt: { consultar:'Consultar', titulo:'A três quadras do mar, cercado de verde',
+    bajada:'Cabanas e apartamentos em Canasvieiras, Florianópolis. Piscina, churrasqueira e espaço para toda a família.',
+    c1:'Piscina', c2:'Churrasqueira', c3:'3 quadras do mar',
+    tCabanas:'Nossos espaços', tComunes:'Áreas comuns', tConsulta:'Consultar disponibilidade',
+    lCabana:'Espaço', lIn:'Entrada', lOut:'Saída', lPax:'Pessoas',
+    elegir:'Escolha o espaço e as datas.', pedir:'Pedir orçamento pelo WhatsApp',
+    cargando:'Carregando…', pie:'Reservas e consultas pelo WhatsApp.', panel:'Acesso da equipe',
+    libre:'Disponível nessas datas', ocupado:'Ocupado nessas datas',
+    noches:'noites', hasta:'até', pers:'pessoas', desde:'a partir de', noite:'a noite' },
+  es: { consultar:'Consultar', titulo:'A tres cuadras del mar, rodeado de verde',
+    bajada:'Cabañas y departamentos en Canasvieiras, Florianópolis. Piscina, parrilla y lugar para toda la familia.',
+    c1:'Piscina', c2:'Parrilla', c3:'3 cuadras del mar',
+    tCabanas:'Nuestros espacios', tComunes:'Áreas comunes', tConsulta:'Consultar disponibilidad',
+    lCabana:'Espacio', lIn:'Entrada', lOut:'Salida', lPax:'Personas',
+    elegir:'Elegí el espacio y las fechas.', pedir:'Pedir presupuesto por WhatsApp',
+    cargando:'Cargando…', pie:'Reservas y consultas por WhatsApp.', panel:'Acceso del equipo',
+    libre:'Disponible en esas fechas', ocupado:'Ocupado en esas fechas',
+    noches:'noches', hasta:'hasta', pers:'personas', desde:'desde', noite:'la noche' },
+  en: { consultar:'Enquire', titulo:'Three blocks from the sea, surrounded by green',
+    bajada:'Cabins and apartments in Canasvieiras, Florianópolis. Pool, barbecue and room for the whole family.',
+    c1:'Pool', c2:'Barbecue', c3:'3 blocks from the sea',
+    tCabanas:'Our places', tComunes:'Common areas', tConsulta:'Check availability',
+    lCabana:'Place', lIn:'Check-in', lOut:'Check-out', lPax:'Guests',
+    elegir:'Choose a place and your dates.', pedir:'Ask for a quote on WhatsApp',
+    cargando:'Loading…', pie:'Bookings and enquiries via WhatsApp.', panel:'Team access',
+    libre:'Available on those dates', ocupado:'Not available on those dates',
+    noches:'nights', hasta:'to', pers:'guests', desde:'from', noite:'per night' }
+};
+let lang = (navigator.language || 'pt').slice(0, 2);
+if (!T[lang]) lang = 'pt';
+const t = (k) => (T[lang] && T[lang][k]) || T.pt[k] || k;
+
+function aplicarIdioma() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-t]').forEach((el) => { el.textContent = t(el.dataset.t); });
+  document.querySelectorAll('.idiomas button').forEach((b) =>
+    b.classList.toggle('on', b.dataset.i === lang));
+  pintarCabanas(); pintarEspacios(); pintarSelect(); revisar();
+}
+document.querySelectorAll('.idiomas button').forEach((b) =>
+  b.addEventListener('click', () => { lang = b.dataset.i; aplicarIdioma(); }));
+
+// ── Datos ────────────────────────────────────────────────────
+let cabanas = [], espacios = [], ocupacion = [];
+const txt = (o) => (o && (o[lang] || o.es || o.pt || o.en)) || '';
+const capDe = (c) => (c && typeof c.capacidad === 'object')
+  ? c.capacidad : { base: Number(c.capacidad) || 0, max: Number(c.capacidad) || 0 };
+
+// ── Cabañas con slider ───────────────────────────────────────
+function pintarCabanas() {
+  if (!cabanas.length) { $('cabanas').innerHTML = '<div class="cargando">—</div>'; return; }
+  $('cabanas').innerHTML = cabanas.map((c, i) => {
+    const fotos = (c.fotos || []).filter(Boolean);
+    const cap = capDe(c);
+    const noche = (c.tarifas && Number(c.tarifas.noche)) || 0;
+    return `
+    <article class="cab">
+      <div class="slider" data-s="${i}">
+        ${fotos.length
+          ? fotos.map((f, j) => `<img src="${esc(f)}" class="${j === 0 ? 'on' : ''}" loading="lazy" alt="">`).join('')
+          : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#a9aea4;">—</div>'}
+        ${fotos.length > 1 ? `
+          <button class="nav prev" onclick="mover(${i},-1)"><span class="material-icons">chevron_left</span></button>
+          <button class="nav next" onclick="mover(${i},1)"><span class="material-icons">chevron_right</span></button>
+          <div class="puntos">${fotos.map((_, j) => `<i class="${j === 0 ? 'on' : ''}"></i>`).join('')}</div>` : ''}
+      </div>
+      <div class="cuerpo">
+        <h3>${esc(txt(c.nombre))}</h3>
+        <p class="desc">${esc(txt(c.descripcion))}</p>
+        <div class="datos">
+          <span><b>${cap.base}</b>–<b>${cap.max}</b> ${esc(t('pers'))}</span>
+          ${noche ? `<span class="precio">${esc(t('desde'))} R$ ${noche} <small>${esc(t('noite'))}</small></span>` : ''}
+        </div>
+        ${(c.amenities || []).length
+          ? `<div class="amen">${c.amenities.slice(0, 8).map((a) => `<span>${esc(a)}</span>`).join('')}</div>` : ''}
+      </div>
+    </article>`;
+  }).join('');
+}
+
+window.mover = (i, d) => {
+  const s = document.querySelector('.slider[data-s="' + i + '"]');
+  if (!s) return;
+  const imgs = [...s.querySelectorAll('img')];
+  const pts = [...s.querySelectorAll('.puntos i')];
+  let a = imgs.findIndex((x) => x.classList.contains('on'));
+  imgs[a].classList.remove('on'); if (pts[a]) pts[a].classList.remove('on');
+  a = (a + d + imgs.length) % imgs.length;
+  imgs[a].classList.add('on'); if (pts[a]) pts[a].classList.add('on');
+};
+
+function pintarEspacios() {
+  $('espacios').innerHTML = espacios.map((e) => {
+    const f = (e.fotos || [])[0];
+    return `<div class="esp">
+      ${f ? `<img src="${esc(f)}" loading="lazy" alt="">` : '<div style="aspect-ratio:4/3;background:#eceae3;"></div>'}
+      <p>${esc(txt(e.nombre))}</p></div>`;
+  }).join('');
+}
+
+function pintarSelect() {
+  $('qCabana').innerHTML = cabanas.map((c) =>
+    `<option value="${esc(c.id)}">${esc(txt(c.nombre))}</option>`).join('');
+}
+
+// ── Disponibilidad ───────────────────────────────────────────
+// Dos rangos se pisan si uno empieza antes de que el otro termine.
+// Se compara con strings YYYY-MM-DD: el orden alfabético es cronológico.
+const seSolapa = (aIn, aOut, bIn, bOut) => aIn < bOut && bIn < aOut;
+
+function revisar() {
+  const cab = $('qCabana').value, ci = $('qIn').value, co = $('qOut').value;
+  const el = $('estado');
+  if (!cab || !ci || !co || ci >= co) {
+    el.className = 'estado neutro'; el.textContent = t('elegir');
+    $('btnWa').style.pointerEvents = 'none'; $('btnWa').style.opacity = '.55';
+    return;
+  }
+  const choque = ocupacion.some((o) => o.cabanaId === cab && seSolapa(ci, co, o.desde, o.hasta));
+  el.className = 'estado ' + (choque ? 'ocupado' : 'libre');
+  el.textContent = (choque ? '✕ ' : '✓ ') + t(choque ? 'ocupado' : 'libre');
+  $('btnWa').style.pointerEvents = ''; $('btnWa').style.opacity = '1';
+  armarLink(cab, ci, co, choque);
+}
+
+function armarLink(cab, ci, co, choque) {
+  const c = cabanas.find((x) => x.id === cab);
+  const nombre = c ? txt(c.nombre) : cab;
+  const noches = Math.round((new Date(co) - new Date(ci)) / 86400000);
+  const msj = (lang === 'es' ? 'Hola! Quisiera consultar por ' :
+               lang === 'en' ? 'Hi! I would like to ask about ' : 'Olá! Gostaria de consultar sobre ')
+    + nombre + ' — ' + ci + ' ' + t('hasta') + ' ' + co
+    + ' (' + noches + ' ' + t('noches') + '), ' + ($('qPax').value || 1) + ' ' + t('pers') + '.'
+    + (choque ? (lang === 'es' ? ' Vi que está ocupado, ¿hay otra opción?' :
+                 lang === 'en' ? ' I saw it is taken, any alternative?' :
+                 ' Vi que está ocupado, tem outra opção?') : '');
+  const url = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(msj);
+  $('btnWa').href = url;
+  $('waTop').href = url;
+}
+
+['qCabana', 'qIn', 'qOut', 'qPax'].forEach((id) =>
+  $(id).addEventListener('change', revisar));
+
+// ── Carga (lectura pública, una sola vez) ────────────────────
+try {
+  const cs = await getDocs(collection(db, 'cabanas'));
+  cs.forEach((d) => { const x = d.data(); if (x.activa !== false) cabanas.push({ id: d.id, ...x }); });
+  cabanas.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+} catch (e) { console.warn('cabanas', e); }
+
+try {
+  const es = await getDocs(collection(db, 'espacios_comunes'));
+  es.forEach((d) => espacios.push({ id: d.id, ...d.data() }));
+  espacios.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+} catch (e) { console.warn('espacios', e); }
+
+try {
+  const os = await getDocs(collection(db, 'disponibilidad'));
+  os.forEach((d) => ocupacion.push(d.data()));
+} catch (e) { console.warn('disponibilidad', e); }
+
+// Fechas por defecto: hoy y mañana.
+const hoy = new Date().toISOString().slice(0, 10);
+const man = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+$('qIn').min = hoy; $('qOut').min = man;
+aplicarIdioma();
+</script>
+</body>
+</html>

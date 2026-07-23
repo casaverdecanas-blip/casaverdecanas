@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Espacios comunes</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .esp { background:#fff; border:1px solid var(--linea); border-radius:var(--radio);
+    padding:12px; margin:8px 0; box-shadow:var(--sombra); }
+  .esp h3 { margin:0 0 2px; font-size:1rem; }
+  .esp .sub { font-size:.78rem; color:var(--gris); }
+  .miniatura { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .miniatura img { width:56px; height:56px; object-fit:cover; border-radius:6px; }
+  .fotosEdit { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .fotoBox { position:relative; }
+  .fotoBox img { width:76px; height:76px; object-fit:cover; border-radius:8px; display:block; }
+  .fotoBox button { position:absolute; top:-6px; right:-6px; border:0; border-radius:50%;
+    width:22px; height:22px; background:var(--rojo); color:#fff; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; padding:0; }
+  dialog { border:0; border-radius:14px; padding:16px; width:min(480px,94vw);
+    max-height:88dvh; overflow-y:auto; box-shadow:0 10px 40px rgba(0,0,0,.25); }
+  dialog::backdrop { background:rgba(20,30,18,.45); }
+  .vacio { text-align:center; color:var(--gris); padding:26px; }
+  .acc { display:flex; gap:6px; align-items:center; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h1 style="margin-right:auto;">Espacios comunes</h1>
+    <button class="btn btn-primario" id="btnNuevo">
+      <span class="material-icons">add</span> Espacio
+    </button>
+  </div>
+  <p class="texto-gris" style="margin-top:-6px;">
+    Lo que se muestra en el sitio público además de las cabañas: parrilla, piscina,
+    living, juegos… El orden es el que se ve en la web.
+  </p>
+
+  <div id="lista"><div class="vacio">Cargando…</div></div>
+</div>
+
+<dialog id="modal">
+  <h2 id="mTit" style="margin:0 0 8px;">Espacio</h2>
+
+  <label>Nombre (español)</label>
+  <input id="fEs" maxlength="60" placeholder="Parrilla / Barbacoa">
+  <div class="fila2c" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+    <div><label>Português</label><input id="fPt" maxlength="60"></div>
+    <div><label>English</label><input id="fEn" maxlength="60"></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+    <div><label>Identificador (slug)</label>
+      <input id="fSlug" maxlength="30" style="font-family:monospace;font-size:.84rem;" placeholder="barbacoa"></div>
+    <div><label>Orden</label>
+      <input id="fOrden" type="number" min="0" step="1" inputmode="numeric" value="0"></div>
+  </div>
+
+  <label style="margin-top:10px;">Fotos</label>
+  <div class="fotosEdit" id="fotosEdit"></div>
+  <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+    <button class="btn" id="btnFoto" style="font-size:.84rem;">
+      <span class="material-icons">add_photo_alternate</span> Agregar foto</button>
+    <input id="inputFoto" type="file" accept="image/*" class="oculto">
+    <span id="estadoFoto" class="texto-gris" style="font-size:.8rem;"></span>
+  </div>
+
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+    <button class="btn" id="mCancelar">Cancelar</button>
+    <button class="btn btn-primario" id="mGuardar"><span class="material-icons">save</span> Guardar</button>
+  </div>
+</dialog>
+
+<script type="module">
+// Editor de los espacios comunes que alimentan el sitio público.
+// Mismo modelo que cabanas: nombre multilingüe + fotos + orden.
+// Las fotos usan CV2.subirImagen (comprime a 2000px/0.85 antes de subir).
+// Regla 3.2: suscripción AL FINAL.
+import {
+  db, collection, onSnapshot, doc, setDoc, deleteDoc, serverTimestamp
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+if (!CV2.puede('contenido')) {
+  document.querySelector('.contenedor').innerHTML =
+    '<h1>Sin acceso</h1><p>El contenido del sitio lo edita quien tiene ese permiso.</p>';
+  throw new Error('sin contenido');
+}
+CV2.renderNav('cabanas');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+let espacios = [];
+let editId = null;
+let fotosTmp = [];
+
+const nom = (e) => (e.nombre && (e.nombre.es || e.nombre.pt || e.nombre.en)) || e.slug || '(sin nombre)';
+
+// ── Render ───────────────────────────────────────────────────
+function render() {
+  if (!espacios.length) {
+    $('lista').innerHTML = '<div class="vacio">Todavía no hay espacios comunes.<br>Agregá el primero con el botón de arriba.</div>';
+    return;
+  }
+  $('lista').innerHTML = espacios.map((e) => `
+    <div class="esp">
+      <div style="display:flex;align-items:flex-start;gap:10px;">
+        <div style="flex:1;min-width:0;">
+          <h3>${esc(nom(e))}</h3>
+          <div class="sub">${esc(e.slug || '')} · orden ${e.orden ?? 0} · ${(e.fotos || []).length} foto(s)</div>
+        </div>
+        <div class="acc">
+          <button class="btn-ico" onclick="editar('${esc(e.id)}')" title="Editar">
+            <span class="material-icons">edit</span></button>
+          <button class="btn-ico" onclick="borrar('${esc(e.id)}')" title="Eliminar">
+            <span class="material-icons" style="color:var(--rojo)">delete_outline</span></button>
+        </div>
+      </div>
+      ${(e.fotos || []).length ? `<div class="miniatura">${e.fotos.slice(0, 8).map((f) =>
+        `<img src="${esc(f)}" loading="lazy" alt="">`).join('')}</div>` : ''}
+    </div>`).join('');
+}
+
+// ── Fotos ────────────────────────────────────────────────────
+function renderFotos() {
+  $('fotosEdit').innerHTML = fotosTmp.map((f, i) => `
+    <div class="fotoBox">
+      <img src="${esc(f)}" alt="">
+      <button onclick="quitarFoto(${i})" title="Quitar">
+        <span class="material-icons" style="font-size:15px;">close</span></button>
+    </div>`).join('') || '<span class="texto-gris" style="font-size:.82rem;">Sin fotos todavía.</span>';
+}
+window.quitarFoto = (i) => { fotosTmp.splice(i, 1); renderFotos(); };
+
+$('btnFoto').addEventListener('click', () => $('inputFoto').click());
+$('inputFoto').addEventListener('change', async () => {
+  const f = $('inputFoto').files[0];
+  if (!f) return;
+  $('btnFoto').disabled = true;
+  $('estadoFoto').textContent = 'subiendo…';
+  try {
+    fotosTmp.push(await CV2.subirImagen(f));
+    renderFotos();
+    $('estadoFoto').textContent = '✓ agregada';
+  } catch (e) {
+    $('estadoFoto').textContent = 'falló la subida';
+  } finally { $('btnFoto').disabled = false; $('inputFoto').value = ''; }
+});
+
+// ── Alta / edición ───────────────────────────────────────────
+$('btnNuevo').addEventListener('click', () => {
+  editId = null;
+  $('mTit').textContent = 'Nuevo espacio';
+  ['fEs', 'fPt', 'fEn', 'fSlug'].forEach((i) => $(i).value = '');
+  $('fOrden').value = espacios.length;
+  fotosTmp = [];
+  renderFotos();
+  $('estadoFoto').textContent = '';
+  $('fSlug').disabled = false;
+  $('modal').showModal();
+  $('fEs').focus();
+});
+
+window.editar = (id) => {
+  const e = espacios.find((x) => x.id === id);
+  if (!e) return;
+  editId = id;
+  $('mTit').textContent = 'Editar espacio';
+  $('fEs').value = (e.nombre && e.nombre.es) || '';
+  $('fPt').value = (e.nombre && e.nombre.pt) || '';
+  $('fEn').value = (e.nombre && e.nombre.en) || '';
+  $('fSlug').value = e.slug || e.id;
+  $('fSlug').disabled = true;      // el slug es el ID: no se cambia
+  $('fOrden').value = e.orden ?? 0;
+  fotosTmp = (e.fotos || []).slice();
+  renderFotos();
+  $('estadoFoto').textContent = '';
+  $('modal').showModal();
+};
+
+$('mCancelar').addEventListener('click', () => $('modal').close());
+
+$('mGuardar').addEventListener('click', async () => {
+  const es = $('fEs').value.trim();
+  if (!es) { CV2.toast('Falta el nombre en español', 'error'); return; }
+  // El slug ES el id del documento (regla 3.5: IDs con sentido, no aleatorios).
+  const slug = (editId || $('fSlug').value.trim() || es)
+    .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  if (!slug) { CV2.toast('El identificador no puede quedar vacío', 'error'); return; }
+
+  $('mGuardar').disabled = true;
+  try {
+    await setDoc(doc(db, 'espacios_comunes', slug), {
+      nombre: { es, pt: $('fPt').value.trim() || es, en: $('fEn').value.trim() || es },
+      slug,
+      orden: parseInt($('fOrden').value) || 0,
+      fotos: fotosTmp.slice(),
+      actualizadoEn: serverTimestamp(),
+      ...(editId ? {} : { creadoEn: serverTimestamp(), creadoPor: u.uid })
+    }, { merge: true });
+    $('modal').close();
+    CV2.toast(editId ? 'Guardado' : '✓ Espacio creado', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+  finally { $('mGuardar').disabled = false; }
+});
+
+window.borrar = async (id) => {
+  const e = espacios.find((x) => x.id === id);
+  if (!confirm('¿Eliminar "' + nom(e) + '" del sitio público?')) return;
+  try {
+    await deleteDoc(doc(db, 'espacios_comunes', id));
+    CV2.toast('Eliminado', 'success');
+  } catch (e2) { CV2.toast('No se pudo: ' + (e2.code ?? e2.message), 'error'); }
+};
+
+// ── Suscripción — AL FINAL ───────────────────────────────────
+onSnapshot(collection(db, 'espacios_comunes'), (snap) => {
+  espacios = [];
+  snap.forEach((d) => espacios.push({ id: d.id, ...d.data() }));
+  espacios.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+  render();
+}, (e) => { console.error(e); CV2.toast('No se pudieron cargar los espacios', 'error'); });
+</script>
+</body>
+</html>
