@@ -129,7 +129,8 @@
   </div>
 
   <div class="card pendientes" id="cardPend">
-    <h2 style="margin-top:0;">Pendientes por persona</h2>
+    <h2 style="margin-top:0;">Pendientes por persona
+      <span class="texto-gris" style="font-weight:400;font-size:.78rem;">— todo lo vivo, sin importar el filtro de arriba</span></h2>
     <div id="pendLista"></div>
   </div>
 
@@ -215,6 +216,21 @@
   <div id="listaCierres"></div>
   <div style="display:flex;justify-content:flex-end;margin-top:14px;">
     <button class="btn" id="cCerrar">Cerrar</button>
+  </div>
+</dialog>
+
+<!-- ═══ Detalle de un pendiente ═══════════════════════════════ -->
+<dialog id="mPend">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+    <h2 id="pdTit" style="margin:0;flex:1;font-size:1.05rem;">Pendiente</h2>
+    <button class="btn-mini" onclick="document.getElementById('mPend').close()">
+      <span class="material-icons">close</span></button>
+  </div>
+  <p class="texto-gris" id="pdSub" style="margin:0 0 10px;font-size:.84rem;"></p>
+  <div id="pdLista"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+    <button class="btn btn-primario" id="pdSaldarTodo">
+      <span class="material-icons">task_alt</span> Saldar todo</button>
   </div>
 </dialog>
 
@@ -413,16 +429,23 @@ function render() {
 function pendientesVivos(hasta) {
   const grupos = {};
   for (const m of movs) {
+    // Un balance sella con m.cierreId: eso lo da por saldado y sale de acá.
+    // (Antes solo se miraba pendiente.cierreId, del modelo viejo, y los
+    // pendientes sobrevivían al balance para siempre.)
+    if (m.cierreId) continue;
     if (!m.pendiente || m.pendiente.saldado || m.pendiente.cierreId) continue;
     if (hasta && (m.fecha ?? '') > hasta) continue;
     const clase = m.pendiente.clase ?? 'reponer';
     const uid = m.pendiente.uid ?? m.uid ?? '';
-    const clave = clase + '|' + uid;
-    (grupos[clave] ??= { clave, clase, uid, nombre: m.nombre ?? nombreDe(uid), totalBRL: 0, movIds: [] });
-    grupos[clave].totalBRL += enBRL(m);
+    const mon = m.moneda || 'BRL';
+    // Se agrupa también por moneda: deber dólares no es deber reales.
+    const clave = clase + '|' + uid + '|' + mon;
+    (grupos[clave] ??= { clave, clase, uid, moneda: mon,
+      nombre: m.nombre ?? nombreDe(uid), total: 0, movIds: [] });
+    grupos[clave].total += Number(m.monto) || 0;
     grupos[clave].movIds.push(m.id);
   }
-  return Object.values(grupos).sort((a, b) => b.totalBRL - a.totalBRL);
+  return Object.values(grupos).sort((a, b) => b.total - a.total);
 }
 
 function textoPendiente(p) {
@@ -462,13 +485,65 @@ function renderPendientes() {
   const filas = esPersonal() ? [] : pendientesVivos(null);
   $('cardPend').classList.toggle('oculto', !filas.length);
   $('pendLista').innerHTML = filas.map((p) => `
-    <div class="fila">
+    <div class="fila" style="cursor:pointer;" onclick="verPendiente('${esc(p.clave)}')">
       <span class="material-icons" style="font-size:18px;color:${p.clase === 'reponer' ? 'var(--amarillo)' : 'var(--azul)'};">
         ${p.clase === 'reponer' ? 'currency_exchange' : 'schedule'}</span>
-      <span style="flex:1;">${textoPendiente(p)}</span>
-      <b>${CV2.fmtMonto(p.totalBRL)}</b>
+      <span style="flex:1;">${textoPendiente(p)} <small class="texto-gris">(${p.movIds.length})</small></span>
+      <b>${CV2.fmtMonto(p.total, p.moneda)}</b>
+      <span class="material-icons" style="font-size:17px;color:var(--gris);">chevron_right</span>
     </div>`).join('');
 }
+
+
+// ── Detalle de un pendiente ──────────────────────────────────
+// Antes el panel mostraba un total sin forma de ver de dónde salía. Acá se
+// listan los movimientos que lo componen y se pueden saldar.
+let pendAbierto = null;
+
+window.verPendiente = (clave) => {
+  const p = pendientesVivos(null).find((x) => x.clave === clave);
+  if (!p) return;
+  pendAbierto = p;
+  $('pdTit').innerHTML = textoPendiente(p);
+  $('pdSub').textContent = p.movIds.length + ' movimiento(s) · '
+    + CV2.fmtMonto(p.total, p.moneda)
+    + (p.clase === 'cobrar' ? ' · todavía no cuenta como ingreso' : '');
+  const items = movs.filter((m) => p.movIds.includes(m.id))
+    .sort((a, b) => (a.fecha ?? '').localeCompare(b.fecha ?? ''));
+  $('pdLista').innerHTML = items.map((m) => `
+    <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px dashed var(--linea);font-size:.88rem;">
+      <span style="flex:1;min-width:0;">${esc(m.detalle || m.categoria || '(sin detalle)')}
+        <small style="display:block;color:var(--gris);font-size:.76rem;">
+          ${CV2.fmtFecha(m.fecha)}${m.cuenta ? ' · 🏦 ' + esc(m.cuenta) : ''}</small></span>
+      <b style="white-space:nowrap;">${CV2.fmtMonto(m.monto, m.moneda || 'BRL')}</b>
+      ${verFinanzas() ? `<button class="btn-mini" onclick="saldarUno('${m.id}')" title="Saldar este">
+        <span class="material-icons" style="font-size:17px;color:var(--ok);">task_alt</span></button>` : ''}
+    </div>`).join('');
+  $('pdSaldarTodo').hidden = !verFinanzas();
+  $('mPend').showModal();
+};
+
+window.saldarUno = async (id) => {
+  try {
+    await updateDoc(docMov(id), { 'pendiente.saldado': true, actualizadoEn: serverTimestamp() });
+    CV2.toast('✓ Saldado', 'success');
+    $('mPend').close();
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+};
+
+$('pdSaldarTodo').addEventListener('click', async () => {
+  if (!pendAbierto) return;
+  if (!confirm('¿Saldar los ' + pendAbierto.movIds.length + ' movimientos de este pendiente?')) return;
+  $('pdSaldarTodo').disabled = true;
+  let err = 0;
+  for (const id of pendAbierto.movIds) {
+    try { await updateDoc(docMov(id), { 'pendiente.saldado': true, actualizadoEn: serverTimestamp() }); }
+    catch { err++; }
+  }
+  $('pdSaldarTodo').disabled = false;
+  $('mPend').close();
+  CV2.toast(err ? 'Terminó con ' + err + ' errores' : '✓ Pendiente saldado', err ? 'error' : 'success');
+});
 
 // ═══ Acciones sobre movimientos ═══════════════════════════
 window.saldar = async (id) => {
