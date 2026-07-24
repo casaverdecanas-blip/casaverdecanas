@@ -196,7 +196,7 @@ function pintarMovs() {
       <span class="txt">${esc(m.detalle || m.categoria || '(sin detalle)')}
         <small>${CV2.fmtFecha(m.fecha)} · ${esc(m.categoria || '')}${m.cuenta ? ' · 🏦 ' + esc(m.cuenta) : ' · sin cuenta'}</small></span>
       <b style="color:${m.tipo === 'entro' ? 'var(--ok)' : 'var(--rojo)'};">
-        ${m.tipo === 'entro' ? '+' : '−'}${CV2.fmtMonto(enBRL(m))}</b>
+        ${m.tipo === 'entro' ? '+' : '−'}${CV2.fmtMonto(m.monto, m.moneda || 'BRL')}</b>
     </label>`).join('');
   document.querySelectorAll('.chkRev').forEach((c) => {
     c.addEventListener('change', () => {
@@ -283,78 +283,109 @@ $('n2').addEventListener('click', () => irA(3));
 
 // ── Etapa 3: saldo calculado ─────────────────────────────────
 function calcularCuentas() {
+  // Cada cuenta se agrupa CON SU MONEDA: una cuenta en dólares y otra en
+  // reales son dos líneas distintas y nunca se suman.
   const saldos = {};
   for (const m of movs) {
     if (porCobrarVivo(m)) continue;
-    const c = m.cuenta || '(sin definir)';
-    saldos[c] = (saldos[c] || 0) + (m.tipo === 'entro' ? enBRL(m) : -enBRL(m));
+    const k = (m.cuenta || '(sin definir)') + '|' + (m.moneda || 'BRL');
+    const v = Number(m.monto) || 0;
+    saldos[k] = (saldos[k] || 0) + (m.tipo === 'entro' ? v : -v);
   }
-  // Conserva los valores reales ya tipeados si se vuelve atrás.
   const previos = {};
-  cuentas.forEach((x) => { previos[x.cuenta] = x.real; });
-  cuentas = Object.keys(saldos).sort().map((c) => ({
-    cuenta: c, calculado: saldos[c],
-    real: (previos[c] !== undefined ? previos[c] : saldos[c])
-  }));
+  cuentas.forEach((x) => { previos[x.cuenta + '|' + x.moneda] = x.real; });
+  cuentas = Object.keys(saldos).sort().map((k) => {
+    const [cuenta, moneda] = k.split('|');
+    return {
+      cuenta, moneda, calculado: saldos[k],
+      real: (previos[k] !== undefined ? previos[k] : saldos[k])
+    };
+  });
+  // Se agrupa la vista por moneda para que se lea como dos sistemas aparte.
+  const monedas = [...new Set(cuentas.map((x) => x.moneda))].sort();
   $('listaCalculado').innerHTML = cuentas.length
-    ? cuentas.map((x) => `
-      <div class="cta">
-        <span class="nom">🏦 ${esc(x.cuenta)}</span>
-        <b style="color:${x.calculado >= 0 ? 'var(--ok)' : 'var(--rojo)'};">${CV2.fmtMonto(x.calculado)}</b>
-      </div>`).join('')
+    ? monedas.map((mo) => `
+      <h3 style="margin:14px 0 2px;font-size:.9rem;color:var(--gris);">${esc(mo)}</h3>`
+      + cuentas.filter((x) => x.moneda === mo).map((x) => `
+        <div class="cta">
+          <span class="nom">🏦 ${esc(x.cuenta)}</span>
+          <b style="color:${x.calculado >= 0 ? 'var(--ok)' : 'var(--rojo)'};">${CV2.fmtMonto(x.calculado, mo)}</b>
+        </div>`).join('')).join('')
     : '<div class="vacio">No hay cuentas con movimientos.</div>';
 }
 $('n3').addEventListener('click', () => irA(4));
 
 // ── Etapa 4: saldo real ──────────────────────────────────────
 function pintarReal() {
-  $('listaReal').innerHTML = cuentas.map((x, i) => `
-    <div class="cta">
-      <span class="nom">🏦 ${esc(x.cuenta)}<br>
-        <small class="texto-gris">sistema: ${CV2.fmtMonto(x.calculado)}</small></span>
-      <input type="number" step="0.01" inputmode="decimal" value="${x.real}"
-        onchange="setReal(${i}, this.value)">
-      <span class="dif" id="dif-${i}"></span>
-    </div>`).join('');
+  const monedas = [...new Set(cuentas.map((x) => x.moneda))].sort();
+  $('listaReal').innerHTML = monedas.map((mo) =>
+    `<h3 style="margin:14px 0 2px;font-size:.9rem;color:var(--gris);">${esc(mo)}</h3>`
+    + cuentas.map((x, i) => x.moneda !== mo ? '' : `
+      <div class="cta">
+        <span class="nom">🏦 ${esc(x.cuenta)}<br>
+          <small class="texto-gris">sistema: ${CV2.fmtMonto(x.calculado, mo)}</small></span>
+        <input type="number" step="0.01" inputmode="decimal" value="${x.real}"
+          onchange="setReal(${i}, this.value)">
+        <span class="dif" id="dif-${i}"></span>
+      </div>`).join('')).join('');
   pintarDifs();
 }
 window.setReal = (i, v) => { cuentas[i].real = parseFloat(v) || 0; pintarDifs(); };
 
 function pintarDifs() {
-  let total = 0;
+  // Una diferencia por moneda: sumarlas juntas no significaría nada.
+  const porMon = {};
   cuentas.forEach((x, i) => {
     const d = x.real - x.calculado;
-    total += d;
+    porMon[x.moneda] = (porMon[x.moneda] || 0) + d;
     const el = $('dif-' + i);
     if (el) {
-      el.textContent = d === 0 ? '✓ igual' : (d > 0 ? '+' : '') + CV2.fmtMonto(d);
+      el.textContent = d === 0 ? '✓ igual' : (d > 0 ? '+' : '') + CV2.fmtMonto(d, x.moneda);
       el.style.color = d === 0 ? 'var(--ok)' : 'var(--rojo)';
     }
   });
-  $('cajaDif').innerHTML = total === 0
-    ? '✓ Todo coincide: no hay gasto sin registrar.'
-    : 'Diferencia total: <b>' + CV2.fmtMonto(total) + '</b>. ' +
-      (total < 0
-        ? 'Falta plata respecto de lo registrado: eso es gasto no registrado (personal).'
-        : 'Hay más de lo registrado: entró plata que no se cargó.');
+  const lineas = Object.keys(porMon).sort().map((mo) => {
+    const t = porMon[mo];
+    return t === 0
+      ? '✓ ' + mo + ': todo coincide.'
+      : mo + ': <b>' + CV2.fmtMonto(t, mo) + '</b> — ' +
+        (t < 0 ? 'falta plata respecto de lo registrado (gasto no registrado).'
+               : 'hay más de lo registrado: entró plata que no se cargó.');
+  });
+  $('cajaDif').innerHTML = lineas.join('<br>') || '—';
 }
 $('n4').addEventListener('click', () => irA(5));
 
 // ── Etapa 5: cerrar ──────────────────────────────────────────
-function pintarResumen() {
-  let entro = 0, salio = 0;
+/** Totales del período agrupados por moneda. */
+function totalesPorMoneda() {
+  const t = {};
   for (const m of movs) {
     if (porCobrarVivo(m)) continue;
-    if (m.tipo === 'entro') entro += enBRL(m); else salio += enBRL(m);
+    const mo = m.moneda || 'BRL';
+    (t[mo] ??= { moneda: mo, entro: 0, salio: 0 });
+    const v = Number(m.monto) || 0;
+    if (m.tipo === 'entro') t[mo].entro += v; else t[mo].salio += v;
   }
-  const ajuste = cuentas.reduce((a, x) => a + (x.real - x.calculado), 0);
+  return Object.values(t).sort((a, b) => a.moneda.localeCompare(b.moneda));
+}
+
+function pintarResumen() {
+  const tot = totalesPorMoneda();
+  const ajustes = {};
+  cuentas.forEach((x) => {
+    ajustes[x.moneda] = (ajustes[x.moneda] || 0) + (x.real - x.calculado);
+  });
   $('resumenFinal').innerHTML = `
     <div><span>Líneas del período</span><b>${movs.length}</b></div>
-    <div><span>Entró</span><b style="color:var(--ok);">${CV2.fmtMonto(entro)}</b></div>
-    <div><span>Salió</span><b style="color:var(--rojo);">${CV2.fmtMonto(salio)}</b></div>
     <div><span>Cobros saldados</span><b>${cobrosSaldados.length}</b></div>
-    <div><span>Ajuste total (gasto no registrado)</span><b style="color:${ajuste === 0 ? 'var(--ok)' : 'var(--rojo)'};">${CV2.fmtMonto(ajuste)}</b></div>
-    <div><span>Cuentas que arrancan de nuevo</span><b>${cuentas.length}</b></div>`;
+    <div><span>Cuentas que arrancan de nuevo</span><b>${cuentas.length}</b></div>`
+    + tot.map((x) => `
+    <div style="margin-top:8px;border-top:1px solid var(--linea);padding-top:6px;">
+      <span><b>${esc(x.moneda)}</b></span><b></b></div>
+    <div><span>Entró</span><b style="color:var(--ok);">${CV2.fmtMonto(x.entro, x.moneda)}</b></div>
+    <div><span>Salió</span><b style="color:var(--rojo);">${CV2.fmtMonto(x.salio, x.moneda)}</b></div>
+    <div><span>Ajuste (gasto no registrado)</span><b style="color:${(ajustes[x.moneda] || 0) === 0 ? 'var(--ok)' : 'var(--rojo)'};">${CV2.fmtMonto(ajustes[x.moneda] || 0, x.moneda)}</b></div>`).join('');
 }
 
 $('cerrar').addEventListener('click', async () => {
@@ -363,11 +394,7 @@ $('cerrar').addEventListener('click', async () => {
     + 'Esto no se puede deshacer. ¿Confirmás?')) return;
   $('cerrar').disabled = true;
   try {
-    let entro = 0, salio = 0;
-    for (const m of movs) {
-      if (porCobrarVivo(m)) continue;
-      if (m.tipo === 'entro') entro += enBRL(m); else salio += enBRL(m);
-    }
+    const tot = totalesPorMoneda();
     const fechas = movs.map((m) => m.fecha).filter(Boolean).sort();
 
     // 1) La foto del balance. Los ajustes por cuenta quedan acá: sumándolos
@@ -378,9 +405,19 @@ $('cerrar').addEventListener('click', async () => {
       desde: fechas[0] || CV2.hoyISO(),
       hasta: CV2.hoyISO(),
       cerradoPor: u.uid, cerradoNombre: u.nombre ?? '',
-      totales: { entroBRL: entro, salioBRL: salio, resultadoBRL: entro - salio, movimientos: movs.length },
+      // Totales POR MONEDA. Se conserva el bloque en R$ por compatibilidad
+      // con los cierres viejos y con la vista de historial.
+      totalesPorMoneda: tot.map((x) => ({
+        moneda: x.moneda, entro: x.entro, salio: x.salio, resultado: x.entro - x.salio
+      })),
+      totales: (() => {
+        const b = tot.find((x) => x.moneda === 'BRL') || { entro: 0, salio: 0 };
+        return { entroBRL: b.entro, salioBRL: b.salio, resultadoBRL: b.entro - b.salio,
+                 movimientos: movs.length };
+      })(),
       cuentas: cuentas.map((x) => ({
-        cuenta: x.cuenta, calculado: x.calculado, real: x.real, ajuste: x.real - x.calculado
+        cuenta: x.cuenta, moneda: x.moneda, calculado: x.calculado, real: x.real,
+        ajuste: x.real - x.calculado
       })),
       cobrosSaldados,
       nota: $('bNota').value.trim(),
@@ -401,11 +438,12 @@ $('cerrar').addEventListener('click', async () => {
       await addDoc(collection(db, 'movimientos'), {
         fecha: CV2.hoyISO(),
         tipo: x.real >= 0 ? 'entro' : 'salio',
-        monto: Math.abs(x.real), moneda: 'BRL', montoBRL: Math.abs(x.real),
+        monto: Math.abs(x.real), moneda: x.moneda,
+        montoBRL: x.moneda === 'BRL' ? Math.abs(x.real) : 0,
         categoria: 'Balance', cuenta: x.cuenta,
         uid: u.uid, nombre: u.nombre ?? '',
         detalle: 'Balance ' + CV2.fmtFecha(CV2.hoyISO()) + ' · apertura de ' + x.cuenta
-          + (x.real - x.calculado ? ' (ajuste ' + CV2.fmtMonto(x.real - x.calculado) + ')' : ''),
+          + (x.real - x.calculado ? ' (ajuste ' + CV2.fmtMonto(x.real - x.calculado, x.moneda) + ')' : ''),
         comprobanteUrl: null, pendiente: null,
         esApertura: true, cierreOrigen: ref.id,
         creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? '',

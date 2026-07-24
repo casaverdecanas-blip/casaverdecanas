@@ -783,7 +783,7 @@ function renderCierres() {
           Cobros saldados: ${(c.cobrosSaldados ?? []).length} ·
           cerró ${esc(c.cerradoNombre ?? '')} el ${CV2.fmtFecha(c.fecha)}
         </div>
-        ${(c.cuentas ?? []).length ? `<div class="det" style="margin-top:5px;">${c.cuentas.map((x) => '🏦 ' + esc(x.cuenta) + ': sistema ' + CV2.fmtMonto(x.calculado) + ' → real ' + CV2.fmtMonto(x.real) + (x.ajuste ? ' <b style="color:var(--rojo);">(ajuste ' + CV2.fmtMonto(x.ajuste) + ')</b>' : '')).join('<br>')}</div>` : ''}
+        ${(c.cuentas ?? []).length ? `<div class="det" style="margin-top:5px;">${c.cuentas.map((x) => '🏦 ' + esc(x.cuenta) + ' ' + esc(x.moneda || 'BRL') + ': sistema ' + CV2.fmtMonto(x.calculado, x.moneda || 'BRL') + ' → real ' + CV2.fmtMonto(x.real, x.moneda || 'BRL') + (x.ajuste ? ' <b style="color:var(--rojo);">(ajuste ' + CV2.fmtMonto(x.ajuste, x.moneda || 'BRL') + ')</b>' : '')).join('<br>')}</div>` : ''}
         ${(c.nota || c.reparticion?.nota) ? `<div class="det" style="margin-top:5px;">📝 ${esc(c.nota || c.reparticion.nota)}</div>` : ''}
         <div class="acc">
           <button class="btn btn-mini-txt" onclick="exportarCierre('${c.id}')" style="font-size:.8rem;padding:6px 10px;">
