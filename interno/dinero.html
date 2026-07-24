@@ -160,10 +160,7 @@
       </select></div>
     <div><label>Monto</label><input id="fMonto" type="number" min="0" step="0.01" inputmode="decimal"></div>
   </div>
-  <div id="grupoEquiv" class="oculto">
-    <label>Equivalente en R$ (al cambio de hoy)</label>
-    <input id="fEquiv" type="number" min="0" step="0.01" inputmode="decimal">
-  </div>
+  <p class="texto-gris" id="avisoMoneda" style="font-size:.78rem;margin:2px 0 0;"></p>
 
   <div class="fila2c">
     <div><label>Categoría</label><select id="fCategoria"></select></div>
@@ -297,7 +294,9 @@ const catsActuales = () => esPersonal()
   ? [...new Set([...CAT_PERSONAL_BASE, ...movs.map((m) => m.categoria).filter(Boolean)])].sort()
   : categorias;
 
-const enBRL = (m) => Number(m.moneda === 'BRL' ? m.monto : m.montoBRL) || 0;
+// Ya no hay pivote: cada moneda va por su lado. Esto suma SOLO lo que está
+// en reales, para los totales en R$; el resto se agrupa en porMoneda.
+const enBRL = (m) => (m.moneda || 'BRL') === 'BRL' ? (Number(m.monto) || 0) : 0;
 const nombreDe = (uid) => equipo.find((p) => p.uid === uid)?.nombre ?? '';
 
 // Un ingreso "por cobrar" todavía NO es ingreso: no suma a los totales
@@ -416,7 +415,7 @@ function render() {
       ${m.pendiente ? `<span class="pend-chip${sellado(m) ? ' sellado' : (m.pendiente.saldado ? ' saldado' : '')}">${sellado(m) ? '🔒 en balance' : (m.pendiente.saldado ? '✓ saldado' : (m.pendiente.clase === 'reponer' ? 'reponer' : 'por cobrar'))}</span>` : ''}
       <span class="monto" style="color:${m.tipo === 'entro' ? 'var(--ok)' : 'var(--rojo)'};">
         ${m.tipo === 'entro' ? '+' : '−'}${CV2.fmtMonto(m.monto, m.moneda ?? 'BRL')}
-        ${m.moneda && m.moneda !== 'BRL' ? `<small>≈${CV2.fmtMonto(enBRL(m))}</small>` : ''}
+
       </span>
       ${(esPersonal() || verFinanzas()) && !sellado(m) ? `
         ${!esPersonal() && m.pendiente && !m.pendiente.saldado ? `<button class="btn-mini" onclick="saldar('${m.id}')" title="Marcar saldado"><span class="material-icons" style="font-size:17px;color:var(--ok)">task_alt</span></button>` : ''}
@@ -549,7 +548,7 @@ $('pdSaldarTodo').addEventListener('click', async () => {
 window.saldar = async (id) => {
   const m = movs.find((x) => x.id === id);
   if (!m || sellado(m)) { CV2.toast('Está sellado en un balance', 'error'); return; }
-  if (!confirm(`¿Marcar como saldado este pendiente de ${CV2.fmtMonto(enBRL(m))}?`)) return;
+  if (!confirm(`¿Marcar como saldado este pendiente de ${CV2.fmtMonto(m.monto, m.moneda || 'BRL')}?`)) return;
   try {
     await updateDoc(docMov(id), {
       'pendiente.saldado': true,
@@ -587,8 +586,13 @@ const ponerTipo = (t) => {
 };
 $('tEntro').addEventListener('click', () => ponerTipo('entro'));
 $('tSalio').addEventListener('click', () => ponerTipo('salio'));
-$('fMoneda').addEventListener('change', () =>
-  $('grupoEquiv').classList.toggle('oculto', $('fMoneda').value === 'BRL'));
+function avisoMoneda() {
+  const mo = $('fMoneda').value;
+  // Cada moneda es un sistema aparte: no se pide equivalente ni se convierte.
+  $('avisoMoneda').textContent = mo === 'BRL' ? ''
+    : 'Se registra en ' + mo + ' y se controla aparte de los reales.';
+}
+$('fMoneda').addEventListener('change', avisoMoneda);
 $('fPendiente').addEventListener('change', () =>
   $('grupoPend').classList.toggle('oculto', !$('fPendiente').checked));
 
@@ -661,8 +665,7 @@ function abrirModal(m) {
   $('mTit').textContent = editId ? 'Editar movimiento' : 'Nuevo movimiento';
   ponerTipo(m?.tipo ?? 'salio');
   $('fMoneda').value = m?.moneda ?? 'BRL';
-  $('grupoEquiv').classList.toggle('oculto', ($('fMoneda').value) === 'BRL');
-  $('fEquiv').value = m?.montoBRL && m?.moneda !== 'BRL' ? m.montoBRL : '';
+  avisoMoneda();
   $('fMonto').value = m?.monto ?? '';
   poblarCategorias(m?.categoria ?? catsActuales()[0]);
   poblarCuentas(m?.cuenta ?? '');
@@ -695,8 +698,9 @@ $('mGuardar').addEventListener('click', async () => {
   const monto = Math.max(0, parseFloat($('fMonto').value) || 0);
   if (!monto) { CV2.toast('Falta el monto', 'error'); return; }
   const moneda = $('fMoneda').value;
-  const montoBRL = moneda === 'BRL' ? monto : Math.max(0, parseFloat($('fEquiv').value) || 0);
-  if (moneda !== 'BRL' && !montoBRL) { CV2.toast('Cargá el equivalente en R$', 'error'); return; }
+  // Sin conversión: la plata se guarda como es. montoBRL queda solo para los
+  // movimientos en reales, por compatibilidad con lo ya cargado.
+  const montoBRL = moneda === 'BRL' ? monto : 0;
   if ($('fCategoria').value === '__nueva') { CV2.toast('Terminá de agregar la categoría', 'error'); return; }
 
   if ($('fCuenta').value === '__nueva') { CV2.toast('Terminá de agregar la cuenta', 'error'); return; }
@@ -803,7 +807,7 @@ $('btnCierres').addEventListener('click', async () => {
 $('cCerrar').addEventListener('click', () => $('modalCierres').close());
 
 // ═══ Exportación a planilla (CSV) ═════════════════════════
-const COLUMNAS = ['fecha', 'tipo', 'monto', 'moneda', 'monto_BRL', 'categoria',
+const COLUMNAS = ['fecha', 'tipo', 'monto', 'moneda', 'cuenta', 'categoria',
   'quien', 'detalle', 'pendiente', 'saldado', 'balance_id', 'comprobante'];
 
 const celda = (v) => '"' + String(v ?? '').replaceAll('"', '""') + '"';
@@ -816,7 +820,7 @@ function aCSV(lista) {
       m.tipo === 'entro' ? 'entró' : 'salió',
       (Number(m.monto) || 0).toFixed(2),
       m.moneda ?? 'BRL',
-      enBRL(m).toFixed(2),
+      m.cuenta ?? '',
       m.categoria ?? '',
       m.nombre ?? '',
       m.detalle ?? '',

@@ -165,7 +165,6 @@ let revisados = new Set();
 let cuentas = [];     // [{cuenta, calculado, real}]
 let cobrosSaldados = [];
 
-const enBRL = (m) => Number(m.moneda === 'BRL' ? m.monto : m.montoBRL) || 0;
 // Un ingreso "por cobrar" no cuenta hasta saldarse (mismo criterio que Dinero).
 const porCobrarVivo = (m) =>
   m.tipo === 'entro' && m.pendiente && m.pendiente.clase === 'cobrar' && !m.pendiente.saldado;
