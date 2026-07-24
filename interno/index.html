@@ -10,12 +10,35 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#2d5a27">
 <style>
-  .check { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--linea); }
-  .check:last-child { border-bottom: 0; }
-  .check .material-icons { font-size: 20px; }
-  .ok { color: var(--ok); }
-  .mal { color: var(--rojo); }
-  .esperando { color: var(--amarillo); }
+  .saludo { margin:0 0 2px; }
+  .sub { color:var(--gris); font-size:.9rem; margin:0 0 16px; }
+  .bloque { margin-bottom:18px; }
+  .bloque h2 { font-size:.95rem; margin:0 0 8px; display:flex; align-items:center; gap:7px;
+    color:var(--verde-osc); }
+  .bloque h2 .material-icons { font-size:19px; }
+  .bloque h2 a { margin-left:auto; font-size:.78rem; color:var(--gris);
+    text-decoration:none; font-weight:400; }
+  .nov { display:flex; align-items:center; gap:10px; background:#fff;
+    border:1px solid var(--linea); border-radius:var(--radio); padding:11px 13px;
+    margin:6px 0; box-shadow:var(--sombra); text-decoration:none; color:inherit; }
+  .nov:hover { border-color:var(--verde); }
+  .nov .ic { flex:none; width:34px; height:34px; border-radius:9px; display:flex;
+    align-items:center; justify-content:center; }
+  .nov .ic .material-icons { font-size:19px; }
+  .nov .txt { flex:1; min-width:0; }
+  .nov .txt b { display:block; font-size:.92rem; font-weight:600; }
+  .nov .txt small { color:var(--gris); font-size:.78rem; }
+  .nov .cuando { font-size:.72rem; color:var(--gris); white-space:nowrap; }
+  .nuevo { background:var(--verde); color:#fff; font-size:.64rem; font-weight:700;
+    padding:2px 7px; border-radius:999px; white-space:nowrap; }
+  .urgente .ic { background:#fdeceb; color:var(--rojo); }
+  .aviso  .ic { background:#eef4fb; color:#33506e; }
+  .ok     .ic { background:var(--verde-claro); color:var(--verde-osc); }
+  .neutro .ic { background:#f2f1ec; color:var(--gris); }
+  .limpio { text-align:center; padding:30px 16px; color:var(--gris); }
+  .limpio .material-icons { font-size:38px; color:var(--verde-claro); display:block;
+    margin:0 auto 8px; }
+  .cargando { text-align:center; color:var(--gris); padding:30px; }
 </style>
 </head>
 <body>
@@ -23,76 +46,234 @@
 <div id="nav"></div>
 
 <div class="contenedor">
-  <h1>Prueba de humo del entorno · Tanda 0.3</h1>
-  <p class="texto-gris">Esta página desaparece en la Fase 1 (la reemplaza Actividades).
-  Si todos los renglones quedan en verde, la fundación de CasaVerde 2.0 está sana.</p>
-
-  <div class="card" id="checks">
-    <div class="check" id="c-auth"><span class="material-icons esperando">hourglass_top</span> Sesión y perfil…</div>
-    <div class="check" id="c-rol"><span class="material-icons esperando">hourglass_top</span> Rol y permisos…</div>
-    <div class="check" id="c-lectura"><span class="material-icons esperando">hourglass_top</span> Lectura de Firestore…</div>
-    <div class="check" id="c-agg"><span class="material-icons esperando">hourglass_top</span> Agregación del servidor…</div>
-    <div class="check" id="c-cache"><span class="material-icons esperando">hourglass_top</span> Caché persistente (offline)…</div>
-    <div class="check" id="c-sw"><span class="material-icons esperando">hourglass_top</span> Service worker (PWA)…</div>
-  </div>
-
-  <div class="card">
-    <h2>Instalar como app</h2>
-    <p class="texto-gris">
-      <b>iPhone/iPad:</b> Compartir <span class="material-icons" style="font-size:16px;vertical-align:middle;">ios_share</span> → "Agregar a inicio".<br>
-      <b>Android:</b> menú del navegador → "Instalar app" (o el aviso que aparece solo).
-    </p>
-  </div>
+  <h1 class="saludo" id="saludo">Hola</h1>
+  <p class="sub" id="sub">Cargando novedades…</p>
+  <div id="cuerpo"></div>
 </div>
 
 <script type="module">
-import { db, doc, getDoc, collection, getCountFromServer } from './firebase-init.js';
+// ═══════════════════════════════════════════════════════════
+// INICIO — qué pasó desde la última vez que miraste.
+//
+// No repite lo que ya muestra cada página: junta lo que necesita
+// tu atención, en el MISMO ORDEN del menú, y respetando permisos.
+// Si está todo visto, muestra lo último de cada sección para que
+// la página nunca quede vacía.
+//
+// "Visto" se guarda en usuarios/{uid}.ultimaVisitaInicio. La regla
+// deja que cada uno escriba SOLO ese campo de su propio documento.
+// Regla 3.2: nada de onSnapshot acá — es una foto al entrar.
+// ═══════════════════════════════════════════════════════════
+import {
+  db, collection, query, where, getDocs, getDoc, doc, updateDoc, serverTimestamp
+} from './firebase-init.js';
 import { CV2 } from './nucleo.js';
+import { Core } from './actividades-core.js';
 
-const marcar = (id, ok, texto) => {
-  const el = document.getElementById(id);
-  el.innerHTML = `<span class="material-icons ${ok ? 'ok' : 'mal'}">${ok ? 'check_circle' : 'error'}</span> ${CV2.esc(texto)}`;
-};
-
+CV2.registrarSW();
 const u = await CV2.verificarAuth();
 CV2.renderNav('inicio');
 
-marcar('c-auth', true, `Sesión activa: ${u.nombre} (${u.email})`);
-marcar('c-rol', true, `Rol: ${u.rol}${u.rol === 'admin' ? ' — mirá el listón amarillo/negro arriba' : ''}`);
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+const hoy = CV2.hoyISO();
 
-// Lectura directa (el propio perfil ya se leyó; confirmamos con cabañas o usuarios)
-try {
-  const propio = await getDoc(doc(db, 'usuarios', u.uid));
-  marcar('c-lectura', propio.exists(), 'Lectura de Firestore funcionando');
-} catch (e) {
-  marcar('c-lectura', false, `Lectura falló: ${e.code ?? e.message}`);
+$('saludo').textContent = 'Hola, ' + (u.nombre || '').split(' ')[0];
+
+// Marca de la última visita (para saber qué es nuevo).
+const visitaPrevia = u.ultimaVisitaInicio && u.ultimaVisitaInicio.toMillis
+  ? u.ultimaVisitaInicio.toMillis() : 0;
+
+const ms = (t) => (t && t.toMillis) ? t.toMillis() : 0;
+const esNuevo = (t) => ms(t) > visitaPrevia;
+
+function haceCuanto(t) {
+  const v = ms(t);
+  if (!v) return '';
+  const min = Math.round((Date.now() - v) / 60000);
+  if (min < 60) return 'hace ' + Math.max(1, min) + ' min';
+  if (min < 1440) return 'hace ' + Math.round(min / 60) + ' h';
+  const d = Math.round(min / 1440);
+  return d === 1 ? 'ayer' : 'hace ' + d + ' días';
 }
 
-// Agregación del servidor: contar usuarios sin bajar documentos
+// ── Acumulador de novedades ──────────────────────────────────
+// Cada bloque respeta el orden del menú (CV2.NAV) para que la
+// portada y la navegación se lean igual.
+const bloques = [];
+const agregar = (id, titulo, icono, href, items) => {
+  if (items && items.length) bloques.push({ id, titulo, icono, href, items });
+};
+
+const fila = (o) => `
+  <a class="nov ${o.tono || 'neutro'}" href="${esc(o.href)}">
+    <span class="ic"><span class="material-icons">${esc(o.icono)}</span></span>
+    <span class="txt"><b>${esc(o.titulo)}</b>
+      ${o.detalle ? `<small>${esc(o.detalle)}</small>` : ''}</span>
+    ${o.nuevo ? '<span class="nuevo">NUEVO</span>' : ''}
+    ${o.cuando ? `<span class="cuando">${esc(o.cuando)}</span>` : ''}
+  </a>`;
+
+// ── 1 · Actividades ──────────────────────────────────────────
+let acts = [];
 try {
-  const c = await getCountFromServer(collection(db, 'usuarios'));
-  marcar('c-agg', true, `Agregación OK: ${c.data().count} usuario(s) en el equipo`);
-} catch (e) {
-  marcar('c-agg', false, `Agregación falló: ${e.code ?? e.message}`);
+  const snap = await getDocs(Core.consultaActividades(u, CV2.esAdmin()));
+  snap.forEach((d) => acts.push({ id: d.id, ...d.data() }));
+} catch (e) { console.warn('actividades', e); }
+
+const urgentes = acts.filter((a) => !a.hecho && a.fechaVencimiento && a.fechaVencimiento <= hoy);
+agregar('actividades', 'Necesitan atención hoy', 'checklist', './actividades.html',
+  urgentes.slice(0, 6).map((a) => ({
+    icono: a.reservaId ? 'cleaning_services' : 'priority_high',
+    titulo: a.titulo || '(sin título)',
+    detalle: a.fechaVencimiento < hoy ? 'Vencida el ' + CV2.fmtFecha(a.fechaVencimiento) : 'Vence hoy',
+    tono: 'urgente', href: './actividades.html',
+    nuevo: esNuevo(a.creadoEn), cuando: ''
+  })));
+
+// ── 2 · Reservas (solo con permiso) ──────────────────────────
+if (CV2.puede('reservas')) {
+  try {
+    const rs = [];
+    const snap = await getDocs(collection(db, 'reservas'));
+    snap.forEach((d) => rs.push({ id: d.id, ...d.data() }));
+    const items = [];
+    rs.filter((r) => r.estado === 'presupuesto')
+      .slice(0, 4)
+      .forEach((r) => items.push({
+        icono: 'pending_actions', titulo: r.clienteNombre || 'Presupuesto',
+        detalle: 'Sin confirmar · ' + CV2.fmtFecha(r.checkIn),
+        tono: 'aviso', href: './reservas.html',
+        nuevo: esNuevo(r.creadoEn), cuando: haceCuanto(r.creadoEn)
+      }));
+    rs.filter((r) => r.estado === 'confirmada' && r.checkIn === hoy)
+      .forEach((r) => items.push({
+        icono: 'login', titulo: 'Llega hoy: ' + (r.clienteNombre || ''),
+        detalle: 'Check-in ' + CV2.fmtFecha(r.checkIn), tono: 'ok', href: './reservas.html'
+      }));
+    rs.filter((r) => r.estado === 'confirmada' && r.checkOut === hoy)
+      .forEach((r) => items.push({
+        icono: 'logout', titulo: 'Se va hoy: ' + (r.clienteNombre || ''),
+        detalle: 'Check-out ' + CV2.fmtFecha(r.checkOut), tono: 'aviso', href: './reservas.html'
+      }));
+    agregar('reservas', 'Reservas', 'king_bed', './reservas.html', items);
+  } catch (e) { console.warn('reservas', e); }
 }
 
-// Caché persistente: si initializeFirestore no tiró error, está activa.
-// La prueba real es el modo avión, pero verificamos IndexedDB.
+// ── 3 · Chat: lo que no leíste ───────────────────────────────
 try {
-  const bases = await indexedDB.databases();
-  const hay = bases.some(b => (b.name ?? '').includes('firestore'));
-  marcar('c-cache', hay, hay
-    ? 'Caché persistente activa (probala en modo avión: la página vuelve a abrir)'
-    : 'IndexedDB sin base de Firestore todavía — recargá una vez');
-} catch (e) {
-  marcar('c-cache', true, 'Caché configurada (este navegador no permite listar IndexedDB)');
+  const convs = [];
+  const snap = await getDocs(collection(db, 'comunicaciones'));
+  snap.forEach((d) => convs.push({ id: d.id, ...d.data() }));
+  let vistos = {};
+  try {
+    const lec = await getDoc(doc(db, 'comunicaciones_lecturas', u.uid));
+    if (lec.exists()) vistos = lec.data().vistos || {};
+  } catch { /* primera vez */ }
+  const sinLeer = convs.filter((c) => !c.archivada && ms(c.ultimaActividad) > (vistos[c.id] || 0));
+  agregar('comunicacion', 'Mensajes sin leer', 'forum', './comunicacion.html',
+    sinLeer.slice(0, 6).map((c) => ({
+      icono: 'chat_bubble', titulo: c.titulo || 'Conversación',
+      detalle: c.ultimoMensaje || '', tono: 'aviso', href: './comunicacion.html',
+      nuevo: true, cuando: haceCuanto(c.ultimaActividad)
+    })));
+} catch (e) { console.warn('comunicaciones', e); }
+
+// ── 4 · Tu cronómetro andando ────────────────────────────────
+try {
+  const s = await Core.sesionActiva(u.uid);
+  if (s) {
+    agregar('sesiones', 'Tenés trabajo en curso', 'schedule', './gestion-sesiones.html', [{
+      icono: 'timer', titulo: s.actividadTitulo || 'Cronómetro andando',
+      detalle: 'Arrancó ' + haceCuanto(s.inicio) + ' — acordate de pararlo',
+      tono: 'urgente', href: './actividades.html'
+    }]);
+  }
+} catch (e) { console.warn('sesion activa', e); }
+
+// ── 5 · Tus cobros ───────────────────────────────────────────
+try {
+  const q = CV2.puede('finanzas')
+    ? query(collection(db, 'honorarios'), where('estado', '==', 'pendiente'))
+    : query(collection(db, 'honorarios'), where('uid', '==', u.uid));
+  const snap = await getDocs(q);
+  const hs = [];
+  snap.forEach((d) => { const x = d.data(); if (x.estado !== 'pagado') hs.push({ id: d.id, ...x }); });
+  const mios = hs.filter((h) => h.uid === u.uid);
+  const total = mios.reduce((a, h) => a + (Number(h.monto) || 0), 0);
+  const items = [];
+  if (mios.length) items.push({
+    icono: 'payments', titulo: 'Te deben ' + CV2.fmtMonto(total),
+    detalle: mios.length + ' cobro(s) pendiente(s)', tono: 'ok', href: './honorarios.html'
+  });
+  const ajenos = hs.filter((h) => h.uid !== u.uid);
+  if (CV2.puede('finanzas') && ajenos.length) items.push({
+    icono: 'group', titulo: 'Cobros del equipo por pagar',
+    detalle: ajenos.length + ' pendiente(s) · ' +
+      CV2.fmtMonto(ajenos.reduce((a, h) => a + (Number(h.monto) || 0), 0)),
+    tono: 'aviso', href: './honorarios.html'
+  });
+  agregar('honorarios', 'Cobros', 'payments', './honorarios.html', items);
+} catch (e) { console.warn('honorarios', e); }
+
+// ── 6 · Dinero: lo que quedó colgando ────────────────────────
+if (CV2.puede('finanzas')) {
+  try {
+    const snap = await getDocs(collection(db, 'movimientos'));
+    const pend = {};
+    snap.forEach((d) => {
+      const m = d.data();
+      if (m.cierreId) return;
+      if (!m.pendiente || m.pendiente.saldado) return;
+      const k = (m.nombre || '') + '|' + m.pendiente.clase;
+      pend[k] = (pend[k] || 0) + (Number(m.monto) || 0);
+    });
+    const items = Object.keys(pend).map((k) => {
+      const [nombre, clase] = k.split('|');
+      return {
+        icono: clase === 'reponer' ? 'currency_exchange' : 'schedule',
+        titulo: clase === 'reponer' ? 'Reponerle a ' + nombre : 'Por cobrar (' + nombre + ')',
+        detalle: CV2.fmtMonto(pend[k]), tono: 'aviso', href: './dinero.html'
+      };
+    });
+    agregar('dinero', 'Dinero pendiente', 'savings', './dinero.html', items);
+  } catch (e) { console.warn('movimientos', e); }
 }
 
-// Service worker
-const reg = await CV2.registrarSW();
-marcar('c-sw', !!reg, reg
-  ? 'Service worker registrado — la app es instalable y abre offline'
-  : 'Service worker no disponible en este navegador');
+// ── Render ───────────────────────────────────────────────────
+// El orden lo manda CV2.NAV: la portada se lee igual que el menú.
+const orden = CV2.NAV.map((n) => n.id);
+bloques.sort((a, b) => orden.indexOf(a.id) - orden.indexOf(b.id));
+
+const totalItems = bloques.reduce((a, b) => a + b.items.length, 0);
+const nuevos = bloques.reduce((a, b) => a + b.items.filter((i) => i.nuevo).length, 0);
+
+$('sub').textContent = totalItems
+  ? (nuevos ? nuevos + ' novedad(es) desde la última vez · ' : '') + totalItems + ' cosa(s) para mirar'
+  : 'No hay nada pendiente.';
+
+$('cuerpo').innerHTML = bloques.length
+  ? bloques.map((b) => `
+    <div class="bloque">
+      <h2><span class="material-icons">${esc(b.icono)}</span>${esc(b.titulo)}
+        <a href="${esc(b.href)}">ver todo →</a></h2>
+      ${b.items.map(fila).join('')}
+    </div>`).join('')
+  : `<div class="limpio">
+      <span class="material-icons">task_alt</span>
+      <b>Todo al día.</b><br>
+      <span style="font-size:.88rem;">No hay nada urgente ni mensajes sin leer.</span>
+    </div>`;
+
+// Se marca la visita DESPUÉS de pintar: lo que se acaba de mostrar como
+// "nuevo" ya se vio, y la próxima vez solo aparecerá lo que llegue después.
+try {
+  await updateDoc(doc(db, 'usuarios', u.uid), { ultimaVisitaInicio: serverTimestamp() });
+} catch (e) {
+  // Si la regla todavía no está publicada, la página funciona igual:
+  // simplemente todo se sigue viendo como nuevo.
+  console.warn('marca de visita:', e);
+}
 </script>
 </body>
 </html>
