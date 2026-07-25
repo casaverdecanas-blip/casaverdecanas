@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>CasaVerde 2.0 · Comunicación</title>
-<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
 <link rel="stylesheet" href="design-system.css">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -19,23 +19,49 @@
   .tema .info b { font-size: .94rem; overflow-wrap: anywhere; }
   .tema .info small { display: block; color: var(--gris); font-size: .78rem;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tema .chip { display: inline-flex; align-items: center; gap: 3px; font-size: .68rem;
+    background: #eef4fb; color: #33506e; border-radius: 999px; padding: 1px 8px;
+    font-weight: 600; margin-top: 3px; }
+  .tema .chip .material-icons { font-size: 13px; }
   .badge { background: var(--azul); color: #fff; border-radius: 999px;
     font-size: .72rem; padding: 2px 9px; font-weight: 700; }
 
   /* Hilo */
   #hilo { display: none; }
-  .msgs { display: flex; flex-direction: column; gap: 8px; padding: 4px 0 90px; }
+  .hilo-sub { color: var(--gris); font-size: .78rem; margin: 2px 0 0 44px;
+    display: flex; align-items: center; gap: 5px; overflow-wrap: anywhere; }
+  .hilo-sub .material-icons { font-size: 15px; }
+  .hilo-barra { display: flex; align-items: center; gap: 8px; margin: 8px 0 2px 44px; }
+  .btn-chico { padding: 4px 10px; font-size: .78rem; }
+  .msgs { display: flex; flex-direction: column; gap: 8px; padding: 8px 0 90px; }
   .msg { max-width: 84%; border-radius: 14px; padding: 9px 13px; font-size: .9rem;
-    background: #fff; border: 1px solid var(--linea); align-self: flex-start; }
+    background: #fff; border: 1px solid var(--linea); align-self: flex-start;
+    overflow-wrap: anywhere; }
   .msg.mio { background: var(--verde-claro); align-self: flex-end; }
-  .msg small { display: block; color: var(--gris); font-size: .72rem; margin-top: 3px; }
+  .msg .msg-img { display: block; max-width: 220px; width: 100%; border-radius: 10px;
+    margin-bottom: 5px; }
+  .msg small { display: flex; align-items: center; gap: 6px; color: var(--gris);
+    font-size: .72rem; margin-top: 3px; }
+  .msg .msg-accion { margin-left: auto; background: none; border: 0; cursor: pointer;
+    color: var(--gris); padding: 0; display: inline-flex; }
+  .msg .msg-accion .material-icons { font-size: 16px; }
   .escribir {
     position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 8px;
+    align-items: center;
     padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
     background: var(--crema); border-top: 1px solid var(--linea);
   }
-  .escribir input { flex: 1; }
+  .escribir input[type="text"] { flex: 1; }
   .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
+  .personas { display: flex; flex-direction: column; gap: 4px; max-height: 40vh;
+    overflow: auto; margin: 6px 0; }
+  .personas label { display: flex; align-items: center; gap: 9px; padding: 8px 10px;
+    border: 1px solid var(--linea); border-radius: 10px; cursor: pointer; font-size: .9rem; }
+  .seg { display: flex; gap: 0; border: 1px solid var(--linea); border-radius: 10px;
+    overflow: hidden; margin: 4px 0 8px; }
+  .seg button { flex: 1; border: 0; background: #fff; padding: 9px; font-size: .85rem;
+    cursor: pointer; color: var(--gris); }
+  .seg button.on { background: var(--verde); color: #fff; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -59,20 +85,36 @@
     <div style="display:flex;align-items:center;gap:8px;">
       <button class="btn" id="btnVolver" style="padding:7px 10px;"><span class="material-icons">arrow_back</span></button>
       <h1 id="hTitulo" style="margin:0;font-size:1.1rem;flex:1;overflow-wrap:anywhere;"></h1>
+      <button class="btn oculto" id="btnAgregarPart" title="Sumar personas" style="padding:7px 10px;"><span class="material-icons">person_add</span></button>
+    </div>
+    <div class="hilo-sub oculto" id="hSub"></div>
+    <div class="hilo-barra">
+      <button class="btn btn-chico" id="btnVerElim"></button>
     </div>
     <div class="msgs" id="msgs"></div>
   </div>
 </div>
 
 <div class="escribir oculto" id="barra">
-  <input id="texto" placeholder="Escribí un mensaje…" maxlength="1000">
+  <button class="btn" id="btnFoto" title="Foto" style="padding:9px 11px;"><span class="material-icons">photo_camera</span></button>
+  <input type="text" id="texto" placeholder="Escribí un mensaje…" maxlength="1000">
+  <input type="file" accept="image/*" id="inputFoto" style="display:none">
   <button class="btn btn-primario" id="btnEnviar"><span class="material-icons">send</span></button>
 </div>
 
 <dialog id="mNuevo" style="border:0;border-radius:14px;padding:16px;width:min(440px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.25);">
   <h2 style="margin:0 0 4px;">Nuevo tema</h2>
   <label>Título</label>
-  <input id="nTitulo" maxlength="100" placeholder="De qué se trata">
+  <input type="text" id="nTitulo" maxlength="100" placeholder="De qué se trata">
+  <label>¿Para quién?</label>
+  <div class="seg" id="nSeg">
+    <button type="button" data-aud="equipo" class="on">Todo el equipo</button>
+    <button type="button" data-aud="directo">Personas específicas</button>
+  </div>
+  <div id="nPersonasWrap" class="oculto">
+    <label>Elegí a quién incluir</label>
+    <div class="personas" id="nPersonas"></div>
+  </div>
   <label>Primer mensaje</label>
   <textarea id="nMensaje" rows="3"></textarea>
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
@@ -81,11 +123,21 @@
   </div>
 </dialog>
 
+<dialog id="mAgregar" style="border:0;border-radius:14px;padding:16px;width:min(440px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.25);">
+  <h2 style="margin:0 0 4px;">Sumar personas</h2>
+  <div class="personas" id="aPersonas"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+    <button class="btn" id="aCancelar">Cancelar</button>
+    <button class="btn btn-primario" id="aConfirmar">Sumar</button>
+  </div>
+</dialog>
+
 <script type="module">
 // Regla del 2.0: definiciones primero, suscripciones AL FINAL.
 import {
-  db, collection, query, onSnapshot, doc, addDoc, setDoc, updateDoc,
-  serverTimestamp, Timestamp
+  db, collection, query, where, or, onSnapshot, doc, getDocs,
+  addDoc, setDoc, updateDoc, serverTimestamp, Timestamp,
+  arrayUnion, deleteField, writeBatch
 } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
 
@@ -98,9 +150,14 @@ const esc = CV2.esc;
 
 // ═══ Estado ═══════════════════════════════════════════════
 let temas = [];
+let usuarios = [];          // { uid, nombre } — para el selector de personas
 let lecturas = {};          // comId → ms de última lectura mía
+let eliminados = {};         // msgId → true (borrados por MÍ, solo en mi vista)
 let abierto = null;         // comId del hilo abierto
 let offMsgs = null;         // unsubscribe del hilo
+let msgsActuales = [];      // mensajes del hilo abierto (sin filtrar)
+let verEliminados = false;  // vista de eliminados dentro del hilo
+let backfillHecho = false;  // el relleno de 'audiencia' corre una sola vez
 
 // ═══ Helpers ══════════════════════════════════════════════
 const fmtHora = (ts) => {
@@ -115,6 +172,36 @@ const noLeido = (t) => {
   const ult = t.ultimaActividad?.toMillis?.() ?? 0;
   return ult > (lecturas[t.id] ?? 0) && t.ultimoAutorUid !== u.uid;
 };
+const nombreDe = (uid) => {
+  if (uid === u.uid) return 'vos';
+  const p = usuarios.find((x) => x.uid === uid);
+  return p ? (p.nombre || p.email || 'alguien') : 'alguien';
+};
+// Personas de un tema directo, sin contarme a mí, en texto corto.
+const nombresParticipantes = (t) =>
+  (t.participantes || []).filter((x) => x !== u.uid).map(nombreDe).join(', ') || 'solo vos';
+
+// Lee comunicaciones_lecturas/{uid}. Soporta el formato viejo (claves comId
+// al ras del documento) y el nuevo ({ lecturas:{...}, eliminados:{...} }).
+function parseLecturas(data) {
+  const lec = {}, elim = {};
+  if (!data) return { lecturas: lec, eliminados: elim };
+  // Formato viejo: comId → Timestamp al ras.
+  Object.keys(data).forEach((k) => {
+    if (k === 'lecturas' || k === 'eliminados') return;
+    const v = data[k];
+    if (v && v.toMillis) lec[k] = v.toMillis();
+  });
+  // Formato nuevo: gana sobre el viejo.
+  const nuevos = data.lecturas || {};
+  Object.keys(nuevos).forEach((k) => {
+    const v = nuevos[k];
+    lec[k] = (v && v.toMillis) ? v.toMillis() : (typeof v === 'number' ? v : 0);
+  });
+  const e = data.eliminados || {};
+  Object.keys(e).forEach((k) => { if (e[k]) elim[k] = true; });
+  return { lecturas: lec, eliminados: elim };
+}
 
 // ═══ Render lista ═════════════════════════════════════════
 function renderTemas() {
@@ -123,97 +210,242 @@ function renderTemas() {
     cont.innerHTML = '<div class="vacio">Sin temas todavía.<br>Creá el primero con el botón <b>Tema</b>.</div>';
     return;
   }
-  cont.innerHTML = temas.map((t) => `
+  cont.innerHTML = temas.map((t) => {
+    const directo = t.audiencia === 'directo';
+    const chip = directo
+      ? '<span class="chip"><span class="material-icons">lock</span>' + esc(nombresParticipantes(t)) + '</span>'
+      : '';
+    return `
     <div class="tema" onclick="abrirTema('${t.id}')">
       <div class="info"><b>${esc(t.titulo)}</b>
         <small>${esc(t.ultimoMensaje ?? '')}</small>
         <small>${fmtHora(t.ultimaActividad)}${t.ultimoAutorNombre ? ' · ' + esc(t.ultimoAutorNombre) : ''}</small>
+        ${chip}
       </div>
       ${noLeido(t) ? '<span class="badge">nuevo</span>' : ''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ═══ Hilo ═════════════════════════════════════════════════
 window.abrirTema = (id) => {
   abierto = id;
+  verEliminados = false;
   const t = temas.find((x) => x.id === id);
   $('hTitulo').textContent = t?.titulo ?? '';
   $('listaVista').style.display = 'none';
   $('hilo').style.display = 'block';
   $('barra').classList.remove('oculto');
   $('msgs').innerHTML = '<div class="vacio">Cargando…</div>';
+  actualizarCabeceraHilo();
 
   offMsgs?.();
   offMsgs = onSnapshot(query(collection(db, 'comunicaciones', id, 'mensajes')), (snap) => {
-    const ms = [];
-    snap.forEach((d) => ms.push({ id: d.id, ...d.data() }));
-    ms.sort((a, b) => (a.creadoEn?.toMillis?.() ?? 0) - (b.creadoEn?.toMillis?.() ?? 0));
-    $('msgs').innerHTML = ms.map((m) => `
-      <div class="msg${m.autorUid === u.uid ? ' mio' : ''}">
-        ${esc(m.texto)}
-        <small>${m.autorUid === u.uid ? '' : esc(m.autorNombre ?? '') + ' · '}${fmtHora(m.creadoEn)}</small>
-      </div>`).join('') || '<div class="vacio">Sin mensajes.</div>';
+    msgsActuales = [];
+    snap.forEach((d) => msgsActuales.push({ id: d.id, ...d.data() }));
+    msgsActuales.sort((a, b) => (a.creadoEn?.toMillis?.() ?? 0) - (b.creadoEn?.toMillis?.() ?? 0));
+    pintarMsgs();
     window.scrollTo(0, document.body.scrollHeight);
     marcarLeido(id);
-  });
+  }, (e) => { console.error(e); $('msgs').innerHTML = '<div class="vacio">No se pudo abrir el tema.</div>'; });
 };
+
+// Cabecera del hilo: subtítulo de participantes + botones según el tema.
+function actualizarCabeceraHilo() {
+  const t = temas.find((x) => x.id === abierto);
+  const directo = t?.audiencia === 'directo';
+  const puedeSumar = directo && (CV2.esAdmin() || t?.creadoPor === u.uid);
+
+  const sub = $('hSub');
+  if (directo) {
+    sub.innerHTML = '<span class="material-icons">lock</span>Privado · ' + esc(nombresParticipantes(t));
+    sub.classList.remove('oculto');
+  } else {
+    sub.classList.add('oculto');
+  }
+  $('btnAgregarPart').classList.toggle('oculto', !puedeSumar);
+
+  const nElim = msgsActuales.filter((m) => eliminados[m.id]).length;
+  $('btnVerElim').innerHTML = verEliminados
+    ? '<span class="material-icons" style="font-size:16px;vertical-align:-3px;">arrow_back</span> Volver a los mensajes'
+    : '<span class="material-icons" style="font-size:16px;vertical-align:-3px;">delete_outline</span> Eliminados (' + nElim + ')';
+  // Sin eliminados y no estamos mirándolos → no mostramos el botón.
+  $('btnVerElim').style.display = (nElim > 0 || verEliminados) ? '' : 'none';
+}
+
+function filaMsg(m) {
+  const mio = m.autorUid === u.uid;
+  const img = m.imagenUrl
+    ? '<a href="' + esc(m.imagenUrl) + '" target="_blank" rel="noopener"><img class="msg-img" src="' + esc(m.imagenUrl) + '" alt="foto"></a>'
+    : '';
+  const accion = verEliminados
+    ? '<button class="msg-accion" title="Restaurar en mi vista" onclick="restaurarMsg(\'' + m.id + '\')"><span class="material-icons">restore_from_trash</span></button>'
+    : '<button class="msg-accion" title="Eliminar de mi vista" onclick="borrarMsg(\'' + m.id + '\')"><span class="material-icons">delete_outline</span></button>';
+  const autor = mio ? '' : esc(m.autorNombre ?? '') + ' · ';
+  return '<div class="msg' + (mio ? ' mio' : '') + '">'
+    + img
+    + (m.texto ? esc(m.texto) : '')
+    + '<small>' + autor + fmtHora(m.creadoEn) + accion + '</small>'
+    + '</div>';
+}
+
+function pintarMsgs() {
+  const cont = $('msgs');
+  const lista = msgsActuales.filter((m) => verEliminados ? eliminados[m.id] : !eliminados[m.id]);
+  if (!lista.length) {
+    cont.innerHTML = verEliminados
+      ? '<div class="vacio">No eliminaste ningún mensaje de este tema.</div>'
+      : '<div class="vacio">Sin mensajes.</div>';
+  } else {
+    cont.innerHTML = lista.map(filaMsg).join('');
+  }
+  actualizarCabeceraHilo();
+}
+
+$('btnVerElim').addEventListener('click', () => {
+  verEliminados = !verEliminados;
+  pintarMsgs();
+  window.scrollTo(0, 0);
+});
 
 $('btnVolver').addEventListener('click', () => {
   abierto = null;
   offMsgs?.(); offMsgs = null;
+  msgsActuales = [];
   $('hilo').style.display = 'none';
   $('barra').classList.add('oculto');
   $('listaVista').style.display = 'block';
   renderTemas();
 });
 
+window.borrarMsg = async (mid) => {
+  eliminados[mid] = true;
+  pintarMsgs();
+  try {
+    await setDoc(doc(db, 'comunicaciones_lecturas', u.uid),
+      { eliminados: { [mid]: true } }, { merge: true });
+  } catch (e) { CV2.toast('No se pudo eliminar: ' + (e.code ?? e.message), 'error'); }
+};
+
+window.restaurarMsg = async (mid) => {
+  delete eliminados[mid];
+  pintarMsgs();
+  try {
+    await setDoc(doc(db, 'comunicaciones_lecturas', u.uid),
+      { eliminados: { [mid]: deleteField() } }, { merge: true });
+  } catch (e) { CV2.toast('No se pudo restaurar: ' + (e.code ?? e.message), 'error'); }
+};
+
 async function marcarLeido(id) {
   lecturas[id] = Date.now();
   try {
     await setDoc(doc(db, 'comunicaciones_lecturas', u.uid),
-      { [id]: Timestamp.now() }, { merge: true });
+      { lecturas: { [id]: Timestamp.now() } }, { merge: true });
   } catch { /* silencioso */ }
 }
 
-async function enviar() {
-  const texto = $('texto').value.trim();
-  if (!texto || !abierto) return;
-  $('texto').value = '';
+// ═══ Enviar (texto y/o foto) ══════════════════════════════
+async function enviarMensaje(texto, imagenUrl) {
+  texto = (texto || '').trim();
+  if ((!texto && !imagenUrl) || !abierto) return;
+  const payload = {
+    texto, autorUid: u.uid, autorNombre: u.nombre ?? '', creadoEn: serverTimestamp()
+  };
+  if (imagenUrl) payload.imagenUrl = imagenUrl;
   try {
-    await addDoc(collection(db, 'comunicaciones', abierto, 'mensajes'), {
-      texto, autorUid: u.uid, autorNombre: u.nombre ?? '', creadoEn: serverTimestamp()
-    });
+    await addDoc(collection(db, 'comunicaciones', abierto, 'mensajes'), payload);
     await updateDoc(doc(db, 'comunicaciones', abierto), {
-      ultimoMensaje: texto.slice(0, 120),
+      ultimoMensaje: imagenUrl ? (texto ? texto.slice(0, 120) : '📷 Foto') : texto.slice(0, 120),
       ultimoAutorUid: u.uid,
       ultimoAutorNombre: u.nombre ?? '',
       ultimaActividad: serverTimestamp()
     });
   } catch (e) { CV2.toast('No se pudo enviar: ' + (e.code ?? e.message), 'error'); }
 }
+
+function enviar() {
+  const texto = $('texto').value.trim();
+  if (!texto) return;
+  $('texto').value = '';
+  enviarMensaje(texto, null);
+}
 $('btnEnviar').addEventListener('click', enviar);
 $('texto').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') enviar(); });
+
+$('btnFoto').addEventListener('click', () => $('inputFoto').click());
+$('inputFoto').addEventListener('change', async (ev) => {
+  const file = ev.target.files?.[0];
+  ev.target.value = '';
+  if (!file || !abierto) return;
+  $('btnFoto').disabled = true;
+  CV2.toast('Subiendo foto…');
+  try {
+    const url = await CV2.subirImagen(file);
+    const cap = $('texto').value.trim();
+    $('texto').value = '';
+    await enviarMensaje(cap, url);
+  } catch (e) { CV2.toast('No se pudo subir la foto: ' + (e.code ?? e.message), 'error'); }
+  finally { $('btnFoto').disabled = false; }
+});
 
 // ═══ Nuevo tema ═══════════════════════════════════════════
 $('btnNuevo').addEventListener('click', () => {
   $('nTitulo').value = ''; $('nMensaje').value = '';
+  segSet('equipo');
+  pintarPersonas($('nPersonas'), []);
   $('mNuevo').showModal();
   $('nTitulo').focus();
 });
+
+// Selector equipo/directo
+function segSet(aud) {
+  [...$('nSeg').children].forEach((b) => b.classList.toggle('on', b.dataset.aud === aud));
+  $('nPersonasWrap').classList.toggle('oculto', aud !== 'directo');
+}
+[...$('nSeg').children].forEach((b) =>
+  b.addEventListener('click', () => segSet(b.dataset.aud)));
+
+function segActual() {
+  const on = [...$('nSeg').children].find((b) => b.classList.contains('on'));
+  return on ? on.dataset.aud : 'equipo';
+}
+
+// Lista de checkboxes de personas (excluye al usuario actual: siempre va).
+function pintarPersonas(cont, yaDentro) {
+  const otros = usuarios.filter((p) => p.uid !== u.uid);
+  cont.innerHTML = otros.length
+    ? otros.map((p) => {
+        const dentro = yaDentro.indexOf(p.uid) !== -1;
+        return '<label><input type="checkbox" value="' + p.uid + '"'
+          + (dentro ? ' checked disabled' : '') + '> ' + esc(p.nombre || p.email || p.uid)
+          + (dentro ? ' <small style="color:var(--gris)">(ya está)</small>' : '') + '</label>';
+      }).join('')
+    : '<div class="vacio">No hay otras personas cargadas.</div>';
+}
+
 $('nCancelar').addEventListener('click', () => $('mNuevo').close());
 $('nCrear').addEventListener('click', async () => {
   const titulo = $('nTitulo').value.trim();
   const msj = $('nMensaje').value.trim();
   if (!titulo || !msj) { CV2.toast('Falta título o mensaje', 'error'); return; }
+  const audiencia = segActual();
+  let participantes = null;
+  if (audiencia === 'directo') {
+    const sel = [...$('nPersonas').querySelectorAll('input:checked')].map((c) => c.value);
+    if (!sel.length) { CV2.toast('Elegí al menos una persona', 'error'); return; }
+    participantes = Array.from(new Set([u.uid, ...sel]));
+  }
   $('nCrear').disabled = true;
   try {
-    const ref = await addDoc(collection(db, 'comunicaciones'), {
-      titulo, audiencia: 'equipo',
+    const data = {
+      titulo, audiencia,
       ultimoMensaje: msj.slice(0, 120),
       ultimoAutorUid: u.uid, ultimoAutorNombre: u.nombre ?? '',
       creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? '',
       ultimaActividad: serverTimestamp()
-    });
+    };
+    if (participantes) data.participantes = participantes;
+    const ref = await addDoc(collection(db, 'comunicaciones'), data);
     await addDoc(collection(db, 'comunicaciones', ref.id, 'mensajes'), {
       texto: msj, autorUid: u.uid, autorNombre: u.nombre ?? '', creadoEn: serverTimestamp()
     });
@@ -223,18 +455,76 @@ $('nCrear').addEventListener('click', async () => {
   finally { $('nCrear').disabled = false; }
 });
 
-// ═══ Suscripciones — AL FINAL ═════════════════════════════
-onSnapshot(doc(db, 'comunicaciones_lecturas', u.uid), (snap) => {
-  const d = snap.exists() ? snap.data() : {};
-  lecturas = Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v?.toMillis?.() ?? 0]));
-  if (!abierto) renderTemas();
+// ═══ Sumar personas a un tema directo (creador o admin) ═══
+$('btnAgregarPart').addEventListener('click', () => {
+  const t = temas.find((x) => x.id === abierto);
+  if (!t) return;
+  pintarPersonas($('aPersonas'), t.participantes || []);
+  $('mAgregar').showModal();
+});
+$('aCancelar').addEventListener('click', () => $('mAgregar').close());
+$('aConfirmar').addEventListener('click', async () => {
+  const sel = [...$('aPersonas').querySelectorAll('input:checked:not(:disabled)')].map((c) => c.value);
+  if (!sel.length) { $('mAgregar').close(); return; }
+  $('aConfirmar').disabled = true;
+  try {
+    await updateDoc(doc(db, 'comunicaciones', abierto), { participantes: arrayUnion(...sel) });
+    $('mAgregar').close();
+    CV2.toast('Personas sumadas', 'ok');
+  } catch (e) { CV2.toast('No se pudo sumar: ' + (e.code ?? e.message), 'error'); }
+  finally { $('aConfirmar').disabled = false; }
 });
 
-onSnapshot(query(collection(db, 'comunicaciones')), (snap) => {
+// ═══ Backfill de 'audiencia' (solo admin, una vez) ════════
+// Los temas viejos no tienen 'audiencia'. La regla los trata como 'equipo',
+// pero la consulta filtrada del colaborador (audiencia == 'equipo') no los
+// devolvería. Al abrir el chat, el admin los marca como 'equipo' de una vez.
+async function backfillAudiencia(docs) {
+  if (backfillHecho || !CV2.esAdmin()) return;
+  const faltan = docs.filter((d) => d.audiencia == null).map((d) => d.id);
+  backfillHecho = true;
+  if (!faltan.length) return;
+  try {
+    const batch = writeBatch(db);
+    faltan.forEach((id) => batch.update(doc(db, 'comunicaciones', id), { audiencia: 'equipo' }));
+    await batch.commit();
+  } catch (e) { console.warn('backfill audiencia', e); backfillHecho = false; }
+}
+
+// ═══ Carga inicial de personas ════════════════════════════
+try {
+  const snap = await getDocs(collection(db, 'usuarios'));
+  snap.forEach((d) => {
+    const x = d.data();
+    if (x.activo === false) return;
+    usuarios.push({ uid: d.id, nombre: x.nombre ?? '', email: x.email ?? '' });
+  });
+} catch (e) { console.warn('usuarios', e); }
+
+// ═══ Suscripciones — AL FINAL ═════════════════════════════
+onSnapshot(doc(db, 'comunicaciones_lecturas', u.uid), (snap) => {
+  const parsed = parseLecturas(snap.exists() ? snap.data() : {});
+  lecturas = parsed.lecturas;
+  eliminados = parsed.eliminados;
+  if (abierto) pintarMsgs();
+  else renderTemas();
+});
+
+// Colaborador: SOLO equipo o donde participa (la regla rechaza el listado
+// sin filtrar). Admin: ve todos.
+const qTemas = CV2.esAdmin()
+  ? query(collection(db, 'comunicaciones'))
+  : query(collection(db, 'comunicaciones'),
+      or(where('audiencia', '==', 'equipo'),
+         where('participantes', 'array-contains', u.uid)));
+
+onSnapshot(qTemas, (snap) => {
   temas = [];
   snap.forEach((d) => temas.push({ id: d.id, ...d.data() }));
   temas.sort((a, b) => (b.ultimaActividad?.toMillis?.() ?? 0) - (a.ultimaActividad?.toMillis?.() ?? 0));
-  if (!abierto) renderTemas();
+  backfillAudiencia(temas);
+  if (abierto) actualizarCabeceraHilo();
+  else renderTemas();
 }, (e) => { console.error(e); CV2.toast('No se pudo cargar la comunicación', 'error'); });
 </script>
 </body>

@@ -65,7 +65,7 @@
 // Regla 3.2: nada de onSnapshot acá — es una foto al entrar.
 // ═══════════════════════════════════════════════════════════
 import {
-  db, collection, query, where, getDocs, getDoc, doc, updateDoc, serverTimestamp
+  db, collection, query, where, or, getDocs, getDoc, doc, updateDoc, serverTimestamp
 } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
 import { Core } from './actividades-core.js';
@@ -95,6 +95,27 @@ function haceCuanto(t) {
   if (min < 1440) return 'hace ' + Math.round(min / 60) + ' h';
   const d = Math.round(min / 1440);
   return d === 1 ? 'ayer' : 'hace ' + d + ' días';
+}
+
+// Marcas de lectura del chat → mapa plano comId→ms. Soporta el formato
+// viejo (claves comId al ras del documento) y el nuevo
+// ({ lecturas:{comId:Timestamp}, eliminados:{...} }). El nuevo gana.
+// Antes esto leía un campo 'vistos' que NUNCA existió: por eso todos los
+// temas se veían siempre como no leídos y el cartel "nuevo" jamás se iba.
+function leerVistos(data) {
+  const out = {};
+  if (!data) return out;
+  Object.keys(data).forEach((k) => {
+    if (k === 'lecturas' || k === 'eliminados') return;
+    const v = data[k];
+    if (v && v.toMillis) out[k] = v.toMillis();
+  });
+  const nuevos = data.lecturas || {};
+  Object.keys(nuevos).forEach((k) => {
+    const v = nuevos[k];
+    out[k] = (v && v.toMillis) ? v.toMillis() : (typeof v === 'number' ? v : 0);
+  });
+  return out;
 }
 
 // ── Acumulador de novedades ──────────────────────────────────
@@ -163,14 +184,24 @@ if (CV2.puede('reservas')) {
 // ── 3 · Chat: lo que no leíste ───────────────────────────────
 try {
   const convs = [];
-  const snap = await getDocs(collection(db, 'comunicaciones'));
+  // Colaborador: SOLO temas de equipo o donde participa. La regla nueva
+  // rechaza el listado sin filtrar (incluiría temas dirigidos ajenos).
+  // Admin: los ve todos.
+  const snap = CV2.esAdmin()
+    ? await getDocs(collection(db, 'comunicaciones'))
+    : await getDocs(query(collection(db, 'comunicaciones'),
+        or(where('audiencia', '==', 'equipo'),
+           where('participantes', 'array-contains', u.uid))));
   snap.forEach((d) => convs.push({ id: d.id, ...d.data() }));
   let vistos = {};
   try {
     const lec = await getDoc(doc(db, 'comunicaciones_lecturas', u.uid));
-    if (lec.exists()) vistos = lec.data().vistos || {};
+    if (lec.exists()) vistos = leerVistos(lec.data());
   } catch { /* primera vez */ }
-  const sinLeer = convs.filter((c) => !c.archivada && ms(c.ultimaActividad) > (vistos[c.id] || 0));
+  // Sin leer = actividad más nueva que mi última lectura y cuyo último
+  // mensaje no lo escribí yo.
+  const sinLeer = convs.filter((c) =>
+    ms(c.ultimaActividad) > (vistos[c.id] || 0) && c.ultimoAutorUid !== u.uid);
   agregar('comunicacion', 'Mensajes sin leer', 'forum', './comunicacion.html',
     sinLeer.slice(0, 6).map((c) => ({
       icono: 'chat_bubble', titulo: c.titulo || 'Conversación',
