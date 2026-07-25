@@ -137,7 +137,6 @@
   <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
     <button class="btn" id="btnSubirFoto" style="font-size:.84rem;">
       <span class="material-icons">add_photo_alternate</span> Subir foto</button>
-    <input id="inputFoto" type="file" accept="image/*" class="oculto">
     <button class="btn" id="btnUrlFoto" style="font-size:.84rem;">
       <span class="material-icons">link</span> Pegar URL</button>
   </div>
@@ -192,15 +191,11 @@ function normalizarInventario(inv) {
 
 const nom = (c) => c.nombre?.es ?? c.nombre?.pt ?? c.nombre?.en ?? c.id;
 
-// ═══ Cloudinary (mismo cloud del sistema, subida sin firma) ═══
-async function subirCloudinary(file) {
-  const fd = new FormData();
-  fd.append('file', file);
-  fd.append('upload_preset', 'preset-comprobantes');
-  const r = await fetch('https://api.cloudinary.com/v1_1/dnwfu8ffn/image/upload', { method: 'POST', body: fd });
-  if (!r.ok) throw new Error('Cloudinary ' + r.status);
-  return (await r.json()).secure_url;
-}
+// ═══ Fotos ════════════════════════════════════════════════
+// Van por el camino ÚNICO del sistema: CV2.elegirYSubirImagen (hoja de
+// cámara/archivo + compresión a 2000px/0.85 + Cloudinary). Antes había
+// acá una copia propia de la subida SIN comprimir: las fotos del sitio
+// se subían enteras, pesadas para el visitante. Ver nucleo.js.
 
 // ═══ Render lista ═════════════════════════════════════════
 function render() {
@@ -307,19 +302,15 @@ window.editar = (id) => {
   $('modal').showModal();
 };
 
-$('btnSubirFoto').addEventListener('click', () => $('inputFoto').click());
-$('inputFoto').addEventListener('change', async () => {
-  const f = $('inputFoto').files[0];
-  if (!f) return;
+$('btnSubirFoto').addEventListener('click', async () => {
   $('btnSubirFoto').disabled = true;
-  CV2.toast('Subiendo foto…', 'info');
   try {
-    const url = await subirCloudinary(f);
+    const url = await CV2.elegirYSubirImagen({ titulo: 'Foto de la cabaña' });
+    if (!url) return;
     fotosTmp.push(url);
     renderFotosEdit();
     CV2.toast('✓ Foto subida', 'success');
-  } catch (e) { CV2.toast('No se pudo subir: ' + e.message, 'error'); }
-  finally { $('btnSubirFoto').disabled = false; $('inputFoto').value = ''; }
+  } finally { $('btnSubirFoto').disabled = false; }
 });
 $('btnUrlFoto').addEventListener('click', () => {
   const url = prompt('Pegá la URL de la imagen:');

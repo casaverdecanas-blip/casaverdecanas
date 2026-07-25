@@ -98,7 +98,6 @@
 <div class="escribir oculto" id="barra">
   <button class="btn" id="btnFoto" title="Foto" style="padding:9px 11px;"><span class="material-icons">photo_camera</span></button>
   <input type="text" id="texto" placeholder="Escribí un mensaje…" maxlength="1000">
-  <input type="file" accept="image/*" id="inputFoto" style="display:none">
   <button class="btn btn-primario" id="btnEnviar"><span class="material-icons">send</span></button>
 </div>
 
@@ -372,20 +371,18 @@ function enviar() {
 $('btnEnviar').addEventListener('click', enviar);
 $('texto').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') enviar(); });
 
-$('btnFoto').addEventListener('click', () => $('inputFoto').click());
-$('inputFoto').addEventListener('change', async (ev) => {
-  const file = ev.target.files?.[0];
-  ev.target.value = '';
-  if (!file || !abierto) return;
+// Camino único del sistema: la hoja de CV2 ofrece cámara O archivo, y
+// devuelve la URL ya subida y comprimida. Si la persona cancela, null.
+$('btnFoto').addEventListener('click', async () => {
+  if (!abierto) return;
   $('btnFoto').disabled = true;
-  CV2.toast('Subiendo foto…');
   try {
-    const url = await CV2.subirImagen(file);
+    const url = await CV2.elegirYSubirImagen({ titulo: 'Enviar foto' });
+    if (!url) return;
     const cap = $('texto').value.trim();
     $('texto').value = '';
     await enviarMensaje(cap, url);
-  } catch (e) { CV2.toast('No se pudo subir la foto: ' + (e.code ?? e.message), 'error'); }
-  finally { $('btnFoto').disabled = false; }
+  } finally { $('btnFoto').disabled = false; }
 });
 
 // ═══ Nuevo tema ═══════════════════════════════════════════

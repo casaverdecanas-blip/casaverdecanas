@@ -236,7 +236,6 @@
         <input id="chDanioDesc" placeholder="Descripción del daño (ej: mancha en sábana grande)" style="width:100%;">
         <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
           <button class="btn" id="chDanioFoto" style="font-size:.82rem;"><span class="material-icons">photo_camera</span> Foto</button>
-          <input id="chDanioInput" type="file" accept="image/*" capture="environment" class="oculto">
           <span id="chDanioEstado" class="texto-gris" style="font-size:.78rem;"></span>
           <button class="btn" id="chDanioAgregar" style="font-size:.82rem;margin-left:auto;"><span class="material-icons">add</span> Agregar daño</button>
         </div>
@@ -896,18 +895,18 @@ function renderChDanios() {
 }
 window.chQuitarDanio = (i) => { chDaniosTmp.splice(i, 1); renderChDanios(); };
 
-$('chDanioFoto').addEventListener('click', () => $('chDanioInput').click());
-$('chDanioInput').addEventListener('change', async () => {
-  const f = $('chDanioInput').files[0];
-  if (!f) return;
+// Camino ÚNICO del sistema (ver nucleo.js): la hoja ofrece cámara O
+// archivo. Antes este input tenía capture="environment", que fuerza la
+// cámara y ESCONDE los archivos: no se podía adjuntar una foto ya sacada.
+$('chDanioFoto').addEventListener('click', async () => {
   $('chDanioFoto').disabled = true;
-  $('chDanioEstado').textContent = 'subiendo…';
+  $('chDanioEstado').textContent = '';
   try {
-    chFotoPend = await CV2.subirImagen(f);
+    const url = await CV2.elegirYSubirImagen({ titulo: 'Foto del daño' });
+    if (!url) return;
+    chFotoPend = url;
     $('chDanioEstado').textContent = '✓ foto lista';
-  } catch (e) {
-    $('chDanioEstado').textContent = 'falló la foto';
-  } finally { $('chDanioFoto').disabled = false; $('chDanioInput').value = ''; }
+  } finally { $('chDanioFoto').disabled = false; }
 });
 $('chDanioAgregar').addEventListener('click', () => {
   const desc = $('chDanioDesc').value.trim();

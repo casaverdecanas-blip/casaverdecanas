@@ -69,7 +69,6 @@
   <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
     <button class="btn" id="btnFoto" style="font-size:.84rem;">
       <span class="material-icons">add_photo_alternate</span> Agregar foto</button>
-    <input id="inputFoto" type="file" accept="image/*" class="oculto">
     <span id="estadoFoto" class="texto-gris" style="font-size:.8rem;"></span>
   </div>
 
@@ -143,19 +142,16 @@ function renderFotos() {
 }
 window.quitarFoto = (i) => { fotosTmp.splice(i, 1); renderFotos(); };
 
-$('btnFoto').addEventListener('click', () => $('inputFoto').click());
-$('inputFoto').addEventListener('change', async () => {
-  const f = $('inputFoto').files[0];
-  if (!f) return;
+$('btnFoto').addEventListener('click', async () => {
   $('btnFoto').disabled = true;
-  $('estadoFoto').textContent = 'subiendo…';
+  $('estadoFoto').textContent = '';
   try {
-    fotosTmp.push(await CV2.subirImagen(f));
+    const url = await CV2.elegirYSubirImagen({ titulo: 'Foto del espacio' });
+    if (!url) return;
+    fotosTmp.push(url);
     renderFotos();
     $('estadoFoto').textContent = '✓ agregada';
-  } catch (e) {
-    $('estadoFoto').textContent = 'falló la subida';
-  } finally { $('btnFoto').disabled = false; $('inputFoto').value = ''; }
+  } finally { $('btnFoto').disabled = false; }
 });
 
 // ── Alta / edición ───────────────────────────────────────────

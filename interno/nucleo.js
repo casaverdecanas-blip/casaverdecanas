@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 //  CASAVERDE 2.0 — nucleo.js
 //  Corazón compartido del panel: auth + perfil, permisos, navegación,
-//  helpers de formato y color, toasts, registro del service worker.
+//  helpers de formato y color, toasts, imágenes, registro del SW.
 //  Namespace único: CV2 (import { CV2 } from './nucleo.js')
 // ═══════════════════════════════════════════════════════════════
 
@@ -196,15 +196,99 @@ CV2.toast = function (msj, tipo = 'info') {
   setTimeout(() => { el.classList.remove('visible'); setTimeout(() => el.remove(), 300); }, 3200);
 };
 
-// ── Imágenes: comprimir y subir a Cloudinary ─────────────────
-// Un solo camino para toda foto del sistema (comprobantes, daños): se
-// reduce a 2000px lado mayor y JPEG 0.85 ANTES de subir — así una foto de
-// teléfono de 8 MB viaja como ~300 KB. Devuelve la secure_url.
+// ═════════════════════════════════════════════════════════════
+//  IMÁGENES — camino ÚNICO para toda foto del sistema
+//  (comprobantes, daños, mensajes, cabañas, espacios).
+//
+//  POR QUÉ ESTÁ ACÁ Y NO EN CADA PÁGINA (lección jul-2026):
+//  cada página armaba su propio <input type="file">, y ahí se colaba el
+//  error: con accept="image/*" a secas, el sistema decide qué ofrecer y
+//  en iPad (sobre todo dentro de la PWA) abre el explorador de archivos
+//  SIN ofrecer la cámara. El atributo 'capture' hace lo contrario: fuerza
+//  cámara y esconde los archivos. NINGÚN input solo da las dos opciones
+//  de forma confiable en iOS + Android.
+//  Solución: DOS inputs y que la persona elija. Vive en un solo lugar,
+//  así el día que cambie algo (tamaño, calidad, Cloudinary) se toca
+//  un archivo y no ocho.
+// ═════════════════════════════════════════════════════════════
 CV2.CLOUDINARY = { cloud: 'dnwfu8ffn', preset: 'preset-comprobantes' };
 
+/**
+ * Hoja de elección: Tomar foto (cámara) o Elegir archivo (galería/archivos).
+ * Devuelve el File elegido, o null si la persona cancela.
+ * Uso:  const file = await CV2.pedirImagen();
+ */
+CV2.pedirImagen = function (opciones) {
+  const op = opciones || {};
+  const titulo = op.titulo || 'Agregar foto';
+  return new Promise((resolver) => {
+    let resuelto = false;
+    const terminar = (valor) => {
+      if (resuelto) return;
+      resuelto = true;
+      window.removeEventListener('focus', alVolverElFoco);
+      if (hoja.parentNode) hoja.remove();
+      resolver(valor);
+    };
+
+    // Si la persona abre la cámara o los archivos y CANCELA, el navegador
+    // no dispara ningún evento: la promesa quedaría colgada para siempre.
+    // Al volver el foco a la ventana, damos un margen y cerramos con null.
+    let esperandoArchivo = false;
+    const alVolverElFoco = () => {
+      if (!esperandoArchivo) return;
+      setTimeout(() => { if (esperandoArchivo) terminar(null); }, 900);
+    };
+
+    const hoja = document.createElement('div');
+    hoja.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;';
+    hoja.innerHTML = '<div style="background:#fff;border-radius:16px 16px 0 0;width:min(440px,100%);padding:16px 16px calc(16px + env(safe-area-inset-bottom));box-shadow:0 -6px 30px rgba(0,0,0,.25);">'
+      + '<div style="font-weight:600;font-size:.95rem;margin-bottom:12px;text-align:center;">' + CV2.esc(titulo) + '</div>'
+      + '<button type="button" data-cv="camara" style="display:flex;align-items:center;gap:12px;width:100%;border:1px solid #e2e0d8;background:#fff;border-radius:12px;padding:14px;font-size:.95rem;cursor:pointer;margin-bottom:8px;text-align:left;"><span class="material-icons" style="color:#2d5a27;">photo_camera</span>Tomar foto</button>'
+      + '<button type="button" data-cv="archivo" style="display:flex;align-items:center;gap:12px;width:100%;border:1px solid #e2e0d8;background:#fff;border-radius:12px;padding:14px;font-size:.95rem;cursor:pointer;margin-bottom:8px;text-align:left;"><span class="material-icons" style="color:#2d5a27;">photo_library</span>Elegir archivo</button>'
+      + '<button type="button" data-cv="cancelar" style="width:100%;border:0;background:none;padding:12px;font-size:.9rem;color:#7a776e;cursor:pointer;">Cancelar</button>'
+      + '<input type="file" accept="image/*" capture="environment" data-cv="inCamara" style="display:none">'
+      + '<input type="file" accept="image/*" data-cv="inArchivo" style="display:none">'
+      + '</div>';
+    document.body.appendChild(hoja);
+
+    const q = (n) => hoja.querySelector('[data-cv="' + n + '"]');
+
+    // Un solo manejador para los dos inputs.
+    const alElegir = (ev) => {
+      const f = ev.target.files && ev.target.files[0];
+      esperandoArchivo = false;
+      if (f) terminar(f); else terminar(null);
+    };
+    q('inCamara').addEventListener('change', alElegir);
+    q('inArchivo').addEventListener('change', alElegir);
+
+    // El click nace de un gesto de la persona: iOS exige eso para abrir
+    // la cámara. Por eso se dispara acá y no desde ninguna promesa previa.
+    q('camara').addEventListener('click', () => {
+      esperandoArchivo = true;
+      window.addEventListener('focus', alVolverElFoco);
+      q('inCamara').click();
+    });
+    q('archivo').addEventListener('click', () => {
+      esperandoArchivo = true;
+      window.addEventListener('focus', alVolverElFoco);
+      q('inArchivo').click();
+    });
+    q('cancelar').addEventListener('click', () => terminar(null));
+    // Tocar el fondo gris también cancela.
+    hoja.addEventListener('click', (ev) => { if (ev.target === hoja) terminar(null); });
+  });
+};
+
+/**
+ * Reduce a 2000px de lado mayor y JPEG 0.85 ANTES de subir: una foto de
+ * teléfono de 8 MB viaja como ~300 KB.
+ */
 CV2.comprimirImagen = function (file, maxLado) {
   const max = maxLado || 2000;
   return new Promise((resolver, rechazar) => {
+    const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
       let w = img.width, h = img.height;
@@ -214,16 +298,22 @@ CV2.comprimirImagen = function (file, maxLado) {
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
       canvas.toBlob(
-        (blob) => blob ? resolver(blob) : rechazar(new Error('no se pudo comprimir')),
+        (blob) => {
+          URL.revokeObjectURL(url);
+          blob ? resolver(blob) : rechazar(new Error('no se pudo comprimir'));
+        },
         'image/jpeg', 0.85
       );
     };
-    img.onerror = () => rechazar(new Error('imagen inválida'));
-    img.src = URL.createObjectURL(file);
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      rechazar(new Error('formato de imagen no soportado'));
+    };
+    img.src = url;
   });
 };
 
-/** file (de <input type=file capture>) → secure_url en Cloudinary. */
+/** file (de CV2.pedirImagen) → secure_url en Cloudinary. */
 CV2.subirImagen = async function (file) {
   const blob = await CV2.comprimirImagen(file);
   const fd = new FormData();
@@ -235,6 +325,26 @@ CV2.subirImagen = async function (file) {
   );
   if (!r.ok) throw new Error('Cloudinary ' + r.status);
   return (await r.json()).secure_url;
+};
+
+/**
+ * CAMINO RECOMENDADO para cualquier página: pide (cámara o archivo),
+ * comprime, sube y devuelve la URL. Null si la persona cancela.
+ * Muestra el aviso de "Subiendo foto…" y el error con su código.
+ * Uso:  const url = await CV2.elegirYSubirImagen();
+ *       if (url) { ...guardar url... }
+ */
+CV2.elegirYSubirImagen = async function (opciones) {
+  const file = await CV2.pedirImagen(opciones);
+  if (!file) return null;
+  CV2.toast('Subiendo foto…');
+  try {
+    const url = await CV2.subirImagen(file);
+    return url;
+  } catch (e) {
+    CV2.toast('No se pudo subir la foto: ' + (e.code ?? e.message), 'error');
+    return null;
+  }
 };
 
 // ── PWA: registro del service worker ─────────────────────────

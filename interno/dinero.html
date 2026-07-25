@@ -196,7 +196,6 @@
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <button class="btn" id="btnFoto" style="font-size:.84rem;">
       <span class="material-icons">photo_camera</span> Foto</button>
-    <input id="inputFoto" type="file" accept="image/*" class="oculto">
     <span id="fotoEstado" class="texto-gris" style="align-self:center;"></span>
   </div>
 
@@ -307,15 +306,11 @@ const porCobrarVivo = (m) =>
 // Sellado por un balance: no se edita ni se borra.
 const sellado = (m) => !!(m.pendiente && m.pendiente.cierreId);
 
-// ═══ Cloudinary (comprobantes) ════════════════════════════
-async function subirComprobante(file) {
-  const fd = new FormData();
-  fd.append('file', file);
-  fd.append('upload_preset', 'preset-comprobantes');
-  const r = await fetch('https://api.cloudinary.com/v1_1/dnwfu8ffn/image/upload', { method: 'POST', body: fd });
-  if (!r.ok) throw new Error('Cloudinary ' + r.status);
-  return (await r.json()).secure_url;
-}
+// ═══ Comprobantes ═════════════════════════════════════════
+// Las fotos van por el camino ÚNICO del sistema: CV2.elegirYSubirImagen
+// (hoja de cámara/archivo + compresión a 2000px/0.85 + Cloudinary).
+// Antes había acá una copia propia de la subida SIN comprimir: una foto
+// de teléfono de 8 MB se subía entera. Ver nucleo.js.
 
 // ═══ Filtro y render ══════════════════════════════════════
 function filtrados() {
@@ -646,18 +641,15 @@ $('fCategoria').addEventListener('change', async () => {
   poblarCategorias(nombre);
 });
 
-$('btnFoto').addEventListener('click', () => $('inputFoto').click());
-$('inputFoto').addEventListener('change', async () => {
-  const f = $('inputFoto').files[0];
-  if (!f) return;
+$('btnFoto').addEventListener('click', async () => {
   $('btnFoto').disabled = true;
-  $('fotoEstado').textContent = 'subiendo…';
+  $('fotoEstado').textContent = '';
   try {
-    comprobanteUrl = await subirComprobante(f);
+    const url = await CV2.elegirYSubirImagen({ titulo: 'Comprobante' });
+    if (!url) return;
+    comprobanteUrl = url;
     $('fotoEstado').textContent = '✓ comprobante adjunto';
-  } catch (e) {
-    $('fotoEstado').textContent = 'falló la subida';
-  } finally { $('btnFoto').disabled = false; $('inputFoto').value = ''; }
+  } finally { $('btnFoto').disabled = false; }
 });
 
 function abrirModal(m) {
