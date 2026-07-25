@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Migración de fotos</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .aviso { background:#fffdf3; border:1px solid #e8dfb8; border-radius:var(--radio);
+    padding:12px 14px; font-size:.86rem; margin:10px 0; }
+  .aviso b { color:#8a6d1f; }
+  .cuenta { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0; }
+  .cuenta div { flex:1; min-width:120px; background:#fff; border:1px solid var(--linea);
+    border-radius:var(--radio); padding:11px 13px; box-shadow:var(--sombra); }
+  .cuenta b { display:block; font-size:1.35rem; line-height:1.1; }
+  .cuenta small { color:var(--gris); font-size:.76rem; }
+  .fila { display:flex; align-items:center; gap:10px; background:#fff;
+    border:1px solid var(--linea); border-radius:var(--radio); padding:10px 12px;
+    margin:6px 0; box-shadow:var(--sombra); font-size:.85rem; }
+  .fila .ic { flex:none; width:30px; height:30px; border-radius:8px; display:flex;
+    align-items:center; justify-content:center; }
+  .fila .ic .material-icons { font-size:17px; }
+  .fila .txt { flex:1; min-width:0; }
+  .fila .txt b { display:block; font-size:.86rem; }
+  .fila .txt small { display:block; color:var(--gris); font-size:.74rem;
+    overflow-wrap:anywhere; }
+  .t-ok .ic { background:var(--verde-claro); color:var(--verde-osc); }
+  .t-rew .ic { background:#eef4fb; color:#33506e; }
+  .t-sub .ic { background:#fdf3e7; color:#8a5a1f; }
+  .t-err .ic { background:#fdeceb; color:var(--rojo); }
+  .log { background:#1f1f1c; color:#d8d5cc; border-radius:var(--radio); padding:12px;
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.76rem;
+    white-space:pre-wrap; overflow-wrap:anywhere; max-height:46vh; overflow:auto;
+    margin-top:12px; }
+  .barra-prog { height:8px; background:#e8e6de; border-radius:999px; overflow:hidden;
+    margin:10px 0; }
+  .barra-prog i { display:block; height:100%; background:var(--verde); width:0;
+    transition:width .2s; }
+  label.chico { font-size:.8rem; color:var(--gris); }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <h1>Migración de fotos</h1>
+  <p class="texto-gris" style="font-size:.88rem;margin-top:-4px;">
+    Deja todas las fotos de cabañas y espacios en Cloudinary y servidas livianas.
+  </p>
+
+  <div class="aviso">
+    <b>Qué NO toca:</b> el logo, la ilustración del inicio y los iconos de la app.
+    Esos viven en el repositorio a propósito — los precachea el service worker y
+    los necesita <i>manifest.json</i> para instalar la app. Moverlos sería empeorar.
+  </div>
+
+  <label class="chico">Dirección del sitio público (para resolver rutas relativas)</label>
+  <input type="text" id="base" style="width:100%;font-size:.82rem;">
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+    <button class="btn btn-primario" id="btnAnalizar">
+      <span class="material-icons">search</span> Analizar
+    </button>
+    <button class="btn" id="btnMigrar" disabled>
+      <span class="material-icons">cloud_upload</span> Migrar
+    </button>
+  </div>
+
+  <div class="barra-prog oculto" id="prog"><i id="progBar"></i></div>
+
+  <div class="cuenta oculto" id="cuenta">
+    <div><b id="cOk">0</b><small>ya están bien</small></div>
+    <div><b id="cRew">0</b><small>solo cambiar la URL</small></div>
+    <div><b id="cSub">0</b><small>hay que traer</small></div>
+    <div><b id="cErr">0</b><small>con problema</small></div>
+  </div>
+
+  <div id="detalle"></div>
+  <div class="log oculto" id="log"></div>
+</div>
+
+<script type="module">
+// ═══════════════════════════════════════════════════════════════
+//  MIGRACIÓN DE FOTOS — se corre a mano, desde el panel, y se puede
+//  correr las veces que sea (es idempotente).
+//
+//  QUÉ ARREGLA (jul-2026):
+//  1. Fotos que están en Cloudinary pero se sirven SIN comprimir —
+//     resto del bug de las tres copias de subida. NO se vuelven a
+//     subir: alcanza con meterles las transformaciones de entrega en
+//     la URL (CV2.urlEntrega). Cloudinary las comprime al servir.
+//  2. Fotos que NO están en Cloudinary (entraron por "Pegar URL" de
+//     cabanas.html, que acepta cualquier link sin validar). Viven en
+//     un servidor ajeno y desaparecen el día que ese servidor cambie.
+//     Esas se traen de verdad.
+//
+//  CÓMO SE TRAEN, según de dónde vengan:
+//  · Mismo origen (repo): se bajan acá, se comprimen con canvas y se
+//    suben. Queda igual que una foto sacada desde la app.
+//  · Otro origen: el navegador no las puede bajar (CORS). Se le pasa
+//    la URL a Cloudinary y la baja ÉL desde su servidor. No se puede
+//    comprimir antes, pero las transformaciones de entrega la sirven
+//    liviana igual.
+//
+//  Regla 3.2: nada de onSnapshot — esto es una operación puntual.
+// ═══════════════════════════════════════════════════════════════
+import {
+  db, collection, getDocs, doc, updateDoc
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('cabanas');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+// Escribe en 'cabanas' y 'espacios_comunes': mismo permiso que el editor.
+if (!CV2.puede('contenido')) {
+  $('detalle').innerHTML = '<div class="aviso"><b>Sin permiso.</b> Esta herramienta '
+    + 'necesita el permiso de <i>Contenido del sitio</i>.</div>';
+  $('btnAnalizar').disabled = true;
+} 
+
+// Las rutas relativas guardadas en la base ('./img/foo.jpg') son relativas al
+// SITIO PÚBLICO, no al panel. El panel vive un nivel más adentro, así que se
+// propone la carpeta de arriba y se deja editar: mejor que adivinar.
+$('base').value = (function () {
+  let p = location.origin + location.pathname.replace(/[^/]*$/, '');
+  return p.replace(/(^|\/)interno\/$/, '/');
+})();
+
+const COLS = [
+  { col: 'cabanas', label: 'Cabaña' },
+  { col: 'espacios_comunes', label: 'Espacio' }
+];
+
+let plan = [];   // { col, id, label, idx, original, accion, destino, motivo }
+let logTxt = '';
+
+function log(linea) {
+  logTxt += linea + '\n';
+  $('log').textContent = logTxt;
+  $('log').classList.remove('oculto');
+  $('log').scrollTop = $('log').scrollHeight;
+}
+
+const nombreDoc = (d) => {
+  const n = d.nombre;
+  if (n && typeof n === 'object') return n.es || n.pt || n.en || d.id;
+  return n || d.id;
+};
+
+// Resuelve una ruta relativa contra la base del sitio público.
+function absoluta(url) {
+  if (/^https?:\/\//i.test(url)) return url;
+  let b = $('base').value.trim();
+  if (b && b.slice(-1) !== '/') b += '/';
+  return b + String(url).replace(/^\.?\//, '');
+}
+
+// ═══ 1 · Analizar (no escribe nada) ═══════════════════════════
+async function analizar() {
+  plan = []; logTxt = ''; $('log').classList.add('oculto');
+  $('detalle').innerHTML = '<p class="texto-gris">Analizando…</p>';
+  $('btnMigrar').disabled = true;
+
+  try {
+    for (const c of COLS) {
+      const snap = await getDocs(collection(db, c.col));
+      snap.forEach((d) => {
+        const data = d.data();
+        const fotos = Array.isArray(data.fotos) ? data.fotos : [];
+        fotos.forEach((f, idx) => {
+          if (!f || typeof f !== 'string') return;
+          const item = {
+            col: c.col, id: d.id, label: c.label + ' ' + nombreDoc({ ...data, id: d.id }),
+            idx, original: f
+          };
+          if (CV2.esCloudinary(f)) {
+            const conv = CV2.urlEntrega(f);
+            if (conv === f) { item.accion = 'ok'; item.motivo = 'ya se sirve liviana'; }
+            else { item.accion = 'rewrite'; item.destino = conv; item.motivo = 'está en Cloudinary pero se sirve sin comprimir'; }
+          } else {
+            item.accion = 'subir';
+            item.motivo = /^https?:\/\//i.test(f)
+              ? 'está en un servidor ajeno'
+              : 'es una ruta del repositorio';
+          }
+          plan.push(item);
+        });
+      });
+    }
+  } catch (e) {
+    $('detalle').innerHTML = '<div class="aviso"><b>No se pudo leer.</b> '
+      + esc(e.code || e.message) + '</div>';
+    return;
+  }
+
+  pintarResumen();
+  const pendientes = plan.filter((p) => p.accion !== 'ok').length;
+  $('btnMigrar').disabled = pendientes === 0;
+  if (!plan.length) {
+    $('detalle').innerHTML = '<div class="aviso">No hay fotos cargadas en cabañas ni espacios.</div>';
+  } else if (!pendientes) {
+    log('Todo en orden: ' + plan.length + ' foto(s), nada para migrar.');
+  } else {
+    log('Analizadas ' + plan.length + ' foto(s). ' + pendientes + ' para migrar.');
+    log('Apretá "Migrar" para aplicar. Nada se escribió todavía.');
+  }
+}
+
+function pintarResumen() {
+  const n = (a) => plan.filter((p) => p.accion === a).length;
+  $('cOk').textContent = n('ok');
+  $('cRew').textContent = n('rewrite');
+  $('cSub').textContent = n('subir');
+  $('cErr').textContent = n('error');
+  $('cuenta').classList.remove('oculto');
+
+  const ICO = {
+    ok: ['t-ok', 'check_circle'], rewrite: ['t-rew', 'bolt'],
+    subir: ['t-sub', 'cloud_upload'], error: ['t-err', 'error_outline']
+  };
+  // Solo se listan las que requieren algo: la lista de "ya están bien" no
+  // aporta y llena la pantalla.
+  const muestra = plan.filter((p) => p.accion !== 'ok');
+  $('detalle').innerHTML = muestra.length
+    ? muestra.map((p) => {
+        const k = ICO[p.accion] || ICO.error;
+        return '<div class="fila ' + k[0] + '">'
+          + '<span class="ic"><span class="material-icons">' + k[1] + '</span></span>'
+          + '<span class="txt"><b>' + esc(p.label) + ' · foto ' + (p.idx + 1) + '</b>'
+          + '<small>' + esc(p.motivo) + '</small>'
+          + '<small>' + esc(p.original.slice(0, 110)) + '</small></span>'
+          + '</div>';
+      }).join('')
+    : '';
+}
+
+// ═══ 2 · Traer una foto a Cloudinary ══════════════════════════
+// Mismo origen: la bajamos, comprimimos y subimos como cualquier foto.
+async function subirDesdeMismoOrigen(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('no se pudo bajar (' + r.status + ')');
+  const blob = await r.blob();
+  const file = new File([blob], 'migrada.jpg', { type: blob.type || 'image/jpeg' });
+  return await CV2.subirImagen(file);   // comprime + sube + URL de entrega
+}
+
+// Otro origen: lo resuelve CV2 (se la pasa a Cloudinary y la baja él, así
+// no hay problema de CORS). Cloudinary vive en un solo archivo: nucleo.js.
+async function traer(item) {
+  const abs = absoluta(item.original);
+  const mismoOrigen = abs.indexOf(location.origin) === 0;
+  return mismoOrigen ? await subirDesdeMismoOrigen(abs) : await CV2.traerImagenDesdeUrl(abs);
+}
+
+// ═══ 3 · Migrar (escribe) ═════════════════════════════════════
+async function migrar() {
+  $('btnMigrar').disabled = true;
+  $('btnAnalizar').disabled = true;
+  $('prog').classList.remove('oculto');
+
+  const pendientes = plan.filter((p) => p.accion === 'rewrite' || p.accion === 'subir');
+  log('');
+  log('── Migrando ' + pendientes.length + ' foto(s) ──');
+
+  let hechas = 0, fallas = 0;
+
+  // Se resuelve foto por foto y se guarda documento por documento: si algo
+  // corta a mitad, lo ya migrado queda guardado y volver a correr retoma.
+  const porDoc = {};
+  pendientes.forEach((p) => {
+    const k = p.col + '|' + p.id;
+    (porDoc[k] = porDoc[k] || []).push(p);
+  });
+
+  const claves = Object.keys(porDoc);
+  for (let ci = 0; ci < claves.length; ci++) {
+    const grupo = porDoc[claves[ci]];
+    const col = grupo[0].col, id = grupo[0].id;
+
+    // Se relee el documento para no pisar cambios hechos mientras tanto.
+    let fotos;
+    try {
+      const snap = await getDocs(collection(db, col));
+      let encontrado = null;
+      snap.forEach((d) => { if (d.id === id) encontrado = d.data(); });
+      fotos = Array.isArray(encontrado && encontrado.fotos) ? encontrado.fotos.slice() : null;
+      if (!fotos) throw new Error('el documento ya no tiene fotos');
+    } catch (e) {
+      grupo.forEach((p) => { p.accion = 'error'; p.motivo = 'no se pudo releer: ' + (e.code || e.message); });
+      fallas += grupo.length;
+      continue;
+    }
+
+    let cambio = false;
+    for (const p of grupo) {
+      // La posición tiene que seguir teniendo la misma URL: si alguien editó
+      // las fotos entre el análisis y ahora, se saltea en vez de pisar.
+      if (fotos[p.idx] !== p.original) {
+        p.accion = 'error';
+        p.motivo = 'la foto cambió desde el análisis — volvé a analizar';
+        fallas++;
+        continue;
+      }
+      try {
+        let nueva;
+        if (p.accion === 'rewrite') {
+          nueva = p.destino;
+        } else {
+          log('subiendo: ' + p.label + ' · foto ' + (p.idx + 1));
+          nueva = await traer(p);
+        }
+        fotos[p.idx] = nueva;
+        p.accion = 'ok';
+        p.motivo = 'migrada';
+        cambio = true;
+        hechas++;
+      } catch (e) {
+        p.accion = 'error';
+        p.motivo = e.code || e.message;
+        fallas++;
+        log('  ✗ ' + p.label + ' foto ' + (p.idx + 1) + ': ' + (e.code || e.message));
+      }
+      $('progBar').style.width = Math.round(((hechas + fallas) / pendientes.length) * 100) + '%';
+    }
+
+    if (cambio) {
+      try {
+        await updateDoc(doc(db, col, id), { fotos });
+        log('✓ guardado: ' + grupo[0].label);
+      } catch (e) {
+        grupo.forEach((p) => { if (p.accion === 'ok') { p.accion = 'error'; p.motivo = 'no se pudo guardar: ' + (e.code || e.message); } });
+        log('  ✗ no se pudo guardar ' + grupo[0].label + ': ' + (e.code || e.message));
+      }
+    }
+  }
+
+  log('');
+  log('── Listo: ' + hechas + ' migrada(s), ' + fallas + ' con problema ──');
+  if (fallas) log('Podés volver a apretar Analizar y Migrar: lo ya hecho no se repite.');
+  pintarResumen();
+  $('btnAnalizar').disabled = false;
+  $('btnMigrar').disabled = plan.filter((p) => p.accion !== 'ok').length === 0;
+  CV2.toast(fallas ? 'Migración con ' + fallas + ' problema(s)' : 'Fotos migradas', fallas ? 'error' : 'success');
+}
+
+$('btnAnalizar').addEventListener('click', analizar);
+$('btnMigrar').addEventListener('click', migrar);
+</script>
+</body>
+</html>

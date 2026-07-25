@@ -48,6 +48,9 @@
   <b>casaverdecanas.com.br</b>: las cabañas con sus fotos y descripciones, los espacios
   comunes, los textos de la portada y el WhatsApp que recibe las consultas.</p>
   <h2 style="font-size:1.05rem;margin:18px 0 6px;">Cabañas</h2>
+  <p style="margin:0 0 8px;font-size:.8rem;">
+    <a href="./migracion-fotos.html" style="color:var(--gris);">
+      Revisar y optimizar las fotos del sitio →</a></p>
   <div id="lista"><div class="vacio">Cargando…</div></div>
 </div>
 
@@ -312,9 +315,29 @@ $('btnSubirFoto').addEventListener('click', async () => {
     CV2.toast('✓ Foto subida', 'success');
   } finally { $('btnSubirFoto').disabled = false; }
 });
-$('btnUrlFoto').addEventListener('click', () => {
+// "Pegar URL" era la puerta por donde entraban fotos de servidores ajenos:
+// guardaba el link tal cual, sin validar. Si ese servidor cambiaba, la foto
+// desaparecía del sitio. Ahora la imagen se TRAE a Cloudinary (la baja
+// Cloudinary desde su servidor, así no hay problema de CORS) y se guarda
+// nuestra copia. Si ya es una URL nuestra, solo se normaliza la entrega.
+$('btnUrlFoto').addEventListener('click', async () => {
   const url = prompt('Pegá la URL de la imagen:');
-  if (url?.startsWith('http')) { fotosTmp.push(url.trim()); renderFotosEdit(); }
+  if (!url || !url.trim().startsWith('http')) return;
+  const limpia = url.trim();
+  if (CV2.esCloudinary(limpia)) {
+    fotosTmp.push(CV2.urlEntrega(limpia));
+    renderFotosEdit();
+    return;
+  }
+  $('btnUrlFoto').disabled = true;
+  CV2.toast('Trayendo la imagen…');
+  try {
+    fotosTmp.push(await CV2.traerImagenDesdeUrl(limpia));
+    renderFotosEdit();
+    CV2.toast('✓ Copia guardada en Cloudinary', 'success');
+  } catch (e) {
+    CV2.toast('No se pudo traer: ' + (e.code ?? e.message), 'error');
+  } finally { $('btnUrlFoto').disabled = false; }
 });
 
 $('mCancelar').addEventListener('click', () => $('modal').close());

@@ -213,6 +213,50 @@ CV2.toast = function (msj, tipo = 'info') {
 // ═════════════════════════════════════════════════════════════
 CV2.CLOUDINARY = { cloud: 'dnwfu8ffn', preset: 'preset-comprobantes' };
 
+// Transformaciones de ENTREGA. No tocan el archivo guardado: Cloudinary
+// las aplica al servir. 'f_auto' manda WebP/AVIF si el navegador los
+// soporta, 'q_auto' ajusta la calidad y 'w_2000' pone un techo de ancho.
+// Guardar la URL ya transformada hace que TODO lo que la muestre (panel y
+// sitio público, que no importa nucleo.js) reciba la versión liviana sin
+// cambiar una línea de código.
+CV2.ENTREGA = 'f_auto,q_auto,w_2000';
+
+/** ¿Es una URL de nuestro Cloudinary? */
+CV2.esCloudinary = function (url) {
+  return typeof url === 'string'
+    && url.indexOf('res.cloudinary.com/' + CV2.CLOUDINARY.cloud + '/') !== -1;
+};
+
+/**
+ * Mete las transformaciones de entrega en una URL de Cloudinary.
+ * IDEMPOTENTE: si ya las tiene, la devuelve igual (se puede correr mil
+ * veces sin ensuciar la URL). Si no es de Cloudinary, la devuelve igual.
+ */
+CV2.urlEntrega = function (url) {
+  if (!CV2.esCloudinary(url)) return url;
+  const marca = '/upload/';
+  const i = url.indexOf(marca);
+  if (i === -1) return url;
+  const antes = url.slice(0, i + marca.length);
+  const resto = url.slice(i + marca.length);
+  const primer = resto.split('/')[0];
+  if (CV2._esTransformacion(primer)) return url;   // ya transformada
+  return antes + CV2.ENTREGA + '/' + resto;
+};
+
+// ¿Ese segmento de la URL es una lista de transformaciones y no el nombre
+// del archivo ni la versión? Una transformación es 'q_auto', 'w_2000' o
+// varias con coma. OJO: no alcanza con "tiene guión bajo" — un archivo
+// llamado 'mi_foto.jpg' lo tiene, y darlo por transformado hacía que esa
+// foto se saltara para siempre. Se pide que TODOS los pedazos separados por
+// coma tengan la forma 'xx_valor' y que no haya extensión de archivo.
+CV2._esTransformacion = function (seg) {
+  if (!seg || seg.indexOf('.') !== -1) return false;   // tiene extensión → archivo
+  if (/^v\d+$/.test(seg)) return false;                // es la versión
+  const partes = seg.split(',');
+  return partes.every((p) => /^[a-z]{1,3}_[A-Za-z0-9.:%-]+$/.test(p));
+};
+
 /**
  * Hoja de elección: Tomar foto (cámara) o Elegir archivo (galería/archivos).
  * Devuelve el File elegido, o null si la persona cancela.
@@ -313,7 +357,7 @@ CV2.comprimirImagen = function (file, maxLado) {
   });
 };
 
-/** file (de CV2.pedirImagen) → secure_url en Cloudinary. */
+/** file (de CV2.pedirImagen) → URL de entrega en Cloudinary. */
 CV2.subirImagen = async function (file) {
   const blob = await CV2.comprimirImagen(file);
   const fd = new FormData();
@@ -324,7 +368,32 @@ CV2.subirImagen = async function (file) {
     { method: 'POST', body: fd }
   );
   if (!r.ok) throw new Error('Cloudinary ' + r.status);
-  return (await r.json()).secure_url;
+  // Se guarda la URL de entrega, no la cruda: quien la muestre recibe la
+  // versión liviana sin tener que saber nada de Cloudinary.
+  return CV2.urlEntrega((await r.json()).secure_url);
+};
+
+/**
+ * Trae a Cloudinary una imagen que vive en OTRO servidor.
+ * La baja Cloudinary desde su lado (no el navegador), así que no hay
+ * problema de CORS. Contra: no se puede comprimir antes — la sirve liviana
+ * igual gracias a las transformaciones de entrega.
+ * Devuelve la URL de entrega de nuestra copia.
+ */
+CV2.traerImagenDesdeUrl = async function (url) {
+  const fd = new FormData();
+  fd.append('file', url);          // Cloudinary acepta una URL remota acá
+  fd.append('upload_preset', CV2.CLOUDINARY.preset);
+  const r = await fetch(
+    'https://api.cloudinary.com/v1_1/' + CV2.CLOUDINARY.cloud + '/image/upload',
+    { method: 'POST', body: fd }
+  );
+  if (!r.ok) {
+    let det = 'HTTP ' + r.status;
+    try { det = (await r.json()).error.message; } catch { /* sin detalle */ }
+    throw new Error('Cloudinary: ' + det);
+  }
+  return CV2.urlEntrega((await r.json()).secure_url);
 };
 
 /**
