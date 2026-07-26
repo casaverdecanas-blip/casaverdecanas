@@ -55,8 +55,9 @@
 <dialog id="mSitio" style="width:min(560px,95vw);">
   <h2 style="margin:0 0 4px;">Textos y contacto del sitio</h2>
   <p class="texto-gris" style="margin:0 0 2px;font-size:.84rem;">
-    Lo que queda vacío usa el texto por defecto del sitio.</p>
-  <p id="sMeta" class="texto-gris" style="margin:0 0 12px;font-size:.76rem;"></p>
+    En gris, dentro de cada campo, está <b>lo que el sitio dice hoy</b>. Si lo dejás
+    vacío, queda ese texto.</p>
+  <p id="sMeta" class="texto-gris" style="margin:0 0 10px;font-size:.76rem;"></p>
 
   <label>WhatsApp que recibe las consultas</label>
   <input id="sWa" inputmode="tel" placeholder="5548999999999"
@@ -88,6 +89,13 @@
   <input id="sTCons" maxlength="50">
   <label>Pie de página</label>
   <input id="sPie" maxlength="120">
+
+  <button class="btn" id="sTraer" style="width:100%;margin-top:12px;font-size:.82rem;">
+    <span class="material-icons">download</span> Traer los textos actuales para editarlos
+  </button>
+  <p class="texto-gris" style="margin:4px 0 0;font-size:.75rem;">
+    Copia a los campos lo que el sitio muestra en este idioma. Solo llena los que estén
+    vacíos: no pisa nada de lo que ya escribiste.</p>
 
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
     <button class="btn" id="sCancelar">Cancelar</button>
@@ -152,6 +160,7 @@
 // Regla del 2.0: definiciones primero, suscripción AL FINAL.
 import { db, collection, onSnapshot, doc, getDoc, updateDoc, setDoc, deleteField, serverTimestamp } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
+import { T as TEXTOS_SITIO } from './textos-sitio.js';
 
 CV2.registrarSW();
 const u = await CV2.verificarAuth();
@@ -384,7 +393,15 @@ function cargarIdioma(i) {
   idiomaSitio = i;
   document.querySelectorAll('.sIdi').forEach((b) => b.classList.toggle('activo', b.dataset.i === i));
   const t = (sitio.textos && sitio.textos[i]) || {};
-  Object.keys(CAMPOS).forEach((id) => { $(id).value = t[CAMPOS[id]] || ''; });
+  const def = TEXTOS_SITIO[i] || {};
+  Object.keys(CAMPOS).forEach((id) => {
+    const clave = CAMPOS[id];
+    $(id).value = t[clave] || '';
+    // El texto de fondo muestra QUÉ DICE EL SITIO HOY si este campo se deja
+    // vacío. Sin esto el editor abría en blanco aunque el sitio tuviera
+    // texto, y no había forma de saber de dónde se partía.
+    $(id).placeholder = def[clave] || '';
+  });
 }
 
 // El estado guarda TAMBIÉN los campos vacíos (cadena vacía). Antes solo
@@ -434,6 +451,20 @@ document.querySelectorAll('.sIdi').forEach((b) => b.addEventListener('click', ()
   guardarIdiomaActual();          // no perder lo tipeado al cambiar de idioma
   cargarIdioma(b.dataset.i);
 }));
+
+// Trae a los campos el texto que el sitio muestra hoy en ESTE idioma, para
+// editarlo en vez de escribirlo de cero. Solo completa los vacíos: nunca
+// pisa lo que la persona ya escribió.
+$('sTraer').addEventListener('click', () => {
+  const def = TEXTOS_SITIO[idiomaSitio] || {};
+  let n = 0;
+  Object.keys(CAMPOS).forEach((id) => {
+    const actual = $(id).value.trim();
+    const porDefecto = def[CAMPOS[id]] || '';
+    if (!actual && porDefecto) { $(id).value = porDefecto; n++; }
+  });
+  CV2.toast(n ? 'Se completaron ' + n + ' campo(s)' : 'Ya estaban todos completos', n ? 'success' : 'info');
+});
 
 $('btnSitio').addEventListener('click', async () => {
   let crudo = null;
