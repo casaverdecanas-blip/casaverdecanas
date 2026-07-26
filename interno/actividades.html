@@ -88,6 +88,20 @@
   .check-linea { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; }
   .check-linea input { width: auto; }
   .check-linea span { font-size: .88rem; }
+
+  /* Historial de realizaciones */
+  .rz-fila { display: flex; gap: 10px; align-items: baseline; padding: 8px 2px;
+             border-bottom: 1px solid var(--linea); font-size: .86rem; }
+  .rz-fila:last-child { border-bottom: 0; }
+  .rz-fecha { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .rz-fecha small { display: block; font-weight: 400; color: var(--gris); font-size: .72rem; }
+  .rz-quien { flex: 1; min-width: 0; color: var(--gris); overflow-wrap: anywhere; }
+  .rz-quien small { color: var(--gris); font-size: .74rem; }
+  .rz-horas { flex: none; font-variant-numeric: tabular-nums; }
+  .rz-scroll { max-height: 55vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .rz-pie { display: flex; justify-content: space-between; gap: 10px; margin-top: 10px;
+            padding-top: 8px; border-top: 2px solid var(--linea);
+            font-size: .82rem; color: var(--gris); }
 </style>
 </head>
 <body>
@@ -245,6 +259,20 @@
         <button class="btn btn-primario" id="chGuardarOut"><span class="material-icons">save</span> Registrar salida</button>
       </div>
     </div>
+  </div>
+</dialog>
+
+<!-- ═══ Historial de realizaciones de una actividad ═══════════ -->
+<dialog id="mRealiz" style="width:min(520px,96vw);">
+  <div style="display:flex;align-items:center;gap:8px;">
+    <h2 style="margin:0;flex:1;font-size:1.05rem;">Historial</h2>
+    <button class="btn-ico" onclick="cerrarRealiz()"><span class="material-icons">close</span></button>
+  </div>
+  <p class="texto-gris" id="rzSub" style="margin:2px 0 10px;font-size:.84rem;"></p>
+  <div id="rzLista" class="rz-scroll"><div class="vacio">Buscando…</div></div>
+  <div id="rzPie"></div>
+  <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+    <button class="btn" onclick="cerrarRealiz()">Cerrar</button>
   </div>
 </dialog>
 
@@ -437,6 +465,8 @@ function nodoHTML(id) {
         ${it.gastoMovimientoId ? `<span title="Gasto ya registrado en Dinero" style="font-size:.68rem;padding:2px 7px;border-radius:999px;background:#eef4fb;color:#33506e;">→ Dinero</span>` : ''}
         ${it.hecho && CV2.esAdmin() ? `<button class="btn-ico" onclick="restaurar('${id}')" title="Restaurar"><span class="material-icons">restart_alt</span></button>` : ''}
         ${!it.hecho ? `<button class="btn-ico" onclick="abrirAlta('${id}')" title="Agregar sub-ítem"><span class="material-icons">add</span></button>` : ''}
+        <button class="btn-ico" onclick="verRealizaciones('${id}')" title="Historial de realizaciones">
+          <span class="material-icons">history</span></button>
         <button class="btn-ico" onclick="toggleEstrella('${id}')" title="Destacar">
           <span class="material-icons ${star ? 'estrella' : ''}">${star ? 'star' : 'star_outline'}</span></button>
         ${!it.hecho ? `<button class="btn-ico" onclick="abrirEdicion('${id}')" title="Editar"><span class="material-icons">edit</span></button>` : ''}
@@ -578,6 +608,71 @@ window.toggleDetalle = (id) => {
     }).catch(() => {});
   }
 };
+
+// ═══ Historial de realizaciones ════════════════════════════
+// Fuente única: /sesiones/. Un solo where de igualdad (sin orderBy),
+// así no pide índice compuesto. Se traen TODOS los registros de la
+// actividad y se ordenan acá, del más nuevo al más viejo. Los tildes
+// cuentan como realización aunque tengan 0 horas.
+window.verRealizaciones = async (id) => {
+  const it = byId[id];
+  $('rzSub').textContent = it?.titulo ?? '';
+  $('rzLista').innerHTML = '<div class="vacio">Buscando…</div>';
+  $('rzPie').innerHTML = '';
+  $('mRealiz').showModal();
+
+  try {
+    const snap = await getDocs(query(collection(db, 'sesiones'), where('actividadId', '==', id)));
+    const filas = [];
+    snap.forEach((d) => {
+      const s = d.data();
+      const enCurso = s.estado === 'en_curso';
+      const ms = s.fin?.toMillis?.() ?? s.inicio?.toMillis?.() ?? 0;
+      filas.push({
+        ms, enCurso,
+        horas: Number(s.horas) || 0,
+        nombre: s.nombre || '—',
+        tilde: s.tipo === 'tilde',
+        migrada: !!s.migradoDe,
+        ajena: !!s.cerradoPorCierreDeActividad
+      });
+    });
+    filas.sort((a, b) => b.ms - a.ms);
+
+    if (!filas.length) {
+      $('rzLista').innerHTML = '<div class="vacio">Todavía no hay registros para esta actividad.</div>';
+      return;
+    }
+
+    const cerradas = filas.filter((f) => !f.enCurso);
+    const totHoras = cerradas.reduce((a, f) => a + f.horas, 0);
+
+    $('rzLista').innerHTML = filas.map((f) => {
+      const d = f.ms ? new Date(f.ms) : null;
+      const fecha = d ? CV2.fmtFecha(d.toISOString().slice(0, 10)) : 'sin fecha';
+      const hora = d ? d.toLocaleTimeString('es-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+      const notas = [
+        f.enCurso ? 'corriendo ahora' : null,
+        f.tilde ? 'sin cronómetro' : null,
+        f.ajena ? 'cerrada al terminar la actividad' : null,
+        f.migrada ? 'del sistema viejo' : null
+      ].filter(Boolean).join(' · ');
+      return `<div class="rz-fila">
+        <span class="rz-fecha">${esc(fecha)}<small>${esc(hora)}</small></span>
+        <span class="rz-quien">${esc(f.nombre)}${notas ? '<br><small>' + esc(notas) + '</small>' : ''}</span>
+        <span class="rz-horas">${f.horas > 0 ? CV2.fmtHM(f.horas) : '—'}</span>
+      </div>`;
+    }).join('');
+
+    $('rzPie').innerHTML = `<div class="rz-pie">
+      <span>${cerradas.length} realizaci${cerradas.length === 1 ? 'ón' : 'ones'}</span>
+      <span>${CV2.fmtHM(totHoras)} en total</span></div>`;
+  } catch (e) {
+    $('rzLista').innerHTML = `<div class="vacio">No se pudo leer el registro (${esc(e.code ?? e.message)}).</div>`;
+  }
+};
+
+window.cerrarRealiz = () => $('mRealiz').close();
 
 window.toggleEstrella = async (id) => {
   const tiene = destacados.has(id);
