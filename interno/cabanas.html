@@ -44,21 +44,19 @@
     <button class="btn btn-primario" id="btnSitio">
       <span class="material-icons">tune</span> Textos y contacto</button>
   </div>
-  <p class="texto-gris" style="margin-top:-6px;">Todo lo que se ve en
+  <p class="texto-gris" style="margin:8px 0 0;">Todo lo que se ve en
   <b>casaverdecanas.com.br</b>: las cabañas con sus fotos y descripciones, los espacios
   comunes, los textos de la portada y el WhatsApp que recibe las consultas.</p>
   <h2 style="font-size:1.05rem;margin:18px 0 6px;">Cabañas</h2>
-  <p style="margin:0 0 8px;font-size:.8rem;">
-    <a href="./migracion-fotos.html" style="color:var(--gris);">
-      Revisar y optimizar las fotos del sitio →</a></p>
   <div id="lista"><div class="vacio">Cargando…</div></div>
 </div>
 
 <!-- ═══ Textos del sitio y contacto ═══════════════════════════ -->
 <dialog id="mSitio" style="width:min(560px,95vw);">
   <h2 style="margin:0 0 4px;">Textos y contacto del sitio</h2>
-  <p class="texto-gris" style="margin:0 0 12px;font-size:.84rem;">
+  <p class="texto-gris" style="margin:0 0 2px;font-size:.84rem;">
     Lo que queda vacío usa el texto por defecto del sitio.</p>
+  <p id="sMeta" class="texto-gris" style="margin:0 0 12px;font-size:.76rem;"></p>
 
   <label>WhatsApp que recibe las consultas</label>
   <input id="sWa" inputmode="tel" placeholder="5548999999999"
@@ -152,7 +150,7 @@
 
 <script type="module">
 // Regla del 2.0: definiciones primero, suscripción AL FINAL.
-import { db, collection, onSnapshot, doc, getDoc, updateDoc, setDoc, serverTimestamp } from './firebase-init.js';
+import { db, collection, onSnapshot, doc, getDoc, updateDoc, setDoc, deleteField, serverTimestamp } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
 
 CV2.registrarSW();
@@ -389,14 +387,47 @@ function cargarIdioma(i) {
   Object.keys(CAMPOS).forEach((id) => { $(id).value = t[CAMPOS[id]] || ''; });
 }
 
+// El estado guarda TAMBIÉN los campos vacíos (cadena vacía). Antes solo
+// guardaba los que tenían texto, y por eso vaciar un campo no hacía nada:
+// ver payloadTextos().
 function guardarIdiomaActual() {
   const t = {};
-  Object.keys(CAMPOS).forEach((id) => {
-    const v = $(id).value.trim();
-    if (v) t[CAMPOS[id]] = v;
-  });
+  Object.keys(CAMPOS).forEach((id) => { t[CAMPOS[id]] = $(id).value.trim(); });
   sitio.textos = sitio.textos || {};
   sitio.textos[idiomaSitio] = t;
+}
+
+// ⚠ TRAMPA DE FIRESTORE: con 'merge: true' el merge de un mapa CONSERVA las
+// claves que no vienen en el payload. Mandar solo los campos con texto hacía
+// que vaciar uno no tuviera ningún efecto — quedaba el valor viejo para
+// siempre, aunque la interfaz prometiera "vacío = texto por defecto".
+// Un campo vacío tiene que viajar como deleteField() explícito.
+function payloadTextos() {
+  const out = {};
+  ['pt', 'es', 'en'].forEach((lang) => {
+    const t = (sitio.textos && sitio.textos[lang]) || {};
+    const bloque = {};
+    Object.keys(CAMPOS).forEach((id) => {
+      const clave = CAMPOS[id];
+      const v = (t[clave] || '').trim();
+      bloque[clave] = v ? v : deleteField();
+    });
+    out[lang] = bloque;
+  });
+  return out;
+}
+
+// "Registra el cambio": quién editó y cuándo, a la vista en el propio diálogo.
+function pintarMeta(x) {
+  const el = $('sMeta');
+  const f = x && x.actualizadoEn && x.actualizadoEn.toDate
+    ? x.actualizadoEn.toDate() : null;
+  if (!f) { el.textContent = 'Todavía no se guardó ningún cambio desde el panel.'; return; }
+  const quien = (x.actualizadoPorNombre || '').trim();
+  el.textContent = 'Última edición: '
+    + f.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    + ' ' + f.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+    + (quien ? ' · ' + quien : '');
 }
 
 document.querySelectorAll('.sIdi').forEach((b) => b.addEventListener('click', () => {
@@ -405,14 +436,16 @@ document.querySelectorAll('.sIdi').forEach((b) => b.addEventListener('click', ()
 }));
 
 $('btnSitio').addEventListener('click', async () => {
+  let crudo = null;
   try {
     const d = await getDoc(doc(db, 'config', 'sitio'));
     if (d.exists()) {
-      const x = d.data();
-      sitio = { whatsapp: x.whatsapp || '', textos: x.textos || { pt:{}, es:{}, en:{} } };
+      crudo = d.data();
+      sitio = { whatsapp: crudo.whatsapp || '', textos: crudo.textos || { pt:{}, es:{}, en:{} } };
     }
   } catch (e) { CV2.toast('No se pudo leer la configuración', 'error'); }
   $('sWa').value = sitio.whatsapp || '';
+  pintarMeta(crudo);
   cargarIdioma('pt');
   $('mSitio').showModal();
 });
@@ -427,9 +460,10 @@ $('sGuardar').addEventListener('click', async () => {
   try {
     await setDoc(doc(db, 'config', 'sitio'), {
       whatsapp: wa,
-      textos: sitio.textos,
+      textos: payloadTextos(),
       actualizadoEn: serverTimestamp(),
-      actualizadoPor: u.uid
+      actualizadoPor: u.uid,
+      actualizadoPorNombre: u.nombre || ''
     }, { merge: true });
     sitio.whatsapp = wa;
     $('mSitio').close();
