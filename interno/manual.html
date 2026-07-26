@@ -152,7 +152,8 @@
     <div class="paso"><span class="n">2</span><div>Contá lo que quedó. El sistema compara
       con lo que dejaste en la entrada y te marca en rojo lo que falta.</div></div>
     <div class="paso"><span class="n">3</span><div>Si hay algo roto, cargá un <b>daño</b>:
-      descripción y foto con la cámara. Podés agregar varios.</div></div>
+      descripción y foto. Podés sacarla en el momento o elegir una que ya tengas.
+      Podés agregar varios daños.</div></div>
     <div class="paso"><span class="n">4</span><div>Registrá la salida.</div></div>
     <p><b>Si está todo bien</b>, el control se cierra y listo.<br>
     <b>Si falta algo o hay daños</b>, se crea una tarea de <b>faltantes</b> colgada
@@ -227,6 +228,34 @@
     se pierde todo.</p>
     <p>Creá un tema nuevo con el botón de arriba, o entrá a uno existente para responder.
     El menú te marca en azul cuántos mensajes sin leer tenés.</p>
+
+    <h3>Para todos o para alguien en particular</h3>
+    <p>Al crear un tema elegís entre dos opciones:</p>
+    <ul>
+      <li><b>Todo el equipo</b> — lo ve y responde cualquiera que use el sistema.</li>
+      <li><b>Personas específicas</b> — solo lo ven quienes elijas. El resto del equipo
+      no lo ve en su lista, ni buscándolo.</li>
+    </ul>
+    <p>Los temas privados llevan un candado con los nombres de quienes participan. Si lo
+    creaste vos (o sos el administrador), después podés <b>sumar personas</b> con el botón
+    de la cabecera.</p>
+    <div class="ojo">Quien entra a un tema privado ve <b>todos los mensajes anteriores</b>,
+    también los de antes de que lo sumaras. Tenelo en cuenta antes de agregar a alguien.</div>
+
+    <h3>Mandar una foto</h3>
+    <p>Con el botón de la cámara, al lado de donde escribís. Te pregunta si querés
+    <b>tomar la foto</b> en el momento o <b>elegir un archivo</b> que ya tenés. Si antes de
+    mandarla escribís algo, ese texto va como epígrafe.</p>
+    <div class="ojo"><b>Las fotos no son privadas, aunque el tema lo sea.</b> El mensaje
+    solo lo leen los participantes, pero la imagen queda en una dirección de internet que
+    puede abrir cualquiera que la tenga. No mandes por acá una foto que no pueda circular.</div>
+
+    <h3>Borrar un mensaje</h3>
+    <p>Cada mensaje tiene un tachito. Al tocarlo <b>desaparece de tu vista solamente</b>:
+    las demás personas lo siguen viendo. No borra nada para el resto.</p>
+    <p>Lo que borrás no se pierde. Dentro del tema aparece un botón <b>Eliminados</b> con
+    la cuenta de los que sacaste, y desde ahí podés recuperar cualquiera.</p>
+
     <p>Hay un tema que se llena solo: <b>📝 Horas cargadas a mano</b>, donde queda
     registrado cuando alguien carga tiempo manualmente.</p>
     <a class="arriba" href="#">↑ Volver al índice</a>
@@ -293,8 +322,12 @@
     <b>en qué cuenta</b>. La cuenta es simplemente dónde está esa plata: un banco, el
     efectivo, el bolsillo de alguien. Se elige de la lista o se agrega una nueva en el
     momento.</p>
-    <p>Si el movimiento fue en otra moneda, se carga también el equivalente en reales del
-    día. Todo cierra en R$.</p>
+    <p>Si el movimiento fue en otra moneda, <b>se registra en esa moneda</b> y se controla
+    aparte. No se convierte a reales: cada moneda tiene su propio total y su propio
+    balance.</p>
+    <p>Con el botón <b>Foto</b> podés adjuntar el <b>comprobante</b>. Te pregunta si querés
+    sacarlo en el momento o elegir un archivo que ya tenés — sirve igual para una factura
+    de papel que para una captura de una transferencia.</p>
     <p>Las líneas se pueden editar para corregir. Queda anotado quién las editó y cuándo.</p>
 
     <h3>Lo que queda pendiente</h3>
@@ -351,6 +384,28 @@
     <p>Las áreas comunes que se muestran en la web: piscina, parrilla, living, juegos.
     Nombre en tres idiomas, fotos y el orden en que aparecen.</p>
 
+    <h3>Las fotos</h3>
+    <p>El botón de foto te deja <b>tomarla en el momento</b> o <b>elegir un archivo</b>.
+    En los dos casos el sistema la achica antes de subirla, así el sitio carga rápido en
+    celular. No hace falta que la prepares antes.</p>
+    <p>También podés <b>pegar la dirección</b> de una imagen que esté en otra página. El
+    sistema no guarda ese enlace: se trae una <b>copia propia</b>. Es a propósito — si
+    guardara el enlace, el día que esa otra página cambie la foto desaparecería del sitio.</p>
+
+    <h3>Revisar y optimizar las fotos</h3>
+    <p>Hay un enlace arriba de la lista de cabañas: <b>Revisar y optimizar las fotos del
+    sitio</b>. Es una herramienta de mantenimiento, no algo de todos los días.</p>
+    <ol>
+      <li><b>Analizar</b> — revisa todas las fotos de cabañas y espacios y te dice en qué
+      estado están. <b>No cambia nada</b>, solo informa.</li>
+      <li><b>Migrar</b> — aplica los arreglos: trae las fotos que estén afuera y hace que
+      las demás se sirvan livianas.</li>
+    </ol>
+    <p>Se puede correr las veces que quieras: no repite lo que ya está hecho. Si algo
+    falla, te lo dice y podés volver a intentar solo eso.</p>
+    <div class="ojo">El logo y la ilustración de la portada <b>no</b> aparecen ahí, y está
+    bien: esos viven dentro de la app para que se vean al instante y sin conexión.</div>
+
     <h3>Textos y contacto</h3>
     <p>El título de la portada, la bajada, los destacados y el pie, en los tres idiomas.
     Y el <b>número de WhatsApp</b> que recibe las consultas del sitio.</p>
@@ -391,6 +446,17 @@
 
     <h3>No veo una sección del menú</h3>
     <p>No tenés ese permiso. Pedíselo al administrador.</p>
+
+    <h3>Un tema del chat desapareció de mi lista</h3>
+    <p>Si era un tema <b>privado</b>, puede ser que no estés entre sus participantes. Los
+    temas privados solo los ven las personas incluidas. Pedile a quien lo creó que te sume.</p>
+
+    <h3>Toco el botón de foto y no pasa nada</h3>
+    <p>Aparece una ventanita abajo para elegir entre <b>Tomar foto</b> y <b>Elegir
+    archivo</b>. Si no la ves, cerrá la app por completo y volvé a abrirla.</p>
+    <p>Si elegís <b>Tomar foto</b> la primera vez, el teléfono te va a pedir permiso para
+    usar la cámara. Si lo rechazaste alguna vez, hay que habilitarlo en los ajustes del
+    teléfono — desde la app no se puede.</p>
 
     <h3>Aparece un cartel rojo con un código raro</h3>
     <p>Ese código dice qué pasó. Sacale una captura y mandásela al administrador: con eso
