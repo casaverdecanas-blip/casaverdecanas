@@ -1,0 +1,6 @@
+# Casa Verde Canas
+User-agent: *
+Allow: /
+Disallow: /interno/
+
+Sitemap: https://casaverdecanas.com.br/sitemap.xml
