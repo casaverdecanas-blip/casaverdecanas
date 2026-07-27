@@ -93,6 +93,10 @@
     font-size:.85rem;margin-top:14px}
   .donde{background:#eef6ef;color:var(--selva-osc);border-radius:10px;padding:9px 13px;
     font-size:.85rem;margin-top:12px}
+  .novedades{display:flex;gap:9px;align-items:flex-start;margin-top:14px;font-weight:400;
+    font-size:.84rem;color:var(--tinta);background:#fff;border:1px solid var(--linea);
+    border-radius:11px;padding:11px 13px;cursor:pointer}
+  .novedades input{width:18px;height:18px;flex:0 0 auto;margin-top:1px;accent-color:var(--selva)}
   .oculto{display:none!important}
   .legal{font-size:.76rem;color:var(--gris);margin-top:14px;line-height:1.5}
 
@@ -107,7 +111,10 @@
   <div class="wrap barra">
     <img src="./img/logo-sitio.png" alt="Casa Verde Canas"
          onerror="if(!this.dataset.r){this.dataset.r=1;this.src='./logo-sitio.png';}else{this.remove();}">
-    <a class="volver" href="/">‹ Volver al sitio</a>
+    <!-- Enlaces RELATIVOS: en GitHub Pages el sitio vive en /casaverdecanas/,
+         así que "/" apunta a la raíz de la organización y da 404. Relativo
+         funciona igual antes y después de la mudanza al dominio. -->
+    <a class="volver" href="./index.html">‹ Volver al sitio</a>
   </div>
 </header>
 
@@ -129,7 +136,7 @@
     <b>Casa Verde Canas</b> 🌿 · Canasvieiras, Florianópolis — SC, Brasil<br>
     <a href="https://www.instagram.com/casaverdecanasvieiras/" target="_blank" rel="noopener">Instagram</a> ·
     <a href="https://www.facebook.com/share/1C5rEdBRaV/" target="_blank" rel="noopener">Facebook</a> ·
-    <a href="/">Portada</a>
+    <a href="./index.html">Portada</a>
   </div>
 </footer>
 
@@ -189,6 +196,15 @@
 
   <div id="errEscribir" class="aviso oculto"></div>
 
+  <!-- Consentimiento EXPLÍCITO y separado. Nunca marcado por defecto:
+       es la única base legítima para mandarle algo después (LGPD). Solo
+       aparece si dejó un mail, porque sin mail no hay a dónde escribir. -->
+  <label class="novedades oculto" id="filaNovedades" for="inNovedades">
+    <input type="checkbox" id="inNovedades">
+    <span>Quiero recibir novedades y promociones de Casa Verde por mail.
+      Me puedo dar de baja cuando quiera.</span>
+  </label>
+
   <p class="legal">Al enviarlo aceptás que publiquemos tu nombre, tu texto y tu foto
     en esta página. Lo revisamos antes de que aparezca.</p>
 
@@ -243,7 +259,7 @@
 //  documento en 'pendiente'. Publicar es del panel.
 // ═══════════════════════════════════════════════════════════
 import {
-  db, auth, collection, query, where, getDocs, doc, getDoc, addDoc, serverTimestamp,
+  db, auth, collection, query, where, getDocs, doc, getDoc, setDoc, addDoc, serverTimestamp,
   signInAnonymously, GoogleAuthProvider, signInWithPopup, signInWithRedirect,
   getRedirectResult
 } from './interno/firebase-init.js';
@@ -547,6 +563,8 @@ function abrirEscribir() {
   } else {
     $('donde').classList.add('oculto');
   }
+  // Sin mail no hay novedades que ofrecer.
+  $('filaNovedades').classList.toggle('oculto', !(persona && persona.email));
   $('errEscribir').classList.add('oculto');
   $('mEscribir').showModal();
   $('inTexto').focus();
@@ -573,6 +591,45 @@ $('quitarFoto').addEventListener('click', () => {
   $('inCamara').value = '';
   $('inArchivo').value = '';
 });
+
+/**
+ * Anota al huésped en /huespedes/{uid} para poder hablarle después
+ * (novedades, promociones, reserva directa). Idempotente: si vuelve,
+ * se actualiza el contacto y se mueve 'ultimaVez'; 'primeraVez' no se
+ * toca nunca más.
+ *
+ * Con Google el uid es estable y la persona se reconoce entre visitas.
+ * Anónimo, el uid es del dispositivo: sirve como contacto, no como
+ * identidad. En los dos casos hace falta la clave del QR: la regla la
+ * exige igual que para el recuerdo.
+ *
+ * Es un EXTRA: si falla, el recuerdo ya está guardado y el huésped no
+ * se tiene que enterar de nada.
+ */
+async function registrarHuesped() {
+  if (!auth.currentUser || !acceso || !acceso.ok) return;
+  try {
+    const ref = doc(db, 'huespedes', auth.currentUser.uid);
+    const snap = await getDoc(ref);       // si esto falla, no registramos
+    const datos = {
+      nombre: persona.nombre.slice(0, 60),
+      email: (persona.email || '').slice(0, 120),
+      proveedor: persona.proveedor,
+      cabanaId: acceso.cabanaId,
+      clave: acceso.clave,
+      claveEtiqueta: acceso.etiqueta,
+      idioma: (navigator.language || '').slice(0, 12),
+      novedades: !!(persona.email && $('inNovedades').checked),
+      ultimaVez: serverTimestamp()
+    };
+    // La regla exige que en el create 'primeraVez' sea la hora del
+    // servidor, y en el update que quede igual que estaba.
+    if (!snap.exists()) datos.primeraVez = serverTimestamp();
+    await setDoc(ref, datos, { merge: true });
+  } catch (e) {
+    console.warn('huesped', e);
+  }
+}
 
 $('cancelarEscribir').addEventListener('click', () => $('mEscribir').close());
 
@@ -612,6 +669,9 @@ $('enviar').addEventListener('click', async () => {
       claveEtiqueta: acceso.etiqueta,
       creadoEn: serverTimestamp()
     });
+    // El recuerdo ya está guardado: de acá en adelante nada puede hacer
+    // fracasar el envío. El registro del huésped es un extra.
+    await registrarHuesped();
     $('mEscribir').close();
     $('inTexto').value = '';
     $('cuenta').textContent = '0';
