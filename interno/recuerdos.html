@@ -91,6 +91,7 @@
   <div class="solapas">
     <button class="solapa on" id="sMuro">Recuerdos</button>
     <button class="solapa" id="sClaves">Claves y QR</button>
+    <button class="solapa" id="sHuespedes">Huéspedes</button>
   </div>
 
   <!-- ═══ Moderación ═══════════════════════════════════════ -->
@@ -121,6 +122,24 @@
       <span class="material-icons">add</span> Clave nueva</button>
 
     <div id="listaClaves"><div class="vacio">Cargando…</div></div>
+  </div>
+
+  <!-- ═══ Huéspedes ════════════════════════════════════════ -->
+  <div id="panelHuespedes" style="display:none;">
+    <p class="texto-gris" style="font-size:.86rem;">
+      Quien deja un recuerdo queda anotado acá. Sirve para hablarles después:
+      novedades, promociones, reserva directa sin comisión. <b>Solo se le puede
+      escribir a quien dijo que sí</b> — el resto está para que sepas quién pasó,
+      no para mandarle nada.</p>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 16px;">
+      <button class="btn btn-primario" id="btnMails">
+        <span class="material-icons">alternate_email</span> Copiar los mails que aceptaron</button>
+      <button class="btn" id="btnCSV">
+        <span class="material-icons">download</span> Bajar la lista</button>
+    </div>
+
+    <div id="listaHuespedes"><div class="vacio">Cargando…</div></div>
   </div>
 </div>
 
@@ -208,6 +227,7 @@ if (!CV2.puede('contenido')) {
     + 'el contenido del sitio.</div>';
   $('filtros').remove();
   $('panelClaves').remove();
+  $('panelHuespedes').remove();
   document.querySelector('.solapas').remove();
   throw new Error('sin-permiso');
 }
@@ -246,14 +266,17 @@ const urlDeClave = (clave) => baseGuardada() + '?k=' + encodeURIComponent(clave)
 });
 
 // ── Solapas ────────────────────────────────────────────────
-$('sMuro').addEventListener('click', () => {
-  $('sMuro').classList.add('on'); $('sClaves').classList.remove('on');
-  $('panelMuro').style.display = ''; $('panelClaves').style.display = 'none';
-});
-$('sClaves').addEventListener('click', () => {
-  $('sClaves').classList.add('on'); $('sMuro').classList.remove('on');
-  $('panelClaves').style.display = ''; $('panelMuro').style.display = 'none';
-});
+$('sMuro').addEventListener('click', () => verSolapa('muro'));
+function verSolapa(cual) {
+  const mapa = { muro: 'panelMuro', claves: 'panelClaves', huespedes: 'panelHuespedes' };
+  const botones = { muro: 'sMuro', claves: 'sClaves', huespedes: 'sHuespedes' };
+  Object.keys(mapa).forEach((k) => {
+    $(mapa[k]).style.display = (k === cual) ? '' : 'none';
+    $(botones[k]).classList.toggle('on', k === cual);
+  });
+}
+$('sClaves').addEventListener('click', () => verSolapa('claves'));
+$('sHuespedes').addEventListener('click', () => verSolapa('huespedes'));
 
 // ═══ MODERACIÓN ════════════════════════════════════════════
 function pintarFiltros() {
@@ -549,10 +572,105 @@ $('qrCopiar').addEventListener('click', async () => {
   }
 });
 
+// ═══ HUÉSPEDES ═════════════════════════════════════════════
+// El registro de quien pasó por el muro. Con Google el uid es estable y
+// la persona se reconoce entre visitas; anónimo, el uid es del
+// dispositivo: vale como contacto, no como identidad.
+let huespedes = [];
+
+async function cargarHuespedes() {
+  $('listaHuespedes').innerHTML = '<div class="vacio">Cargando…</div>';
+  try {
+    const snap = await getDocs(collection(db, 'huespedes'));
+    huespedes = [];
+    snap.forEach((d) => huespedes.push({ id: d.id, ...d.data() }));
+    huespedes.sort((a, b) => (b.ultimaVez?.toMillis?.() ?? 0) - (a.ultimaVez?.toMillis?.() ?? 0));
+
+    if (!huespedes.length) {
+      $('listaHuespedes').innerHTML = '<div class="vacio">Todavía no pasó nadie por el muro.</div>';
+      return;
+    }
+
+    const conSi = huespedes.filter((h) => h.novedades === true && h.email).length;
+    $('listaHuespedes').innerHTML =
+      `<p class="texto-gris" style="font-size:.84rem;">${huespedes.length} en total ·
+        <b>${conSi}</b> aceptaron recibir novedades.</p>`
+      + huespedes.map((h) => {
+        const cab = h.cabanaId ? (cabanas[h.cabanaId] || h.cabanaId) : '';
+        const desde = h.primeraVez?.toMillis?.()
+          ? CV2.fmtFecha(new Date(h.primeraVez.toMillis())) : '—';
+        const hasta = h.ultimaVez?.toMillis?.()
+          ? CV2.fmtFecha(new Date(h.ultimaVez.toMillis())) : '—';
+        return `<div class="clave">
+          <div class="tit">
+            <b>${esc(h.nombre || 'Un huésped')}</b>
+            <span class="etiqueta ${h.novedades === true && h.email ? 'e-publicado' : 'e-oculto'}">
+              ${h.novedades === true && h.email ? 'acepta novedades' : 'no escribirle'}</span>
+            ${h.email ? `<span class="texto-gris" style="font-size:.82rem;">${esc(h.email)}</span>`
+                      : '<span class="texto-gris" style="font-size:.82rem;">sin mail</span>'}
+            <span class="texto-gris" style="font-size:.82rem;">${h.proveedor === 'google' ? 'Google' : 'sin cuenta'}</span>
+          </div>
+          <div class="dir">${cab ? esc(cab) + ' · ' : ''}primera vez ${esc(desde)} ·
+            última ${esc(hasta)}${h.idioma ? ' · ' + esc(h.idioma) : ''}</div>
+          <div class="acciones">
+            <button class="btn" onclick="borrarHuesped('${esc(h.id)}')">
+              <span class="material-icons">delete</span> Dar de baja</button>
+          </div>
+        </div>`;
+      }).join('');
+  } catch (e) {
+    $('listaHuespedes').innerHTML = `<div class="vacio">No se pudo leer (${esc(e.code ?? e.message)}).</div>`;
+  }
+}
+
+window.borrarHuesped = async (id) => {
+  if (!confirm('Sacar a esta persona del registro de huéspedes.\n\nEs lo que hay que '
+    + 'hacer si pide que la borremos. No toca su recuerdo publicado.\n\n¿Darla de baja?')) return;
+  try {
+    await deleteDoc(doc(db, 'huespedes', id));
+    CV2.toast('Dado de baja', 'success');
+    await cargarHuespedes();
+  } catch (e) {
+    CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error');
+  }
+};
+
+$('btnMails').addEventListener('click', async () => {
+  const mails = huespedes.filter((h) => h.novedades === true && h.email)
+    .map((h) => h.email);
+  if (!mails.length) { CV2.toast('Todavía nadie aceptó recibir novedades', 'error'); return; }
+  try {
+    await navigator.clipboard.writeText(mails.join(', '));
+    CV2.toast(mails.length + ' mails copiados', 'success');
+  } catch (e) {
+    CV2.toast('No se pudo copiar. Probá desde el archivo de la lista.', 'error');
+  }
+});
+
+// Descarga en el propio navegador: nada sale a ningún servidor.
+$('btnCSV').addEventListener('click', () => {
+  const escCSV = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const fecha = (t) => t?.toMillis?.() ? new Date(t.toMillis()).toISOString().slice(0, 10) : '';
+  const filas = [['nombre', 'email', 'acepta_novedades', 'proveedor', 'cabana',
+                  'idioma', 'primera_vez', 'ultima_vez', 'de_que_qr']];
+  huespedes.forEach((h) => filas.push([
+    h.nombre || '', h.email || '', h.novedades === true ? 'si' : 'no',
+    h.proveedor || '', h.cabanaId ? (cabanas[h.cabanaId] || h.cabanaId) : '',
+    h.idioma || '', fecha(h.primeraVez), fecha(h.ultimaVez), h.claveEtiqueta || ''
+  ]));
+  const csv = '\uFEFF' + filas.map((f) => f.map(escCSV).join(';')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = 'huespedes-' + CV2.hoyISO() + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
 // ── Cargas iniciales ───────────────────────────────────────
 await contar();
 await cargar();
 await cargarClaves();
+await cargarHuespedes();
 </script>
 </body>
 </html>
