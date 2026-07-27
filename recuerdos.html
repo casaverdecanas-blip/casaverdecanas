@@ -2,47 +2,510 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Recuerdos de huéspedes · Casa Verde Canas</title>
-<meta name="description" content="Muro de recuerdos de los huéspedes de Casa Verde Canas, en Canasvieiras, Florianópolis.">
+<meta name="description" content="Momentos compartidos por quienes se alojaron en Casa Verde Canas, en Canasvieiras, Florianópolis.">
 <link rel="canonical" href="https://casaverdecanas.com.br/recuerdos.html">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Figtree:wght@400;600&display=swap" rel="stylesheet">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Casa Verde Canas">
+<meta property="og:url" content="https://casaverdecanas.com.br/recuerdos.html">
+<meta property="og:title" content="Recuerdos de nuestros huéspedes · Casa Verde Canas">
+<meta property="og:description" content="Momentos compartidos por quienes se alojaron en Casa Verde Canas.">
+<meta property="og:image" content="https://casaverdecanas.com.br/img/og-preview.jpg">
+<link rel="icon" href="./img/logo-sitio.png">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#225b38">
 <style>
-  :root { --papel:#faf4e6; --crema:#f4e8cb; --selva:#225b38; --terracota:#b86d4c;
-          --tinta:#2b3327; --gris:#6f7a68; --linea:#e6dcc2; }
-  body { margin:0; background:var(--papel); color:var(--tinta);
-         font-family:Figtree,system-ui,sans-serif; line-height:1.6; }
-  .wrap { max-width:640px; margin:0 auto; padding:40px 22px 60px; }
-  h1 { font-family:Fraunces,Georgia,serif; font-weight:600; color:var(--selva);
-       font-size:clamp(1.6rem,5vw,2.2rem); margin:0 0 8px; }
-  p { color:var(--gris); }
-  .caja { background:#fff; border:1px solid var(--linea); border-radius:16px;
-          padding:22px; margin-top:26px; }
-  a.btn { display:inline-flex; align-items:center; gap:8px; background:var(--terracota);
-          color:#fff; text-decoration:none; padding:11px 20px; border-radius:999px;
-          font-weight:600; margin-top:6px; }
-  a.vol { color:var(--selva); text-decoration:none; font-weight:600; font-size:.9rem; }
+  /* Misma identidad que la portada. */
+  :root{
+    --menta:#9fd2b0; --crema:#f4e8cb; --papel:#faf4e6;
+    --terracota:#b86d4c; --terracota-osc:#9c5738;
+    --selva:#305e30; --selva-osc:#225b38;
+    --flor:#be402c; --tinta:#2b3327; --gris:#6f7a68;
+    --linea:#e6dcc2; --sombra:0 2px 14px rgba(34,91,56,.08);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Figtree,system-ui,sans-serif;color:var(--tinta);
+    background:var(--papel);line-height:1.6;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:600;line-height:1.15;margin:0}
+  .wrap{max-width:820px;margin:0 auto;padding:0 20px}
+
+  header{position:sticky;top:0;z-index:40;background:rgba(250,244,230,.94);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--linea)}
+  .barra{display:flex;align-items:center;gap:12px;padding:10px 0}
+  .barra img{height:38px;width:auto;display:block}
+  .barra a.volver{margin-left:auto;color:var(--selva-osc);text-decoration:none;
+    font-weight:600;font-size:.88rem}
+
+  .intro{padding:30px 0 6px;text-align:center}
+  .intro h1{font-size:clamp(1.7rem,5vw,2.5rem);color:var(--selva-osc)}
+  .intro p{color:var(--gris);margin:10px auto 0;max-width:520px}
+
+  .cta{display:block;margin:24px auto 8px;background:var(--terracota);color:#fff;
+    border:0;font:inherit;font-weight:700;padding:13px 26px;border-radius:999px;
+    cursor:pointer;box-shadow:0 3px 12px rgba(184,109,76,.3)}
+  .cta:hover{background:var(--terracota-osc)}
+
+  .muro{display:grid;gap:16px;padding:26px 0 60px}
+  @media(min-width:640px){.muro{grid-template-columns:1fr 1fr}}
+  .tarjeta{background:#fff;border:1px solid var(--linea);border-radius:16px;
+    overflow:hidden;box-shadow:var(--sombra);display:flex;flex-direction:column}
+  .tarjeta img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:var(--crema)}
+  .tarjeta .cuerpo{padding:15px 17px 17px}
+  .tarjeta p{margin:0 0 12px;white-space:pre-wrap;overflow-wrap:anywhere}
+  .firma{display:flex;align-items:baseline;gap:8px;font-size:.82rem;color:var(--gris);
+    border-top:1px solid var(--linea);padding-top:10px}
+  .firma b{color:var(--selva-osc);font-size:.9rem}
+  .firma span:last-child{margin-left:auto;white-space:nowrap}
+  .vacio{grid-column:1/-1;text-align:center;color:var(--gris);padding:40px 10px}
+
+  dialog{border:0;border-radius:18px;padding:22px;width:min(500px,94vw);
+    background:var(--papel);color:var(--tinta);box-shadow:0 12px 50px rgba(0,0,0,.28)}
+  dialog::backdrop{background:rgba(34,51,39,.5)}
+  dialog h2{font-size:1.25rem;color:var(--selva-osc);margin-bottom:4px}
+  dialog p.sub{color:var(--gris);font-size:.88rem;margin:0 0 18px}
+  label{display:block;font-size:.84rem;font-weight:600;margin:14px 0 5px}
+  input[type=text],input[type=email],textarea,select{width:100%;font:inherit;
+    padding:11px 13px;border:1px solid var(--linea);border-radius:11px;background:#fff;
+    color:inherit}
+  textarea{min-height:120px;resize:vertical}
+  .contador{text-align:right;font-size:.76rem;color:var(--gris);margin-top:4px}
+  .btn{font:inherit;font-weight:600;border:1px solid var(--linea);background:#fff;
+    color:var(--tinta);padding:11px 18px;border-radius:999px;cursor:pointer}
+  .btn-pri{background:var(--terracota);border-color:var(--terracota);color:#fff}
+  .btn-pri:disabled{opacity:.55;cursor:default}
+  .btn-ancho{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;
+    padding:13px;margin-bottom:10px}
+  .fila{display:flex;gap:9px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+  .previa{margin-top:12px;position:relative}
+  .previa img{width:100%;max-height:220px;object-fit:cover;border-radius:12px;display:block}
+  .previa button{position:absolute;top:8px;right:8px;border:0;background:rgba(0,0,0,.6);
+    color:#fff;border-radius:999px;width:30px;height:30px;font-size:1rem;cursor:pointer}
+  .aviso{background:#fdecea;color:#b3261e;border-radius:10px;padding:10px 13px;
+    font-size:.85rem;margin-top:14px}
+  .oculto{display:none!important}
+  .legal{font-size:.76rem;color:var(--gris);margin-top:14px;line-height:1.5}
+
+  footer{background:var(--selva-osc);color:#cfe3d2;padding:30px 0;text-align:center;
+    font-size:.88rem;margin-top:20px}
+  footer a{color:var(--menta)}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <a class="vol" href="/">‹ Volver al sitio</a>
-  <h1>Recuerdos de nuestros huéspedes</h1>
-  <p>Momentos compartidos en Casa Verde Canas.</p>
 
-  <div class="caja">
-    <h2 style="font-family:Fraunces,serif;font-weight:600;font-size:1.1rem;margin:0 0 8px;">
-      Estamos renovando el muro</h2>
-    <p style="margin:0 0 14px;">
-      Escaneaste el código de tu alojamiento: gracias por querer dejar tu recuerdo.
-      El muro está en obra por unos días. Mientras tanto, mandanos tu mensaje y tus
-      fotos por WhatsApp y las publicamos nosotros.</p>
-    <a class="btn" href="https://wa.me/5548991181246?text=Hola!%20Quiero%20dejar%20mi%20recuerdo%20de%20Casa%20Verde%20Canas">
-      Dejar mi recuerdo por WhatsApp</a>
+<header>
+  <div class="wrap barra">
+    <img src="./img/logo-sitio.png" alt="Casa Verde Canas"
+         onerror="if(!this.dataset.r){this.dataset.r=1;this.src='./logo-sitio.png';}else{this.remove();}">
+    <a class="volver" href="/">‹ Volver al sitio</a>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="intro">
+    <h1>Recuerdos de nuestros huéspedes</h1>
+    <p id="bajada">Momentos compartidos en Casa Verde Canas.</p>
+    <button class="cta" id="btnDejar">✍️ Dejar mi recuerdo</button>
   </div>
 
-  <p style="margin-top:30px;font-size:.86rem;">
-    Casa Verde Canas 🌿 · Canasvieiras, Florianópolis · SC · Brasil</p>
+  <div class="muro" id="muro">
+    <div class="vacio">Cargando recuerdos…</div>
+  </div>
 </div>
+
+<footer>
+  <div class="wrap">
+    <b>Casa Verde Canas</b> 🌿 · Canasvieiras, Florianópolis — SC, Brasil<br>
+    <a href="https://www.instagram.com/casaverdecanasvieiras/" target="_blank" rel="noopener">Instagram</a> ·
+    <a href="https://www.facebook.com/share/1C5rEdBRaV/" target="_blank" rel="noopener">Facebook</a> ·
+    <a href="/">Portada</a>
+  </div>
+</footer>
+
+<!-- ═══ Paso 1 · quién sos ═══════════════════════════════════ -->
+<dialog id="mQuien">
+  <h2>Antes de escribir</h2>
+  <p class="sub">Solo para saber a quién agradecerle. Tu mail no se publica.</p>
+
+  <button class="btn btn-ancho" id="btnGoogle">
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-2.7-.4-3.9H24v7.1h12.1c-.2 1.8-1.6 4.6-4.5 6.4l-.1.3 6.5 5 .5.1c4.1-3.8 6.6-9.4 6.6-15z"/><path fill="#34A853" d="M24 46c5.9 0 10.9-2 14.5-5.3l-6.9-5.4c-1.8 1.3-4.3 2.2-7.6 2.2-5.8 0-10.7-3.8-12.5-9.1l-.3.02-6.8 5.2-.1.3C7.9 41 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.5 28.4c-.5-1.4-.7-2.9-.7-4.4s.3-3 .7-4.4v-.3l-6.9-5.3-.2.1A22 22 0 0 0 2 24c0 3.5.9 6.9 2.4 9.9l7.1-5.5z"/><path fill="#EB4335" d="M24 10.6c4.1 0 6.9 1.8 8.5 3.3l6.2-6C34.9 4.4 29.9 2 24 2 15.4 2 7.9 7 4.4 14.1l7.1 5.5c1.8-5.3 6.7-9 12.5-9z"/></svg>
+    Continuar con Google</button>
+
+  <button class="btn btn-ancho" id="btnSimple">Solo con mi nombre</button>
+
+  <div id="formSimple" class="oculto">
+    <label for="inNombre">Tu nombre</label>
+    <input id="inNombre" type="text" maxlength="60" autocomplete="name" placeholder="Cómo querés firmar">
+    <label for="inMail">Tu mail <span style="font-weight:400;color:var(--gris)">(opcional, no se publica)</span></label>
+    <input id="inMail" type="email" maxlength="120" autocomplete="email" placeholder="por si queremos agradecerte">
+  </div>
+
+  <div id="errQuien" class="aviso oculto"></div>
+
+  <div class="fila">
+    <button class="btn" id="cancelarQuien">Cancelar</button>
+    <button class="btn btn-pri oculto" id="seguirSimple">Seguir</button>
+  </div>
+</dialog>
+
+<!-- ═══ Paso 2 · el recuerdo ═════════════════════════════════ -->
+<dialog id="mEscribir">
+  <h2>Tu recuerdo</h2>
+  <p class="sub" id="subEscribir"></p>
+
+  <label for="inTexto">¿Qué te llevás de Casa Verde?</label>
+  <textarea id="inTexto" maxlength="600" placeholder="Contanos cómo la pasaste…"></textarea>
+  <div class="contador"><span id="cuenta">0</span>/600</div>
+
+  <label for="selCabana">¿En qué alojamiento te quedaste?</label>
+  <select id="selCabana"><option value="">Prefiero no decir</option></select>
+
+  <label>Una foto <span style="font-weight:400;color:var(--gris)">(opcional)</span></label>
+  <!-- DOS entradas a propósito (lección jul-2026): con un solo input,
+       iPad abre el explorador y esconde la cámara, y 'capture' hace lo
+       contrario. Ningún input solo ofrece las dos cosas de forma fiable. -->
+  <div style="display:flex;gap:9px">
+    <button class="btn" id="btnCamara" style="flex:1">📷 Cámara</button>
+    <button class="btn" id="btnArchivo" style="flex:1">🖼️ Galería</button>
+  </div>
+  <input id="inCamara" type="file" accept="image/*" capture="environment" class="oculto">
+  <input id="inArchivo" type="file" accept="image/*" class="oculto">
+
+  <div class="previa oculto" id="previa">
+    <img id="previaImg" alt="">
+    <button id="quitarFoto" title="Quitar la foto">×</button>
+  </div>
+
+  <div id="errEscribir" class="aviso oculto"></div>
+
+  <p class="legal">Al enviarlo aceptás que publiquemos tu nombre, tu texto y tu foto
+    en esta página. Lo revisamos antes de que aparezca.</p>
+
+  <div class="fila">
+    <button class="btn" id="cancelarEscribir">Cancelar</button>
+    <button class="btn btn-pri" id="enviar">Enviar</button>
+  </div>
+</dialog>
+
+<!-- ═══ Paso 3 · gracias ═════════════════════════════════════ -->
+<dialog id="mGracias">
+  <div style="text-align:center">
+    <div style="font-size:2.6rem;line-height:1">🌿</div>
+    <h2 style="margin-top:8px">¡Gracias por tu recuerdo!</h2>
+    <p class="sub" style="margin-top:8px">Lo revisamos y, si todo está bien, aparece
+      acá en unas horas.</p>
+    <p style="font-size:.9rem;color:var(--gris);margin:0 0 6px">
+      Si querés, etiquetanos en tu foto:</p>
+    <a class="btn btn-ancho" href="https://www.instagram.com/casaverdecanasvieiras/"
+       target="_blank" rel="noopener">@casaverdecanasvieiras en Instagram</a>
+    <button class="btn btn-pri" id="cerrarGracias" style="margin-top:6px">Cerrar</button>
+  </div>
+</dialog>
+
+<script type="module">
+// ═══════════════════════════════════════════════════════════
+//  RECUERDOS · página PÚBLICA
+//
+//  Por qué no usa nucleo.js: nucleo.js es el corazón del PANEL —
+//  arranca verificarAuth y manda al login a quien no tenga perfil.
+//  Acá el visitante nunca tiene perfil. Así que esta página toma de
+//  firebase-init.js solo lo que necesita y repite las dos utilidades
+//  de imagen, con su PROPIO preset de Cloudinary: si algún día hay
+//  abuso, se apaga el preset de recuerdos y los comprobantes y las
+//  fotos de las cabañas ni se enteran.
+//
+//  Flujo: elegir quién sos → sesión (Google o anónima) → escribir →
+//  crear el documento en 'pendiente'. Publicar es del panel.
+// ═══════════════════════════════════════════════════════════
+import {
+  db, auth, collection, query, where, getDocs, addDoc, serverTimestamp,
+  signInAnonymously, GoogleAuthProvider, signInWithPopup, signInWithRedirect,
+  getRedirectResult, onAuthStateChanged
+} from './interno/firebase-init.js';
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
+  (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// ── Cloudinary, preset propio del muro ─────────────────────
+const CLOUD = 'dnwfu8ffn';
+const PRESET = 'preset-recuerdos';
+const ENTREGA = 'f_auto,q_auto,w_2000';
+
+// Una foto de teléfono son 8 MB; sale a ~300 KB antes de viajar.
+function comprimir(file, max = 2000) {
+  return new Promise((ok, err) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > max) { h = h * max / w; w = max; }
+      if (h > max) { w = w * max / h; h = max; }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      c.toBlob((b) => { URL.revokeObjectURL(url); b ? ok(b) : err(new Error('no se pudo comprimir')); },
+        'image/jpeg', 0.85);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); err(new Error('formato no soportado')); };
+    img.src = url;
+  });
+}
+
+// Guarda la URL ya transformada: quien la muestre recibe la liviana.
+function urlEntrega(url) {
+  const m = '/upload/';
+  const i = url.indexOf(m);
+  return i === -1 ? url : url.slice(0, i + m.length) + ENTREGA + '/' + url.slice(i + m.length);
+}
+
+async function subirFoto(file) {
+  const blob = await comprimir(file);
+  const fd = new FormData();
+  fd.append('file', blob);
+  fd.append('upload_preset', PRESET);
+  const r = await fetch('https://api.cloudinary.com/v1_1/' + CLOUD + '/image/upload',
+    { method: 'POST', body: fd });
+  if (!r.ok) throw new Error('No se pudo subir la foto');
+  return urlEntrega((await r.json()).secure_url);
+}
+
+// ── Estado ─────────────────────────────────────────────────
+const params = new URLSearchParams(location.search);
+const cabanaQR = params.get('c') || '';   // el QR de cada cabaña trae ?c=<id>
+let cabanas = [];
+let persona = null;      // { nombre, email, proveedor }
+let fotoFile = null;
+
+// ── Muro ───────────────────────────────────────────────────
+const fmtFecha = (d) => d
+  ? d.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
+  : '';
+
+async function pintarMuro() {
+  try {
+    // Un solo where de igualdad: sin orderBy no hace falta índice
+    // compuesto, y las reglas exigen justamente este filtro.
+    const snap = await getDocs(query(collection(db, 'recuerdos'),
+      where('estado', '==', 'publicado')));
+    const filas = [];
+    snap.forEach((d) => {
+      const x = d.data();
+      filas.push({
+        nombre: x.nombre || 'Un huésped',
+        texto: x.texto || '',
+        foto: x.foto || '',
+        cabanaId: x.cabanaId || '',
+        ms: x.creadoEn?.toMillis?.() ?? 0
+      });
+    });
+    filas.sort((a, b) => b.ms - a.ms);
+
+    if (!filas.length) {
+      $('muro').innerHTML = '<div class="vacio">Todavía no hay recuerdos publicados.<br>'
+        + '¡Sé la primera persona en dejar el tuyo!</div>';
+      return;
+    }
+
+    $('muro').innerHTML = filas.map((f) => {
+      const cab = cabanas.find((c) => c.id === f.cabanaId);
+      return `<article class="tarjeta">
+        ${f.foto ? `<img src="${esc(f.foto)}" alt="Recuerdo de ${esc(f.nombre)}" loading="lazy">` : ''}
+        <div class="cuerpo">
+          <p>${esc(f.texto)}</p>
+          <div class="firma">
+            <b>${esc(f.nombre)}</b>
+            ${cab ? `<span>· ${esc(cab.nombre)}</span>` : ''}
+            <span>${esc(fmtFecha(f.ms ? new Date(f.ms) : null))}</span>
+          </div>
+        </div>
+      </article>`;
+    }).join('');
+  } catch (e) {
+    console.warn('recuerdos', e);
+    $('muro').innerHTML = '<div class="vacio">No pudimos cargar los recuerdos ahora. '
+      + 'Probá de nuevo en un rato.</div>';
+  }
+}
+
+async function cargarCabanas() {
+  try {
+    const snap = await getDocs(collection(db, 'cabanas'));
+    snap.forEach((d) => {
+      const x = d.data();
+      if (x.activa !== false) cabanas.push({ id: d.id, nombre: x.nombre || x.titulo || d.id });
+    });
+    cabanas.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    $('selCabana').innerHTML = '<option value="">Prefiero no decir</option>'
+      + cabanas.map((c) => `<option value="${esc(c.id)}"${c.id === cabanaQR ? ' selected' : ''}>${esc(c.nombre)}</option>`).join('');
+  } catch (e) { console.warn('cabanas', e); }
+}
+
+// ── Paso 1 · quién sos ─────────────────────────────────────
+const errQuien = (m) => {
+  $('errQuien').textContent = m;
+  $('errQuien').classList.toggle('oculto', !m);
+};
+
+$('btnDejar').addEventListener('click', () => {
+  errQuien('');
+  $('formSimple').classList.add('oculto');
+  $('seguirSimple').classList.add('oculto');
+  $('mQuien').showModal();
+});
+
+$('cancelarQuien').addEventListener('click', () => $('mQuien').close());
+
+$('btnSimple').addEventListener('click', () => {
+  $('formSimple').classList.remove('oculto');
+  $('seguirSimple').classList.remove('oculto');
+  $('inNombre').focus();
+});
+
+$('seguirSimple').addEventListener('click', async () => {
+  const nombre = $('inNombre').value.trim();
+  const email = $('inMail').value.trim();
+  if (nombre.length < 2) { errQuien('Escribí tu nombre, aunque sea el de pila.'); return; }
+  errQuien('');
+  $('seguirSimple').disabled = true;
+  try {
+    if (!auth.currentUser) await signInAnonymously(auth);
+    persona = { nombre, email, proveedor: 'anonimo' };
+    abrirEscribir();
+  } catch (e) {
+    errQuien(e.code === 'auth/operation-not-allowed'
+      ? 'El muro todavía no está habilitado. Escribinos por WhatsApp y lo publicamos nosotros.'
+      : 'No pudimos abrir tu sesión. Probá de nuevo.');
+  } finally {
+    $('seguirSimple').disabled = false;
+  }
+});
+
+$('btnGoogle').addEventListener('click', async () => {
+  errQuien('');
+  try {
+    const cred = await signInWithPopup(auth, new GoogleAuthProvider());
+    entrarConGoogle(cred.user);
+  } catch (e) {
+    // Muchos navegadores de iOS bloquean la ventana emergente:
+    // se cae con elegancia a la redirección de página completa.
+    if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') {
+      sessionStorage.setItem('cv-recuerdo-google', '1');
+      await signInWithRedirect(auth, new GoogleAuthProvider());
+      return;
+    }
+    if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
+    errQuien('No pudimos entrar con Google. Podés seguir solo con tu nombre.');
+  }
+});
+
+function entrarConGoogle(user) {
+  persona = {
+    nombre: (user.displayName || '').trim() || 'Un huésped',
+    email: user.email || '',
+    proveedor: 'google'
+  };
+  abrirEscribir();
+}
+
+// Vuelta de la redirección de Google.
+try {
+  const res = await getRedirectResult(auth);
+  if (res?.user && sessionStorage.getItem('cv-recuerdo-google')) {
+    sessionStorage.removeItem('cv-recuerdo-google');
+    entrarConGoogle(res.user);
+  }
+} catch { /* sin sesión pendiente */ }
+
+// ── Paso 2 · escribir ──────────────────────────────────────
+function abrirEscribir() {
+  if ($('mQuien').open) $('mQuien').close();
+  $('subEscribir').textContent = 'Firmás como ' + persona.nombre + '.';
+  $('errEscribir').classList.add('oculto');
+  $('mEscribir').showModal();
+  $('inTexto').focus();
+}
+
+$('inTexto').addEventListener('input', () => {
+  $('cuenta').textContent = $('inTexto').value.length;
+});
+
+$('btnCamara').addEventListener('click', () => $('inCamara').click());
+$('btnArchivo').addEventListener('click', () => $('inArchivo').click());
+[$('inCamara'), $('inArchivo')].forEach((inp) =>
+  inp.addEventListener('change', (ev) => {
+    const f = ev.target.files?.[0];
+    if (!f) return;
+    fotoFile = f;
+    $('previaImg').src = URL.createObjectURL(f);
+    $('previa').classList.remove('oculto');
+  }));
+
+$('quitarFoto').addEventListener('click', () => {
+  fotoFile = null;
+  $('previa').classList.add('oculto');
+  $('inCamara').value = '';
+  $('inArchivo').value = '';
+});
+
+$('cancelarEscribir').addEventListener('click', () => $('mEscribir').close());
+
+$('enviar').addEventListener('click', async () => {
+  const texto = $('inTexto').value.trim();
+  const err = (m) => {
+    $('errEscribir').textContent = m;
+    $('errEscribir').classList.toggle('oculto', !m);
+  };
+  if (!texto) { err('Escribí algo, aunque sean dos líneas.'); return; }
+  if (!auth.currentUser) { err('Se cerró tu sesión. Cerrá y volvé a empezar.'); return; }
+
+  err('');
+  $('enviar').disabled = true;
+  $('enviar').textContent = 'Enviando…';
+  try {
+    let foto = null;
+    if (fotoFile) {
+      $('enviar').textContent = 'Subiendo la foto…';
+      foto = await subirFoto(fotoFile);
+    }
+    // 'creadoEn' va con serverTimestamp porque las reglas exigen
+    // request.time: una fecha del dispositivo sería rechazada.
+    await addDoc(collection(db, 'recuerdos'), {
+      nombre: persona.nombre.slice(0, 60),
+      email: (persona.email || '').slice(0, 120),
+      texto: texto.slice(0, 600),
+      foto,
+      cabanaId: $('selCabana').value || null,
+      estado: 'pendiente',
+      uid: auth.currentUser.uid,
+      proveedor: persona.proveedor,
+      creadoEn: serverTimestamp()
+    });
+    $('mEscribir').close();
+    $('inTexto').value = '';
+    $('cuenta').textContent = '0';
+    fotoFile = null;
+    $('previa').classList.add('oculto');
+    $('mGracias').showModal();
+  } catch (e) {
+    console.warn(e);
+    err(e.code === 'permission-denied'
+      ? 'No pudimos guardar tu recuerdo. Escribinos por WhatsApp y lo subimos nosotros.'
+      : (e.message || 'No pudimos guardarlo. Probá de nuevo.'));
+  } finally {
+    $('enviar').disabled = false;
+    $('enviar').textContent = 'Enviar';
+  }
+});
+
+$('cerrarGracias').addEventListener('click', () => $('mGracias').close());
+
+// ── Arranque ───────────────────────────────────────────────
+if (cabanaQR) $('bajada').textContent =
+  'Gracias por escanear el código de tu alojamiento. Contanos cómo la pasaste.';
+
+await cargarCabanas();
+await pintarMuro();
+</script>
 </body>
 </html>
