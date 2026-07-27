@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Recuerdos</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .filtros { display:flex; gap:8px; margin:14px 0 4px; flex-wrap:wrap; }
+  .chip { border:1px solid var(--linea); background:#fff; border-radius:999px;
+          padding:7px 15px; font:inherit; font-size:.86rem; cursor:pointer; color:var(--gris); }
+  .chip.on { background:var(--verde); border-color:var(--verde); color:#fff; font-weight:600; }
+  .chip .n { font-variant-numeric:tabular-nums; opacity:.85; margin-left:4px; }
+
+  .rec { background:#fff; border:1px solid var(--linea); border-radius:var(--radio);
+         box-shadow:var(--sombra); overflow:hidden; margin-bottom:14px; }
+  .rec .foto { width:100%; max-height:280px; object-fit:cover; display:block; background:#f2f2ef; cursor:zoom-in; }
+  .rec .cuerpo { padding:14px 16px 16px; }
+  .rec .texto { margin:0 0 12px; white-space:pre-wrap; overflow-wrap:anywhere; font-size:.94rem; }
+  .rec .meta { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:.8rem; color:var(--gris);
+               border-top:1px solid var(--linea); padding-top:10px; }
+  .rec .meta b { color:var(--texto); font-size:.88rem; }
+  .rec .acciones { display:flex; gap:8px; flex-wrap:wrap; margin-top:13px; }
+  .etiqueta { display:inline-block; font-size:.72rem; font-weight:700; padding:2px 9px;
+              border-radius:999px; text-transform:uppercase; letter-spacing:.03em; }
+  .e-pendiente { background:#fdf1d8; color:#8a6206; }
+  .e-publicado { background:#e7f4e4; color:#2d5a27; }
+  .e-oculto { background:#eee; color:#666; }
+
+  dialog#mFoto { border:0; background:transparent; padding:0; max-width:96vw; }
+  dialog#mFoto img { max-width:96vw; max-height:88vh; border-radius:12px; display:block; }
+  dialog#mFoto::backdrop { background:rgba(0,0,0,.82); }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+    <h1 style="margin:0;flex:1;">Recuerdos</h1>
+    <a class="btn" href="../recuerdos.html" target="_blank" rel="noopener">
+      <span class="material-icons">open_in_new</span> Ver el muro</a>
+  </div>
+  <p class="texto-gris" style="font-size:.86rem;margin-top:4px;">
+    Lo que dejan los huéspedes desde el QR de cada cabaña. Nada se ve en el sitio
+    hasta que lo publiques acá.</p>
+
+  <div class="filtros" id="filtros"></div>
+  <div id="lista"><div class="vacio">Cargando…</div></div>
+</div>
+
+<dialog id="mFoto" onclick="this.close()"><img id="fotoGrande" alt=""></dialog>
+
+<script type="module">
+// ═══════════════════════════════════════════════════════════
+//  RECUERDOS · moderación
+//  Tres estados: pendiente → publicado → oculto (y vuelta).
+//  Ocultar no borra: el recuerdo se guarda, deja de verse afuera y
+//  se puede volver a publicar. Borrar es definitivo y pide confirmar.
+//  Consultas de una sola igualdad sobre 'estado': sin índices
+//  compuestos, el orden se hace acá.
+// ═══════════════════════════════════════════════════════════
+import {
+  db, collection, query, where, getDocs, doc, updateDoc, deleteDoc, serverTimestamp
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+const u = await CV2.verificarAuth();
+CV2.renderNav('recuerdos');
+
+if (!CV2.puede('contenido')) {
+  $('lista').innerHTML = '<div class="vacio">Esta sección es para quien administra '
+    + 'el contenido del sitio.</div>';
+  $('filtros').remove();
+  throw new Error('sin-permiso');
+}
+
+const ESTADOS = [
+  { id: 'pendiente', label: 'Pendientes' },
+  { id: 'publicado', label: 'Publicados' },
+  { id: 'oculto', label: 'Ocultos' }
+];
+
+let filtro = 'pendiente';
+let cabanas = {};
+const conteo = { pendiente: 0, publicado: 0, oculto: 0 };
+
+(await getDocs(collection(db, 'cabanas'))).forEach((d) => {
+  cabanas[d.id] = d.data().nombre || d.data().titulo || d.id;
+});
+
+function pintarFiltros() {
+  $('filtros').innerHTML = ESTADOS.map((e) => `
+    <button class="chip ${e.id === filtro ? 'on' : ''}" data-e="${e.id}">
+      ${e.label}<span class="n">${conteo[e.id]}</span></button>`).join('');
+  $('filtros').querySelectorAll('.chip').forEach((b) =>
+    b.addEventListener('click', () => { filtro = b.dataset.e; cargar(); }));
+}
+
+async function contar() {
+  for (const e of ESTADOS) {
+    try {
+      const s = await getDocs(query(collection(db, 'recuerdos'), where('estado', '==', e.id)));
+      conteo[e.id] = s.size;
+    } catch { conteo[e.id] = 0; }
+  }
+}
+
+async function cargar() {
+  pintarFiltros();
+  $('lista').innerHTML = '<div class="vacio">Cargando…</div>';
+  try {
+    const snap = await getDocs(query(collection(db, 'recuerdos'), where('estado', '==', filtro)));
+    const filas = [];
+    snap.forEach((d) => filas.push({ id: d.id, ...d.data() }));
+    filas.sort((a, b) => (b.creadoEn?.toMillis?.() ?? 0) - (a.creadoEn?.toMillis?.() ?? 0));
+
+    if (!filas.length) {
+      $('lista').innerHTML = `<div class="vacio">No hay recuerdos ${filtro === 'pendiente'
+        ? 'esperando revisión' : filtro === 'publicado' ? 'publicados' : 'ocultos'}.</div>`;
+      return;
+    }
+
+    $('lista').innerHTML = filas.map((r) => {
+      const fecha = r.creadoEn?.toMillis?.()
+        ? CV2.fmtFecha(new Date(r.creadoEn.toMillis()).toISOString().slice(0, 10)) : '—';
+      const cab = r.cabanaId ? cabanas[r.cabanaId] : null;
+      const acciones = [];
+      if (r.estado !== 'publicado') acciones.push(
+        `<button class="btn btn-primario" onclick="cambiar('${r.id}','publicado')">
+           <span class="material-icons">check</span> Publicar</button>`);
+      if (r.estado !== 'oculto') acciones.push(
+        `<button class="btn" onclick="cambiar('${r.id}','oculto')">
+           <span class="material-icons">visibility_off</span> Ocultar</button>`);
+      acciones.push(
+        `<button class="btn" onclick="borrar('${r.id}')">
+           <span class="material-icons">delete</span> Borrar</button>`);
+
+      return `<article class="rec">
+        ${r.foto ? `<img class="foto" src="${esc(r.foto)}" alt="" loading="lazy"
+              onclick="verFoto('${esc(r.foto)}')">` : ''}
+        <div class="cuerpo">
+          <p class="texto">${esc(r.texto || '')}</p>
+          <div class="meta">
+            <b>${esc(r.nombre || 'Un huésped')}</b>
+            ${r.email ? `<span>${esc(r.email)}</span>` : ''}
+            ${cab ? `<span>${esc(cab)}</span>` : ''}
+            <span>${esc(fecha)}</span>
+            <span>${r.proveedor === 'google' ? 'Google' : 'sin cuenta'}</span>
+            <span class="etiqueta e-${esc(r.estado)}">${esc(r.estado)}</span>
+          </div>
+          <div class="acciones">${acciones.join('')}</div>
+        </div>
+      </article>`;
+    }).join('');
+  } catch (e) {
+    $('lista').innerHTML = `<div class="vacio">No se pudo leer (${esc(e.code ?? e.message)}).</div>`;
+  }
+}
+
+window.cambiar = async (id, estado) => {
+  try {
+    await updateDoc(doc(db, 'recuerdos', id), {
+      estado,
+      moderadoPor: u.uid,
+      moderadoNombre: u.nombre ?? '',
+      moderadoEn: serverTimestamp()
+    });
+    CV2.toast(estado === 'publicado' ? 'Publicado en el muro' : 'Ya no se ve en el sitio', 'success');
+    await contar();
+    await cargar();
+  } catch (e) {
+    CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error');
+  }
+};
+
+window.borrar = async (id) => {
+  if (!confirm('Borrar este recuerdo para siempre.\n\nSi solo querés sacarlo del sitio, '
+    + 'usá Ocultar: así queda guardado y lo podés volver a publicar.\n\n¿Borrar igual?')) return;
+  try {
+    await deleteDoc(doc(db, 'recuerdos', id));
+    CV2.toast('Borrado', 'success');
+    await contar();
+    await cargar();
+  } catch (e) {
+    CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error');
+  }
+};
+
+window.verFoto = (url) => {
+  $('fotoGrande').src = url;
+  $('mFoto').showModal();
+};
+
+await contar();
+await cargar();
+</script>
+</body>
+</html>

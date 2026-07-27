@@ -24,7 +24,13 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword,
-  signOut, sendPasswordResetEmail, createUserWithEmailAndPassword
+  signOut, sendPasswordResetEmail, createUserWithEmailAndPassword,
+  // — huéspedes del muro de recuerdos (jul-2026) —
+  // El sitio público necesita una sesión para poder escribir: las reglas
+  // exigen request.auth para crear un recuerdo. Anónima para quien solo
+  // deja nombre y mail; Google para quien prefiere un toque.
+  signInAnonymously, GoogleAuthProvider, signInWithPopup,
+  signInWithRedirect, getRedirectResult
 } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
 
 // ── Configuración del proyecto casaverde-20 ──────────────────
@@ -76,5 +82,7 @@ export {
   deleteField, writeBatch, runTransaction,
   onAuthStateChanged, signInWithEmailAndPassword, signOut,
   sendPasswordResetEmail,
+  signInAnonymously, GoogleAuthProvider, signInWithPopup,
+  signInWithRedirect, getRedirectResult,
   terminate, clearIndexedDbPersistence
 };

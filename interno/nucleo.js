@@ -113,6 +113,7 @@ CV2.NAV = [
   { id: 'dinero', label: 'Dinero', href: './dinero.html', icono: 'savings', permiso: ['dinero', 'finanzas'] },
   { id: 'cabanas', label: 'Sitio', href: './cabanas.html', icono: 'cottage', permiso: 'contenido' },
   { id: 'espacios', label: 'Espacios', href: './espacios.html', icono: 'deck', permiso: 'contenido' },
+  { id: 'recuerdos', label: 'Recuerdos', href: './recuerdos.html', icono: 'photo_library', permiso: 'contenido' },
   { id: 'usuarios', label: 'Usuarios', href: './usuarios.html', icono: 'group', permiso: null, soloAdmin: true }
 ];
 
