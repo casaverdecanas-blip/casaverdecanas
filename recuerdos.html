@@ -46,6 +46,14 @@
     cursor:pointer;box-shadow:0 3px 12px rgba(184,109,76,.3)}
   .cta:hover{background:var(--terracota-osc)}
 
+  /* La puerta: lo que se ve cuando NO hay clave válida del QR. */
+  .puerta{max-width:520px;margin:22px auto 4px;background:#fff;border:1px solid var(--linea);
+    border-radius:14px;padding:16px 18px;text-align:left;box-shadow:var(--sombra)}
+  .puerta b{color:var(--selva-osc)}
+  .puerta p{margin:6px 0 0;color:var(--gris);font-size:.9rem;text-align:left}
+  .puerta .codigo{display:inline-block;margin-top:10px;font-size:.72rem;color:#9aa394;
+    letter-spacing:.04em}
+
   .muro{display:grid;gap:16px;padding:26px 0 60px}
   @media(min-width:640px){.muro{grid-template-columns:1fr 1fr}}
   .tarjeta{background:#fff;border:1px solid var(--linea);border-radius:16px;
@@ -65,7 +73,7 @@
   dialog h2{font-size:1.25rem;color:var(--selva-osc);margin-bottom:4px}
   dialog p.sub{color:var(--gris);font-size:.88rem;margin:0 0 18px}
   label{display:block;font-size:.84rem;font-weight:600;margin:14px 0 5px}
-  input[type=text],input[type=email],textarea,select{width:100%;font:inherit;
+  input[type=text],input[type=email],textarea{width:100%;font:inherit;
     padding:11px 13px;border:1px solid var(--linea);border-radius:11px;background:#fff;
     color:inherit}
   textarea{min-height:120px;resize:vertical}
@@ -83,6 +91,8 @@
     color:#fff;border-radius:999px;width:30px;height:30px;font-size:1rem;cursor:pointer}
   .aviso{background:#fdecea;color:#b3261e;border-radius:10px;padding:10px 13px;
     font-size:.85rem;margin-top:14px}
+  .donde{background:#eef6ef;color:var(--selva-osc);border-radius:10px;padding:9px 13px;
+    font-size:.85rem;margin-top:12px}
   .oculto{display:none!important}
   .legal{font-size:.76rem;color:var(--gris);margin-top:14px;line-height:1.5}
 
@@ -105,7 +115,8 @@
   <div class="intro">
     <h1>Recuerdos de nuestros huéspedes</h1>
     <p id="bajada">Momentos compartidos en Casa Verde Canas.</p>
-    <button class="cta" id="btnDejar">✍️ Dejar mi recuerdo</button>
+    <button class="cta oculto" id="btnDejar">✍️ Dejar mi recuerdo</button>
+    <div class="puerta oculto" id="puerta"></div>
   </div>
 
   <div class="muro" id="muro">
@@ -157,8 +168,8 @@
   <textarea id="inTexto" maxlength="600" placeholder="Contanos cómo la pasaste…"></textarea>
   <div class="contador"><span id="cuenta">0</span>/600</div>
 
-  <label for="selCabana">¿En qué alojamiento te quedaste?</label>
-  <select id="selCabana"><option value="">Prefiero no decir</option></select>
+  <!-- El alojamiento YA NO se elige: lo dice la clave del QR. -->
+  <div class="donde oculto" id="donde"></div>
 
   <label>Una foto <span style="font-weight:400;color:var(--gris)">(opcional)</span></label>
   <!-- DOS entradas a propósito (lección jul-2026): con un solo input,
@@ -214,18 +225,40 @@
 //  abuso, se apaga el preset de recuerdos y los comprobantes y las
 //  fotos de las cabañas ni se enteran.
 //
-//  Flujo: elegir quién sos → sesión (Google o anónima) → escribir →
-//  crear el documento en 'pendiente'. Publicar es del panel.
+//  ── LA CLAVE DEL QR FUNCIONA COMO UNA APIKEY (jul-2026) ──
+//  El muro se LEE sin nada. Para ESCRIBIR hace falta la clave que
+//  viaja en el QR pegado en el alojamiento: recuerdos.html?k=<clave>.
+//  · La clave se verifica al entrar, como una apikey: existe / está
+//    activa / no venció. Si no pasa, no hay formulario y se explica
+//    por qué, con un código de error visible.
+//  · La verificación real NO es esta: es la regla de Firestore, que
+//    exige la misma clave en el documento. Esto de acá es la cortesía
+//    de avisar antes, no la frontera.
+//  · La clave se borra de la barra de direcciones y se recuerda 15
+//    días en este navegador: escaneás una vez y podés volver.
+//  · Al moderar, el panel BORRA la clave y el mail del documento: lo
+//    publicado lo lee cualquiera.
+//
+//  Flujo: clave → quién sos → sesión (Google o anónima) → escribir →
+//  documento en 'pendiente'. Publicar es del panel.
 // ═══════════════════════════════════════════════════════════
 import {
-  db, auth, collection, query, where, getDocs, addDoc, serverTimestamp,
+  db, auth, collection, query, where, getDocs, doc, getDoc, addDoc, serverTimestamp,
   signInAnonymously, GoogleAuthProvider, signInWithPopup, signInWithRedirect,
-  getRedirectResult, onAuthStateChanged
+  getRedirectResult
 } from './interno/firebase-init.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
   (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// El nombre de la cabaña es multilingüe: {es, pt, en}. Nunca crudo.
+const nombreCabana = (x, id) => {
+  const n = x && x.nombre;
+  if (typeof n === 'string') return n;
+  if (n && typeof n === 'object') return n.es || n.pt || n.en || id;
+  return (x && x.titulo) || id;
+};
 
 // ── Cloudinary, preset propio del muro ─────────────────────
 const CLOUD = 'dnwfu8ffn';
@@ -271,11 +304,105 @@ async function subirFoto(file) {
 }
 
 // ── Estado ─────────────────────────────────────────────────
-const params = new URLSearchParams(location.search);
-const cabanaQR = params.get('c') || '';   // el QR de cada cabaña trae ?c=<id>
 let cabanas = [];
 let persona = null;      // { nombre, email, proveedor }
 let fotoFile = null;
+let acceso = null;       // { ok, clave, cabanaId, etiqueta } | { ok:false, codigo }
+
+// ═══ LA CLAVE ══════════════════════════════════════════════
+const MEMORIA = 'cv-recuerdos-clave';
+const DIAS = 15;
+// Formato admitido. Filtra basura ANTES de tocar Firestore: un '/'
+// en la clave rompería la ruta del documento.
+const FORMA = /^[A-Za-z0-9._-]{6,64}$/;
+
+const MENSAJES = {
+  SIN_CLAVE: {
+    t: 'Los recuerdos se dejan desde el alojamiento.',
+    p: 'En tu cabaña hay un código QR. Escanealo con la cámara del teléfono y esta '
+      + 'misma página se abre con el formulario habilitado. Si ya no estás alojado y '
+      + 'querés dejarnos unas líneas, escribinos y lo publicamos nosotros.'
+  },
+  CLAVE_DESCONOCIDA: {
+    t: 'Ese código no lo reconocemos.',
+    p: 'Puede ser que el enlace se haya cortado al copiarlo. Volvé a escanear el QR '
+      + 'de tu alojamiento, sin copiar ni pegar nada.'
+  },
+  CLAVE_INACTIVA: {
+    t: 'Ese código fue dado de baja.',
+    p: 'El QR de tu alojamiento fue reemplazado por uno nuevo. Fijate si hay otro '
+      + 'código pegado, o avisanos y lo resolvemos.'
+  },
+  CLAVE_VENCIDA: {
+    t: 'Ese código ya venció.',
+    p: 'Los códigos tienen fecha de vencimiento. Avisanos y te pasamos uno nuevo.'
+  },
+  SIN_RED: {
+    t: 'No pudimos verificar tu código.',
+    p: 'Puede ser la conexión. Probá de nuevo en un minuto.'
+  }
+};
+
+function recordarClave(clave) {
+  try {
+    localStorage.setItem(MEMORIA, JSON.stringify({ clave, hasta: Date.now() + DIAS * 86400000 }));
+  } catch (e) { /* modo privado: se sigue sin memoria */ }
+}
+
+function claveRecordada() {
+  try {
+    const r = JSON.parse(localStorage.getItem(MEMORIA) || 'null');
+    if (!r || !r.clave) return '';
+    if (Date.now() > r.hasta) { localStorage.removeItem(MEMORIA); return ''; }
+    return r.clave;
+  } catch (e) { return ''; }
+}
+
+function olvidarClave() {
+  try { localStorage.removeItem(MEMORIA); } catch (e) { /* nada */ }
+}
+
+/**
+ * Verifica la clave como se verifica una apikey: existe, está activa,
+ * no venció. La colección /claves_recuerdos/ permite 'get' pero NO
+ * 'list': hay que saber la clave entera, no se puede enumerar.
+ */
+async function verificarClave(clave) {
+  if (!clave || !FORMA.test(clave)) return { ok: false, codigo: 'SIN_CLAVE' };
+  try {
+    const snap = await getDoc(doc(db, 'claves_recuerdos', clave));
+    if (!snap.exists()) return { ok: false, codigo: 'CLAVE_DESCONOCIDA' };
+    const x = snap.data();
+    if (x.activa !== true) return { ok: false, codigo: 'CLAVE_INACTIVA' };
+    const vence = x.vence && x.vence.toMillis ? x.vence.toMillis() : 0;
+    if (vence && Date.now() > vence) return { ok: false, codigo: 'CLAVE_VENCIDA' };
+    return {
+      ok: true, clave,
+      cabanaId: typeof x.cabanaId === 'string' ? x.cabanaId : '',
+      etiqueta: typeof x.etiqueta === 'string' ? x.etiqueta : ''
+    };
+  } catch (e) {
+    console.warn('clave', e);
+    // permission-denied acá significa clave inexistente o reglas sin publicar:
+    // para el huésped es lo mismo, un código que no sirve.
+    return { ok: false, codigo: e.code === 'permission-denied' ? 'CLAVE_DESCONOCIDA' : 'SIN_RED' };
+  }
+}
+
+function pintarPuerta() {
+  if (acceso && acceso.ok) {
+    $('btnDejar').classList.remove('oculto');
+    $('puerta').classList.add('oculto');
+    $('bajada').textContent = 'Gracias por escanear el código de tu alojamiento. '
+      + 'Contanos cómo la pasaste.';
+    return;
+  }
+  const m = MENSAJES[(acceso && acceso.codigo) || 'SIN_CLAVE'] || MENSAJES.SIN_CLAVE;
+  $('btnDejar').classList.add('oculto');
+  $('puerta').classList.remove('oculto');
+  $('puerta').innerHTML = '<b>' + esc(m.t) + '</b><p>' + esc(m.p) + '</p>'
+    + '<span class="codigo">' + esc(acceso && acceso.codigo ? acceso.codigo : 'SIN_CLAVE') + '</span>';
+}
 
 // ── Muro ───────────────────────────────────────────────────
 const fmtFecha = (d) => d
@@ -333,11 +460,9 @@ async function cargarCabanas() {
     const snap = await getDocs(collection(db, 'cabanas'));
     snap.forEach((d) => {
       const x = d.data();
-      if (x.activa !== false) cabanas.push({ id: d.id, nombre: x.nombre || x.titulo || d.id });
+      if (x.activa !== false) cabanas.push({ id: d.id, nombre: nombreCabana(x, d.id) });
     });
     cabanas.sort((a, b) => a.nombre.localeCompare(b.nombre));
-    $('selCabana').innerHTML = '<option value="">Prefiero no decir</option>'
-      + cabanas.map((c) => `<option value="${esc(c.id)}"${c.id === cabanaQR ? ' selected' : ''}>${esc(c.nombre)}</option>`).join('');
   } catch (e) { console.warn('cabanas', e); }
 }
 
@@ -348,6 +473,7 @@ const errQuien = (m) => {
 };
 
 $('btnDejar').addEventListener('click', () => {
+  if (!acceso || !acceso.ok) { pintarPuerta(); return; }
   errQuien('');
   $('formSimple').classList.add('oculto');
   $('seguirSimple').classList.add('oculto');
@@ -389,6 +515,7 @@ $('btnGoogle').addEventListener('click', async () => {
   } catch (e) {
     // Muchos navegadores de iOS bloquean la ventana emergente:
     // se cae con elegancia a la redirección de página completa.
+    // La clave sobrevive al viaje porque está en localStorage.
     if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') {
       sessionStorage.setItem('cv-recuerdo-google', '1');
       await signInWithRedirect(auth, new GoogleAuthProvider());
@@ -408,19 +535,18 @@ function entrarConGoogle(user) {
   abrirEscribir();
 }
 
-// Vuelta de la redirección de Google.
-try {
-  const res = await getRedirectResult(auth);
-  if (res?.user && sessionStorage.getItem('cv-recuerdo-google')) {
-    sessionStorage.removeItem('cv-recuerdo-google');
-    entrarConGoogle(res.user);
-  }
-} catch { /* sin sesión pendiente */ }
-
 // ── Paso 2 · escribir ──────────────────────────────────────
 function abrirEscribir() {
+  if (!acceso || !acceso.ok) { pintarPuerta(); return; }
   if ($('mQuien').open) $('mQuien').close();
   $('subEscribir').textContent = 'Firmás como ' + persona.nombre + '.';
+  const cab = cabanas.find((c) => c.id === acceso.cabanaId);
+  if (cab) {
+    $('donde').textContent = 'Tu recuerdo va a figurar en ' + cab.nombre + '.';
+    $('donde').classList.remove('oculto');
+  } else {
+    $('donde').classList.add('oculto');
+  }
   $('errEscribir').classList.add('oculto');
   $('mEscribir').showModal();
   $('inTexto').focus();
@@ -457,6 +583,7 @@ $('enviar').addEventListener('click', async () => {
     $('errEscribir').classList.toggle('oculto', !m);
   };
   if (!texto) { err('Escribí algo, aunque sean dos líneas.'); return; }
+  if (!acceso || !acceso.ok) { err('Tu código dejó de ser válido. Volvé a escanear el QR.'); return; }
   if (!auth.currentUser) { err('Se cerró tu sesión. Cerrá y volvé a empezar.'); return; }
 
   err('');
@@ -470,15 +597,19 @@ $('enviar').addEventListener('click', async () => {
     }
     // 'creadoEn' va con serverTimestamp porque las reglas exigen
     // request.time: una fecha del dispositivo sería rechazada.
+    // 'clave' viaja en el documento porque es lo único que la regla
+    // puede mirar. El panel la borra apenas modera.
     await addDoc(collection(db, 'recuerdos'), {
       nombre: persona.nombre.slice(0, 60),
       email: (persona.email || '').slice(0, 120),
       texto: texto.slice(0, 600),
       foto,
-      cabanaId: $('selCabana').value || null,
+      cabanaId: acceso.cabanaId,
       estado: 'pendiente',
       uid: auth.currentUser.uid,
       proveedor: persona.proveedor,
+      clave: acceso.clave,
+      claveEtiqueta: acceso.etiqueta,
       creadoEn: serverTimestamp()
     });
     $('mEscribir').close();
@@ -489,9 +620,17 @@ $('enviar').addEventListener('click', async () => {
     $('mGracias').showModal();
   } catch (e) {
     console.warn(e);
-    err(e.code === 'permission-denied'
-      ? 'No pudimos guardar tu recuerdo. Escribinos por WhatsApp y lo subimos nosotros.'
-      : (e.message || 'No pudimos guardarlo. Probá de nuevo.'));
+    if (e.code === 'permission-denied') {
+      // La regla dijo que no. Casi siempre es la clave: se descarta la
+      // recordada para que el próximo intento arranque limpio.
+      olvidarClave();
+      acceso = { ok: false, codigo: 'CLAVE_DESCONOCIDA' };
+      pintarPuerta();
+      err('Tu código dejó de ser válido (CLAVE_DESCONOCIDA). Volvé a escanear el QR '
+        + 'del alojamiento, o escribinos y lo publicamos nosotros.');
+    } else {
+      err(e.message || 'No pudimos guardarlo. Probá de nuevo.');
+    }
   } finally {
     $('enviar').disabled = false;
     $('enviar').textContent = 'Enviar';
@@ -501,11 +640,33 @@ $('enviar').addEventListener('click', async () => {
 $('cerrarGracias').addEventListener('click', () => $('mGracias').close());
 
 // ── Arranque ───────────────────────────────────────────────
-if (cabanaQR) $('bajada').textContent =
-  'Gracias por escanear el código de tu alojamiento. Contanos cómo la pasaste.';
+// 1) La clave: primero la de la URL (recién escaneada), si no la
+//    recordada. La de la URL se guarda y se BORRA de la barra de
+//    direcciones: así no viaja en capturas de pantalla ni en enlaces
+//    compartidos.
+const params = new URLSearchParams(location.search);
+const claveURL = (params.get('k') || '').trim();
+if (claveURL) {
+  recordarClave(claveURL);
+  history.replaceState({}, '', location.pathname);
+}
+acceso = await verificarClave(claveURL || claveRecordada());
+if (!acceso.ok && acceso.codigo !== 'SIN_RED') olvidarClave();
+pintarPuerta();
 
+// 2) El muro, que se lee sin nada.
 await cargarCabanas();
 await pintarMuro();
+
+// 3) Vuelta de la redirección de Google (si la hubo). Va ÚLTIMO: abre
+//    el modal de escribir y necesita las cabañas ya cargadas.
+try {
+  const res = await getRedirectResult(auth);
+  if (res?.user && sessionStorage.getItem('cv-recuerdo-google')) {
+    sessionStorage.removeItem('cv-recuerdo-google');
+    entrarConGoogle(res.user);
+  }
+} catch (e) { /* sin sesión pendiente */ }
 </script>
 </body>
 </html>
