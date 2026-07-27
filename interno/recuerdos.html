@@ -8,7 +8,16 @@
 <link rel="stylesheet" href="design-system.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2d5a27">
+<!-- Generador de QR. Script clásico (no módulo): corre ANTES que el
+     módulo de abajo, así window.QRCode ya existe. Si el CDN no responde,
+     la página sigue funcionando y muestra la dirección en texto. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
+  .solapas { display:flex; gap:8px; margin:14px 0 2px; }
+  .solapa { border:1px solid var(--linea); background:#fff; border-radius:999px;
+            padding:8px 17px; font:inherit; font-size:.9rem; cursor:pointer; color:var(--gris); }
+  .solapa.on { background:var(--verde); border-color:var(--verde); color:#fff; font-weight:600; }
+
   .filtros { display:flex; gap:8px; margin:14px 0 4px; flex-wrap:wrap; }
   .chip { border:1px solid var(--linea); background:#fff; border-radius:999px;
           padding:7px 15px; font:inherit; font-size:.86rem; cursor:pointer; color:var(--gris); }
@@ -29,10 +38,40 @@
   .e-pendiente { background:#fdf1d8; color:#8a6206; }
   .e-publicado { background:#e7f4e4; color:#2d5a27; }
   .e-oculto { background:#eee; color:#666; }
+  .e-baja { background:#fbe3e0; color:#9c3025; }
+
+  .clave { background:#fff; border:1px solid var(--linea); border-radius:var(--radio);
+           box-shadow:var(--sombra); padding:14px 16px; margin-bottom:12px; }
+  .clave .tit { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .clave .tit b { font-size:1rem; }
+  .clave .dir { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.78rem;
+                color:var(--gris); word-break:break-all; margin-top:7px; }
+  .clave .acciones { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .clave.inactiva { opacity:.62; }
+
+  .base { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:10px 0 16px; }
+  .base input { flex:1; min-width:240px; font:inherit; font-size:.86rem; padding:9px 12px;
+                border:1px solid var(--linea); border-radius:10px; }
 
   dialog#mFoto { border:0; background:transparent; padding:0; max-width:96vw; }
   dialog#mFoto img { max-width:96vw; max-height:88vh; border-radius:12px; display:block; }
   dialog#mFoto::backdrop { background:rgba(0,0,0,.82); }
+
+  /* La hoja del QR: lo único que sale impreso. */
+  dialog#mQR { border:0; border-radius:16px; padding:20px; width:min(420px,94vw); }
+  .hoja { text-align:center; }
+  .hoja .marco { display:inline-block; padding:14px; background:#fff; border-radius:12px;
+                 border:1px solid var(--linea); }
+  .hoja h3 { margin:12px 0 2px; }
+  .hoja .pie { font-size:.85rem; color:var(--gris); margin:4px 0 0; }
+  .hoja .dir { font-size:.68rem; color:#9aa394; word-break:break-all; margin-top:10px;
+               font-family:ui-monospace,Menlo,Consolas,monospace; }
+  @media print {
+    body > *:not(#mQR) { display:none !important; }
+    dialog#mQR { position:static; border:0; box-shadow:none; width:auto; max-width:none; }
+    dialog#mQR::backdrop { display:none; }
+    .noimprimir { display:none !important; }
+  }
 </style>
 </head>
 <body>
@@ -46,26 +85,115 @@
       <span class="material-icons">open_in_new</span> Ver el muro</a>
   </div>
   <p class="texto-gris" style="font-size:.86rem;margin-top:4px;">
-    Lo que dejan los huéspedes desde el QR de cada cabaña. Nada se ve en el sitio
-    hasta que lo publiques acá.</p>
+    Lo que dejan los huéspedes escaneando el QR de su alojamiento. Nada se ve en el
+    sitio hasta que lo publiques acá.</p>
 
-  <div class="filtros" id="filtros"></div>
-  <div id="lista"><div class="vacio">Cargando…</div></div>
+  <div class="solapas">
+    <button class="solapa on" id="sMuro">Recuerdos</button>
+    <button class="solapa" id="sClaves">Claves y QR</button>
+  </div>
+
+  <!-- ═══ Moderación ═══════════════════════════════════════ -->
+  <div id="panelMuro">
+    <div class="filtros" id="filtros"></div>
+    <div id="lista"><div class="vacio">Cargando…</div></div>
+  </div>
+
+  <!-- ═══ Claves ═══════════════════════════════════════════ -->
+  <div id="panelClaves" style="display:none;">
+    <p class="texto-gris" style="font-size:.86rem;">
+      Una clave es la llave del QR: sin ella nadie puede dejar un recuerdo, aunque
+      llegue al muro desde Google. Si un código se te va de las manos (una foto que
+      circula, una reseña falsa), lo das de baja acá y hacés uno nuevo — los demás
+      siguen funcionando.</p>
+
+    <div class="base">
+      <span class="material-icons" style="color:var(--gris);">link</span>
+      <input id="inBase" type="text" spellcheck="false"
+             placeholder="https://casaverdecanas.com.br/recuerdos.html">
+      <button class="btn" id="btnBase">Guardar dirección</button>
+    </div>
+    <p class="texto-gris" style="font-size:.8rem;margin-top:-8px;">
+      Es la dirección que va dentro del QR. Ponela como va a quedar definitiva:
+      un QR impreso no se puede corregir.</p>
+
+    <button class="btn btn-primario" id="btnNueva" style="margin:6px 0 16px;">
+      <span class="material-icons">add</span> Clave nueva</button>
+
+    <div id="listaClaves"><div class="vacio">Cargando…</div></div>
+  </div>
 </div>
 
 <dialog id="mFoto" onclick="this.close()"><img id="fotoGrande" alt=""></dialog>
 
+<!-- ═══ Alta de clave ══════════════════════════════════════ -->
+<dialog id="mNueva">
+  <h2 style="margin:0 0 4px;">Clave nueva</h2>
+  <p class="texto-gris" style="font-size:.86rem;margin:0 0 14px;">
+    Se genera sola y no se puede cambiar después. Si la perdés, hacés otra.</p>
+
+  <label for="selCab" style="display:block;font-size:.84rem;font-weight:600;margin:12px 0 5px;">
+    ¿De qué alojamiento?</label>
+  <select id="selCab" style="width:100%;font:inherit;padding:10px 12px;border:1px solid var(--linea);border-radius:10px;"></select>
+
+  <label for="inEtiqueta" style="display:block;font-size:.84rem;font-weight:600;margin:12px 0 5px;">
+    Nombre del código <span style="font-weight:400;color:var(--gris)">(para vos)</span></label>
+  <input id="inEtiqueta" type="text" maxlength="60" placeholder="QR heladera cabaña 2 · julio 2026"
+         style="width:100%;font:inherit;padding:10px 12px;border:1px solid var(--linea);border-radius:10px;">
+
+  <label for="inVence" style="display:block;font-size:.84rem;font-weight:600;margin:12px 0 5px;">
+    Vence el <span style="font-weight:400;color:var(--gris)">(opcional)</span></label>
+  <input id="inVence" type="date"
+         style="width:100%;font:inherit;padding:10px 12px;border:1px solid var(--linea);border-radius:10px;">
+
+  <div style="display:flex;gap:9px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap;">
+    <button class="btn" id="cancelarNueva">Cancelar</button>
+    <button class="btn btn-primario" id="crearNueva">Crear</button>
+  </div>
+</dialog>
+
+<!-- ═══ QR ═════════════════════════════════════════════════ -->
+<dialog id="mQR">
+  <div class="hoja">
+    <div class="marco" id="cajaQR"></div>
+    <h3 id="qrTitulo"></h3>
+    <p class="pie">Escaneá este código y contanos cómo la pasaste 🌿</p>
+    <p class="dir" id="qrDir"></p>
+  </div>
+  <div class="noimprimir" style="display:flex;gap:9px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap;">
+    <button class="btn" id="qrCopiar">Copiar dirección</button>
+    <button class="btn" id="qrImprimir">Imprimir</button>
+    <button class="btn btn-primario" id="qrCerrar">Cerrar</button>
+  </div>
+</dialog>
+
 <script type="module">
 // ═══════════════════════════════════════════════════════════
-//  RECUERDOS · moderación
-//  Tres estados: pendiente → publicado → oculto (y vuelta).
-//  Ocultar no borra: el recuerdo se guarda, deja de verse afuera y
-//  se puede volver a publicar. Borrar es definitivo y pide confirmar.
-//  Consultas de una sola igualdad sobre 'estado': sin índices
-//  compuestos, el orden se hace acá.
+//  RECUERDOS · moderación + claves del QR
+//
+//  MODERACIÓN. Tres estados: pendiente → publicado → oculto (y vuelta).
+//  Ocultar no borra: el recuerdo se guarda, deja de verse afuera y se
+//  puede volver a publicar. Borrar es definitivo y pide confirmar.
+//
+//  AL MODERAR SE VACÍA EL DOCUMENTO DE LO PRIVADO (jul-2026). Un
+//  recuerdo publicado lo lee cualquier navegador del mundo: si la clave
+//  del QR o el mail del huésped se quedaran adentro, quedarían públicos.
+//  Por eso la primera moderación los borra del documento y los archiva
+//  en /recuerdos_contactos/, que solo ve el equipo. La regla de Firestore
+//  RECHAZA cualquier update que los deje puestos: no depende de que este
+//  código se acuerde.
+//
+//  CLAVES. La clave del QR funciona como una apikey: el ID del documento
+//  en /claves_recuerdos/ ES la clave. Se puede leer de a una (hay que
+//  saberla entera, viene del QR) pero no listar: nadie la adivina desde
+//  afuera. La regla de create de /recuerdos/ la exige, activa y vigente.
+//
+//  Consultas de una sola igualdad sobre 'estado': sin índices compuestos,
+//  el orden se hace acá.
 // ═══════════════════════════════════════════════════════════
 import {
-  db, collection, query, where, getDocs, doc, updateDoc, deleteDoc, serverTimestamp
+  db, collection, query, where, getDocs, doc, setDoc, updateDoc, deleteDoc,
+  deleteField, serverTimestamp, Timestamp
 } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
 
@@ -79,8 +207,18 @@ if (!CV2.puede('contenido')) {
   $('lista').innerHTML = '<div class="vacio">Esta sección es para quien administra '
     + 'el contenido del sitio.</div>';
   $('filtros').remove();
+  $('panelClaves').remove();
+  document.querySelector('.solapas').remove();
   throw new Error('sin-permiso');
 }
+
+// El nombre de la cabaña es multilingüe: {es, pt, en}. Nunca crudo.
+const nombreCabana = (x, id) => {
+  const n = x && x.nombre;
+  if (typeof n === 'string') return n;
+  if (n && typeof n === 'object') return n.es || n.pt || n.en || id;
+  return (x && x.titulo) || id;
+};
 
 const ESTADOS = [
   { id: 'pendiente', label: 'Pendientes' },
@@ -89,13 +227,35 @@ const ESTADOS = [
 ];
 
 let filtro = 'pendiente';
-let cabanas = {};
+let cabanas = {};                       // id → nombre
+let recuerdos = {};                     // id → datos (para archivar al moderar)
+let claves = [];
 const conteo = { pendiente: 0, publicado: 0, oculto: 0 };
 
+// La dirección que va DENTRO del QR. Por defecto la del dominio
+// definitivo; se puede cambiar y queda guardada en este navegador.
+const BASE_DEF = 'https://casaverdecanas.com.br/recuerdos.html';
+const BASE_MEM = 'cv-recuerdos-base';
+const baseGuardada = () => {
+  try { return localStorage.getItem(BASE_MEM) || BASE_DEF; } catch (e) { return BASE_DEF; }
+};
+const urlDeClave = (clave) => baseGuardada() + '?k=' + encodeURIComponent(clave);
+
 (await getDocs(collection(db, 'cabanas'))).forEach((d) => {
-  cabanas[d.id] = d.data().nombre || d.data().titulo || d.id;
+  cabanas[d.id] = nombreCabana(d.data(), d.id);
 });
 
+// ── Solapas ────────────────────────────────────────────────
+$('sMuro').addEventListener('click', () => {
+  $('sMuro').classList.add('on'); $('sClaves').classList.remove('on');
+  $('panelMuro').style.display = ''; $('panelClaves').style.display = 'none';
+});
+$('sClaves').addEventListener('click', () => {
+  $('sClaves').classList.add('on'); $('sMuro').classList.remove('on');
+  $('panelClaves').style.display = ''; $('panelMuro').style.display = 'none';
+});
+
+// ═══ MODERACIÓN ════════════════════════════════════════════
 function pintarFiltros() {
   $('filtros').innerHTML = ESTADOS.map((e) => `
     <button class="chip ${e.id === filtro ? 'on' : ''}" data-e="${e.id}">
@@ -119,7 +279,12 @@ async function cargar() {
   try {
     const snap = await getDocs(query(collection(db, 'recuerdos'), where('estado', '==', filtro)));
     const filas = [];
-    snap.forEach((d) => filas.push({ id: d.id, ...d.data() }));
+    recuerdos = {};
+    snap.forEach((d) => {
+      const x = { id: d.id, ...d.data() };
+      recuerdos[d.id] = x;
+      filas.push(x);
+    });
     filas.sort((a, b) => (b.creadoEn?.toMillis?.() ?? 0) - (a.creadoEn?.toMillis?.() ?? 0));
 
     if (!filas.length) {
@@ -152,6 +317,7 @@ async function cargar() {
             <b>${esc(r.nombre || 'Un huésped')}</b>
             ${r.email ? `<span>${esc(r.email)}</span>` : ''}
             ${cab ? `<span>${esc(cab)}</span>` : ''}
+            ${r.claveEtiqueta ? `<span>vino de: ${esc(r.claveEtiqueta)}</span>` : ''}
             <span>${esc(fecha)}</span>
             <span>${r.proveedor === 'google' ? 'Google' : 'sin cuenta'}</span>
             <span class="etiqueta e-${esc(r.estado)}">${esc(r.estado)}</span>
@@ -166,9 +332,29 @@ async function cargar() {
 }
 
 window.cambiar = async (id, estado) => {
+  const r = recuerdos[id] || {};
   try {
+    // 1) Archivar lo privado ANTES de borrarlo del recuerdo. Si esto
+    //    falla, no seguimos: perderíamos el mail y de qué QR vino.
+    if (r.clave || r.email) {
+      await setDoc(doc(db, 'recuerdos_contactos', id), {
+        nombre: r.nombre || '',
+        email: r.email || '',
+        clave: r.clave || '',
+        claveEtiqueta: r.claveEtiqueta || '',
+        cabanaId: r.cabanaId || '',
+        uid: r.uid || '',
+        proveedor: r.proveedor || '',
+        recuerdoCreadoEn: r.creadoEn || null,
+        guardadoEn: serverTimestamp()
+      }, { merge: true });
+    }
+    // 2) Vaciar el recuerdo de lo privado y moderar. La regla exige que
+    //    'clave' y 'email' NO queden en el documento.
     await updateDoc(doc(db, 'recuerdos', id), {
       estado,
+      clave: deleteField(),
+      email: deleteField(),
       moderadoPor: u.uid,
       moderadoNombre: u.nombre ?? '',
       moderadoEn: serverTimestamp()
@@ -186,6 +372,7 @@ window.borrar = async (id) => {
     + 'usá Ocultar: así queda guardado y lo podés volver a publicar.\n\n¿Borrar igual?')) return;
   try {
     await deleteDoc(doc(db, 'recuerdos', id));
+    try { await deleteDoc(doc(db, 'recuerdos_contactos', id)); } catch (e) { /* puede no existir */ }
     CV2.toast('Borrado', 'success');
     await contar();
     await cargar();
@@ -199,8 +386,173 @@ window.verFoto = (url) => {
   $('mFoto').showModal();
 };
 
+// ═══ CLAVES ════════════════════════════════════════════════
+// Alfabeto sin caracteres que se confunden al leer o dictar
+// (0/O, 1/l/I). 12 posiciones sobre 31 símbolos: nadie la adivina.
+function generarClave() {
+  const abc = 'abcdefghjkmnpqrstuvwxyz23456789';
+  const n = new Uint32Array(12);
+  crypto.getRandomValues(n);
+  let s = '';
+  for (let i = 0; i < 12; i++) s += abc[n[i] % abc.length];
+  return 'cvc-' + s;
+}
+
+async function cargarClaves() {
+  $('listaClaves').innerHTML = '<div class="vacio">Cargando…</div>';
+  try {
+    const snap = await getDocs(collection(db, 'claves_recuerdos'));
+    claves = [];
+    snap.forEach((d) => claves.push({ id: d.id, ...d.data() }));
+    claves.sort((a, b) => (b.creadaEn?.toMillis?.() ?? 0) - (a.creadaEn?.toMillis?.() ?? 0));
+
+    if (!claves.length) {
+      $('listaClaves').innerHTML = '<div class="vacio">Todavía no hay ninguna clave. '
+        + 'Sin claves, nadie puede dejar un recuerdo.</div>';
+      return;
+    }
+
+    $('listaClaves').innerHTML = claves.map((c) => {
+      const cab = c.cabanaId ? (cabanas[c.cabanaId] || c.cabanaId) : 'Sin alojamiento';
+      const vence = c.vence?.toMillis?.() ? CV2.fmtFecha(new Date(c.vence.toMillis())) : '';
+      const vencida = c.vence?.toMillis?.() ? Date.now() > c.vence.toMillis() : false;
+      const viva = c.activa === true && !vencida;
+      return `<div class="clave ${viva ? '' : 'inactiva'}">
+        <div class="tit">
+          <b>${esc(c.etiqueta || cab)}</b>
+          <span class="etiqueta ${viva ? 'e-publicado' : 'e-baja'}">
+            ${viva ? 'activa' : (vencida ? 'vencida' : 'de baja')}</span>
+          <span class="texto-gris" style="font-size:.82rem;">${esc(cab)}</span>
+          ${vence ? `<span class="texto-gris" style="font-size:.82rem;">vence ${esc(vence)}</span>` : ''}
+        </div>
+        <div class="dir">${esc(urlDeClave(c.id))}</div>
+        <div class="acciones">
+          <button class="btn btn-primario" onclick="verQR('${esc(c.id)}')">
+            <span class="material-icons">qr_code_2</span> Ver el QR</button>
+          <button class="btn" onclick="alternar('${esc(c.id)}',${viva ? 'false' : 'true'})">
+            <span class="material-icons">${viva ? 'block' : 'check_circle'}</span>
+            ${viva ? 'Dar de baja' : 'Reactivar'}</button>
+          <button class="btn" onclick="borrarClave('${esc(c.id)}')">
+            <span class="material-icons">delete</span> Borrar</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    $('listaClaves').innerHTML = `<div class="vacio">No se pudo leer (${esc(e.code ?? e.message)}).</div>`;
+  }
+}
+
+$('inBase').value = baseGuardada();
+$('btnBase').addEventListener('click', () => {
+  const v = $('inBase').value.trim();
+  if (!/^https?:\/\/.+recuerdos\.html$/.test(v)) {
+    CV2.toast('Tiene que ser una dirección completa que termine en recuerdos.html', 'error');
+    return;
+  }
+  try { localStorage.setItem(BASE_MEM, v); } catch (e) { /* modo privado */ }
+  CV2.toast('Dirección guardada', 'success');
+  cargarClaves();
+});
+
+$('btnNueva').addEventListener('click', () => {
+  $('selCab').innerHTML = '<option value="">Sin alojamiento (código general)</option>'
+    + Object.keys(cabanas).sort().map((id) =>
+      `<option value="${esc(id)}">${esc(cabanas[id])}</option>`).join('');
+  $('inEtiqueta').value = '';
+  $('inVence').value = '';
+  $('mNueva').showModal();
+});
+
+$('cancelarNueva').addEventListener('click', () => $('mNueva').close());
+
+$('crearNueva').addEventListener('click', async () => {
+  const cabanaId = $('selCab').value;
+  const etiqueta = $('inEtiqueta').value.trim()
+    || (cabanaId ? cabanas[cabanaId] : 'Código general');
+  const vence = $('inVence').value
+    ? Timestamp.fromDate(new Date($('inVence').value + 'T23:59:59'))
+    : null;
+  const clave = generarClave();
+  $('crearNueva').disabled = true;
+  try {
+    await setDoc(doc(db, 'claves_recuerdos', clave), {
+      cabanaId,
+      etiqueta: etiqueta.slice(0, 60),
+      activa: true,
+      vence,
+      creadaEn: serverTimestamp(),
+      creadaPor: u.uid
+    });
+    $('mNueva').close();
+    await cargarClaves();
+    verQR(clave);
+  } catch (e) {
+    CV2.toast('No se pudo crear: ' + (e.code ?? e.message), 'error');
+  } finally {
+    $('crearNueva').disabled = false;
+  }
+});
+
+window.alternar = async (clave, activa) => {
+  try {
+    await updateDoc(doc(db, 'claves_recuerdos', clave), { activa });
+    CV2.toast(activa ? 'Clave activa otra vez' : 'Clave dada de baja', 'success');
+    await cargarClaves();
+  } catch (e) {
+    CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error');
+  }
+};
+
+window.borrarClave = async (clave) => {
+  if (!confirm('Borrar la clave para siempre.\n\nEl QR impreso que la lleve deja de '
+    + 'servir y no hay forma de recuperarla. Si solo querés frenarla un tiempo, '
+    + 'usá "Dar de baja".\n\n¿Borrar igual?')) return;
+  try {
+    await deleteDoc(doc(db, 'claves_recuerdos', clave));
+    CV2.toast('Clave borrada', 'success');
+    await cargarClaves();
+  } catch (e) {
+    CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error');
+  }
+};
+
+window.verQR = (clave) => {
+  const c = claves.find((x) => x.id === clave) || {};
+  const url = urlDeClave(clave);
+  $('qrTitulo').textContent = c.cabanaId
+    ? (cabanas[c.cabanaId] || c.cabanaId)
+    : (c.etiqueta || 'Casa Verde Canas');
+  $('qrDir').textContent = url;
+  $('cajaQR').innerHTML = '';
+  if (window.QRCode) {
+    // Corrección alta: el papel se mancha, se dobla y se despega.
+    new window.QRCode($('cajaQR'), {
+      text: url, width: 280, height: 280,
+      correctLevel: window.QRCode.CorrectLevel.H
+    });
+  } else {
+    $('cajaQR').innerHTML = '<p class="texto-gris" style="font-size:.85rem;margin:0;">'
+      + 'No se pudo cargar el generador de códigos (sin internet, o el CDN caído).<br>'
+      + 'La dirección de abajo es la buena: podés generar el QR con cualquier app.</p>';
+  }
+  $('mQR').showModal();
+};
+
+$('qrCerrar').addEventListener('click', () => $('mQR').close());
+$('qrImprimir').addEventListener('click', () => window.print());
+$('qrCopiar').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText($('qrDir').textContent);
+    CV2.toast('Dirección copiada', 'success');
+  } catch (e) {
+    CV2.toast('Copiala a mano desde el texto de abajo', 'error');
+  }
+});
+
+// ── Cargas iniciales ───────────────────────────────────────
 await contar();
 await cargar();
+await cargarClaves();
 </script>
 </body>
 </html>

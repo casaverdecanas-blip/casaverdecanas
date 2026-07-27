@@ -441,25 +441,36 @@
   <div class="cap" id="recuerdos">
     <h2><span class="material-icons">photo_library</span>Recuerdos</h2>
     <p>El muro de los huéspedes. En cada alojamiento hay un código QR: quien lo escanea
-    llega a la página de recuerdos con su cabaña ya seleccionada, deja su mensaje y, si
-    quiere, una foto.</p>
+    llega a la página de recuerdos con el formulario habilitado y su cabaña ya resuelta,
+    deja su mensaje y, si quiere, una foto.</p>
 
     <div class="nota"><b>Nada se publica solo.</b> Todo lo que dejan los huéspedes entra
     como <b>pendiente</b> y no se ve en el sitio hasta que alguien lo aprueba desde acá.</div>
 
+    <div class="nota"><b>Y nadie escribe sin haber estado.</b> El QR lleva adentro una
+    <b>clave</b>. Sin esa clave el muro se ve, pero el botón de escribir no aparece.
+    Quien entra al sitio desde Google puede leer los recuerdos y nada más.</div>
+
     <h3>Cómo lo deja el huésped</h3>
-    <p>Elige entre entrar con su cuenta de Google, de un toque, o escribir solo su nombre
-    (y el mail si quiere, que nunca se publica). Después escribe hasta 600 caracteres y
-    puede sumar una foto desde la cámara o desde su galería.</p>
+    <p>Escanea el QR de su alojamiento. Elige entre entrar con su cuenta de Google, de un
+    toque, o escribir solo su nombre (y el mail si quiere, que nunca se publica). Después
+    escribe hasta 600 caracteres y puede sumar una foto desde la cámara o desde su galería.</p>
+    <p>El teléfono se acuerda del código por <b>15 días</b>: si se le ocurre escribir el
+    último día, no necesita volver a escanear.</p>
 
     <h3>Revisar y publicar</h3>
     <div class="paso"><span class="n">1</span><div>Entrá a <b>Recuerdos</b> en el menú.
       Arriba están los tres grupos con su número: <b>Pendientes</b>, <b>Publicados</b> y
       <b>Ocultos</b>.</div></div>
     <div class="paso"><span class="n">2</span><div>Leé el mensaje. Tocá la foto para verla
-      grande.</div></div>
+      grande. Abajo dice de qué QR vino.</div></div>
     <div class="paso"><span class="n">3</span><div><kbd>Publicar</kbd> lo manda al muro,
       donde lo ve cualquiera que entre al sitio.</div></div>
+
+    <div class="ojo"><b>El mail del huésped no se publica nunca.</b> En cuanto tocás
+    Publicar u Ocultar, el sistema saca el mail y el código del recuerdo y los guarda
+    aparte, donde solo los ve el equipo. Un recuerdo publicado lo lee cualquiera:
+    lo que quede adentro, queda a la vista.</div>
 
     <h3>Ocultar no es borrar</h3>
     <p><kbd>Ocultar</kbd> lo saca del sitio pero lo guarda: podés volver a publicarlo cuando
@@ -470,11 +481,41 @@
     <b>borralo</b>. Si solo está fuera de lugar por temporada o quedó repetido, mejor
     <b>ocultalo</b>.</div>
 
-    <h3>Los códigos QR</h3>
-    <p>Cada cabaña tiene el suyo, y cada uno lleva su dirección propia. Si hay que
-    reimprimir uno, la dirección es la del muro con el identificador de la cabaña al final
-    (<kbd>?c=</kbd>). Pedila a quien administra el sistema: si el código apunta mal, el
-    recuerdo llega igual pero sin decir en qué alojamiento se quedaron.</p>
+    <h3>Claves y QR</h3>
+    <p>La segunda solapa de la página. Una <b>clave</b> es la llave de un QR. Hacés una
+    por alojamiento y listo — pero podés hacer las que quieras: una para la cabaña 2,
+    otra para un evento, otra para el cartel de la entrada.</p>
+
+    <div class="paso"><span class="n">1</span><div>Revisá arriba la <b>dirección</b> que
+      va a ir adentro del QR. Tiene que ser la definitiva
+      (<kbd>casaverdecanas.com.br</kbd>): un cartel impreso no se corrige.</div></div>
+    <div class="paso"><span class="n">2</span><div><kbd>Clave nueva</kbd> → elegí el
+      alojamiento, ponele un nombre que te sirva a vos (“QR heladera cabaña 2”) y, si
+      querés, una fecha de vencimiento.</div></div>
+    <div class="paso"><span class="n">3</span><div>Se abre el <b>QR</b>. <kbd>Imprimir</kbd>
+      saca una hoja limpia con el código y el nombre del alojamiento. Desde el iPad,
+      “Imprimir” también te deja guardarlo como PDF.</div></div>
+
+    <div class="nota"><b>Si un código se te va de las manos</b> — alguien le sacó una foto
+    al cartel, empiezan a llegar mensajes raros — <kbd>Dar de baja</kbd> esa clave y hacé
+    una nueva. Los QR de las otras cabañas siguen funcionando: no hay que reimprimir nada
+    más que el que falló.</div>
+
+    <p><b>Dar de baja</b> apaga la clave y se puede reactivar. <b>Borrar</b> la elimina
+    para siempre: el cartel que la lleve deja de servir y no hay forma de recuperarla.</p>
+
+    <h3>Cuando algo no anda</h3>
+    <p>Si un huésped te dice que no puede escribir, la página le muestra un código.
+    Pedile el código y mirá acá:</p>
+    <ul>
+      <li><b>SIN_CLAVE</b> — entró al sitio sin escanear el QR. Normal.</li>
+      <li><b>CLAVE_DESCONOCIDA</b> — el enlace se cortó al copiarlo, o el cartel es
+        de los viejos. Que vuelva a escanear.</li>
+      <li><b>CLAVE_INACTIVA</b> — esa clave está dada de baja. Fijate en la solapa
+        de claves y reactivala, o imprimí el cartel nuevo.</li>
+      <li><b>CLAVE_VENCIDA</b> — le pusiste fecha de vencimiento y pasó.</li>
+      <li><b>SIN_RED</b> — el wifi. No es del sistema.</li>
+    </ul>
 
     <p>Este capítulo es solo para quien tiene el permiso <b>Contenido del sitio</b>.</p>
     <a class="arriba" href="#">↑ Volver al índice</a>
