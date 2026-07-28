@@ -162,30 +162,99 @@ CV2.verItem = function (it) {
 };
 
 /**
- * Capa emergente que se cierra con el botón ATRÁS de Android.
- * Uso desde cualquier página:
+ * Capa emergente (hoja, modal, panel) que se cierra con el botón ATRÁS
+ * de Android en vez de salir de la aplicación.
+ *
  *   const cerrar = CV2.capaAtras(() => dialogo.close());
- *   ...  cerrar();      // cerrar desde un botón
- * Atrás también la cierra, y no sale de la aplicación.
- * Devuelve la función con la que hay que cerrar (limpia el historial).
+ *   ...  cerrar();     // desde Cancelar, desde el fondo, al guardar
+ *
+ * Devuelve la función con la que hay que cerrar: limpia su propia
+ * entrada del historial, así el siguiente Atrás vuelve a la página
+ * anterior y no reabre nada.
+ *
+ * Las capas se apilan: si desde un modal se abre otro, Atrás cierra
+ * primero el de arriba. Por eso hay UN solo listener de 'popstate' y
+ * una pila, en vez de un listener por capa (con uno por capa, un solo
+ * Atrás cerraba todas juntas).
  */
+CV2._capas = [];
+CV2._ignorarPop = 0;
+
 CV2.capaAtras = function (cerrar) {
-  let vivo = true;
-  const alVolver = function () {
-    if (!vivo) return;
-    vivo = false;
-    window.removeEventListener('popstate', alVolver);
+  const capa = { cerrar, viva: true };
+  CV2._capas.push(capa);
+  history.pushState({ cvCapa: CV2._capas.length }, '');
+  return function () {
+    if (!capa.viva) return;
+    capa.viva = false;
+    const i = CV2._capas.indexOf(capa);
+    if (i >= 0) CV2._capas.splice(i, 1);
+    // Sacamos del historial la entrada que agregamos al abrir. Ese
+    // back() dispara un 'popstate' que NO es del usuario: se ignora,
+    // si no cerraría también la capa de abajo.
+    if (history.state && history.state.cvCapa) {
+      CV2._ignorarPop++;
+      history.back();
+    }
     cerrar();
   };
-  history.pushState({ cvCapa: true }, '');
-  window.addEventListener('popstate', alVolver);
-  return function () {
-    if (!vivo) return;
-    vivo = false;
-    window.removeEventListener('popstate', alVolver);
-    // Sacamos del historial la entrada que agregamos al abrir, así el
-    // próximo Atrás vuelve a la página anterior y no reabre nada.
-    if (history.state && history.state.cvCapa) history.back();
+};
+
+window.addEventListener('popstate', () => {
+  if (CV2._ignorarPop > 0) { CV2._ignorarPop--; return; }
+  const capa = CV2._capas.pop();
+  if (capa && capa.viva) { capa.viva = false; capa.cerrar(); }
+});
+
+/**
+ * Hace que TODOS los <dialog> del sistema se cierren con el botón Atrás,
+ * sin tocar ni una línea de las páginas.
+ *
+ * Por qué así y no página por página: son catorce páginas con más de
+ * treinta modales, y cada uno abre y cierra desde varios lugares
+ * (Cancelar, guardar, la cruz, Escape). Migrarlos a mano es repetir el
+ * mismo par de líneas decenas de veces y olvidarse en alguno — y el que
+ * se olvide sigue expulsando de la app justo cuando hay un formulario
+ * lleno. Se envuelve una vez `showModal` y `close`, y queda cubierto
+ * todo, incluso los modales que se escriban mañana.
+ *
+ * Contrapartida honesta: es "magia" a nivel del navegador. Si algún día
+ * un modal se comporta raro con Atrás, el sospechoso es esto y está
+ * todo acá, en un solo lugar.
+ */
+CV2.dialogosConAtras = function () {
+  if (CV2._dialogosListos) return;
+  CV2._dialogosListos = true;
+  const P = window.HTMLDialogElement && window.HTMLDialogElement.prototype;
+  if (!P || !P.showModal) return;
+
+  const abrirNativo = P.showModal;
+  const cerrarNativo = P.close;
+  const cierres = new WeakMap();
+
+  P.showModal = function () {
+    const r = abrirNativo.apply(this, arguments);
+    if (!cierres.has(this)) {
+      const dlg = this;
+      cierres.set(dlg, CV2.capaAtras(() => {
+        cierres.delete(dlg);
+        cerrarNativo.call(dlg);
+      }));
+      // Escape y los <form method="dialog"> cierran por dentro, sin
+      // pasar por close(): ahí hay que limpiar el historial igual.
+      dlg.addEventListener('close', function alCerrar() {
+        const pendiente = cierres.get(dlg);
+        if (pendiente) { cierres.delete(dlg); pendiente(); }
+      }, { once: true });
+    }
+    return r;
+  };
+
+  P.close = function (valor) {
+    const cerrar = cierres.get(this);
+    if (!cerrar) return cerrarNativo.apply(this, arguments);
+    cierres.delete(this);
+    if (valor !== undefined) this.returnValue = valor;
     cerrar();
   };
 };
@@ -201,6 +270,7 @@ CV2.marcarNovedad = function (id, hay) {
 CV2.renderNav = function (activo) {
   const cont = document.getElementById('nav');
   if (!cont) return;
+  CV2.dialogosConAtras();          // el Atrás cierra modales, no la app
   document.body.classList.add('cv-conbarra');
 
   const visibles = CV2.NAV.filter(CV2.verItem);
