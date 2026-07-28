@@ -1,6 +1,14 @@
 /* ═══════════════════════════════════════════════════════════
    CASAVERDE 2.0 — design-system.css
    Tokens y componentes base. CSS moderno, chico y único.
+
+   CONVENCIONES §6.0 — EL TELÉFONO ANDROID MANDA. El panel se usa sobre
+   todo en teléfono, con la PWA instalada desde Chrome. Por eso acá:
+   · los respiros de sistema (env(safe-area-inset-*)) están en todo lo
+     que se pega a un borde;
+   · nada se comunica solo con :hover (en un teléfono no existe);
+   · los objetivos táctiles no bajan de 44px;
+   · tirar hacia abajo NO recarga la aplicación.
    ═══════════════════════════════════════════════════════════ */
 
 :root {
@@ -25,6 +33,9 @@
 
 * { box-sizing: border-box; }
 
+/* Tirar hacia abajo dentro de la app recargaba y se perdía lo no
+   guardado. 'contain' corta el gesto de recarga sin romper el scroll. */
+html, body { overscroll-behavior-y: contain; }
 html { -webkit-text-size-adjust: 100%; }
 
 body {
@@ -42,25 +53,148 @@ a { color: var(--verde); }
 
 .contenedor { max-width: 980px; margin: 0 auto; padding: 12px 14px 40px; }
 
-/* ── Navegación ──────────────────────────────────────────── */
-.nav {
-  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
-  background: var(--verde); color: #fff;
-  padding: 10px 12px; padding-top: calc(10px + 8px); /* deja lugar al listón admin */
+/* ═══ NAVEGACIÓN ═══════════════════════════════════════════
+   La arma nucleo.js (CV2.renderNav). Diseño de teléfono:
+   la barra va ABAJO, al alcance del pulgar; la cabecera es mínima
+   y se esconde al bajar; lo demás vive en hojas que suben desde
+   abajo. En ≥900px la misma barra se acomoda arriba: es un @media,
+   no un segundo diseño.
+   ══════════════════════════════════════════════════════════ */
+:root {
+  --cv-abajo: env(safe-area-inset-bottom, 0px);   /* franja de gestos */
+  --cv-arriba: env(safe-area-inset-top, 0px);     /* barra de estado  */
+  --cv-h-cab: 50px;
+  --cv-h-barra: 58px;
+}
+
+/* Le deja lugar a la barra de abajo. La pone nucleo.js al pintar. */
+body.cv-conbarra { padding-bottom: calc(var(--cv-h-barra) + var(--cv-abajo)); }
+
+/* ── Cabecera ───────────────────────────────────────────── */
+.cv-cab {
   position: sticky; top: 0; z-index: 100;
+  background: var(--verde); padding-top: var(--cv-arriba);
+  transition: transform .2s ease;
 }
-.nav-marca { font-size: 1rem; margin-right: 10px; letter-spacing: .3px; }
-.nav-marca b { color: #cfe8c8; }
-.nav-item {
-  display: inline-flex; align-items: center; gap: 4px;
-  color: #eaf4e7; text-decoration: none; font-size: .88rem;
-  padding: 6px 10px; border-radius: 8px; border: 0; background: none;
-  font-family: inherit; cursor: pointer;
+body.cv-admin .cv-cab { padding-top: calc(var(--cv-arriba) + 8px); }
+.cv-cab.escondida { transform: translateY(-101%); }
+.cv-cab-in {
+  display: flex; align-items: center; gap: 10px;
+  height: var(--cv-h-cab); padding: 0 12px;
+  max-width: 980px; margin: 0 auto;
 }
-.nav-item.activo, .nav-item:hover { background: rgba(255, 255, 255, .16); color: #fff; }
-.nav-item .material-icons { font-size: 19px; }
-.nav-sep { flex: 1; }
-.nav-quien { font-size: .82rem; opacity: .9; margin-right: 4px; }
+.cv-cab-in img { height: 30px; width: auto; display: block; flex: 0 0 auto; }
+.cv-titulo {
+  flex: 1; color: #fff; font-weight: 700; font-size: 1.02rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cv-avatar {
+  width: 40px; height: 40px; border-radius: 999px;
+  background: var(--verde-claro); color: var(--verde-osc);
+  font-family: inherit; font-weight: 700; font-size: .82rem;
+  display: flex; align-items: center; justify-content: center;
+  border: 0; flex: 0 0 auto; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.cv-avatar:active { transform: scale(.94); }
+
+/* ── Barra de abajo ─────────────────────────────────────── */
+.cv-barra {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 95;
+  background: #fff; border-top: 1px solid var(--linea);
+  padding-bottom: var(--cv-abajo);
+  box-shadow: 0 -2px 14px rgba(34, 48, 31, .08);
+}
+.cv-barra-in { display: flex; max-width: 560px; margin: 0 auto; }
+.cv-tab {
+  flex: 1; min-height: var(--cv-h-barra);
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 2px;
+  border: 0; background: transparent; color: var(--gris);
+  font-family: inherit; font-size: .68rem; font-weight: 600;
+  text-decoration: none; cursor: pointer; position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+.cv-tab .material-icons { font-size: 24px; }
+.cv-tab:active { background: var(--crema); }
+.cv-tab.activo { color: var(--verde); }
+.cv-tab.activo::before {
+  content: ""; position: absolute; top: 0; left: 50%;
+  transform: translateX(-50%); width: 30px; height: 3px;
+  border-radius: 0 0 3px 3px; background: var(--verde);
+}
+.cv-tab.con-novedad::after {
+  content: ""; position: absolute; top: 8px; right: 50%;
+  margin-right: -16px; width: 8px; height: 8px;
+  border-radius: 999px; background: var(--rojo);
+}
+
+/* ── Hojas que suben desde abajo ────────────────────────── */
+.cv-tapa {
+  position: fixed; inset: 0; z-index: 105;
+  background: rgba(34, 48, 31, .45);
+  opacity: 0; pointer-events: none; transition: opacity .18s ease;
+}
+.cv-tapa.abierta { opacity: 1; pointer-events: auto; }
+.cv-hoja {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 110;
+  background: var(--crema); border-radius: 20px 20px 0 0;
+  padding: 8px 14px calc(16px + var(--cv-abajo));
+  transform: translateY(102%);
+  transition: transform .24s cubic-bezier(.2, .8, .2, 1);
+  max-height: 86dvh; overflow: auto; overscroll-behavior: contain;
+  box-shadow: 0 -8px 34px rgba(0, 0, 0, .22);
+}
+.cv-hoja.abierta { transform: translateY(0); }
+.cv-agarre {
+  width: 42px; height: 5px; border-radius: 999px;
+  background: var(--linea); margin: 6px auto 12px;
+}
+.cv-hoja h4 {
+  margin: 14px 0 7px; font-size: .72rem; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--gris);
+}
+.cv-hoja h4:first-of-type { margin-top: 2px; }
+.cv-hoja a, .cv-hoja button {
+  display: flex; align-items: center; gap: 13px; width: 100%;
+  min-height: 52px; padding: 0 14px; margin-bottom: 7px;
+  background: #fff; border: 1px solid var(--linea); border-radius: 13px;
+  font-family: inherit; font-size: .96rem; font-weight: 600;
+  color: var(--tinta); text-decoration: none; cursor: pointer;
+  text-align: left; -webkit-tap-highlight-color: transparent;
+}
+.cv-hoja a:active, .cv-hoja button:active { background: var(--verde-claro); }
+.cv-hoja a.activo { border-color: var(--verde); color: var(--verde); }
+.cv-hoja .material-icons { color: var(--gris); font-size: 22px; }
+.cv-hoja a.activo .material-icons { color: var(--verde); }
+.cv-quien { display: flex; align-items: center; gap: 12px; padding: 4px 4px 10px; }
+.cv-quien b { display: block; font-size: 1rem; }
+.cv-quien span.rol { font-size: .82rem; color: var(--gris); }
+
+/* ── Pantalla grande: la misma barra, arriba ────────────── */
+@media (min-width: 900px) {
+  body.cv-conbarra { padding-bottom: 0; }
+  .cv-barra {
+    position: sticky; top: calc(var(--cv-h-cab) + var(--cv-arriba));
+    bottom: auto; border-top: 0; border-bottom: 1px solid var(--linea);
+    padding-bottom: 0; box-shadow: var(--sombra);
+  }
+  .cv-barra-in { max-width: 980px; justify-content: flex-start; }
+  .cv-tab {
+    flex: 0 0 auto; flex-direction: row; gap: 8px;
+    min-height: 52px; padding: 0 18px; font-size: .88rem;
+  }
+  .cv-tab.activo::before { top: auto; bottom: 0; border-radius: 3px 3px 0 0; }
+  .cv-tab.con-novedad::after { top: 14px; right: 10px; margin: 0; }
+  .cv-hoja {
+    left: auto; right: 14px; bottom: auto;
+    top: calc(var(--cv-h-cab) + 62px); width: 320px; border-radius: 14px;
+    transform: translateY(-12px); opacity: 0; pointer-events: none;
+    transition: opacity .16s ease, transform .16s ease;
+  }
+  .cv-hoja.abierta { transform: translateY(0); opacity: 1; pointer-events: auto; }
+  .cv-agarre { display: none; }
+}
 
 /* ── Tarjetas ────────────────────────────────────────────── */
 .card {
@@ -75,9 +209,13 @@ a { color: var(--verde); }
   font: inherit; font-size: .92rem; cursor: pointer;
   border: 1px solid var(--linea); border-radius: 8px;
   background: #fff; color: var(--tinta); padding: 9px 14px;
+  min-height: 44px;                 /* objetivo táctil (§6.0) */
   transition: filter .15s;
+  -webkit-tap-highlight-color: transparent;
 }
+/* En teléfono no hay hover: la devolución de que tocaste es :active. */
 .btn:hover { filter: brightness(.97); }
+.btn:active { filter: brightness(.92); transform: scale(.985); }
 .btn:disabled { opacity: .5; cursor: default; }
 .btn-primario { background: var(--verde); border-color: var(--verde); color: #fff; }
 .btn-peligro { background: var(--rojo); border-color: var(--rojo); color: #fff; }
@@ -86,7 +224,7 @@ a { color: var(--verde); }
 /* ── Formularios ─────────────────────────────────────────── */
 label { display: block; font-size: .82rem; color: var(--gris); margin: 10px 0 4px; }
 input, select, textarea {
-  font: inherit; width: 100%; padding: 10px 12px;
+  font: inherit; width: 100%; padding: 10px 12px; min-height: 44px;
   border: 1px solid var(--linea); border-radius: 8px;
   background: #fff; color: var(--tinta);
 }
@@ -97,7 +235,10 @@ input:focus, select:focus, textarea:focus {
 
 /* ── Toasts ──────────────────────────────────────────────── */
 .toast {
-  position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 20px);
+  position: fixed; left: 50%; transform: translate(-50%, 20px);
+  /* Por encima de la barra de abajo y de la franja de gestos: si no,
+     el aviso aparecía tapado justo cuando más hace falta leerlo. */
+  bottom: calc(26px + var(--cv-h-barra) + var(--cv-abajo));
   background: var(--tinta); color: #fff; padding: 11px 18px;
   border-radius: 999px; font-size: .9rem; opacity: 0;
   transition: opacity .25s, transform .25s; z-index: 999;
@@ -107,6 +248,7 @@ input:focus, select:focus, textarea:focus {
 .toast-success { background: var(--ok); }
 .toast-error { background: var(--rojo); }
 .toast-info { background: var(--azul); }
+@media (min-width: 900px) { .toast { bottom: 26px; } }
 
 /* ── Utilidades ──────────────────────────────────────────── */
 .chip {

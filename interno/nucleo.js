@@ -90,31 +90,69 @@ CV2.cerrarSesion = async function () {
 
 // Listón diagonal amarillo/negro: sesión admin a la vista
 CV2._listonAdmin = function () {
+  document.body.classList.add('cv-admin');   // la cabecera le deja 8px
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;top:0;left:0;right:0;height:8px;z-index:9999;background:repeating-linear-gradient(45deg,#e6b800 0 14px,#1a1a1a 14px 28px);pointer-events:none;';
   document.body.appendChild(el);
 };
 
-// ── Navegación ───────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════
+//  NAVEGACIÓN — pensada para TELÉFONO ANDROID con la PWA instalada
+//  (CONVENCIONES §6.0: el teléfono manda; el escritorio se adapta).
+//
+//  Cómo quedó y por qué:
+//  · La barra va ABAJO. En un teléfono grande la esquina de arriba no
+//    se alcanza con una mano; el pulgar vive en el tercio inferior.
+//    Cuatro destinos de todos los días + "Más".
+//  · "Más" y la cuenta abren HOJAS que suben desde abajo, no menús que
+//    caen desde arriba: se alcanzan y se cierran con el pulgar.
+//  · El botón ATRÁS de Android cierra la hoja y NO sale de la app
+//    (pushState al abrir + popstate al volver). Sin esto, cerrar algo
+//    con Atrás te expulsa de la aplicación y perdés lo que cargabas.
+//  · env(safe-area-inset-*): instalada, la app dibuja debajo de la barra
+//    de estado y por encima de la franja de gestos. Sin esos respiros,
+//    el último botón queda tapado.
+//  · La cabecera es mínima (logo + título + persona) y se esconde al
+//    bajar: el alto de pantalla es el recurso escaso.
+//  · En ≥900px la MISMA barra se acomoda arriba en horizontal. Es un
+//    @media, no un segundo diseño.
+//
+//  Los estilos viven en design-system.css, bloque "NAVEGACIÓN"
+//  (clases cv-*). Acá solo se arma el HTML y se atan los gestos.
+// ═════════════════════════════════════════════════════════════
+
 // `permiso: null`  → visible para cualquiera activo.
 // `permiso: 'x'`   → requiere ese permiso.
 // `permiso: [...]` → requiere alguno de esos.
 // `soloAdmin: true`→ únicamente la cuenta CasaVerde.
+// `grupo`          → 'directo' va en la barra de abajo; el resto, en la
+//                    hoja de "Más", bajo el título de su grupo.
 CV2.NAV = [
-  { id: 'inicio', label: 'Inicio', href: './index.html', icono: 'home', permiso: null },
-  { id: 'actividades', label: 'Actividades', href: './actividades.html', icono: 'checklist', permiso: null },
-  { id: 'reservas', label: 'Reservas', href: './reservas.html', icono: 'king_bed', permiso: 'reservas' },
-  { id: 'calendario', label: 'Calendario', href: './calendario.html', icono: 'calendar_month', permiso: null },
-  { id: 'clientes', label: 'Clientes', href: './clientes.html', icono: 'contacts', permiso: 'reservas' },
-  { id: 'comunicacion', label: 'Chat', href: './comunicacion.html', icono: 'forum', permiso: null },
-  { id: 'sesiones', label: 'Sesiones', href: './gestion-sesiones.html', icono: 'schedule', permiso: null },
-  { id: 'horas', label: 'Horas', href: './horas-stats.html', icono: 'insights', permiso: 'horas' },
-  { id: 'honorarios', label: 'Cobros', href: './honorarios.html', icono: 'payments', permiso: null },
-  { id: 'dinero', label: 'Dinero', href: './dinero.html', icono: 'savings', permiso: ['dinero', 'finanzas'] },
-  { id: 'cabanas', label: 'Sitio', href: './cabanas.html', icono: 'cottage', permiso: 'contenido' },
-  { id: 'espacios', label: 'Espacios', href: './espacios.html', icono: 'deck', permiso: 'contenido' },
-  { id: 'recuerdos', label: 'Recuerdos', href: './recuerdos.html', icono: 'photo_library', permiso: 'contenido' },
-  { id: 'usuarios', label: 'Usuarios', href: './usuarios.html', icono: 'group', permiso: null, soloAdmin: true }
+  { id: 'inicio', label: 'Inicio', corto: 'Inicio', href: './index.html', icono: 'home', permiso: null, grupo: 'directo' },
+  { id: 'actividades', label: 'Actividades', corto: 'Tareas', href: './actividades.html', icono: 'checklist', permiso: null, grupo: 'directo' },
+  { id: 'calendario', label: 'Calendario', corto: 'Calendario', href: './calendario.html', icono: 'calendar_month', permiso: null, grupo: 'directo' },
+  { id: 'comunicacion', label: 'Chat', corto: 'Chat', href: './comunicacion.html', icono: 'forum', permiso: null, grupo: 'directo' },
+
+  { id: 'reservas', label: 'Reservas', href: './reservas.html', icono: 'king_bed', permiso: 'reservas', grupo: 'alojamiento' },
+  { id: 'clientes', label: 'Clientes', href: './clientes.html', icono: 'contacts', permiso: 'reservas', grupo: 'alojamiento' },
+
+  { id: 'dinero', label: 'Dinero', href: './dinero.html', icono: 'savings', permiso: ['dinero', 'finanzas'], grupo: 'plata' },
+  { id: 'honorarios', label: 'Cobros', href: './honorarios.html', icono: 'payments', permiso: null, grupo: 'plata' },
+  { id: 'sesiones', label: 'Sesiones', href: './gestion-sesiones.html', icono: 'schedule', permiso: null, grupo: 'plata' },
+  { id: 'horas', label: 'Horas', href: './horas-stats.html', icono: 'insights', permiso: 'horas', grupo: 'plata' },
+
+  { id: 'cabanas', label: 'Cabañas', href: './cabanas.html', icono: 'cottage', permiso: 'contenido', grupo: 'sitio' },
+  { id: 'espacios', label: 'Espacios', href: './espacios.html', icono: 'deck', permiso: 'contenido', grupo: 'sitio' },
+  { id: 'recuerdos', label: 'Recuerdos', href: './recuerdos.html', icono: 'photo_library', permiso: 'contenido', grupo: 'sitio' },
+
+  { id: 'usuarios', label: 'Usuarios', href: './usuarios.html', icono: 'group', permiso: null, soloAdmin: true, grupo: 'cuenta' }
+];
+
+// Títulos de los grupos en la hoja de "Más". El orden manda.
+CV2.GRUPOS = [
+  { id: 'alojamiento', label: 'Alojamiento' },
+  { id: 'plata', label: 'Plata' },
+  { id: 'sitio', label: 'Sitio' }
 ];
 
 CV2.verItem = function (it) {
@@ -123,29 +161,142 @@ CV2.verItem = function (it) {
   return Array.isArray(it.permiso) ? CV2.puedeAlguno(it.permiso) : CV2.puede(it.permiso);
 };
 
+/**
+ * Capa emergente que se cierra con el botón ATRÁS de Android.
+ * Uso desde cualquier página:
+ *   const cerrar = CV2.capaAtras(() => dialogo.close());
+ *   ...  cerrar();      // cerrar desde un botón
+ * Atrás también la cierra, y no sale de la aplicación.
+ * Devuelve la función con la que hay que cerrar (limpia el historial).
+ */
+CV2.capaAtras = function (cerrar) {
+  let vivo = true;
+  const alVolver = function () {
+    if (!vivo) return;
+    vivo = false;
+    window.removeEventListener('popstate', alVolver);
+    cerrar();
+  };
+  history.pushState({ cvCapa: true }, '');
+  window.addEventListener('popstate', alVolver);
+  return function () {
+    if (!vivo) return;
+    vivo = false;
+    window.removeEventListener('popstate', alVolver);
+    // Sacamos del historial la entrada que agregamos al abrir, así el
+    // próximo Atrás vuelve a la página anterior y no reabre nada.
+    if (history.state && history.state.cvCapa) history.back();
+    cerrar();
+  };
+};
+
+// ── Puntito de novedad sobre una pestaña ─────────────────────
+// Lo enciende la página que sabe (por ejemplo el Inicio, con los
+// mensajes sin leer):  CV2.marcarNovedad('comunicacion', true)
+CV2.marcarNovedad = function (id, hay) {
+  const t = document.querySelector('.cv-tab[data-id="' + id + '"]');
+  if (t) t.classList.toggle('con-novedad', hay !== false);
+};
+
 CV2.renderNav = function (activo) {
   const cont = document.getElementById('nav');
   if (!cont) return;
-  const items = CV2.NAV
-    .filter(CV2.verItem)
-    .map(it => `
-      <a href="${it.href}" class="nav-item ${it.id === activo ? 'activo' : ''}">
-        <span class="material-icons">${it.icono}</span>${it.label}
-      </a>`).join('');
-  cont.innerHTML = `
-    <nav class="nav">
-      <span class="nav-marca">🌿 CasaVerde <b>2.0</b></span>
-      ${items}
-      <span class="nav-sep"></span>
-      <span class="nav-quien">${CV2.esc(CV2.usuario?.nombre ?? '')}</span>
-      <a class="nav-item" href="./manual.html#${activo}" title="Ayuda de esta página">
-        <span class="material-icons">help</span>
-      </a>
-      <button class="nav-item" id="btnSalir" title="Cerrar sesión">
-        <span class="material-icons">logout</span>
-      </button>
-    </nav>`;
-  document.getElementById('btnSalir')?.addEventListener('click', CV2.cerrarSesion);
+  document.body.classList.add('cv-conbarra');
+
+  const visibles = CV2.NAV.filter(CV2.verItem);
+  const directos = visibles.filter((it) => it.grupo === 'directo');
+  const enHoja = visibles.filter((it) => it.grupo !== 'directo' && it.grupo !== 'cuenta');
+  const deCuenta = visibles.filter((it) => it.grupo === 'cuenta');
+  const activoEnHoja = enHoja.some((it) => it.id === activo);
+
+  const itemActual = CV2.NAV.find((it) => it.id === activo);
+  const titulo = (itemActual && itemActual.label)
+    || document.title.replace(/^CasaVerde 2\.0\s*·\s*/, '');
+
+  const nombre = CV2.usuario?.nombre ?? '';
+  const iniciales = nombre.trim().split(/\s+/).slice(0, 2)
+    .map((p) => p[0] || '').join('').toUpperCase() || '·';
+
+  const tab = (it) =>
+    '<a class="cv-tab ' + (it.id === activo ? 'activo' : '') + '" data-id="' + it.id + '"'
+    + ' href="' + it.href + '">'
+    + '<span class="material-icons">' + it.icono + '</span>' + CV2.esc(it.corto || it.label)
+    + '</a>';
+
+  const enlaceHoja = (it) =>
+    '<a href="' + it.href + '" class="' + (it.id === activo ? 'activo' : '') + '">'
+    + '<span class="material-icons">' + it.icono + '</span>' + CV2.esc(it.label) + '</a>';
+
+  const grupos = CV2.GRUPOS.map((g) => {
+    const items = enHoja.filter((it) => it.grupo === g.id);
+    if (!items.length) return '';
+    return '<h4>' + CV2.esc(g.label) + '</h4>' + items.map(enlaceHoja).join('');
+  }).join('');
+
+  cont.innerHTML =
+    '<header class="cv-cab" id="cv-cab"><div class="cv-cab-in">'
+    // Si todavía no está la copia de /interno/img/, cae en el logo del
+    // shell; si tampoco está, se saca y no deja el ícono roto.
+    + '<img src="./img/logo-barra.png" alt="Casa Verde Canas"'
+    + ' onerror="if(!this.dataset.r){this.dataset.r=1;this.src=\'./logo-sitio.png\';}else{this.remove();}">'
+    + '<span class="cv-titulo">' + CV2.esc(titulo) + '</span>'
+    + '<button class="cv-avatar" id="cv-btn-yo" title="' + CV2.esc(nombre) + '">'
+    + CV2.esc(iniciales) + '</button>'
+    + '</div></header>'
+
+    + '<nav class="cv-barra"><div class="cv-barra-in">'
+    + directos.map(tab).join('')
+    + '<button class="cv-tab ' + (activoEnHoja ? 'activo' : '') + '" id="cv-btn-mas">'
+    + '<span class="material-icons">apps</span>Más</button>'
+    + '</div></nav>'
+
+    + '<div class="cv-tapa" id="cv-tapa"></div>'
+
+    + '<div class="cv-hoja" id="cv-hoja-mas"><div class="cv-agarre"></div>'
+    + (grupos || '<h4>Nada más por acá</h4>')
+    + '</div>'
+
+    + '<div class="cv-hoja" id="cv-hoja-yo"><div class="cv-agarre"></div>'
+    + '<div class="cv-quien"><span class="cv-avatar" style="cursor:default">'
+    + CV2.esc(iniciales) + '</span><span><b>' + CV2.esc(nombre) + '</b>'
+    + '<span class="rol">' + (CV2.esAdmin() ? 'administrador' : 'colaborador') + '</span></span></div>'
+    + deCuenta.map(enlaceHoja).join('')
+    + '<a href="./manual.html#' + CV2.esc(activo || '') + '">'
+    + '<span class="material-icons">help</span>Ayuda de esta página</a>'
+    + '<button id="cv-btn-salir"><span class="material-icons">logout</span>Cerrar sesión</button>'
+    + '</div>';
+
+  // ── Hojas ──────────────────────────────────────────────────
+  const tapa = document.getElementById('cv-tapa');
+  let cerrarActual = null;
+
+  const abrir = (id) => {
+    if (cerrarActual) return;
+    const hoja = document.getElementById(id);
+    hoja.classList.add('abierta');
+    tapa.classList.add('abierta');
+    // El Atrás de Android cierra la hoja, no la aplicación.
+    cerrarActual = CV2.capaAtras(() => {
+      hoja.classList.remove('abierta');
+      tapa.classList.remove('abierta');
+      cerrarActual = null;
+    });
+  };
+  const cerrar = () => { if (cerrarActual) cerrarActual(); };
+
+  document.getElementById('cv-btn-mas').addEventListener('click', () => abrir('cv-hoja-mas'));
+  document.getElementById('cv-btn-yo').addEventListener('click', () => abrir('cv-hoja-yo'));
+  tapa.addEventListener('click', cerrar);
+  document.getElementById('cv-btn-salir').addEventListener('click', CV2.cerrarSesion);
+
+  // ── La cabecera se esconde al bajar ────────────────────────
+  const cab = document.getElementById('cv-cab');
+  let ultimo = 0;
+  window.addEventListener('scroll', () => {
+    const y = window.scrollY;
+    cab.classList.toggle('escondida', y > 70 && y > ultimo);
+    ultimo = y;
+  }, { passive: true });
 };
 
 // ── Helpers de texto y formato ───────────────────────────────

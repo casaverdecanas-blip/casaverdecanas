@@ -7,7 +7,7 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
-const VERSION = 'cv2-shell-v50';
+const VERSION = 'cv2-shell-v51';
 
 const SHELL = [
   './',
@@ -29,19 +29,30 @@ const SHELL = [
   './balance.html',
   './reservas-core.js',
   './horas-stats.html',
+  './recuerdos.html',
   './nucleo.js',
   './textos-sitio.js',
   './firebase-init.js',
   './design-system.css',
   './manifest.json',
+  './img/logo-barra.png',
   './icono-192.png',
   './icono-512.png',
   './apple-touch-icon.png'
 ];
 
+// OJO (lección jul-2026): 'addAll' es todo o nada — si UN archivo de la
+// lista falta o da 404, la instalación entera falla y el service worker
+// nuevo nunca se activa. La app queda servida por el viejo y parece que
+// el deploy "no hizo nada". Se guarda de a uno, tolerando faltantes: lo
+// que no esté, se buscará por red igual (la estrategia es red-primero).
 self.addEventListener('install', (ev) => {
   ev.waitUntil(
-    caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())
+    caches.open(VERSION)
+      .then((c) => Promise.all(SHELL.map((u) =>
+        c.add(u).catch((e) => console.warn('SW: no se pudo precachear', u, e))
+      )))
+      .then(() => self.skipWaiting())
   );
 });
 
