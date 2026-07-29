@@ -18,6 +18,13 @@
 //    titulo · bajada · c1 · c2 · c3 · tCabanas · tComunes · tConsulta · pie
 //  El resto son etiquetas de la interfaz del sitio y NO se editan desde el
 //  panel: si se cambian, se cambian acá.
+//
+//  ⚠ TODA clave que el sitio use con data-t o t() TIENE que existir acá, en
+//  los tres idiomas. Si falta, t() cae hasta su último respaldo y escribe
+//  EL NOMBRE DE LA CLAVE en la pantalla: el pie del sitio mostró la palabra
+//  suelta "recuerdos" en vez de la frase durante todo el tiempo que faltó
+//  'recuerdos' en esta tabla (T11.16). El fallo no da error en ningún lado
+//  — se ve, y solo si alguien mira.
 // ═══════════════════════════════════════════════════════════════
 
 export const T = {
@@ -30,6 +37,7 @@ export const T = {
     cargando:'Carregando…', pie:'Reservas e consultas pelo WhatsApp.', panel:'Acesso da equipe',
     libre:'Disponível nessas datas', ocupado:'Ocupado nessas datas',
     lOcupado:'Ocupado', lElegido:'Suas datas', elegirIn:'Escolha o dia de entrada',
+    recuerdos:'Lembranças dos nossos hóspedes',
     elegirOut:'Agora o dia de saída', chocan:'Há dias ocupados no meio. Escolha outro período.',
     noches:'noites', hasta:'até', pers:'pessoas', desde:'a partir de', noite:'a noite' },
   es: { consultar:'Consultar', titulo:'A tres cuadras del mar, rodeado de verde',
@@ -41,6 +49,7 @@ export const T = {
     cargando:'Cargando…', pie:'Reservas y consultas por WhatsApp.', panel:'Acceso del equipo',
     libre:'Disponible en esas fechas', ocupado:'Ocupado en esas fechas',
     lOcupado:'Ocupado', lElegido:'Tus fechas', elegirIn:'Elegí el día de entrada',
+    recuerdos:'Recuerdos de nuestros huéspedes',
     elegirOut:'Ahora el día de salida', chocan:'Hay días ocupados en el medio. Elegí otro período.',
     noches:'noches', hasta:'hasta', pers:'personas', desde:'desde', noite:'la noche' },
   en: { consultar:'Enquire', titulo:'Three blocks from the sea, surrounded by green',
@@ -52,6 +61,7 @@ export const T = {
     cargando:'Loading…', pie:'Bookings and enquiries via WhatsApp.', panel:'Team access',
     libre:'Available on those dates', ocupado:'Not available on those dates',
     lOcupado:'Taken', lElegido:'Your dates', elegirIn:'Pick your arrival day',
+    recuerdos:'Memories from our guests',
     elegirOut:'Now the departure day', chocan:'There are booked days in between. Pick another period.',
     noches:'nights', hasta:'to', pers:'guests', desde:'from', noite:'per night' }
 };
