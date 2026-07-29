@@ -12,14 +12,6 @@
 <style>
   .filtros { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
   .filtros select { width: auto; font-size: .86rem; padding: 8px 10px; }
-  .libros { display: flex; gap: 6px; margin: 4px 0 12px; border-bottom: 2px solid var(--linea); }
-  .libros button { border: 0; background: none; cursor: pointer; font: inherit;
-    font-size: .92rem; padding: 9px 16px; color: var(--gris); border-bottom: 3px solid transparent;
-    margin-bottom: -2px; display: inline-flex; align-items: center; gap: 6px; }
-  .libros button.activo { color: var(--verde-osc); font-weight: 700; border-bottom-color: var(--verde-osc); }
-  .libros .material-icons { font-size: 18px; }
-  .aviso-personal { background: #eef4fb; border-radius: var(--radio); padding: 9px 12px;
-    font-size: .8rem; color: #33506e; margin-bottom: 10px; }
   .acciones { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; }
   .acciones .btn { font-size: .82rem; padding: 7px 12px; }
   .kpis { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -82,16 +74,6 @@
     <button class="btn btn-primario" id="btnNuevo">
       <span class="material-icons">add</span> Movimiento
     </button>
-  </div>
-
-  <div class="libros">
-    <button id="tabNegocio" class="activo"><span class="material-icons">store</span> Negocio</button>
-    <button id="tabPersonal"><span class="material-icons">person</span> Mi libro personal</button>
-  </div>
-
-  <div class="aviso-personal" id="avisoPersonal" hidden>
-    Este libro es tuyo y de nadie más: no se cruza con la plata del negocio, no entra
-    a los balances y nadie más lo ve.
   </div>
 
   <div class="acciones">
@@ -263,12 +245,14 @@ let tipoSel = 'salio';
 let editId = null;
 let comprobanteUrl = null;
 
-// ── Libro activo ─────────────────────────────────────────
-// 'negocio'  → /movimientos/            (compartido, con pendientes y balance)
-// 'personal' → /usuarios/{uid}/movimientos_personales/
-//              Subcolección a propósito: la RUTA ya aísla el libro, así la regla
-//              de Firestore es una línea y no hace falta where() ni índices.
-let libro = 'negocio';
+// ── El libro ─────────────────────────────────────────────
+// Uno solo: /movimientos/, el del negocio.
+// Hubo un segundo libro, privado de cada persona, en
+// /usuarios/{uid}/movimientos_personales/. Se retiró en la tanda 11.13: no
+// resolvía ningún problema del negocio —el único cruce real entre plata
+// propia y plata de la casa ya lo cubre el pendiente "reponerle a X"— y sí
+// creaba uno: un gasto de Casa Verde podía caer ahí por error y quedar
+// fuera de todo balance, en un lugar donde ni el administrador entra.
 let desuscribir = null;
 
 // Quien tiene 'dinero' pero no 'finanzas' registra gastos y ve SOLO los
@@ -277,21 +261,11 @@ let desuscribir = null;
 const verFinanzas = () => CV2.puede('finanzas');
 const soloMios = () => !verFinanzas();
 
-const esPersonal = () => libro === 'personal';
-const colMovs = () => esPersonal()
-  ? collection(db, 'usuarios', u.uid, 'movimientos_personales')
-  : collection(db, 'movimientos');
-const docMov = (id) => esPersonal()
-  ? doc(db, 'usuarios', u.uid, 'movimientos_personales', id)
-  : doc(db, 'movimientos', id);
+const colMovs = () => collection(db, 'movimientos');
+const docMov = (id) => doc(db, 'movimientos', id);
 
 // Categorías del negocio: config/dinero (compartidas).
-// Categorías personales: NACEN DEL USO — se derivan de los propios movimientos.
-// Un libro de una sola persona no necesita un catálogo aparte que mantener.
-const CAT_PERSONAL_BASE = ['Casa', 'Comida', 'Salud', 'Transporte', 'Ingresos', 'Otros'];
-const catsActuales = () => esPersonal()
-  ? [...new Set([...CAT_PERSONAL_BASE, ...movs.map((m) => m.categoria).filter(Boolean)])].sort()
-  : categorias;
+const catsActuales = () => categorias;
 
 // Ya no hay pivote: cada moneda va por su lado. Esto suma SOLO lo que está
 // en reales, para los totales en R$; el resto se agrupa en porMoneda.
@@ -412,8 +386,8 @@ function render() {
         ${m.tipo === 'entro' ? '+' : '−'}${CV2.fmtMonto(m.monto, m.moneda ?? 'BRL')}
 
       </span>
-      ${(esPersonal() || verFinanzas()) && !sellado(m) ? `
-        ${!esPersonal() && m.pendiente && !m.pendiente.saldado ? `<button class="btn-mini" onclick="saldar('${m.id}')" title="Marcar saldado"><span class="material-icons" style="font-size:17px;color:var(--ok)">task_alt</span></button>` : ''}
+      ${verFinanzas() && !sellado(m) ? `
+        ${m.pendiente && !m.pendiente.saldado ? `<button class="btn-mini" onclick="saldar('${m.id}')" title="Marcar saldado"><span class="material-icons" style="font-size:17px;color:var(--ok)">task_alt</span></button>` : ''}
         <button class="btn-mini" onclick="editar('${m.id}')" title="Editar"><span class="material-icons" style="font-size:16px;">edit</span></button>
         <button class="btn-mini" onclick="borrar('${m.id}')" title="Eliminar"><span class="material-icons" style="font-size:16px;color:var(--rojo)">delete_outline</span></button>` : ''}
     </div>`).join('');
@@ -450,8 +424,8 @@ function textoPendiente(p) {
 
 function renderCuentas() {
   // Saldo por cuenta = suma de lo que entró menos lo que salió, en R$.
-  // Solo en el negocio y solo con finanzas (es un total del negocio).
-  if (esPersonal() || !verFinanzas()) { $('cardCuentas').hidden = true; return; }
+  // Solo con finanzas: es un total del negocio.
+  if (!verFinanzas()) { $('cardCuentas').hidden = true; return; }
   const saldos = {};
   for (const m of movs) {
     if (m.cierreId) continue;            // ya balanceado: vive en el histórico
@@ -475,8 +449,7 @@ function renderCuentas() {
 }
 
 function renderPendientes() {
-  // El libro personal no tiene pendientes: no hay entre quiénes repartir.
-  const filas = esPersonal() ? [] : pendientesVivos(null);
+  const filas = pendientesVivos(null);
   $('cardPend').classList.toggle('oculto', !filas.length);
   $('pendLista').innerHTML = filas.map((p) => `
     <div class="fila" style="cursor:pointer;" onclick="verPendiente('${esc(p.clave)}')">
@@ -630,9 +603,8 @@ $('fCategoria').addEventListener('change', async () => {
   const nombre = (prompt('Nombre de la nueva categoría:') ?? '').trim();
   if (!nombre) { $('fCategoria').selectedIndex = 0; return; }
   catExtra = [...new Set([...catExtra, nombre])];
-  // En el negocio la categoría se guarda en el catálogo compartido.
-  // En el libro personal no hace falta: queda viva mientras haya un movimiento con ella.
-  if (!esPersonal() && !categorias.includes(nombre)) {
+  // La categoría se guarda en el catálogo compartido.
+  if (!categorias.includes(nombre)) {
     categorias = [...categorias, nombre].sort();
     try {
       await setDoc(doc(db, 'config', 'dinero'), { categorias: arrayUnion(nombre) }, { merge: true });
@@ -661,17 +633,13 @@ function abrirModal(m) {
   $('fMonto').value = m?.monto ?? '';
   poblarCategorias(m?.categoria ?? catsActuales()[0]);
   poblarCuentas(m?.cuenta ?? '');
-  $('grupoCuenta').hidden = esPersonal();
   $('fFecha').value = m?.fecha ?? CV2.hoyISO();
   $('fQuien').innerHTML = equipo.map((p) =>
     `<option value="${p.uid}">${esc(p.nombre)}</option>`).join('');
   $('fQuien').value = m?.uid ?? u.uid;
-  // En el libro personal no hay "quién" (siempre vos) ni pendientes (no hay con quién).
-  $('grupoQuien').hidden = esPersonal();
-  $('grupoPendCheck').hidden = esPersonal();
   $('fDetalle').value = m?.detalle ?? '';
-  $('fPendiente').checked = !esPersonal() && !!m?.pendiente;
-  $('grupoPend').classList.toggle('oculto', esPersonal() || !m?.pendiente);
+  $('fPendiente').checked = !!m?.pendiente;
+  $('grupoPend').classList.toggle('oculto', !m?.pendiente);
   $('fClasePend').value = m?.pendiente?.clase ?? 'reponer';
   comprobanteUrl = m?.comprobanteUrl ?? null;
   $('fotoEstado').textContent = comprobanteUrl ? '✓ comprobante adjunto' : '';
@@ -697,19 +665,19 @@ $('mGuardar').addEventListener('click', async () => {
 
   if ($('fCuenta').value === '__nueva') { CV2.toast('Terminá de agregar la cuenta', 'error'); return; }
 
-  const quien = esPersonal() ? u.uid : $('fQuien').value;
+  const quien = $('fQuien').value;
   const previo = editId ? movs.find((x) => x.id === editId) : null;
   const datos = {
     fecha: $('fFecha').value || CV2.hoyISO(),
     tipo: tipoSel,
     monto, moneda, montoBRL,
     categoria: $('fCategoria').value,
-    cuenta: esPersonal() ? null : ($('fCuenta').value || null),
+    cuenta: $('fCuenta').value || null,
     uid: quien,
-    nombre: esPersonal() ? (u.nombre ?? '') : nombreDe(quien),
+    nombre: nombreDe(quien),
     detalle: $('fDetalle').value.trim(),
     comprobanteUrl,
-    pendiente: !esPersonal() && $('fPendiente').checked
+    pendiente: $('fPendiente').checked
       ? {
           clase: $('fClasePend').value,
           uid: quien,
@@ -831,7 +799,7 @@ function bajarCSV(lista, sufijo) {
   const blob = new Blob(['\uFEFF' + aCSV(lista)], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = (esPersonal() ? 'personal-movimientos-' : 'casaverde-movimientos-') + sufijo + '.csv';
+  a.download = 'casaverde-movimientos-' + sufijo + '.csv';
   document.body.appendChild(a);
   a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
@@ -869,49 +837,32 @@ try {
 
 await cargarCierres();
 
-// ═══ Cambio de libro ══════════════════════════════════════
-function pintarLibro() {
-  $('tabNegocio').classList.toggle('activo', !esPersonal());
-  $('tabPersonal').classList.toggle('activo', esPersonal());
-  $('avisoPersonal').hidden = !esPersonal();
+// ═══ Qué se muestra según el permiso ══════════════════════
+function pintarPermisos() {
   // El balance, el historial de cierres y la exportación son de 'finanzas'.
   // Los pendientes del equipo también (se reparten entre personas).
-  const finanzasNeg = !esPersonal() && verFinanzas();
-  $('btnBalance').hidden = !finanzasNeg;
-  $('btnCierres').hidden = !finanzasNeg;
-  $('btnExportar').hidden = !finanzasNeg;
-  $('cardPend').classList.toggle('oculto', esPersonal() || !verFinanzas());
-  if ($('cardCuentas')) $('cardCuentas').hidden = esPersonal() || !verFinanzas();
+  const finanzas = verFinanzas();
+  $('btnBalance').hidden = !finanzas;
+  $('btnCierres').hidden = !finanzas;
+  $('btnExportar').hidden = !finanzas;
+  $('cardPend').classList.toggle('oculto', !finanzas);
+  if ($('cardCuentas')) $('cardCuentas').hidden = !finanzas;
   // Los KPIs son totales del negocio: sin 'finanzas' no se muestran (quien
   // solo registra gastos ve su lista, no el resultado del negocio).
   const kpis = document.querySelector('.kpis');
-  if (kpis) kpis.classList.toggle('oculto', !esPersonal() && !verFinanzas());
+  if (kpis) kpis.classList.toggle('oculto', !finanzas);
 }
-
-function cambiarLibro(cual) {
-  if (libro === cual) return;
-  libro = cual;
-  catExtra = [];
-  movs = [];
-  $('lista').innerHTML = '<div class="vacio">Cargando…</div>';
-  pintarLibro();
-  suscribir();
-}
-$('tabNegocio').addEventListener('click', () => cambiarLibro('negocio'));
-$('tabPersonal').addEventListener('click', () => cambiarLibro('personal'));
 
 // ═══ Suscripción — AL FINAL ═══════════════════════════════
 function suscribir() {
   if (desuscribir) { desuscribir(); desuscribir = null; }
-  const destino = libro;
-  // En el negocio sin 'finanzas', la consulta trae SOLO los propios: la
-  // regla rechaza una lectura amplia, así que hay que pedir de entrada
-  // lo que se tiene permiso de ver. El libro personal ya es propio.
-  const q = (!esPersonal() && soloMios())
+  // Sin 'finanzas', la consulta trae SOLO los propios: la regla rechaza una
+  // lectura amplia, así que hay que pedir de entrada lo que se tiene
+  // permiso de ver.
+  const q = soloMios()
     ? query(colMovs(), where('creadoPor', '==', u.uid))
     : query(colMovs());
   desuscribir = onSnapshot(q, (snap) => {
-    if (destino !== libro) return;   // llegó tarde: ya cambiamos de libro
     movs = [];
     snap.forEach((d) => movs.push({ id: d.id, ...d.data() }));
     movs.sort((a, b) => (b.fecha ?? '').localeCompare(a.fecha ?? '')
@@ -919,12 +870,11 @@ function suscribir() {
     render();
   }, (e) => {
     console.error(e);
-    CV2.toast('No se pudo cargar ' + (destino === 'personal' ? 'el libro personal' : 'Dinero')
-      + ' (' + (e.code ?? e.message) + ')', 'error');
+    CV2.toast('No se pudo cargar Dinero (' + (e.code ?? e.message) + ')', 'error');
   });
 }
 
-pintarLibro();
+pintarPermisos();
 suscribir();
 </script>
 </body>
