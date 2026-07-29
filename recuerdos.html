@@ -315,11 +315,28 @@ async function subirFoto(file) {
   fd.append('upload_preset', PRESET);
   const r = await fetch('https://api.cloudinary.com/v1_1/' + CLOUD + '/image/upload',
     { method: 'POST', body: fd });
-  if (!r.ok) throw new Error('No se pudo subir la foto');
+  if (!r.ok) {
+    // Cloudinary SIEMPRE explica qué pasó en el cuerpo de la respuesta
+    // ("Upload preset not found", "Upload preset must be whitelisted for
+    // unsigned uploads"...). Antes se descartaba entero y quedaba un
+    // "No se pudo subir la foto" que no permitía arreglar nada desde un
+    // teléfono. Ahora ese texto llega a la pantalla.
+    let motivo = 'HTTP ' + r.status;
+    try {
+      const cuerpo = await r.json();
+      if (cuerpo && cuerpo.error && cuerpo.error.message) motivo = cuerpo.error.message;
+    } catch (e) { /* la respuesta no era JSON: queda el HTTP */ }
+    throw new Error('Cloudinary: ' + motivo);
+  }
   return urlEntrega((await r.json()).secure_url);
 }
 
 // ── Estado ─────────────────────────────────────────────────
+// Último código de error técnico, para poder diagnosticar desde un
+// teléfono. Se muestra chiquito y solo cuando algo falló: al huésped no le
+// dice nada, pero es la diferencia entre arreglarlo en dos minutos y
+// adivinar por WhatsApp.
+let ultimoFallo = '';
 let cabanas = [];
 let persona = null;      // { nombre, email, proveedor }
 let fotoFile = null;
@@ -398,9 +415,12 @@ async function verificarClave(clave) {
       etiqueta: typeof x.etiqueta === 'string' ? x.etiqueta : ''
     };
   } catch (e) {
-    console.warn('clave', e);
-    // permission-denied acá significa clave inexistente o reglas sin publicar:
-    // para el huésped es lo mismo, un código que no sirve.
+    console.error('clave', e);
+    // Para el huésped, una clave que no sirve y unas reglas sin publicar son
+    // lo mismo. Para quien administra NO lo son, y desde un teléfono no hay
+    // consola: por eso el código queda guardado y se muestra abajo del
+    // cartel de la puerta.
+    ultimoFallo = 'clave: ' + (e.code || e.message || 'sin código');
     return { ok: false, codigo: e.code === 'permission-denied' ? 'CLAVE_DESCONOCIDA' : 'SIN_RED' };
   }
 }
@@ -417,7 +437,8 @@ function pintarPuerta() {
   $('btnDejar').classList.add('oculto');
   $('puerta').classList.remove('oculto');
   $('puerta').innerHTML = '<b>' + esc(m.t) + '</b><p>' + esc(m.p) + '</p>'
-    + '<span class="codigo">' + esc(acceso && acceso.codigo ? acceso.codigo : 'SIN_CLAVE') + '</span>';
+    + '<span class="codigo">' + esc(acceso && acceso.codigo ? acceso.codigo : 'SIN_CLAVE') + '</span>'
+    + (ultimoFallo ? '<span class="codigo">' + esc(ultimoFallo) + '</span>' : '');
 }
 
 // ── Muro ───────────────────────────────────────────────────
@@ -511,13 +532,24 @@ $('seguirSimple').addEventListener('click', async () => {
   errQuien('');
   $('seguirSimple').disabled = true;
   try {
-    if (!auth.currentUser) await signInAnonymously(auth);
+    // Se pide sesión anónima si no hay ninguna O si la que hay no es
+    // anónima. Sin la segunda condición, un recuerdo escrito desde un
+    // navegador donde ya había otra sesión del mismo proyecto quedaba
+    // firmado con ESE uid — no con el del huésped.
+    if (!auth.currentUser || !auth.currentUser.isAnonymous) await signInAnonymously(auth);
     persona = { nombre, email, proveedor: 'anonimo' };
     abrirEscribir();
   } catch (e) {
-    errQuien(e.code === 'auth/operation-not-allowed'
+    console.error('sesion anonima', e);
+    // 'admin-restricted-operation' es lo que devuelve Firebase moderno
+    // cuando el proveedor Anónimo está APAGADO. El archivo solo miraba el
+    // código viejo ('operation-not-allowed'), así que el caso más probable
+    // de todos caía en el mensaje genérico y no se podía distinguir.
+    const apagado = e.code === 'auth/operation-not-allowed'
+                 || e.code === 'auth/admin-restricted-operation';
+    errQuien(apagado
       ? 'El muro todavía no está habilitado. Escribinos por WhatsApp y lo publicamos nosotros.'
-      : 'No pudimos abrir tu sesión. Probá de nuevo.');
+      : 'No pudimos abrir tu sesión (' + (e.code || e.message || 'sin código') + ').');
   } finally {
     $('seguirSimple').disabled = false;
   }
@@ -538,7 +570,9 @@ $('btnGoogle').addEventListener('click', async () => {
       return;
     }
     if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
-    errQuien('No pudimos entrar con Google. Podés seguir solo con tu nombre.');
+    console.error('google', e);
+    errQuien('No pudimos entrar con Google (' + (e.code || 'sin código')
+      + '). Podés seguir solo con tu nombre.');
   }
 });
 
@@ -679,7 +713,7 @@ $('enviar').addEventListener('click', async () => {
     $('previa').classList.add('oculto');
     $('mGracias').showModal();
   } catch (e) {
-    console.warn(e);
+    console.error('enviar', e);
     if (e.code === 'permission-denied') {
       // La regla dijo que no. Casi siempre es la clave: se descarta la
       // recordada para que el próximo intento arranque limpio.
@@ -689,7 +723,11 @@ $('enviar').addEventListener('click', async () => {
       err('Tu código dejó de ser válido (CLAVE_DESCONOCIDA). Volvé a escanear el QR '
         + 'del alojamiento, o escribinos y lo publicamos nosotros.');
     } else {
-      err(e.message || 'No pudimos guardarlo. Probá de nuevo.');
+      // El mensaje de Cloudinary ya viene armado desde subirFoto(); para
+      // cualquier otra cosa se agrega el código de Firebase, que es lo que
+      // permite arreglarlo sin una consola delante.
+      err((e.message || 'No pudimos guardarlo.')
+        + (e.code ? ' (' + e.code + ')' : ''));
     }
   } finally {
     $('enviar').disabled = false;
