@@ -25,6 +25,12 @@
   .tema .chip .material-icons { font-size: 13px; }
   .badge { background: var(--azul); color: #fff; border-radius: 999px;
     font-size: .72rem; padding: 2px 9px; font-weight: 700; }
+  /* 44px de objetivo táctil (§6.0): un ícono de 20px suelto no es un botón. */
+  .btn-borrar { border: 0; background: none; cursor: pointer; color: var(--gris);
+    min-width: 44px; min-height: 44px; display: flex; align-items: center;
+    justify-content: center; flex: 0 0 auto; -webkit-tap-highlight-color: transparent; }
+  .btn-borrar:active { color: var(--rojo); }
+  .btn-borrar .material-icons { font-size: 20px; }
 
   /* Hilo */
   #hilo { display: none; }
@@ -94,6 +100,7 @@
       <button class="btn" id="btnVolver" style="padding:7px 10px;"><span class="material-icons">arrow_back</span></button>
       <h1 id="hTitulo" style="margin:0;font-size:1.1rem;flex:1;overflow-wrap:anywhere;"></h1>
       <button class="btn oculto" id="btnAgregarPart" title="Sumar personas" style="padding:7px 10px;"><span class="material-icons">person_add</span></button>
+      <button class="btn" id="btnBorrarTema" title="Borrar tema" style="padding:7px 10px;"><span class="material-icons" style="color:var(--rojo);">delete_outline</span></button>
     </div>
     <div class="hilo-sub oculto" id="hSub"></div>
     <div class="hilo-barra">
@@ -143,7 +150,7 @@
 // Regla del 2.0: definiciones primero, suscripciones AL FINAL.
 import {
   db, collection, query, where, or, onSnapshot, doc, getDocs,
-  addDoc, setDoc, updateDoc, serverTimestamp, Timestamp,
+  addDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp,
   arrayUnion, deleteField, writeBatch
 } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
@@ -188,6 +195,34 @@ const nombreDe = (uid) => {
 const nombresParticipantes = (t) =>
   (t.participantes || []).filter((x) => x !== u.uid).map(nombreDe).join(', ') || 'solo vos';
 
+// ═══ Borrar un tema — POR PERSONA ═════════════════════════
+// Mismo criterio que ya usaban los mensajes: borrar saca el tema de TU
+// lista, no de la de los demás. La diferencia es dónde vive la marca:
+// el borrado de un mensaje es solo tuyo y va en tu documento de lecturas,
+// pero acá hace falta saber quién lo borró Y quién falta, así que la
+// marca vive en el propio tema, en 'ocultoPara: [uid]'.
+// Cuando esa lista cubre a TODA la audiencia, el tema ya no le sirve a
+// nadie y se elimina de verdad, con sus mensajes.
+const oculto = (t) => (t.ocultoPara || []).indexOf(u.uid) !== -1;
+
+// Quiénes tienen que haberlo borrado para que desaparezca:
+//   · directo → los participantes;
+//   · equipo  → todas las personas activas.
+// Se calcula con la lista de /usuarios/ que esta página ya tiene cargada.
+function audienciaDe(t) {
+  if (t.audiencia === 'directo') return t.participantes || [];
+  return usuarios.map((p) => p.uid);
+}
+
+// ¿Soy el último que lo tiene? Se pregunta ANTES de escribir, para poder
+// avisar con la verdad en el cartel de confirmación.
+function soyElUltimo(t) {
+  const faltan = audienciaDe(t)
+    .filter((uid) => uid !== u.uid)
+    .filter((uid) => (t.ocultoPara || []).indexOf(uid) === -1);
+  return faltan.length === 0;
+}
+
 // Lee comunicaciones_lecturas/{uid}. Soporta el formato viejo (claves comId
 // al ras del documento) y el nuevo ({ lecturas:{...}, eliminados:{...} }).
 function parseLecturas(data) {
@@ -210,14 +245,62 @@ function parseLecturas(data) {
   return { lecturas: lec, eliminados: elim };
 }
 
+// El borrado real: primero los mensajes, DESPUÉS el tema. El orden no es
+// negociable por dos razones: Firestore no borra subcolecciones en cascada
+// (los mensajes quedarían huérfanos y sin dueño para siempre), y la regla
+// que permite vaciarlos consulta el tema padre — si el tema ya no existe,
+// los mensajes se vuelven imborrables. En lotes por si el hilo es largo.
+async function vaciarYBorrar(id) {
+  const snap = await getDocs(collection(db, 'comunicaciones', id, 'mensajes'));
+  const ids = snap.docs.map((d) => d.id);
+  for (let i = 0; i < ids.length; i += 400) {
+    const lote = writeBatch(db);
+    ids.slice(i, i + 400).forEach((mid) =>
+      lote.delete(doc(db, 'comunicaciones', id, 'mensajes', mid)));
+    await lote.commit();
+  }
+  await deleteDoc(doc(db, 'comunicaciones', id));
+}
+
+window.borrarTema = async (id) => {
+  const t = temas.find((x) => x.id === id);
+  if (!t) return;
+  const ultimo = soyElUltimo(t);
+  const aviso = ultimo
+    ? 'Sos la última persona que lo tiene.\n\nAl borrarlo se elimina DEFINITIVAMENTE, con todos sus mensajes y fotos. No se puede deshacer.'
+    : 'Se borra de tu lista. Los demás lo siguen viendo.\n\nCuando todos lo borren, el tema desaparece solo.\n\nSi alguien vuelve a escribir en él, te reaparece.';
+  if (!confirm('¿Borrar "' + (t.titulo || 'este tema') + '"?\n\n' + aviso)) return;
+
+  try {
+    if (ultimo) {
+      // OJO: marcarse PRIMERO no es cosmético — la regla exige que quien
+      // borra esté en 'ocultoPara' (y en un tema directo, que la lista
+      // cubra a TODOS los participantes). Sin este paso, el borrado del
+      // último se rechaza con permission-denied para cualquiera que no sea
+      // el admin, que pasa por otra rama de la regla y no lo sufriría.
+      await updateDoc(doc(db, 'comunicaciones', id), { ocultoPara: arrayUnion(u.uid) });
+      await vaciarYBorrar(id);
+      CV2.toast('Tema eliminado', 'success');
+    } else {
+      await updateDoc(doc(db, 'comunicaciones', id), { ocultoPara: arrayUnion(u.uid) });
+      CV2.toast('Borrado de tu lista', 'success');
+    }
+    if (abierto === id) $('btnVolver').click();
+  } catch (e) {
+    CV2.toast('No se pudo borrar: ' + (e.code ?? e.message), 'error');
+  }
+};
+
 // ═══ Render lista ═════════════════════════════════════════
 function renderTemas() {
   const cont = $('temas');
-  if (!temas.length) {
+  // Los que borraste no se ven. Siguen existiendo para los demás.
+  const visibles = temas.filter((t) => !oculto(t));
+  if (!visibles.length) {
     cont.innerHTML = '<div class="vacio">Sin temas todavía.<br>Creá el primero con el botón <b>Tema</b>.</div>';
     return;
   }
-  cont.innerHTML = temas.map((t) => {
+  cont.innerHTML = visibles.map((t) => {
     const directo = t.audiencia === 'directo';
     const chip = directo
       ? '<span class="chip"><span class="material-icons">lock</span>' + esc(nombresParticipantes(t)) + '</span>'
@@ -230,6 +313,9 @@ function renderTemas() {
         ${chip}
       </div>
       ${noLeido(t) ? '<span class="badge">nuevo</span>' : ''}
+      <button class="btn-borrar" title="Borrar tema"
+        onclick="event.stopPropagation();borrarTema('${t.id}')">
+        <span class="material-icons">delete_outline</span></button>
     </div>`;
   }).join('');
 }
@@ -315,6 +401,8 @@ $('btnVerElim').addEventListener('click', () => {
   window.scrollTo(0, 0);
 });
 
+$('btnBorrarTema').addEventListener('click', () => { if (abierto) borrarTema(abierto); });
+
 $('btnVolver').addEventListener('click', () => {
   abierto = null;
   offMsgs?.(); offMsgs = null;
@@ -365,7 +453,11 @@ async function enviarMensaje(texto, imagenUrl) {
       ultimoMensaje: imagenUrl ? (texto ? texto.slice(0, 120) : '📷 Foto') : texto.slice(0, 120),
       ultimoAutorUid: u.uid,
       ultimoAutorNombre: u.nombre ?? '',
-      ultimaActividad: serverTimestamp()
+      ultimaActividad: serverTimestamp(),
+      // Un mensaje nuevo REVIVE el tema para todos. Si no, quien lo borró
+      // no vería nunca la respuesta: un mensaje que nadie recibe es peor
+      // que una lista con un tema de más.
+      ocultoPara: []
     });
   } catch (e) { CV2.toast('No se pudo enviar: ' + (e.code ?? e.message), 'error'); }
 }

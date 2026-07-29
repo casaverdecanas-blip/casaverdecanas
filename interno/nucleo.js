@@ -5,7 +5,7 @@
 //  Namespace único: CV2 (import { CV2 } from './nucleo.js')
 // ═══════════════════════════════════════════════════════════════
 
-import { auth, db, doc, getDoc, onAuthStateChanged, signOut, terminate, clearIndexedDbPersistence } from './firebase-init.js';
+import { auth, db, doc, getDoc, updateDoc, serverTimestamp, onAuthStateChanged, signOut, terminate, clearIndexedDbPersistence } from './firebase-init.js';
 
 export const CV2 = {};
 
@@ -148,6 +148,72 @@ CV2.puedeAlguno = (lista) =>
  * sesión" parece no hacer nada. Ahora la limpieza corre contra un reloj de
  * 3 segundos y la salida ocurre igual.
  */
+// ── Foto de persona ──────────────────────────────────────────
+// Cada uno tiene su foto en usuarios/{uid}.fotoUrl. Si no la tiene, van
+// las iniciales: mismo tamaño y misma forma, para que ninguna lista salte
+// cuando alguien sube la suya.
+//
+// POR QUÉ NO SE SACA DE GMAIL: no existe forma de obtener la foto de una
+// cuenta de Google a partir del mail. Google la entrega SOLO cuando la
+// persona inicia sesión con Google, y acá se entra con mail y contraseña.
+// Así que la sube cada uno, por el mismo camino que toda foto del sistema
+// (CV2.elegirYSubirImagen → Cloudinary con la URL de entrega liviana).
+CV2.inicialesDe = function (nombre) {
+  return String(nombre || '').trim().split(/\s+/).slice(0, 2)
+    .map((p) => p[0] || '').join('').toUpperCase() || '·';
+};
+
+/** Devuelve el <img> con la foto o el <span> con las iniciales. */
+CV2.avatarHTML = function (persona) {
+  const p = persona || {};
+  if (p.fotoUrl) {
+    return '<img class="cv-foto" src="' + CV2.esc(p.fotoUrl) + '" alt="'
+      + CV2.esc(p.nombre || '') + '">';
+  }
+  return '<span class="cv-inicial">' + CV2.esc(CV2.inicialesDe(p.nombre)) + '</span>';
+};
+
+/** Cambia MI foto. La regla deja que cada uno escriba solo su 'fotoUrl'. */
+CV2.cambiarMiFoto = async function () {
+  const url = await CV2.elegirYSubirImagen({ titulo: 'Tu foto' });
+  if (!url) return false;
+  try {
+    await updateDoc(doc(db, 'usuarios', CV2.usuario.uid), {
+      fotoUrl: url, actualizadoEn: serverTimestamp()
+    });
+    CV2.usuario.fotoUrl = url;
+    CV2._refrescarAvatar();
+    CV2.toast('Foto actualizada', 'success');
+    return true;
+  } catch (e) {
+    CV2.toast('No se pudo guardar la foto: ' + (e.code ?? e.message), 'error');
+    return false;
+  }
+};
+
+CV2.quitarMiFoto = async function () {
+  try {
+    await updateDoc(doc(db, 'usuarios', CV2.usuario.uid), {
+      fotoUrl: '', actualizadoEn: serverTimestamp()
+    });
+    CV2.usuario.fotoUrl = '';
+    CV2._refrescarAvatar();
+    CV2.toast('Foto quitada', 'success');
+  } catch (e) {
+    CV2.toast('No se pudo quitar: ' + (e.code ?? e.message), 'error');
+  }
+};
+
+// Repinta el avatar sin recargar la página: la cabecera y la hoja de cuenta.
+CV2._refrescarAvatar = function () {
+  const html = CV2.usuario.fotoUrl
+    ? '<img src="' + CV2.esc(CV2.usuario.fotoUrl) + '" alt="">'
+    : CV2.esc(CV2.inicialesDe(CV2.usuario.nombre));
+  document.querySelectorAll('.cv-avatar').forEach((el) => { el.innerHTML = html; });
+  const q = document.getElementById('cv-btn-quitar-foto');
+  if (q) q.classList.toggle('oculto', !CV2.usuario.fotoUrl);
+};
+
 CV2.cerrarSesion = async function () {
   await CV2._salirLimpio();
   try {
@@ -420,8 +486,13 @@ CV2.renderNav = function (activo) {
     || document.title.replace(/^CasaVerde 2\.0\s*·\s*/, '');
 
   const nombre = CV2.usuario?.nombre ?? '';
-  const iniciales = nombre.trim().split(/\s+/).slice(0, 2)
-    .map((p) => p[0] || '').join('').toUpperCase() || '·';
+  const iniciales = CV2.inicialesDe(nombre);
+  // Dentro del botón redondo va la foto o las iniciales. El <img> ocupa el
+  // botón entero (.cv-avatar img en design-system.css), así que el círculo
+  // mide lo mismo en los dos casos.
+  const caraHTML = CV2.usuario?.fotoUrl
+    ? '<img src="' + CV2.esc(CV2.usuario.fotoUrl) + '" alt="">'
+    : CV2.esc(iniciales);
 
   const tab = (it) =>
     '<a class="cv-tab ' + (it.id === activo ? 'activo' : '') + '" data-id="' + it.id + '"'
@@ -447,7 +518,7 @@ CV2.renderNav = function (activo) {
     + ' onerror="if(!this.dataset.r){this.dataset.r=1;this.src=\'./logo-sitio.png\';}else{this.remove();}">'
     + '<span class="cv-titulo">' + CV2.esc(titulo) + '</span>'
     + '<button class="cv-avatar" id="cv-btn-yo" title="' + CV2.esc(nombre) + '">'
-    + CV2.esc(iniciales) + '</button>'
+    + caraHTML + '</button>'
     + '</div></header>'
 
     + '<nav class="cv-barra"><div class="cv-barra-in">'
@@ -464,11 +535,15 @@ CV2.renderNav = function (activo) {
 
     + '<div class="cv-hoja" id="cv-hoja-yo"><div class="cv-agarre"></div>'
     + '<div class="cv-quien"><span class="cv-avatar" style="cursor:default">'
-    + CV2.esc(iniciales) + '</span><span><b>' + CV2.esc(nombre) + '</b>'
+    + caraHTML + '</span><span><b>' + CV2.esc(nombre) + '</b>'
     + '<span class="rol">' + (CV2.esAdmin() ? 'administrador' : 'colaborador') + '</span></span></div>'
     + deCuenta.map(enlaceHoja).join('')
     + '<a href="./manual.html#' + CV2.esc(activo || '') + '">'
     + '<span class="material-icons">help</span>Ayuda de esta página</a>'
+    + '<button id="cv-btn-foto"><span class="material-icons">photo_camera</span>'
+    + (CV2.usuario?.fotoUrl ? 'Cambiar mi foto' : 'Poner mi foto') + '</button>'
+    + '<button id="cv-btn-quitar-foto" class="' + (CV2.usuario?.fotoUrl ? '' : 'oculto') + '">'
+    + '<span class="material-icons">hide_image</span>Quitar mi foto</button>'
     + '<button id="cv-btn-reparar"><span class="material-icons">healing</span>Reparar la app</button>'
     + '<button id="cv-btn-salir"><span class="material-icons">logout</span>Cerrar sesión</button>'
     + '</div>';
@@ -495,6 +570,15 @@ CV2.renderNav = function (activo) {
   document.getElementById('cv-btn-yo').addEventListener('click', () => abrir('cv-hoja-yo'));
   tapa.addEventListener('click', cerrar);
   document.getElementById('cv-btn-salir').addEventListener('click', CV2.cerrarSesion);
+  document.getElementById('cv-btn-foto').addEventListener('click', async () => {
+    cerrar();                       // la hoja se va: la cámara necesita la pantalla
+    await CV2.cambiarMiFoto();
+  });
+  document.getElementById('cv-btn-quitar-foto').addEventListener('click', async () => {
+    if (!confirm('¿Quitar tu foto? Vuelven tus iniciales.')) return;
+    cerrar();
+    await CV2.quitarMiFoto();
+  });
   document.getElementById('cv-btn-reparar').addEventListener('click', async () => {
     if (!confirm('Reparar borra lo que la app guardó en ESTE teléfono (cachés y sesión) y te pide entrar de nuevo.\n\nNo se toca nada del servidor: ni datos, ni fotos, ni usuarios.\n\n¿Seguimos?')) return;
     CV2.toast('Reparando…');
@@ -636,6 +720,9 @@ CV2.pedirImagen = function (opciones) {
       if (resuelto) return;
       resuelto = true;
       window.removeEventListener('focus', alVolverElFoco);
+      // close() antes de remove(): es lo que devuelve la capa del historial
+      // y saca la hoja de la capa superior del navegador.
+      try { if (hoja.open) hoja.close(); } catch { /* ya cerrada */ }
       if (hoja.parentNode) hoja.remove();
       resolver(valor);
     };
@@ -649,8 +736,16 @@ CV2.pedirImagen = function (opciones) {
       setTimeout(() => { if (esperandoArchivo) terminar(null); }, 900);
     };
 
-    const hoja = document.createElement('div');
-    hoja.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;';
+    // Es un <dialog>, no un <div>. Por qué importa: un elemento fijo, por
+    // más z-index que tenga, NO se dibuja arriba de un <dialog> abierto con
+    // showModal — los modales viven en una capa aparte del navegador (top
+    // layer) que está por encima de todo lo demás. Con un <div>, esta hoja
+    // quedaba INVISIBLE cada vez que el botón de la foto estaba adentro de
+    // un formulario, que es donde está en casi todas las páginas.
+    // De paso hereda el botón Atrás: showModal ya está adoptado por
+    // CV2.dialogosConAtras().
+    const hoja = document.createElement('dialog');
+    hoja.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;max-width:100%;max-height:100%;border:0;padding:0;overflow:hidden;z-index:10000;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;';
     hoja.innerHTML = '<div style="background:#fff;border-radius:16px 16px 0 0;width:min(440px,100%);padding:16px 16px calc(16px + env(safe-area-inset-bottom));box-shadow:0 -6px 30px rgba(0,0,0,.25);">'
       + '<div style="font-weight:600;font-size:.95rem;margin-bottom:12px;text-align:center;">' + CV2.esc(titulo) + '</div>'
       + '<button type="button" data-cv="camara" style="display:flex;align-items:center;gap:12px;width:100%;border:1px solid #e2e0d8;background:#fff;border-radius:12px;padding:14px;font-size:.95rem;cursor:pointer;margin-bottom:8px;text-align:left;"><span class="material-icons" style="color:#2d5a27;">photo_camera</span>Tomar foto</button>'
@@ -660,6 +755,7 @@ CV2.pedirImagen = function (opciones) {
       + '<input type="file" accept="image/*" data-cv="inArchivo" style="display:none">'
       + '</div>';
     document.body.appendChild(hoja);
+    hoja.showModal();
 
     const q = (n) => hoja.querySelector('[data-cv="' + n + '"]');
 

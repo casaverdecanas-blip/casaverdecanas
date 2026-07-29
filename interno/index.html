@@ -269,10 +269,11 @@ try {
     const lec = await getDoc(doc(db, 'comunicaciones_lecturas', u.uid));
     if (lec.exists()) vistos = leerVistos(lec.data());
   } catch { /* primera vez */ }
-  // Sin leer = actividad más nueva que mi última lectura y cuyo último
-  // mensaje no lo escribí yo.
+  // Sin leer = actividad más nueva que mi última lectura, cuyo último
+  // mensaje no lo escribí yo, y que no borré de mi lista (ocultoPara).
   const sinLeer = convs.filter((c) =>
-    ms(c.ultimaActividad) > (vistos[c.id] || 0) && c.ultimoAutorUid !== u.uid);
+    ms(c.ultimaActividad) > (vistos[c.id] || 0) && c.ultimoAutorUid !== u.uid
+    && (c.ocultoPara || []).indexOf(u.uid) === -1);
   agregar('comunicacion', 'Mensajes sin leer', 'forum', './comunicacion.html',
     sinLeer.slice(0, 6).map((c) => ({
       icono: 'chat_bubble', titulo: c.titulo || 'Conversación',

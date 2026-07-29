@@ -44,6 +44,9 @@
   .perm-linea small { color: var(--gris); font-size: .76rem; }
   .perm-admin { background: #1a1a1a; color: #e6b800; border-radius: var(--radio);
     padding: 10px 12px; font-size: .82rem; }
+  .foto-fila { display: flex; align-items: center; gap: 10px; margin: 6px 0 12px;
+    flex-wrap: wrap; }
+  .foto-fila .cv-foto, .foto-fila .cv-inicial { width: 54px; height: 54px; font-size: 1rem; }
 </style>
 </head>
 <body>
@@ -72,6 +75,15 @@
   <div class="modo" id="modos">
     <button class="btn activo" data-m="nueva">Cuenta nueva</button>
     <button class="btn" data-m="uid">Ya existe en Auth</button>
+  </div>
+
+  <label>Foto</label>
+  <div class="foto-fila">
+    <span id="fPreview"></span>
+    <button type="button" class="btn" id="fSubirFoto">
+      <span class="material-icons">photo_camera</span> Elegir</button>
+    <button type="button" class="btn oculto" id="fQuitarFoto">
+      <span class="material-icons">hide_image</span> Quitar</button>
   </div>
 
   <label>Nombre</label>
@@ -154,6 +166,7 @@ function render() {
   if (!usuarios.length) { cont.innerHTML = '<div class="vacio">Sin usuarios.</div>'; return; }
   cont.innerHTML = usuarios.map((x) => `
     <div class="usr${x.activo ? '' : ' inactivo'}">
+      ${CV2.avatarHTML(x)}
       <div class="info"><b>${esc(x.nombre ?? '(sin nombre)')}</b>
         <small>${esc(x.email ?? '')}</small></div>
       <span class="rol ${x.rol}">${x.rol === 'admin' ? '⭐ Admin' : 'Colaborador'}</span>
@@ -175,6 +188,30 @@ window.toggleActivo = async (uid) => {
     CV2.toast(x.activo ? 'Desactivado' : 'Reactivado', 'success');
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
 };
+
+// ═══ Foto en el modal ═════════════════════════════════════
+// El administrador pone y saca la foto de cualquiera; cada persona la suya
+// desde su hoja de cuenta (nucleo.js). La foto se sube al elegirla, pero
+// el documento recién se toca al Guardar: si cancelás, la persona queda
+// como estaba. Queda una imagen huérfana en Cloudinary, que es barato
+// comparado con perder el trabajo del formulario.
+let fotoEdit = '';
+
+function pintarFoto() {
+  $('fPreview').innerHTML = CV2.avatarHTML({ nombre: $('fNombre').value, fotoUrl: fotoEdit });
+  $('fQuitarFoto').classList.toggle('oculto', !fotoEdit);
+}
+
+$('fSubirFoto').addEventListener('click', async () => {
+  $('fSubirFoto').disabled = true;
+  try {
+    const url = await CV2.elegirYSubirImagen({ titulo: 'Foto de la persona' });
+    if (url) { fotoEdit = url; pintarFoto(); }
+  } finally { $('fSubirFoto').disabled = false; }
+});
+
+$('fQuitarFoto').addEventListener('click', () => { fotoEdit = ''; pintarFoto(); });
+$('fNombre').addEventListener('input', pintarFoto);   // las iniciales siguen al nombre
 
 // ═══ Permisos en el modal ═════════════════════════════════
 function pintarPermisos(permisos) {
@@ -219,6 +256,7 @@ $('btnNuevo').addEventListener('click', () => {
   $('modos').classList.remove('oculto');
   ponerModo('nueva');
   ['fNombre', 'fEmail', 'fClave', 'fUid', 'fEmail2'].forEach((i) => $(i).value = '');
+  fotoEdit = ''; pintarFoto();
   $('fRol').value = 'colaborador';
   pintarPermisos({});
   ajustarPorRol();
@@ -234,6 +272,7 @@ window.editar = (uid) => {
   $('grupoNueva').classList.add('oculto');
   $('grupoUid').classList.add('oculto');
   $('fNombre').value = x.nombre ?? '';
+  fotoEdit = x.fotoUrl ?? ''; pintarFoto();
   $('fRol').value = x.rol ?? 'colaborador';
   pintarPermisos(x.permisos ?? {});
   ajustarPorRol();
@@ -256,7 +295,8 @@ $('mGuardar').addEventListener('click', async () => {
         CV2.toast('No podés quitarte tu propio rol de admin', 'error');
         return;
       }
-      await updateDoc(doc(db, 'usuarios', editUid), { nombre, rol, permisos, actualizadoEn: serverTimestamp() });
+      await updateDoc(doc(db, 'usuarios', editUid),
+        { nombre, rol, permisos, fotoUrl: fotoEdit, actualizadoEn: serverTimestamp() });
       CV2.toast('Guardado', 'success');
     } else if (modo === 'nueva') {
       const email = $('fEmail').value.trim();
@@ -264,14 +304,16 @@ $('mGuardar').addEventListener('click', async () => {
       if (!email || clave.length < 6) { CV2.toast('Email y contraseña de 6+ caracteres', 'error'); return; }
       const uid = await crearCuentaAuth(email, clave);
       await setDoc(doc(db, 'usuarios', uid), {
-        nombre, email, rol, activo: true, permisos, creadoEn: serverTimestamp()
+        nombre, email, rol, activo: true, permisos, fotoUrl: fotoEdit,
+        creadoEn: serverTimestamp()
       });
       CV2.toast(`✓ ${nombre} creado — pasale email y contraseña`, 'success');
     } else {
       const uid = $('fUid').value.trim();
       if (uid.length < 20) { CV2.toast('Ese UID no parece válido', 'error'); return; }
       await setDoc(doc(db, 'usuarios', uid), {
-        nombre, email: $('fEmail2').value.trim(), rol, activo: true, permisos, creadoEn: serverTimestamp()
+        nombre, email: $('fEmail2').value.trim(), rol, activo: true, permisos,
+        fotoUrl: fotoEdit, creadoEn: serverTimestamp()
       });
       CV2.toast(`✓ ${nombre} vinculado`, 'success');
     }
