@@ -274,6 +274,11 @@ try {
   const sinLeer = convs.filter((c) =>
     ms(c.ultimaActividad) > (vistos[c.id] || 0) && c.ultimoAutorUid !== u.uid
     && (c.ocultoPara || []).indexOf(u.uid) === -1);
+  // El puntito rojo sobre la pestaña Chat. El Inicio es el único lugar que
+  // tiene la cuenta hecha, así que es el que lo enciende. Estaba escrito el
+  // encendedor (CV2.marcarNovedad) y el estilo (.cv-tab.con-novedad), pero
+  // nadie lo llamaba: el manual prometía un punto que no existía.
+  CV2.marcarNovedad('comunicacion', sinLeer.length > 0);
   agregar('comunicacion', 'Mensajes sin leer', 'forum', './comunicacion.html',
     sinLeer.slice(0, 6).map((c) => ({
       icono: 'chat_bubble', titulo: c.titulo || 'Conversación',
@@ -326,17 +331,23 @@ if (CV2.puede('finanzas')) {
     const pend = {};
     snap.forEach((d) => {
       const m = d.data();
-      if (m.cierreId) return;
+      if (m.cierreId) return;                                  // sellado por un balance
       if (!m.pendiente || m.pendiente.saldado) return;
-      const k = (m.nombre || '') + '|' + m.pendiente.clase;
+      if (m.pendiente.cierreId) return;                        // cerrado por el modelo viejo
+      // LA MONEDA VA EN LA CLAVE. Sin ella se sumaban reales con dólares y
+      // el total se mostraba entero en R$: un número que miente y no avisa.
+      // Es la misma cuenta que hace pendientesVivos() en dinero.html, y acá
+      // se había vuelto a escribir mal (CONVENCIONES §8).
+      const mon = m.moneda || 'BRL';
+      const k = (m.nombre || '') + '|' + m.pendiente.clase + '|' + mon;
       pend[k] = (pend[k] || 0) + (Number(m.monto) || 0);
     });
-    const items = Object.keys(pend).map((k) => {
-      const [nombre, clase] = k.split('|');
+    const items = Object.keys(pend).sort().map((k) => {
+      const [nombre, clase, mon] = k.split('|');
       return {
         icono: clase === 'reponer' ? 'currency_exchange' : 'schedule',
         titulo: clase === 'reponer' ? 'Reponerle a ' + nombre : 'Por cobrar (' + nombre + ')',
-        detalle: CV2.fmtMonto(pend[k]), tono: 'aviso', href: './dinero.html'
+        detalle: CV2.fmtMonto(pend[k], mon), tono: 'aviso', href: './dinero.html'
       };
     });
     agregar('dinero', 'Dinero pendiente', 'savings', './dinero.html', items);

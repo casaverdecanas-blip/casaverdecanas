@@ -112,7 +112,7 @@ const enPath = (actId, nodoId) => {
 function filtradas() {
   const dias = Number($('fPeriodo').value);
   const desde = dias ? Date.now() - dias * 86400000 : 0;
-  const fu = CV2.esAdmin() ? $('fUsuario').value : u.uid;
+  const fu = CV2.puede('horas') ? $('fUsuario').value : u.uid;
   const fp = $('fProyecto').value;
   return sesiones.filter((s) => {
     if (s.estado !== 'finalizada') return false;
@@ -221,7 +221,11 @@ function render() {
     arbolPlano.map((n) => `<option value="${n.id}">${'\u00A0'.repeat(n.nivel * 4)}${n.esRaiz ? '🏠 ' : '· '}${esc(n.titulo)}</option>`).join('');
 }
 
-if (CV2.esAdmin()) {
+// Quien gobierna las horas del equipo ve a todas las personas y puede
+// elegir a quién mirar. Antes acá decía esAdmin(), y el permiso 'horas'
+// —que en el gestor de sesiones sí funciona— quedaba a medias: la página
+// aparecía en el menú pero sin selector y filtrada a uno mismo.
+if (CV2.puede('horas')) {
   $('fUsuario').classList.remove('oculto');
   const su = await getDocs(collection(db, 'usuarios'));
   const ops = [];
@@ -233,7 +237,7 @@ if (CV2.esAdmin()) {
 
 // ═══ Suscripción — AL FINAL ═══════════════════════════════
 const cs = collection(db, 'sesiones');
-const qs = CV2.esAdmin() ? query(cs) : query(cs, where('uid', '==', u.uid));
+const qs = CV2.puede('horas') ? query(cs) : query(cs, where('uid', '==', u.uid));
 
 onSnapshot(qs, (snap) => {
   sesiones = [];

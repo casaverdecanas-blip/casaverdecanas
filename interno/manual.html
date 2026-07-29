@@ -712,7 +712,12 @@ await CV2.verificarAuth();
 CV2.renderNav('');
 // El menú enlaza a ./manual.html#<seccion>: si viene ancla, resaltarla un
 // momento para que se note dónde quedó la página.
-const id = location.hash.slice(1);
+// Hay módulos que comparten capítulo: el menú enlaza a #espacios y acá el
+// capítulo se llama #cabanas. Sin esta tabla, "Ayuda de esta página" desde
+// Espacios abría el manual arriba de todo y no llevaba a ningún lado.
+const ALIAS = { espacios: 'cabanas', limpieza: 'limpiezas' };
+const pedido = location.hash.slice(1);
+const id = ALIAS[pedido] || pedido;
 if (id) {
   const el = document.getElementById(id);
   if (el) {

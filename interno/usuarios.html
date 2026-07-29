@@ -138,7 +138,9 @@ import { CV2 } from './nucleo.js';
 
 CV2.registrarSW();
 const u = await CV2.verificarAuth();
-if (!CV2.esAdmin()) { location.href = './index.html'; throw new Error('solo admin'); }
+// replace, no href (§3.9): con href la página queda en el historial y el
+// botón Atrás vuelve a entrar acá para que lo echen de nuevo, sin salida.
+if (!CV2.esAdmin()) { location.replace('./index.html'); throw new Error('solo admin'); }
 CV2.renderNav('usuarios');
 
 const $ = (id) => document.getElementById(id);
