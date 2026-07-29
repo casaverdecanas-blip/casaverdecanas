@@ -31,6 +31,8 @@
   .nov .cuando { font-size:.72rem; color:var(--gris); white-space:nowrap; }
   .nuevo { background:var(--verde); color:#fff; font-size:.64rem; font-weight:700;
     padding:2px 7px; border-radius:999px; white-space:nowrap; }
+  .atraso { background:#fdeceb; color:var(--rojo); font-size:.7rem; font-weight:700;
+    padding:2px 7px; border-radius:999px; white-space:nowrap; }
   .urgente .ic { background:#fdeceb; color:var(--rojo); }
   .aviso  .ic { background:#eef4fb; color:#33506e; }
   .ok     .ic { background:var(--verde-claro); color:var(--verde-osc); }
@@ -97,6 +99,14 @@ function haceCuanto(t) {
   return d === 1 ? 'ayer' : 'hace ' + d + ' días';
 }
 
+// Días entre dos fechas ISO. Se calcula a mediodía para que el cambio
+// de horario no coma ni agregue un día.
+function diasEntre(desdeISO, hastaISO) {
+  const a = new Date(desdeISO + 'T12:00:00');
+  const b = new Date(hastaISO + 'T12:00:00');
+  return Math.round((b - a) / 86400000);
+}
+
 // Marcas de lectura del chat → mapa plano comId→ms. Soporta el formato
 // viejo (claves comId al ras del documento) y el nuevo
 // ({ lecturas:{comId:Timestamp}, eliminados:{...} }). El nuevo gana.
@@ -131,26 +141,87 @@ const fila = (o) => `
     <span class="ic"><span class="material-icons">${esc(o.icono)}</span></span>
     <span class="txt"><b>${esc(o.titulo)}</b>
       ${o.detalle ? `<small>${esc(o.detalle)}</small>` : ''}</span>
+    ${o.atraso ? `<span class="atraso">${esc(o.atraso)}</span>` : ''}
     ${o.nuevo ? '<span class="nuevo">NUEVO</span>' : ''}
     ${o.cuando ? `<span class="cuando">${esc(o.cuando)}</span>` : ''}
   </a>`;
 
+// Ninguna lista se estira sin fin: se corta y se avisa cuántas quedaron.
+function recortar(items, tope, href) {
+  if (items.length <= tope) return items;
+  return items.slice(0, tope).concat([{
+    icono: 'more_horiz', titulo: 'y ' + (items.length - tope) + ' más',
+    detalle: 'Abrir la lista completa', tono: 'neutro', href: href
+  }]);
+}
+
 // ── 1 · Actividades ──────────────────────────────────────────
+// Cuántos días de atraso convierten una recurrente en un problema.
+// Es el único número a tocar si mañana querés que avise antes o después.
+const DIAS_ALERTA = 7;
+
 let acts = [];
 try {
   const snap = await getDocs(Core.consultaActividades(u, CV2.esAdmin()));
   snap.forEach((d) => acts.push({ id: d.id, ...d.data() }));
 } catch (e) { console.warn('actividades', e); }
 
-const urgentes = acts.filter((a) => !a.hecho && a.fechaVencimiento && a.fechaVencimiento <= hoy);
-agregar('actividades', 'Necesitan atención hoy', 'checklist', './actividades.html',
-  urgentes.slice(0, 6).map((a) => ({
-    icono: a.reservaId ? 'cleaning_services' : 'priority_high',
-    titulo: a.titulo || '(sin título)',
-    detalle: a.fechaVencimiento < hoy ? 'Vencida el ' + CV2.fmtFecha(a.fechaVencimiento) : 'Vence hoy',
+// Las recurrentes NO usan fechaVencimiento: al cerrar el ciclo, el core
+// escribe fechaInicio = día de la realización + recurrenciaDias. O sea que
+// fechaInicio ES el día en que vuelve a tocar, y el atraso se cuenta desde
+// ahí. Hasta ahora el Inicio solo miraba fechaVencimiento, así que las
+// recurrentes —que son la rutina de la casa— no aparecían nunca.
+const atrasadas = [];   // se pasaron de rosca: van en bloque aparte, arriba
+const tocanAhora = [];  // toca hacerlas, todavía dentro de lo tolerable
+acts.forEach((a) => {
+  const ciclo = Number(a.recurrenciaDias) || 0;
+  if (a.hecho || ciclo <= 0) return;
+  if (!a.fechaInicio || a.fechaInicio > hoy) return;   // todavía no vuelve
+  const atraso = diasEntre(a.fechaInicio, hoy);
+  // Grave por dos caminos: más de una semana tarde (el pedido), o más de un
+  // ciclo entero tarde — porque en una tarea de cada dos días, siete días de
+  // atraso ya son tres ciclos perdidos y hay que enterarse antes.
+  const grave = atraso > DIAS_ALERTA || atraso > ciclo;
+  (grave ? atrasadas : tocanAhora).push({ a: a, atraso: atraso, ciclo: ciclo });
+});
+atrasadas.sort((x, y) => y.atraso - x.atraso);
+tocanAhora.sort((x, y) => y.atraso - x.atraso);
+
+agregar('actividades', 'Atrasadas hace rato', 'history', './actividades.html',
+  recortar(atrasadas.map((x) => ({
+    icono: 'history',
+    titulo: x.a.titulo || '(sin título)',
+    detalle: 'Tocaba el ' + CV2.fmtFecha(x.a.fechaInicio) + ' · cada ' + x.ciclo + ' días · ' +
+      (x.a.ultimaRealizacion
+        ? 'última vez ' + CV2.fmtFecha(x.a.ultimaRealizacion) +
+          (x.a.ultimaRealizacionNombre ? ' (' + x.a.ultimaRealizacionNombre + ')' : '')
+        : 'nunca se hizo'),
     tono: 'urgente', href: './actividades.html',
-    nuevo: esNuevo(a.creadoEn), cuando: ''
-  })));
+    atraso: '+' + x.atraso + ' d'
+  })), 6, './actividades.html'));
+
+// Únicas vencidas o que vencen hoy. Se excluyen las recurrentes: ya se
+// contaron arriba por su ciclo, y contarlas dos veces confunde.
+const vencidas = acts.filter((a) =>
+  !a.hecho && !(Number(a.recurrenciaDias) > 0) &&
+  a.fechaVencimiento && a.fechaVencimiento <= hoy);
+
+const hoyItems = vencidas.map((a) => ({
+  icono: a.reservaId ? 'cleaning_services' : 'priority_high',
+  titulo: a.titulo || '(sin título)',
+  detalle: a.fechaVencimiento < hoy ? 'Vencida el ' + CV2.fmtFecha(a.fechaVencimiento) : 'Vence hoy',
+  tono: 'urgente', href: './actividades.html',
+  nuevo: esNuevo(a.creadoEn), cuando: ''
+})).concat(tocanAhora.map((x) => ({
+  icono: 'autorenew',
+  titulo: x.a.titulo || '(sin título)',
+  detalle: (x.atraso === 0 ? 'Toca hacerla hoy' : 'Atrasada ' + x.atraso + ' día(s)') +
+    ' · cada ' + x.ciclo + ' días',
+  tono: x.atraso === 0 ? 'aviso' : 'urgente', href: './actividades.html'
+})));
+
+agregar('actividades', 'Necesitan atención hoy', 'checklist', './actividades.html',
+  recortar(hoyItems, 8, './actividades.html'));
 
 // ── 2 · Reservas (solo con permiso) ──────────────────────────
 if (CV2.puede('reservas')) {
@@ -273,6 +344,8 @@ if (CV2.puede('finanzas')) {
 
 // ── Render ───────────────────────────────────────────────────
 // El orden lo manda CV2.NAV: la portada se lee igual que el menú.
+// Dentro de una misma sección mandan las atrasadas: el sort de JS es
+// estable, así que conservan el orden en que se agregaron.
 const orden = CV2.NAV.map((n) => n.id);
 bloques.sort((a, b) => orden.indexOf(a.id) - orden.indexOf(b.id));
 
