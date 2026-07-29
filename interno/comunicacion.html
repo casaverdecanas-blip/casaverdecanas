@@ -33,7 +33,10 @@
   .hilo-sub .material-icons { font-size: 15px; }
   .hilo-barra { display: flex; align-items: center; gap: 8px; margin: 8px 0 2px 44px; }
   .btn-chico { padding: 4px 10px; font-size: .78rem; }
-  .msgs { display: flex; flex-direction: column; gap: 8px; padding: 8px 0 90px; }
+  .msgs { display: flex; flex-direction: column; gap: 8px;
+    /* Deja lugar al compositor Y a la barra de abajo: sin esto, el último
+       mensaje del hilo nace tapado y hay que arrastrar para leerlo. */
+    padding: 8px 0 calc(80px + var(--cv-piso)); }
   .msg { max-width: 84%; border-radius: 14px; padding: 9px 13px; font-size: .9rem;
     background: #fff; border: 1px solid var(--linea); align-self: flex-start;
     overflow-wrap: anywhere; }
@@ -45,10 +48,15 @@
   .msg .msg-accion { margin-left: auto; background: none; border: 0; cursor: pointer;
     color: var(--gris); padding: 0; display: inline-flex; }
   .msg .msg-accion .material-icons { font-size: 16px; }
+  /* Se apoya SOBRE la barra de navegación, no debajo. Antes era
+     'bottom: 0' y la barra —que es fija y va en z-index 95— le pasaba por
+     encima tapando el botón de la foto. La posición la pone
+     .cv-pegado-abajo (design-system.css) con la variable --cv-piso, que
+     ya sabe cuánto mide la barra en cada pantalla. Nunca un número a mano:
+     en ≥900px la barra se va arriba y esto tiene que bajar solo. */
   .escribir {
-    position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 8px;
-    align-items: center;
-    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    display: flex; gap: 8px; align-items: center;
+    padding: 10px 14px;
     background: var(--crema); border-top: 1px solid var(--linea);
   }
   .escribir input[type="text"] { flex: 1; }
@@ -95,7 +103,7 @@
   </div>
 </div>
 
-<div class="escribir oculto" id="barra">
+<div class="escribir cv-pegado-abajo oculto" id="barra">
   <button class="btn" id="btnFoto" title="Foto" style="padding:9px 11px;"><span class="material-icons">photo_camera</span></button>
   <input type="text" id="texto" placeholder="Escribí un mensaje…" maxlength="1000">
   <button class="btn btn-primario" id="btnEnviar"><span class="material-icons">send</span></button>

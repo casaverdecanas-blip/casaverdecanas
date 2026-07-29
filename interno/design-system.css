@@ -65,10 +65,31 @@ a { color: var(--verde); }
   --cv-arriba: env(safe-area-inset-top, 0px);     /* barra de estado  */
   --cv-h-cab: 50px;
   --cv-h-barra: 58px;
+
+  /* CUÁNTO COME CADA BARRA. Toda página que pegue algo al borde de la
+     pantalla usa ESTAS dos y no vuelve a hacer la cuenta a mano:
+     un número escrito a mano queda viejo el día que la barra cambia de
+     alto, y en un teléfono con muesca ni siquiera es el mismo número.
+       ·  --cv-piso   → lo que tapa la barra de navegación de abajo.
+       ·  --cv-techo  → lo que tapa la cabecera de arriba.
+     En ≥900px la barra se va arriba y el piso pasa a valer 0 solo. */
+  --cv-piso: calc(var(--cv-h-barra) + var(--cv-abajo));
+  --cv-techo: calc(var(--cv-h-cab) + var(--cv-arriba));
+}
+
+/* El listón del admin le suma 8px a la cabecera. */
+body.cv-admin { --cv-techo: calc(var(--cv-h-cab) + var(--cv-arriba) + 8px); }
+
+/* Molde para cualquier cosa pegada abajo que NO sea la barra: el
+   compositor de mensajes, un botón flotante, una barra de acciones.
+   Queda POR ENCIMA del contenido y POR DEBAJO de la barra (95), la tapa
+   (105) y las hojas (110). */
+.cv-pegado-abajo {
+  position: fixed; left: 0; right: 0; bottom: var(--cv-piso); z-index: 90;
 }
 
 /* Le deja lugar a la barra de abajo. La pone nucleo.js al pintar. */
-body.cv-conbarra { padding-bottom: calc(var(--cv-h-barra) + var(--cv-abajo)); }
+body.cv-conbarra { padding-bottom: var(--cv-piso); }
 
 /* ── Cabecera ───────────────────────────────────────────── */
 .cv-cab {
@@ -173,6 +194,9 @@ body.cv-admin .cv-cab { padding-top: calc(var(--cv-arriba) + 8px); }
 
 /* ── Pantalla grande: la misma barra, arriba ────────────── */
 @media (min-width: 900px) {
+  /* La barra se fue arriba: abajo ya no tapa nada. Con esto se acomodan
+     solos el toast, el compositor de mensajes y todo lo que use --cv-piso. */
+  :root { --cv-piso: 0px; }
   body.cv-conbarra { padding-bottom: 0; }
   .cv-barra {
     position: sticky; top: calc(var(--cv-h-cab) + var(--cv-arriba));
@@ -238,7 +262,7 @@ input:focus, select:focus, textarea:focus {
   position: fixed; left: 50%; transform: translate(-50%, 20px);
   /* Por encima de la barra de abajo y de la franja de gestos: si no,
      el aviso aparecía tapado justo cuando más hace falta leerlo. */
-  bottom: calc(26px + var(--cv-h-barra) + var(--cv-abajo));
+  bottom: calc(26px + var(--cv-piso));
   background: var(--tinta); color: #fff; padding: 11px 18px;
   border-radius: 999px; font-size: .9rem; opacity: 0;
   transition: opacity .25s, transform .25s; z-index: 999;
@@ -248,7 +272,6 @@ input:focus, select:focus, textarea:focus {
 .toast-success { background: var(--ok); }
 .toast-error { background: var(--rojo); }
 .toast-info { background: var(--azul); }
-@media (min-width: 900px) { .toast { bottom: 26px; } }
 
 /* ── Utilidades ──────────────────────────────────────────── */
 .chip {
