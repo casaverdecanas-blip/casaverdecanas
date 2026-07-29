@@ -39,6 +39,8 @@
   <div id="error" class="error"></div>
   <p class="texto-gris" style="text-align:center;margin-top:14px;">
     <a href="#" id="olvide">Olvidé mi contraseña</a>
+    <span style="opacity:.4;margin:0 6px;">·</span>
+    <a href="#" id="reparar">La app no abre</a>
   </p>
 </div>
 
@@ -50,8 +52,20 @@ CV2.registrarSW();
 
 const $ = (id) => document.getElementById(id);
 
-const aviso = new URLSearchParams(location.search).get('e');
-if (aviso === 'inactivo') $('error').textContent = 'Tu usuario está desactivado. Hablá con el administrador.';
+// Por qué te devolvió el panel. Cada motivo dice qué pasó Y a quién
+// reclamarle: un rebote mudo no se diagnostica desde un teléfono.
+// 'sesion' no se avisa: es simplemente que todavía no entraste.
+const aviso = new URLSearchParams(location.search).get('e') || '';
+const MOTIVOS = {
+  inactivo: 'Tu usuario está desactivado. Hablá con el administrador.',
+  sinperfil: 'Tu cuenta existe pero todavía no está dada de alta en el sistema. Pedile al administrador que te cree el perfil.',
+  trancado: 'El panel no pudo leer tu perfil (algo quedó trancado en este teléfono). Probá "La app no abre", acá abajo.',
+  reparada: 'Listo, quedó limpio. Entrá de nuevo.'
+};
+if (MOTIVOS[aviso]) $('error').textContent = MOTIVOS[aviso];
+else if (aviso.indexOf('error:') === 0) {
+  $('error').textContent = 'Hubo un error al verificar tu sesión (' + aviso.slice(6) + '). Si se repite, probá "La app no abre".';
+}
 
 async function entrar() {
   const email = $('email').value.trim();
@@ -61,7 +75,9 @@ async function entrar() {
   $('error').textContent = '';
   try {
     await signInWithEmailAndPassword(auth, email, clave);
-    location.href = './index.html';
+    // replace, no href: si entrar dejara login en el historial, el botón
+    // Atrás de Android volvería acá con la sesión ya abierta.
+    location.replace('./index.html');
   } catch (e) {
     $('error').textContent = 'No se pudo ingresar. Revisá email y contraseña.';
     $('btnEntrar').disabled = false;
@@ -70,6 +86,16 @@ async function entrar() {
 
 $('btnEntrar').addEventListener('click', entrar);
 $('clave').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') entrar(); });
+
+// Salida de emergencia. Vive acá porque cuando el panel no abre, la hoja
+// de cuenta —donde está el mismo botón— es justamente lo que no se alcanza.
+$('reparar').addEventListener('click', async (ev) => {
+  ev.preventDefault();
+  if (!confirm('Esto borra lo que la app guardó en ESTE teléfono (cachés y sesión) y te pide entrar de nuevo.\n\nNo se toca nada del servidor: ni datos, ni fotos, ni usuarios.\n\n¿Seguimos?')) return;
+  $('error').textContent = 'Reparando…';
+  await CV2.repararApp((m) => { $('error').textContent = m; });
+  location.replace('./login.html?e=reparada');
+});
 
 $('olvide').addEventListener('click', async (ev) => {
   ev.preventDefault();

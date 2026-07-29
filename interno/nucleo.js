@@ -13,31 +13,87 @@ export const CV2 = {};
 CV2.usuario = null;   // { uid, nombre, email, rol, permisos, activo }
 
 /**
- * Verifica sesión y carga el perfil. Si no hay sesión o el
- * usuario está inactivo → redirige a login.
+ * Verifica sesión y carga el perfil. Si no hay sesión, no hay perfil o el
+ * usuario está inactivo → sale a login con el MOTIVO en la dirección.
  * Uso:  const u = await CV2.verificarAuth();
+ *
+ * Cuatro cosas que acá se hacen así a propósito (lección jul-2026, el
+ * rebote infinito con un usuario nuevo):
+ *
+ * 1. **`location.replace`, nunca `location.href`.** Con `href`, cada
+ *    rebote deja una entrada en el historial: index → login queda con
+ *    index atrás. En la PWA instalada, Atrás es el gesto más usado, y
+ *    volver a index vuelve a rebotar a login… para siempre. `replace`
+ *    pisa la entrada y corta el ciclo de raíz.
+ * 2. **Se corta la escucha antes de salir.** `onAuthStateChanged` es un
+ *    oyente permanente: el `signOut` de más abajo lo despierta otra vez
+ *    con sesión nula y disparaba una SEGUNDA navegación encima de la
+ *    primera. Una carrera entre dos redirecciones no se depura nunca.
+ * 3. **Si ya estamos en login, no se navega.** Cualquier futuro rebote
+ *    contra sí mismo muere acá.
+ * 4. **Nada puede quedar colgado.** Si la lectura del perfil no vuelve
+ *    en 15 segundos (base local trancada, red muerta), se sale con
+ *    `e=trancado` en vez de dejar la página en blanco para siempre:
+ *    esta promesa está esperada con `await` arriba de todo, y una
+ *    promesa que nunca resuelve es una app que nunca arranca.
  */
+CV2.ESPERA_PERFIL = 15000;
+
 CV2.verificarAuth = function () {
   return new Promise((resolver) => {
-    onAuthStateChanged(auth, async (fbUser) => {
-      if (!fbUser) { location.href = './login.html'; return; }
+    let quitar = null;
+    let listo = false;
+
+    const salir = (motivo) => {
+      if (listo) return;
+      listo = true;
+      if (quitar) { try { quitar(); } catch { /* ya cortada */ } }
+      if (location.pathname.indexOf('login.html') !== -1) return;   // ya estamos ahí
+      location.replace('./login.html?e=' + encodeURIComponent(motivo));
+    };
+
+    quitar = onAuthStateChanged(auth, async (fbUser) => {
+      if (listo) return;
+      if (!fbUser) { salir('sesion'); return; }
       try {
-        const snap = await getDoc(doc(db, 'usuarios', fbUser.uid));
-        if (!snap.exists() || snap.data().activo !== true) {
-          await signOut(auth);
-          location.href = './login.html?e=inactivo';
-          return;
-        }
+        // Reloj de guardia: la promesa que gana es la primera que vuelve.
+        const snap = await Promise.race([
+          getDoc(doc(db, 'usuarios', fbUser.uid)),
+          new Promise((_, rechazar) => setTimeout(() => {
+            const e = new Error('La lectura del perfil no volvió.');
+            e.code = 'trancado';
+            rechazar(e);
+          }, CV2.ESPERA_PERFIL))
+        ]);
+
+        // Sesión en Auth SIN documento en /usuarios/ NO es lo mismo que
+        // "desactivado": es una cuenta que todavía no fue dada de alta.
+        // Decirle "estás desactivado" a alguien que entra por primera vez
+        // manda a buscar el problema al lado equivocado.
+        if (!snap.exists()) { await CV2._salirLimpio(); salir('sinperfil'); return; }
+        if (snap.data().activo !== true) { await CV2._salirLimpio(); salir('inactivo'); return; }
+
         CV2.usuario = { uid: fbUser.uid, email: fbUser.email, ...snap.data() };
+        if (listo) return;
+        listo = true;
+        if (quitar) { try { quitar(); } catch { /* ya cortada */ } }
         if (CV2.usuario.rol === 'admin') CV2._listonAdmin();
         resolver(CV2.usuario);
       } catch (e) {
+        // §3.9: el catch de auth NO redirige en silencio. El código viaja
+        // en la dirección y login lo muestra: un rebote mudo es imposible
+        // de diagnosticar desde un teléfono.
         console.error('verificarAuth:', e);
-        await signOut(auth);
-        location.href = './login.html?e=error';
+        await CV2._salirLimpio();
+        salir(e && e.code === 'trancado' ? 'trancado' : 'error:' + ((e && e.code) || 'desconocido'));
       }
     });
   });
+};
+
+/** signOut que nunca revienta ni frena la salida. */
+CV2._salirLimpio = async function () {
+  try { await signOut(auth); } catch (e) { console.warn('signOut:', e); }
 };
 
 // ── Permisos ─────────────────────────────────────────────────
@@ -80,12 +136,92 @@ CV2.puede = (permiso) =>
 CV2.puedeAlguno = (lista) =>
   CV2.esAdmin() || (lista || []).some((p) => CV2.usuario?.permisos?.[p] === true);
 
+/**
+ * Cerrar sesión. La caché local es UNA por navegador: si otra persona
+ * entra en el mismo dispositivo, no debe encontrar datos de la anterior.
+ * Por eso se borra — pero NUNCA a costa de poder salir.
+ *
+ * Antes esto era `await terminate(db); await clearIndexedDbPersistence(db);`
+ * sin plazo. `clearIndexedDbPersistence` se queda esperando si hay OTRA
+ * pestaña (o la PWA instalada) con la base abierta: el `await` no vuelve,
+ * la línea del `location` de abajo no se ejecuta nunca y el botón "Cerrar
+ * sesión" parece no hacer nada. Ahora la limpieza corre contra un reloj de
+ * 3 segundos y la salida ocurre igual.
+ */
 CV2.cerrarSesion = async function () {
-  await signOut(auth);
-  // La caché local es UNA por navegador: si otra persona entra en el
-  // mismo dispositivo, no debe encontrar datos de la sesión anterior.
-  try { await terminate(db); await clearIndexedDbPersistence(db); } catch { /* mejor esfuerzo */ }
-  location.href = './login.html';
+  await CV2._salirLimpio();
+  try {
+    await Promise.race([
+      (async () => { await terminate(db); await clearIndexedDbPersistence(db); })(),
+      new Promise((r) => setTimeout(r, 3000))
+    ]);
+  } catch (e) { console.warn('limpieza de caché local:', e); }
+  location.replace('./login.html');
+};
+
+/**
+ * SALIDA DE EMERGENCIA — "Reparar la app".
+ *
+ * Para qué: el panel vive en el teléfono, dentro de una PWA instalada, y
+ * ahí no hay consola ni forma cómoda de borrar datos del sitio. Cuando
+ * algo del lado del navegador queda trancado (un service worker viejo
+ * sirviendo mezcla, una base local a medio cerrar, una sesión que rebota),
+ * hasta hoy la única salida era entrar a la configuración de Chrome a
+ * borrar los datos del sitio. Esto hace lo mismo desde un botón.
+ *
+ * Qué borra: los service workers, TODAS las cachés del shell y las bases
+ * locales de Firebase (perfil de sesión + caché de Firestore). NO toca
+ * nada del servidor: ni un documento, ni una foto, ni un usuario.
+ */
+CV2.repararApp = async function (avisar) {
+  const decir = avisar || function () {};
+  try { await CV2._salirLimpio(); } catch { /* seguimos */ }
+  try { await terminate(db); } catch { /* puede estar ya muerta */ }
+
+  decir('Sacando el service worker…');
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const r of regs) { try { await r.unregister(); } catch { /* sigue */ } }
+    }
+  } catch (e) { console.warn('reparar · sw:', e); }
+
+  decir('Vaciando las cachés…');
+  try {
+    if (window.caches) {
+      const claves = await caches.keys();
+      for (const k of claves) { try { await caches.delete(k); } catch { /* sigue */ } }
+    }
+  } catch (e) { console.warn('reparar · cachés:', e); }
+
+  decir('Borrando la base local…');
+  try {
+    let nombres = [];
+    // indexedDB.databases() no está en todos los navegadores: si no está,
+    // se van a buscar las dos bases de Firebase por nombre conocido.
+    if (indexedDB.databases) {
+      try { nombres = (await indexedDB.databases()).map((d) => d.name).filter(Boolean); } catch { nombres = []; }
+    }
+    if (!nombres.length) nombres = ['firebaseLocalStorageDb', 'firebase-heartbeat-database'];
+    for (const n of nombres) await CV2._borrarBase(n);
+  } catch (e) { console.warn('reparar · indexedDB:', e); }
+
+  decir('Listo. Volviendo a empezar…');
+  return true;
+};
+
+/** deleteDatabase con plazo: si otra pestaña la tiene abierta, queda
+ *  'blocked' y esperaría para siempre. Se le dan 2,5 segundos. */
+CV2._borrarBase = function (nombre) {
+  return new Promise((resolver) => {
+    let cerrado = false;
+    const fin = () => { if (!cerrado) { cerrado = true; resolver(); } };
+    setTimeout(fin, 2500);
+    try {
+      const p = indexedDB.deleteDatabase(nombre);
+      p.onsuccess = fin; p.onerror = fin; p.onblocked = fin;
+    } catch { fin(); }
+  });
 };
 
 // Listón diagonal amarillo/negro: sesión admin a la vista
@@ -333,6 +469,7 @@ CV2.renderNav = function (activo) {
     + deCuenta.map(enlaceHoja).join('')
     + '<a href="./manual.html#' + CV2.esc(activo || '') + '">'
     + '<span class="material-icons">help</span>Ayuda de esta página</a>'
+    + '<button id="cv-btn-reparar"><span class="material-icons">healing</span>Reparar la app</button>'
     + '<button id="cv-btn-salir"><span class="material-icons">logout</span>Cerrar sesión</button>'
     + '</div>';
 
@@ -358,6 +495,12 @@ CV2.renderNav = function (activo) {
   document.getElementById('cv-btn-yo').addEventListener('click', () => abrir('cv-hoja-yo'));
   tapa.addEventListener('click', cerrar);
   document.getElementById('cv-btn-salir').addEventListener('click', CV2.cerrarSesion);
+  document.getElementById('cv-btn-reparar').addEventListener('click', async () => {
+    if (!confirm('Reparar borra lo que la app guardó en ESTE teléfono (cachés y sesión) y te pide entrar de nuevo.\n\nNo se toca nada del servidor: ni datos, ni fotos, ni usuarios.\n\n¿Seguimos?')) return;
+    CV2.toast('Reparando…');
+    await CV2.repararApp((m) => CV2.toast(m));
+    location.replace('./login.html?e=reparada');
+  });
 
   // ── La cabecera se esconde al bajar ────────────────────────
   const cab = document.getElementById('cv-cab');
