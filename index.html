@@ -26,19 +26,28 @@
 <meta property="og:url" content="https://casaverdecanas.com.br/">
 <meta property="og:title" content="Casa Verde Canas | Cabañas en Canasvieiras, Florianópolis">
 <meta property="og:description" content="Cabañas y departamentos a 3 cuadras de la playa de Canasvieiras. Piscina, estacionamiento, WiFi y atención personalizada. ¡Reservá directo y ahorrá!">
-<meta property="og:image" content="https://casaverdecanas.com.br/img/og-preview.jpg">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
+<!-- La imagen que muestran WhatsApp y las redes al compartir el enlace.
+     Apunta a la ilustración de marca, que EXISTE. Antes apuntaba a
+     img/og-preview.jpg, un archivo que nunca se subió: y como WhatsApp,
+     Facebook y Google NO ejecutan JavaScript, el respaldo de las <img>
+     no los alcanza. Todo enlace compartido salía sin imagen.
+     No se declaran width ni height: los lee el consumidor del archivo, y
+     declarar medidas que no son las reales es peor que no declararlas.
+     Si algún día se sube una pieza dedicada de 1200x630, se cambia acá. -->
+<meta property="og:image" content="https://casaverdecanas.com.br/ilustracion-hero.jpg">
 <meta property="og:locale" content="es_AR">
 <meta property="og:locale:alternate" content="pt_BR">
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Casa Verde Canas | Cabañas en Canasvieiras, Florianópolis">
 <meta name="twitter:description" content="Cabañas a 3 cuadras de la playa. Piscina, estacionamiento y WiFi.">
-<meta name="twitter:image" content="https://casaverdecanas.com.br/img/og-preview.jpg">
+<meta name="twitter:image" content="https://casaverdecanas.com.br/ilustracion-hero.jpg">
 
-<link rel="icon" href="./img/logo-sitio.png">
-<link rel="apple-touch-icon" href="./img/logo-sitio.png">
+<!-- OJO: un <link> no tiene onerror. Estas dos rutas tienen que ser las
+     REALES, no las deseadas: apuntaban a ./img/ y el sitio quedó sin ícono
+     en la pestaña sin que nadie lo notara. -->
+<link rel="icon" href="./logo-sitio.png">
+<link rel="apple-touch-icon" href="./logo-sitio.png">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <meta name="theme-color" content="#225b38">
@@ -49,7 +58,7 @@
   "@type": "LodgingBusiness",
   "name": "Casa Verde Canas",
   "url": "https://casaverdecanas.com.br/",
-  "image": "https://casaverdecanas.com.br/img/ilustracion-hero.jpg",
+  "image": "https://casaverdecanas.com.br/ilustracion-hero.jpg",
   "description": "Alquiler de cabañas y departamentos en Canasvieiras, Florianópolis, a 3 cuadras de la playa. Piscina, estacionamiento y WiFi.",
   "telephone": "+5548991181246",
   "priceRange": "$$",
@@ -236,8 +245,12 @@
 
 <header>
   <div class="wrap barra">
-    <a class="marca" href="#top"><img src="./img/logo-sitio.png" alt="Casa Verde Canas"
-       onerror="if(!this.dataset.r){this.dataset.r=1;this.src='./logo-sitio.png';}else{this.remove();document.getElementById('marcaTxt').style.display='block';}"><span
+    <!-- La raíz PRIMERO y ./img/ como respaldo, no al revés: las imágenes
+         viven en la raíz, y pedirlas antes en una carpeta que no existe
+         costaba un 404 por imagen en cada visita. El respaldo se queda por
+         si algún día se ordenan en /img/. -->
+    <a class="marca" href="#top"><img src="./logo-sitio.png" alt="Casa Verde Canas"
+       onerror="if(!this.dataset.r){this.dataset.r=1;this.src='./img/logo-sitio.png';}else{this.remove();document.getElementById('marcaTxt').style.display='block';}"><span
        id="marcaTxt" class="marca-txt">Casa Verde Canas</span></a>
     <div class="idiomas">
       <button data-i="pt">PT</button>
@@ -253,9 +266,9 @@
 
 <div class="hero" id="top">
   <div class="wrap">
-    <img class="dibujo" src="./img/ilustracion-hero.jpg"
+    <img class="dibujo" src="./ilustracion-hero.jpg"
          alt="Ilustración de Casa Verde Canas: cabañas, piscina y jardín en Canasvieiras"
-         onerror="if(!this.dataset.r){this.dataset.r=1;this.src='./ilustracion-hero.jpg';}else{this.style.display='none';}">
+         onerror="if(!this.dataset.r){this.dataset.r=1;this.src='./img/ilustracion-hero.jpg';}else{this.style.display='none';}">
   </div>
   <div class="wrap hero-txt">
     <h1 data-t="titulo">A três quadras do mar, cercado de verde</h1>
@@ -360,8 +373,8 @@
 
 <footer>
   <div class="wrap">
-    <img src="./img/logo-pie.png" alt="Casa Verde Canas"
-         onerror="if(!this.dataset.r){this.dataset.r=1;this.src='./logo-pie.png';}else{this.style.display='none';}">
+    <img src="./logo-pie.png" alt="Casa Verde Canas"
+         onerror="if(!this.dataset.r){this.dataset.r=1;this.src='./img/logo-pie.png';}else{this.style.display='none';}">
     <div><b>Casa Verde Canas</b> · Canasvieiras, Florianópolis — SC, Brasil</div>
     <span data-t="pie">Reservas e consultas pelo WhatsApp.</span>
 
