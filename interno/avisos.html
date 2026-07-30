@@ -60,11 +60,24 @@
 
   #jsonWrap textarea { width: 100%; box-sizing: border-box; min-height: 140px;
     font-family: ui-monospace, monospace; font-size: .76rem; }
-  .quien { display: flex; align-items: center; gap: 9px; padding: 7px 0;
-    border-top: 1px solid var(--linea); font-size: .85rem; }
-  .quien:first-of-type { border-top: 0; }
-  .quien .cv-foto, .quien .cv-inicial { flex: 0 0 auto; }
-  .quien small { display: block; color: var(--gris); font-size: .76rem; }
+  /* Una persona del equipo en el bloque del administrador: quién es arriba,
+     sus dos campos abajo. En teléfono los campos van uno por renglón — dos
+     inputs y un botón en 360px de ancho no entran sin quedar impracticables. */
+  .pers { padding: 11px 0; border-top: 1px solid var(--linea); }
+  .pers:first-of-type { border-top: 0; }
+  .pers-cab { display: flex; align-items: center; gap: 9px; }
+  .pers-cab .cv-foto, .pers-cab .cv-inicial { flex: 0 0 auto; }
+  .pers-quien { min-width: 0; }
+  .pers-quien b { display: block; font-size: .88rem; }
+  .pers-quien small { display: block; color: var(--gris); font-size: .76rem; }
+  .pers-quien code { display: block; color: var(--gris); font-size: .68rem;
+    font-family: ui-monospace, monospace; overflow-wrap: anywhere; margin-top: 1px; }
+  .pers-campos { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+  .pers-campos input { flex: 1 1 100%; box-sizing: border-box; }
+  .pers-campos .btn-chico { flex: 0 0 auto; min-height: 44px; padding: 0 15px; }
+  @media (min-width: 560px) {
+    .pers-campos input { flex: 1 1 40%; }
+  }
   .vacio { text-align: center; color: var(--gris); padding: 24px 10px; }
 </style>
 </head>
@@ -112,7 +125,8 @@
   <div class="tarj">
     <h2>Tu WhatsApp</h2>
     <p class="aclara">
-      Estos dos datos los ve <b>solo vos y el administrador</b>. El resto del equipo no.
+      Tu número y tu clave los ve <b>solo vos y el administrador</b>. El resto del
+      equipo no. Si ya te llegaban avisos en el sistema anterior, son los mismos datos.
     </p>
     <div class="campo">
       <label for="inTel">Tu número, con código de país</label>
@@ -138,7 +152,7 @@
     </div>
 
     <details class="guia">
-      <summary><span class="material-icons">help_outline</span> Cómo conseguir tu clave (5 minutos, una sola vez)</summary>
+      <summary><span class="material-icons">help_outline</span> No tengo clave todavía · cómo conseguirla (5 minutos, una sola vez)</summary>
       <ol>
         <li>Guardá en tus contactos el número <code>+34 644 51 95 23</code>. Es el
           robot de CallMeBot, el servicio gratuito que manda los WhatsApps.</li>
@@ -149,11 +163,10 @@
         <li>Volvé acá, escribí <b>tu número de teléfono</b> (con el <code>+</code> y el
           código de país, sin espacios ni guiones) y <b>la clave</b> que te llegó.
           Tocá <b>Guardar mi número</b>.</li>
-        <li>Avisale al administrador que ya lo cargaste. Él tiene que subirlo al
-          servidor: son dos toques de su lado.</li>
-        <li>Cuando te diga que está, tocá <b>Probar WhatsApp</b>. Si te llega el
-          mensaje de prueba, listo. Y no te olvides de encender la llave de WhatsApp
-          allá arriba.</li>
+        <li>Avisale al administrador que ya lo cargaste: tiene que subirlo al
+          servidor. Hasta que lo haga, la prueba va a fallar.</li>
+        <li>Cuando te diga que está, tocá <b>Probar WhatsApp</b>. Y no te olvides de
+          encender la llave de WhatsApp allá arriba.</li>
       </ol>
       <p style="font-size:.82rem;color:var(--gris);margin:6px 0 0;">
         Si algún día no querés más avisos por WhatsApp, alcanza con apagar la llave.
@@ -164,15 +177,24 @@
 
   <!-- ═══ Solo administrador ══════════════════════════════ -->
   <div class="tarj oculto" id="tarjAdmin">
-    <h2>Administrador · cargar los WhatsApp en el servidor</h2>
+    <h2>Administrador · los WhatsApp del equipo</h2>
     <p class="aclara">
-      CallMeBot exige que la clave de cada persona viva en el servidor, no en la
-      aplicación. Copiá esto y pegalo en Netlify, en la variable
-      <code>CALLMEBOT_RECIPIENTS</code>: <b>Site settings → Environment variables</b>.
-      No hace falta volver a desplegar nada.
+      CallMeBot exige que el teléfono y la clave de cada persona vivan en el servidor.
+      Cargá acá los datos de cada uno —son los mismos que ya usabas— y abajo sale
+      armada la variable de Netlify, <b>con los <code>uid</code> nuevos</b>.
     </p>
-    <div id="quienes"></div>
-    <div id="jsonWrap" style="margin-top:12px;">
+    <div class="estado" id="avisoUid" style="margin-top:0;">
+      <b>Ojo con la variable vieja.</b> El sistema anterior era otro proyecto de
+      Firebase, así que sus <code>uid</code> no sirven acá. Los teléfonos y las claves
+      se reusan enteros; las llaves del JSON, no. Copiá de Netlify solo los valores.
+    </div>
+
+    <div id="filas"></div>
+
+    <div id="jsonWrap" style="margin-top:14px;">
+      <label style="display:block;font-size:.78rem;font-weight:600;color:var(--gris);margin-bottom:3px;">
+        Para pegar en Netlify → <code>CALLMEBOT_RECIPIENTS</code>
+      </label>
       <textarea id="json" readonly></textarea>
     </div>
     <div class="acciones">
@@ -329,55 +351,119 @@ $('btnProbarMail').addEventListener('click', async () => {
 });
 
 // ═══ Bloque del administrador ═════════════════════════════
-// Arma la variable del servidor con los datos REALES que cada uno cargó.
-// Antes esto se hacía pasando el número y la clave por mensaje privado y
-// tipeándolos a mano: dos pasos donde se podía copiar mal, y un secreto
-// viajando por un canal que no controlamos.
-async function pintarAdmin() {
-  if (!CV2.esAdmin()) return;
-  $('tarjAdmin').classList.remove('oculto');
+// Arma la variable del servidor con los uid REALES leídos de Firestore.
+//
+// POR QUÉ SE CARGA ACÁ Y NO SE COPIA LA VARIABLE VIEJA: el sistema anterior
+// vivía en otro proyecto de Firebase, así que sus uid no existen en este. Los
+// teléfonos y las claves de CallMeBot se reusan enteros —son de la persona,
+// no del sistema— pero las llaves del JSON hay que rehacerlas. Escribirlas a
+// mano es el paso donde se cuela el error que después no da ninguna señal:
+// la función busca un uid, no lo encuentra y devuelve "no configurado".
+let personas = [];
+let contactos = {};
 
-  let personas = [];
-  let contactos = {};
+async function cargarAdmin() {
+  personas = [];
+  contactos = {};
   try {
     const snap = await getDocs(collection(db, 'usuarios'));
     snap.forEach((d) => {
       const x = d.data() || {};
       if (x.activo === false) return;
-      personas.push({ uid: d.id, nombre: x.nombre ?? '', email: x.email ?? '',
-        fotoUrl: x.fotoUrl ?? '', notif: x.notif || {} });
+      personas.push({
+        uid: d.id, nombre: x.nombre ?? '', email: x.email ?? '',
+        fotoUrl: x.fotoUrl ?? '', notif: x.notif || {}
+      });
     });
   } catch (e) { console.warn('usuarios', e); }
   try {
     const snap = await getDocs(collection(db, 'avisos_contacto'));
     snap.forEach((d) => { contactos[d.id] = d.data() || {}; });
   } catch (e) { console.warn('avisos_contacto', e); }
+}
 
-  $('quienes').innerHTML = personas.length
-    ? personas.map((p) => {
-        const c = contactos[p.uid];
-        const wa = p.notif.canalWhatsapp === true;
-        const mail = p.notif.canalEmail !== false;
-        let est;
-        if (c && c.telefono && c.apikey) {
-          est = wa ? 'WhatsApp cargado y encendido' : 'WhatsApp cargado, pero lo tiene apagado';
-        } else {
-          est = wa ? 'encendió WhatsApp pero NO cargó su número' : 'sin WhatsApp';
-        }
-        return '<div class="quien">' + CV2.avatarHTML(p)
-          + '<div><b>' + esc(p.nombre || p.email || p.uid) + '</b>'
-          + '<small>' + esc(est) + ' · correo: ' + (mail ? 'sí' : 'no') + '</small></div></div>';
-      }).join('')
-    : '<div class="vacio">No hay personas activas.</div>';
+function estadoDe(p) {
+  const c = contactos[p.uid];
+  const wa = p.notif.canalWhatsapp === true;
+  if (c && c.telefono && c.apikey) {
+    return wa ? 'cargado · llave encendida' : 'cargado, pero tiene la llave apagada';
+  }
+  return wa ? 'encendió la llave pero NO tiene número cargado' : 'sin WhatsApp';
+}
 
-  // Solo quienes cargaron los dos datos: un bloque vacío en la variable hace
-  // que la función crea que la persona está configurada y no avise nunca.
+function pintarFilas() {
+  if (!personas.length) {
+    $('filas').innerHTML = '<div class="vacio">No hay personas activas.</div>';
+    return;
+  }
+  $('filas').innerHTML = personas.map((p) => {
+    const c = contactos[p.uid] || {};
+    return '<div class="pers">'
+      + '<div class="pers-cab">' + CV2.avatarHTML(p)
+      + '<div class="pers-quien"><b>' + esc(p.nombre || p.email || p.uid) + '</b>'
+      + '<small>' + esc(estadoDe(p)) + '</small>'
+      + '<code>' + esc(p.uid) + '</code></div></div>'
+      + '<div class="pers-campos">'
+      + '<input type="tel" inputmode="tel" maxlength="20" placeholder="+5598999999999"'
+      + ' data-tel="' + esc(p.uid) + '" value="' + esc(c.telefono ?? '') + '">'
+      + '<input type="text" maxlength="40" placeholder="clave CallMeBot" autocomplete="off"'
+      + ' data-key="' + esc(p.uid) + '" value="' + esc(c.apikey ?? '') + '">'
+      + '<button class="btn btn-chico" data-guardar="' + esc(p.uid) + '">'
+      + '<span class="material-icons">save</span></button>'
+      + '</div></div>';
+  }).join('');
+
+  $('filas').querySelectorAll('[data-guardar]').forEach((b) => {
+    b.addEventListener('click', () => guardarDe(b.dataset.guardar, b));
+  });
+  pintarJson();
+}
+
+// Solo entran al JSON quienes tienen los DOS datos. Un bloque a medias es
+// peor que ninguno: la función lo encuentra, lo da por configurado y manda
+// el WhatsApp a la nada.
+function pintarJson() {
   const obj = {};
   personas.forEach((p) => {
     const c = contactos[p.uid];
     if (c && c.telefono && c.apikey) obj[p.uid] = { phone: c.telefono, apikey: c.apikey };
   });
   $('json').value = JSON.stringify(obj, null, 2);
+  const faltan = personas.filter((p) => p.notif.canalWhatsapp === true
+    && !(contactos[p.uid] && contactos[p.uid].telefono && contactos[p.uid].apikey));
+  $('avisoUid').className = 'estado' + (faltan.length ? ' mal' : '');
+  $('avisoUid').innerHTML = faltan.length
+    ? '<b>Falta cargar a ' + faltan.map((p) => esc(p.nombre || p.uid)).join(', ')
+      + '.</b> Tienen la llave de WhatsApp encendida y no van a recibir nada hasta que '
+      + 'completes su número y su clave acá arriba.'
+    : '<b>Ojo con la variable vieja.</b> El sistema anterior era otro proyecto de '
+      + 'Firebase, así que sus <code>uid</code> no sirven acá. Los teléfonos y las claves '
+      + 'se reusan enteros; las llaves del JSON, no. Copiá de Netlify solo los valores.';
+}
+
+async function guardarDe(uid, btn) {
+  const tel = limpiarTel($('filas').querySelector('[data-tel="' + uid + '"]').value);
+  const key = $('filas').querySelector('[data-key="' + uid + '"]').value.trim();
+  if (tel.replace('+', '').length < 8 || !key) {
+    CV2.toast('Faltan el número (con código de país) o la clave', 'error');
+    return;
+  }
+  btn.disabled = true;
+  const p = personas.find((x) => x.uid === uid);
+  try {
+    await setDoc(doc(db, 'avisos_contacto', uid), {
+      telefono: tel, apikey: key,
+      nombre: (p && p.nombre) ?? '',
+      actualizadoEn: serverTimestamp()
+    }, { merge: true });
+    contactos[uid] = Object.assign({}, contactos[uid], { telefono: tel, apikey: key });
+    pintarFilas();
+    CV2.toast('Guardado. Acordate de pegar el JSON en Netlify.', 'success');
+  } catch (e) {
+    CV2.toast('No se pudo guardar: ' + (e.code ?? e.message), 'error');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 $('btnCopiar').addEventListener('click', async () => {
@@ -415,7 +501,14 @@ try {
   }
 } catch (e) { console.warn('mi contacto', e); }
 
-await pintarAdmin();
+// El bloque del administrador se arma después de todo lo demás: son dos
+// consultas a colecciones enteras y no tiene que demorar lo que la persona
+// vino a hacer.
+if (CV2.esAdmin()) {
+  $('tarjAdmin').classList.remove('oculto');
+  await cargarAdmin();
+  pintarFilas();
+}
 </script>
 </body>
 </html>

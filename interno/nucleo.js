@@ -717,8 +717,8 @@ CV2.miNotif = function () {
 
 // ── WhatsApp ─────────────────────────────────────────────────
 // El plan gratis de CallMeBot acepta ~1 mensaje por minuto Y POR NÚMERO.
-// Este freno es por destinatario, no global: avisarle a tres personas a la
-// vez está bien, son tres números distintos.
+// El freno es por destinatario: avisarle a tres personas a la vez está
+// bien, son tres números distintos.
 //
 // Qué pasa con el segundo mensaje dentro del minuto: NO se manda y no se
 // reintenta. Es a propósito y es deseable — en una conversación de diez
@@ -729,12 +729,13 @@ CV2._ultimoWa = {};
 CV2.WA_ESPERA = 60000;
 
 /**
- * Manda un WhatsApp a UNA persona por su uid.
+ * Manda un WhatsApp a UNA persona por su uid. La función del servidor lo
+ * busca en CALLMEBOT_RECIPIENTS, así que el administrador tiene que haberlo
+ * cargado antes. Sin 'paraUid' cae en el número por defecto del servidor.
  * Nunca revienta: devuelve { ok, ... } pase lo que pase.
- * Sin 'paraUid' la función del servidor cae en el número del administrador.
  */
 CV2.enviarWhatsApp = function (texto, paraUid) {
-  const clave = paraUid || '_admin';
+  const clave = paraUid || '_defecto';
   const ahora = Date.now();
   if (CV2._ultimoWa[clave] && (ahora - CV2._ultimoWa[clave]) < CV2.WA_ESPERA) {
     return Promise.resolve({
