@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Mis avisos</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  /* El interruptor todavía no está en design-system.css: esta es la primera
+     pantalla que lo usa. Si aparece una segunda, sube al sistema de diseño
+     (§3.16) en vez de copiarse. */
+  .tarj { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 14px; margin: 10px 0; box-shadow: var(--sombra); }
+  .tarj > h2 { margin: 0 0 4px; font-size: .98rem; }
+  .tarj > .aclara { color: var(--gris); font-size: .82rem; margin: 0 0 8px; }
+
+  /* Fila de 56px: el objetivo táctil de §6.0 con aire, no un ícono suelto. */
+  .fila { display: flex; align-items: center; gap: 12px; min-height: 56px;
+    padding: 8px 0; border-top: 1px solid var(--linea); }
+  .fila:first-of-type { border-top: 0; }
+  .fila .txt { flex: 1; min-width: 0; }
+  .fila .txt b { display: block; font-size: .9rem; font-weight: 600; }
+  .fila .txt small { display: block; color: var(--gris); font-size: .78rem;
+    overflow-wrap: anywhere; }
+
+  .llave { position: relative; flex: 0 0 auto; width: 52px; height: 32px;
+    -webkit-tap-highlight-color: transparent; }
+  .llave input { position: absolute; opacity: 0; width: 100%; height: 100%;
+    margin: 0; cursor: pointer; }
+  .llave span { position: absolute; inset: 0; background: #cfcdc4; border-radius: 999px;
+    transition: background .18s; pointer-events: none; }
+  .llave span::after { content: ''; position: absolute; top: 3px; left: 3px;
+    width: 26px; height: 26px; background: #fff; border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .18s; }
+  .llave input:checked + span { background: var(--verde); }
+  .llave input:checked + span::after { transform: translateX(20px); }
+  .llave input:disabled + span { opacity: .45; }
+
+  .campo { margin: 10px 0 0; }
+  .campo label { display: block; font-size: .78rem; font-weight: 600;
+    color: var(--gris); margin-bottom: 3px; }
+  .campo input { width: 100%; box-sizing: border-box; }
+  .acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .estado { font-size: .82rem; margin-top: 10px; padding: 9px 11px; border-radius: 10px;
+    background: var(--crema); overflow-wrap: anywhere; }
+  .estado.mal { background: #fdecec; color: #8e2b2b; }
+  .estado.bien { background: var(--verde-claro); }
+
+  details.guia { margin-top: 10px; }
+  details.guia summary { cursor: pointer; font-weight: 600; font-size: .88rem;
+    padding: 10px 0; min-height: 44px; display: flex; align-items: center; gap: 6px; }
+  details.guia ol { margin: 4px 0 0; padding-left: 20px; font-size: .86rem; line-height: 1.55; }
+  details.guia li { margin-bottom: 9px; }
+  details.guia code { background: var(--crema); padding: 1px 5px; border-radius: 5px;
+    font-size: .82rem; overflow-wrap: anywhere; }
+
+  #jsonWrap textarea { width: 100%; box-sizing: border-box; min-height: 140px;
+    font-family: ui-monospace, monospace; font-size: .76rem; }
+  .quien { display: flex; align-items: center; gap: 9px; padding: 7px 0;
+    border-top: 1px solid var(--linea); font-size: .85rem; }
+  .quien:first-of-type { border-top: 0; }
+  .quien .cv-foto, .quien .cv-inicial { flex: 0 0 auto; }
+  .quien small { display: block; color: var(--gris); font-size: .76rem; }
+  .vacio { text-align: center; color: var(--gris); padding: 24px 10px; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <h1>Mis avisos</h1>
+  <p class="aclara" style="color:var(--gris);font-size:.85rem;margin-top:-4px;">
+    Elegí qué te avisa el sistema y por dónde. Se guarda solo, apenas tocás cada llave.
+  </p>
+
+  <!-- ═══ Por dónde ═══════════════════════════════════════ -->
+  <div class="tarj">
+    <h2>¿Por dónde te avisamos?</h2>
+    <div class="fila">
+      <div class="txt">
+        <b>Correo</b>
+        <small id="miMail">—</small>
+      </div>
+      <label class="llave">
+        <input type="checkbox" id="kEmail"><span></span>
+      </label>
+    </div>
+    <div class="fila">
+      <div class="txt">
+        <b>WhatsApp</b>
+        <small>Suena en el teléfono. Hay que dar de alta tu número una vez, más abajo.</small>
+      </div>
+      <label class="llave">
+        <input type="checkbox" id="kWa"><span></span>
+      </label>
+    </div>
+  </div>
+
+  <!-- ═══ De qué ══════════════════════════════════════════ -->
+  <div class="tarj">
+    <h2>¿De qué te avisamos?</h2>
+    <p class="aclara">Todo viene encendido. Apagá lo que no quieras.</p>
+    <div id="eventos"></div>
+  </div>
+
+  <!-- ═══ Alta de WhatsApp ════════════════════════════════ -->
+  <div class="tarj">
+    <h2>Tu WhatsApp</h2>
+    <p class="aclara">
+      Estos dos datos los ve <b>solo vos y el administrador</b>. El resto del equipo no.
+    </p>
+    <div class="campo">
+      <label for="inTel">Tu número, con código de país</label>
+      <input type="tel" id="inTel" inputmode="tel" maxlength="20" placeholder="+5598999999999">
+    </div>
+    <div class="campo">
+      <label for="inKey">Tu clave de CallMeBot</label>
+      <input type="text" id="inKey" maxlength="40" placeholder="1234567" autocomplete="off">
+    </div>
+    <div class="acciones">
+      <button class="btn btn-primario" id="btnGuardar">
+        <span class="material-icons">save</span> Guardar mi número
+      </button>
+      <button class="btn" id="btnProbarWa">
+        <span class="material-icons">send</span> Probar WhatsApp
+      </button>
+      <button class="btn" id="btnProbarMail">
+        <span class="material-icons">mail</span> Probar correo
+      </button>
+    </div>
+    <div class="estado" id="estado">
+      Todavía no probaste nada.
+    </div>
+
+    <details class="guia">
+      <summary><span class="material-icons">help_outline</span> Cómo conseguir tu clave (5 minutos, una sola vez)</summary>
+      <ol>
+        <li>Guardá en tus contactos el número <code>+34 644 51 95 23</code>. Es el
+          robot de CallMeBot, el servicio gratuito que manda los WhatsApps.</li>
+        <li>Abrile una conversación de WhatsApp y mandale <b>exactamente</b> este texto:
+          <br><code>I allow callmebot to send me messages</code></li>
+        <li>En un rato te contesta con un mensaje que dice <i>“Your APIKEY is …”</i>
+          seguido de un número. Ese número es tu clave.</li>
+        <li>Volvé acá, escribí <b>tu número de teléfono</b> (con el <code>+</code> y el
+          código de país, sin espacios ni guiones) y <b>la clave</b> que te llegó.
+          Tocá <b>Guardar mi número</b>.</li>
+        <li>Avisale al administrador que ya lo cargaste. Él tiene que subirlo al
+          servidor: son dos toques de su lado.</li>
+        <li>Cuando te diga que está, tocá <b>Probar WhatsApp</b>. Si te llega el
+          mensaje de prueba, listo. Y no te olvides de encender la llave de WhatsApp
+          allá arriba.</li>
+      </ol>
+      <p style="font-size:.82rem;color:var(--gris);margin:6px 0 0;">
+        Si algún día no querés más avisos por WhatsApp, alcanza con apagar la llave.
+        Y si querés cortarlo de raíz, mandale <code>stop</code> al robot.
+      </p>
+    </details>
+  </div>
+
+  <!-- ═══ Solo administrador ══════════════════════════════ -->
+  <div class="tarj oculto" id="tarjAdmin">
+    <h2>Administrador · cargar los WhatsApp en el servidor</h2>
+    <p class="aclara">
+      CallMeBot exige que la clave de cada persona viva en el servidor, no en la
+      aplicación. Copiá esto y pegalo en Netlify, en la variable
+      <code>CALLMEBOT_RECIPIENTS</code>: <b>Site settings → Environment variables</b>.
+      No hace falta volver a desplegar nada.
+    </p>
+    <div id="quienes"></div>
+    <div id="jsonWrap" style="margin-top:12px;">
+      <textarea id="json" readonly></textarea>
+    </div>
+    <div class="acciones">
+      <button class="btn btn-primario" id="btnCopiar">
+        <span class="material-icons">content_copy</span> Copiar
+      </button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+// Regla del 2.0 (§3.2): definiciones primero, cargas y suscripciones AL FINAL.
+import {
+  db, collection, doc, getDoc, getDocs, setDoc, updateDoc, serverTimestamp
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('avisos');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+// ═══ Estado ═══════════════════════════════════════════════
+// Copia local de mis preferencias. Se escribe entera con cada toque: es un
+// objeto de cinco claves, no vale la pena hilar más fino.
+let notif = Object.assign({}, CV2.NOTIF_POR_DEFECTO, CV2.miNotif());
+
+function decir(texto, clase) {
+  const el = $('estado');
+  el.className = 'estado' + (clase ? ' ' + clase : '');
+  el.textContent = texto;
+}
+
+// ═══ Interruptores ════════════════════════════════════════
+async function guardarNotif() {
+  try {
+    await updateDoc(doc(db, 'usuarios', u.uid), {
+      notif, actualizadoEn: serverTimestamp()
+    });
+    // La sesión en memoria también, así otra página del panel abierta en
+    // otra pestaña no trabaja con lo viejo.
+    CV2.usuario.notif = notif;
+  } catch (e) {
+    CV2.toast('No se pudo guardar: ' + (e.code ?? e.message), 'error');
+  }
+}
+
+function pintarEventos() {
+  $('eventos').innerHTML = CV2.EVENTOS.map((ev) =>
+    '<div class="fila"><div class="txt"><b>' + esc(ev.label) + '</b>'
+    + '<small>' + esc(ev.detalle) + '</small></div>'
+    + '<label class="llave"><input type="checkbox" data-ev="' + esc(ev.id) + '"'
+    + (notif[ev.id] === false ? '' : ' checked') + '><span></span></label></div>'
+  ).join('');
+
+  $('eventos').querySelectorAll('input[data-ev]').forEach((c) => {
+    c.addEventListener('change', () => {
+      notif[c.dataset.ev] = c.checked;
+      guardarNotif();
+    });
+  });
+}
+
+$('kEmail').addEventListener('change', () => {
+  notif.canalEmail = $('kEmail').checked;
+  guardarNotif();
+});
+
+$('kWa').addEventListener('change', () => {
+  notif.canalWhatsapp = $('kWa').checked;
+  guardarNotif();
+  if ($('kWa').checked) {
+    CV2.toast('Acordate de dar de alta tu número más abajo');
+  }
+});
+
+// ═══ Mi número ════════════════════════════════════════════
+// Solo dígitos y un '+' adelante: CallMeBot rechaza espacios y guiones sin
+// decir por qué, y ese silencio es el peor de los errores para depurar.
+function limpiarTel(v) {
+  const s = String(v || '').replace(/[^\d+]/g, '');
+  return s.indexOf('+') === 0 ? '+' + s.slice(1).replace(/\+/g, '') : s.replace(/\+/g, '');
+}
+
+$('inTel').addEventListener('blur', () => { $('inTel').value = limpiarTel($('inTel').value); });
+
+$('btnGuardar').addEventListener('click', async () => {
+  const tel = limpiarTel($('inTel').value);
+  const key = $('inKey').value.trim();
+  if (tel.replace('+', '').length < 8) {
+    decir('Ese número parece corto. Va con el código de país, por ejemplo +5598999999999.', 'mal');
+    return;
+  }
+  if (!key) {
+    decir('Falta la clave de CallMeBot. Mirá la guía de acá abajo para conseguirla.', 'mal');
+    return;
+  }
+  $('btnGuardar').disabled = true;
+  try {
+    await setDoc(doc(db, 'avisos_contacto', u.uid), {
+      telefono: tel, apikey: key,
+      nombre: CV2.usuario.nombre ?? '',
+      actualizadoEn: serverTimestamp()
+    }, { merge: true });
+    $('inTel').value = tel;
+    decir('Guardado. Ahora avisale al administrador para que lo suba al servidor; '
+      + 'hasta que lo haga, la prueba de WhatsApp va a fallar.', 'bien');
+  } catch (e) {
+    decir('No se pudo guardar: ' + (e.code ?? e.message), 'mal');
+  } finally {
+    $('btnGuardar').disabled = false;
+  }
+});
+
+// ═══ Pruebas ══════════════════════════════════════════════
+// CallMeBot contesta HTTP 200 incluso cuando rechaza el pedido: hay que
+// LEER la respuesta, no mirar el código. Lección del sistema viejo.
+$('btnProbarWa').addEventListener('click', async () => {
+  $('btnProbarWa').disabled = true;
+  decir('Mandando…');
+  const r = await CV2.enviarWhatsApp('Prueba de Casa Verde: si leés esto, tu WhatsApp está listo.', u.uid);
+  if (r && r.error === 'espera') {
+    decir(r.detalle, 'mal');
+  } else if (r && r.ok) {
+    decir('CallMeBot aceptó el pedido. Si el mensaje no te llega en un minuto, '
+      + 'revisá que el número y la clave estén bien. Respuesta del servicio: '
+      + (r.respuesta ?? 'sin detalle'), 'bien');
+  } else {
+    const det = (r && (r.error ?? r.respuesta)) ?? 'sin detalle';
+    const falta = String(det).indexOf('no tiene WhatsApp configurado') !== -1;
+    decir(falta
+      ? 'Tu número todavía no está en el servidor. Guardalo acá arriba y pedile al '
+        + 'administrador que lo cargue; después volvé a probar.'
+      : 'No salió: ' + det, 'mal');
+  }
+  $('btnProbarWa').disabled = false;
+});
+
+$('btnProbarMail').addEventListener('click', async () => {
+  $('btnProbarMail').disabled = true;
+  decir('Mandando…');
+  const r = await CV2.enviarMail(
+    'Prueba de avisos · Casa Verde',
+    CV2._cuerpoMail('Si leés esto, tu correo está bien configurado para los avisos.'),
+    u.email
+  );
+  decir(r && r.ok
+    ? 'Correo enviado a ' + (u.email ?? '—') + '. Si no aparece, mirá en no deseados.'
+    : 'No salió: ' + ((r && r.error) ?? 'sin detalle'),
+    r && r.ok ? 'bien' : 'mal');
+  $('btnProbarMail').disabled = false;
+});
+
+// ═══ Bloque del administrador ═════════════════════════════
+// Arma la variable del servidor con los datos REALES que cada uno cargó.
+// Antes esto se hacía pasando el número y la clave por mensaje privado y
+// tipeándolos a mano: dos pasos donde se podía copiar mal, y un secreto
+// viajando por un canal que no controlamos.
+async function pintarAdmin() {
+  if (!CV2.esAdmin()) return;
+  $('tarjAdmin').classList.remove('oculto');
+
+  let personas = [];
+  let contactos = {};
+  try {
+    const snap = await getDocs(collection(db, 'usuarios'));
+    snap.forEach((d) => {
+      const x = d.data() || {};
+      if (x.activo === false) return;
+      personas.push({ uid: d.id, nombre: x.nombre ?? '', email: x.email ?? '',
+        fotoUrl: x.fotoUrl ?? '', notif: x.notif || {} });
+    });
+  } catch (e) { console.warn('usuarios', e); }
+  try {
+    const snap = await getDocs(collection(db, 'avisos_contacto'));
+    snap.forEach((d) => { contactos[d.id] = d.data() || {}; });
+  } catch (e) { console.warn('avisos_contacto', e); }
+
+  $('quienes').innerHTML = personas.length
+    ? personas.map((p) => {
+        const c = contactos[p.uid];
+        const wa = p.notif.canalWhatsapp === true;
+        const mail = p.notif.canalEmail !== false;
+        let est;
+        if (c && c.telefono && c.apikey) {
+          est = wa ? 'WhatsApp cargado y encendido' : 'WhatsApp cargado, pero lo tiene apagado';
+        } else {
+          est = wa ? 'encendió WhatsApp pero NO cargó su número' : 'sin WhatsApp';
+        }
+        return '<div class="quien">' + CV2.avatarHTML(p)
+          + '<div><b>' + esc(p.nombre || p.email || p.uid) + '</b>'
+          + '<small>' + esc(est) + ' · correo: ' + (mail ? 'sí' : 'no') + '</small></div></div>';
+      }).join('')
+    : '<div class="vacio">No hay personas activas.</div>';
+
+  // Solo quienes cargaron los dos datos: un bloque vacío en la variable hace
+  // que la función crea que la persona está configurada y no avise nunca.
+  const obj = {};
+  personas.forEach((p) => {
+    const c = contactos[p.uid];
+    if (c && c.telefono && c.apikey) obj[p.uid] = { phone: c.telefono, apikey: c.apikey };
+  });
+  $('json').value = JSON.stringify(obj, null, 2);
+}
+
+$('btnCopiar').addEventListener('click', async () => {
+  const ta = $('json');
+  try {
+    await navigator.clipboard.writeText(ta.value);
+    CV2.toast('Copiado', 'success');
+  } catch {
+    // En la PWA sin permiso de portapapeles, el camino viejo todavía anda.
+    ta.removeAttribute('readonly');
+    ta.select();
+    try { document.execCommand('copy'); CV2.toast('Copiado', 'success'); }
+    catch { CV2.toast('Copialo a mano desde el cuadro', 'error'); }
+    ta.setAttribute('readonly', 'readonly');
+  }
+});
+
+// ═══ Cargas iniciales — AL FINAL ══════════════════════════
+$('miMail').textContent = u.email ?? 'sin correo cargado';
+$('kEmail').checked = notif.canalEmail !== false;
+$('kWa').checked = notif.canalWhatsapp === true;
+pintarEventos();
+
+// Mi contacto, si ya lo cargué alguna vez.
+try {
+  const snap = await getDoc(doc(db, 'avisos_contacto', u.uid));
+  if (snap.exists()) {
+    const c = snap.data() || {};
+    $('inTel').value = c.telefono ?? '';
+    $('inKey').value = c.apikey ?? '';
+    if (c.telefono && c.apikey) {
+      decir('Tu número está guardado. Probá el WhatsApp para ver si el administrador '
+        + 'ya lo subió al servidor.');
+    }
+  }
+} catch (e) { console.warn('mi contacto', e); }
+
+await pintarAdmin();
+</script>
+</body>
+</html>

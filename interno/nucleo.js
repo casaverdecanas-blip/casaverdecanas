@@ -5,7 +5,7 @@
 //  Namespace único: CV2 (import { CV2 } from './nucleo.js')
 // ═══════════════════════════════════════════════════════════════
 
-import { auth, db, doc, getDoc, updateDoc, serverTimestamp, onAuthStateChanged, signOut, terminate, clearIndexedDbPersistence } from './firebase-init.js';
+import { auth, db, doc, getDoc, updateDoc, collection, getDocs, serverTimestamp, onAuthStateChanged, signOut, terminate, clearIndexedDbPersistence } from './firebase-init.js';
 
 export const CV2 = {};
 
@@ -347,6 +347,11 @@ CV2.NAV = [
   { id: 'espacios', label: 'Espacios', href: './espacios.html', icono: 'deck', permiso: 'contenido', grupo: 'sitio' },
   { id: 'recuerdos', label: 'Recuerdos', href: './recuerdos.html', icono: 'photo_library', permiso: 'contenido', grupo: 'sitio' },
 
+  // Grupo 'cuenta' → hoja de la persona (el botón redondo de la cabecera).
+  // "Mis avisos" es la PRIMERA pantalla del 2.0 donde alguien configura algo
+  // suyo, así que va sin permiso: cada uno decide por dónde le llegan las
+  // cosas. 'Usuarios' sigue siendo del administrador.
+  { id: 'avisos', label: 'Mis avisos', href: './avisos.html', icono: 'notifications', permiso: null, grupo: 'cuenta' },
   { id: 'usuarios', label: 'Usuarios', href: './usuarios.html', icono: 'group', permiso: null, soloAdmin: true, grupo: 'cuenta' }
 ];
 
@@ -643,6 +648,218 @@ CV2.toast = function (msj, tipo = 'info') {
   document.body.appendChild(el);
   requestAnimationFrame(() => el.classList.add('visible'));
   setTimeout(() => { el.classList.remove('visible'); setTimeout(() => el.remove(), 300); }, 3200);
+};
+
+// ═════════════════════════════════════════════════════════════
+//  AVISOS — que el canal avise SIN abrir la aplicación
+//
+//  Es lo único que le faltaba al canal de coordinación desde la Fase 1.
+//  Dos vías, las dos heredadas del sistema viejo porque ya estaban
+//  probadas y andando:
+//    · WhatsApp por CallMeBot, a través de la función de Netlify
+//      'notify-whatsapp'. La clave de cada persona NUNCA pasa por acá:
+//      vive en la variable CALLMEBOT_RECIPIENTS del servidor y la función
+//      resuelve el destinatario por uid. Este archivo solo manda el uid.
+//    · Email por EmailJS, directo desde el navegador.
+//
+//  QUÉ SE DEJÓ AFUERA A PROPÓSITO: el resumen diario del sistema viejo.
+//  No corría en ningún servidor — corría en el navegador del primero que
+//  abría la app cada día, con una traba en 'config/notificaciones' para
+//  que no saliera dos veces. Si nadie abría la app, no había resumen; si
+//  abría un colaborador, el correo de todo el equipo salía de su teléfono.
+//  Eso no es un sistema de avisos. Con avisos instantáneos no hace falta
+//  reloj: el aviso sale en el momento del hecho, desde el navegador de
+//  quien lo hizo. La colección 'resumenes' no existe en el 2.0.
+//
+//  REGLA DE ORO: un aviso NUNCA hace fracasar la acción que lo produjo.
+//  Se llama después de que el dato está guardado y sin 'await' que frene
+//  la interfaz. Si CallMeBot no contesta, el mensaje ya está enviado.
+//  (Misma lección que el aviso de horas manuales, T7.4.)
+// ═════════════════════════════════════════════════════════════
+CV2.NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
+
+// Identificadores públicos por diseño, igual que la apiKey de Firebase: el
+// navegador los necesita para hablar con EmailJS. Los nombres de los
+// 'template_params' NO se pueden cambiar: los espera la plantilla que ya
+// está creada del lado de EmailJS.
+CV2.EMAILJS = {
+  serviceId: 'Mailcasaverde',
+  templateId: 'template_txtqg87',
+  publicKey: 'v9IeaS5cXuzPAKCXh'
+};
+
+// FUENTE ÚNICA del catálogo de avisos: lo usan 'avisos.html' (para dibujar
+// los interruptores) y cada página que avise. Un evento que no está acá no
+// existe — y no se agrega hasta que la página que lo dispara esté entregada
+// (§7: no se anota como hecho lo que no se hizo). Hoy hay uno.
+CV2.EVENTOS = [
+  {
+    id: 'mensaje', label: 'Mensajes del chat', icono: 'forum',
+    detalle: 'Cuando alguien escribe en un tema que te toca.'
+  }
+];
+
+/**
+ * Mis preferencias de aviso. Viven en usuarios/{uid}.notif porque el
+ * navegador de QUIEN AVISA tiene que poder leer las del destinatario para
+ * saber si le manda o no, y /usuarios/ lo lee todo el equipo.
+ *
+ * Los valores por defecto están del lado seguro y son asimétricos a
+ * propósito: el mail queda ENCENDIDO (llega solo, no molesta a nadie) y el
+ * WhatsApp APAGADO (suena en el bolsillo un sábado a la noche, y además
+ * necesita que la persona dé de alta su número).
+ */
+CV2.NOTIF_POR_DEFECTO = { canalEmail: true, canalWhatsapp: false };
+
+CV2.miNotif = function () {
+  return (CV2.usuario && CV2.usuario.notif) || {};
+};
+
+// ── WhatsApp ─────────────────────────────────────────────────
+// El plan gratis de CallMeBot acepta ~1 mensaje por minuto Y POR NÚMERO.
+// Este freno es por destinatario, no global: avisarle a tres personas a la
+// vez está bien, son tres números distintos.
+//
+// Qué pasa con el segundo mensaje dentro del minuto: NO se manda y no se
+// reintenta. Es a propósito y es deseable — en una conversación de diez
+// mensajes seguidos nadie quiere diez WhatsApps; el primero avisa que hay
+// algo y el resto se lee en el chat. El freno vive en memoria, así que se
+// olvida al recargar la página: eso es aceptable para lo que hace.
+CV2._ultimoWa = {};
+CV2.WA_ESPERA = 60000;
+
+/**
+ * Manda un WhatsApp a UNA persona por su uid.
+ * Nunca revienta: devuelve { ok, ... } pase lo que pase.
+ * Sin 'paraUid' la función del servidor cae en el número del administrador.
+ */
+CV2.enviarWhatsApp = function (texto, paraUid) {
+  const clave = paraUid || '_admin';
+  const ahora = Date.now();
+  if (CV2._ultimoWa[clave] && (ahora - CV2._ultimoWa[clave]) < CV2.WA_ESPERA) {
+    return Promise.resolve({
+      ok: false, error: 'espera',
+      detalle: 'Hay que esperar un minuto entre WhatsApps al mismo número (límite del plan gratis de CallMeBot).'
+    });
+  }
+  CV2._ultimoWa[clave] = ahora;
+  return fetch(CV2.NETLIFY + '/notify-whatsapp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: String(texto || '').slice(0, 900), to: paraUid || '' })
+  })
+    .then((r) => r.json())
+    .catch((e) => ({ ok: false, error: e.message }));
+};
+
+// ── Email ────────────────────────────────────────────────────
+/** Manda un mail. Nunca revienta: devuelve { ok, ... } pase lo que pase. */
+CV2.enviarMail = function (asunto, cuerpoHtml, paraEmail) {
+  if (!paraEmail) {
+    return Promise.resolve({ ok: false, error: 'Esa persona no tiene mail cargado.' });
+  }
+  return fetch('https://api.emailjs.com/api/v1.0/email/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      service_id: CV2.EMAILJS.serviceId,
+      template_id: CV2.EMAILJS.templateId,
+      user_id: CV2.EMAILJS.publicKey,
+      template_params: {
+        enviar_a: paraEmail,
+        nombre_remitente: 'Casa Verde Canas',
+        asunto: asunto || 'Aviso de Casa Verde',
+        mensaje: cuerpoHtml || ''
+      }
+    })
+  })
+    .then(async (r) => {
+      if (r.ok) return { ok: true, status: r.status };
+      let det = 'HTTP ' + r.status;
+      try { det = (await r.text()) || det; } catch { /* sin detalle */ }
+      return { ok: false, status: r.status, error: det };
+    })
+    .catch((e) => ({ ok: false, error: e.message }));
+};
+
+// El texto llega como líneas sueltas y sale como HTML simple. Sin plantilla
+// elaborada: un aviso se lee en la notificación del teléfono, no se abre.
+CV2._cuerpoMail = function (texto, enlace) {
+  const parrafos = String(texto || '').split('\n')
+    .filter((l) => l.trim() !== '')
+    .map((l) => '<p style="margin:0 0 8px;">' + CV2.esc(l) + '</p>')
+    .join('');
+  return '<div style="font-family:Arial,Helvetica,sans-serif;color:#2a2a2a;font-size:15px;line-height:1.5;">'
+    + parrafos
+    + (enlace
+      ? '<p style="margin:16px 0 0;"><a href="' + CV2.esc(enlace) + '" style="color:#2d5a27;font-weight:bold;">Abrir en el panel</a></p>'
+      : '')
+    + '<p style="margin:18px 0 0;color:#8a8a8a;font-size:12px;">Aviso automático de Casa Verde Canas. '
+    + 'Podés elegir qué te llega y por dónde en “Mis avisos”, dentro del panel.</p>'
+    + '</div>';
+};
+
+// ¿A esta persona le toca este aviso?
+//   'todos' (o nada) → a todo el equipo activo.
+//   [uid, uid]       → solo a esos.
+// El sistema viejo tenía además 'admins' y 'colaboradores'. Se sacaron: en
+// el 2.0 hay UNA sola cuenta admin y el resto trabaja por permisos, así que
+// esas dos audiencias ya no describen a nadie útil.
+CV2._leToca = function (uid, para) {
+  if (!para || para === 'todos') return true;
+  return Array.isArray(para) && para.indexOf(uid) !== -1;
+};
+
+/**
+ * EL DISPARADOR. Recorre el equipo y avisa a quien corresponda, por donde
+ * cada uno pidió.
+ *
+ *   CV2.avisar({
+ *     evento: 'mensaje',              // tiene que estar en CV2.EVENTOS
+ *     asunto: 'Casa Verde · Limpiezas',
+ *     texto: 'Flor escribió en "Limpiezas":\nFalta lavandina en C2.',
+ *     para: 'todos',                  // o ['uid1','uid2']
+ *     excluir: u.uid,                 // nunca se avisa a quien lo produjo
+ *     enlace: './comunicacion.html'   // opcional, solo para el mail
+ *   });
+ *
+ * NO se espera con await desde la página. Devuelve un resumen por si algún
+ * día hace falta (la pantalla de prueba lo usa), pero nunca rechaza.
+ */
+CV2.avisar = async function (op) {
+  const o = op || {};
+  if (!o.evento || !o.texto) return { intentos: 0, enviados: 0 };
+  try {
+    const snap = await getDocs(collection(db, 'usuarios'));
+    const tareas = [];
+    snap.forEach((d) => {
+      const x = d.data() || {};
+      const uid = d.id;
+      if (x.activo === false) return;
+      if (o.excluir && uid === o.excluir) return;
+      if (!CV2._leToca(uid, o.para)) return;
+      const n = x.notif || {};
+      // Cada evento está encendido salvo que la persona lo haya apagado.
+      if (n[o.evento] === false) return;
+      if (n.canalEmail !== false && x.email) {
+        tareas.push(CV2.enviarMail(
+          o.asunto || 'Aviso de Casa Verde',
+          CV2._cuerpoMail(o.texto, o.enlace),
+          x.email
+        ));
+      }
+      if (n.canalWhatsapp === true) {
+        tareas.push(CV2.enviarWhatsApp(o.texto, uid));
+      }
+    });
+    const res = await Promise.all(tareas);
+    return { intentos: res.length, enviados: res.filter((r) => r && r.ok).length };
+  } catch (e) {
+    // Un aviso que falla se anota y se olvida. Lo que importaba ya está
+    // guardado antes de llegar acá.
+    console.warn('avisar:', e);
+    return { intentos: 0, enviados: 0, error: (e && e.code) || e.message };
+  }
 };
 
 // ═════════════════════════════════════════════════════════════

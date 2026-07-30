@@ -7,7 +7,7 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
-const VERSION = 'cv2-shell-v58';
+const VERSION = 'cv2-shell-v59';
 
 const SHELL = [
   './',
@@ -18,6 +18,7 @@ const SHELL = [
   './honorarios.html',
   './gestion-sesiones.html',
   './comunicacion.html',
+  './avisos.html',
   './usuarios.html',
   './manual.html',
   './reservas.html',
