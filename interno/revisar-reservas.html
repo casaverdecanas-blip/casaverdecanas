@@ -90,6 +90,32 @@ const aporte = (p, mon) =>
   Number(p.moneda === mon ? p.monto : (p.montoEquiv ?? p.montoBRL)) || 0;
 
 const fmt = (n, m) => CV2.fmtMonto(n, m || 'BRL');
+
+// ── El acuerdo ───────────────────────────────────────────
+// Copiado de reservas.html a propósito: si acá se calculara distinto, la
+// revisión mentiría. Un acuerdo son las reservas que comparten 'grupoId';
+// una reserva sin él es un acuerdo de una sola cabaña.
+//
+// POR QUÉ IMPORTA ACÁ: esta herramienta mostraba un SALDO POR CABAÑA. Con
+// tres cabañas cobradas juntas eso daba "c2: saldo U$D 800" — un saldo que
+// no existe, porque nadie le debe nada a una cabaña. El saldo es uno y es
+// del acuerdo. La PARTE de cada cabaña sí es real y se muestra como parte.
+function agrupar(lista) {
+  const mapa = new Map();
+  lista.forEach((r) => {
+    const k = r.grupoId || r.id;
+    if (!mapa.has(k)) mapa.set(k, { clave: k, esGrupo: !!r.grupoId, rs: [] });
+    mapa.get(k).rs.push(r);
+  });
+  const out = [...mapa.values()];
+  out.forEach((a) => a.rs.sort((x, y) => (x.cabanaId ?? '').localeCompare(y.cabanaId ?? '')));
+  return out;
+}
+const pagosAcuerdo = (a, porReserva) => a.esGrupo
+  ? Object.values(porReserva).flat().filter((p) => p.grupoId === a.clave)
+  : (porReserva[a.clave] || []).filter((p) => !p.grupoId);
+const monedaAcuerdo = (a) => monedaDe(a.rs[0]);
+const totalAcuerdo = (a) => a.rs.reduce((x, r) => x + totalDe(r), 0);
 const dia = (s) => (typeof s === 'string' ? s : '—');
 
 // Cuántos días faltan para una fecha ISO (negativo = ya pasó).
@@ -137,13 +163,14 @@ function revisar(r, ps, tieneLimpieza) {
     }
   });
 
+  // OJO: acá NO se revisa el saldo. Dentro de un acuerdo, la reserva tiene
+  // una PARTE del total, no una deuda propia: comparar sus pagos contra su
+  // parte daría "c2 debe 800" cuando nadie le debe nada a una cabaña. El
+  // sobrepago se controla a nivel de acuerdo, más abajo.
   const pagado = ps.reduce((a, p) => a + aporte(p, mon), 0);
   const total = totalDe(r);
-  if (total > 0 && pagado > total + 0.01) {
-    mal.push('Está <b>sobrepagada</b>: ' + fmt(pagado, mon) + ' sobre ' + fmt(total, mon) + '.');
-  }
   if (total <= 0 && r.estado !== 'anulada') {
-    mal.push('El <b>total es cero</b>. No se puede controlar ningún saldo.');
+    mal.push('Su parte del total es <b>cero</b>.');
   }
 
   // La limpieza de entrada se materializa una semana antes del check-in.
@@ -162,6 +189,7 @@ function revisar(r, ps, tieneLimpieza) {
 
 // ── Pintar ───────────────────────────────────────────────────
 function pintar(reservas, porReserva, huerfanos, limpiezas) {
+  const acuerdos = agrupar(reservas);
   const revisadas = reservas.map((r) => ({
     r, ps: porReserva[r.id] || [],
     rev: revisar(r, porReserva[r.id] || [], limpiezas.has('limp-' + r.id))
@@ -169,6 +197,7 @@ function pintar(reservas, porReserva, huerfanos, limpiezas) {
   const conProblema = revisadas.filter((x) => x.rev.mal.length).length;
 
   let h = '<div class="tarj"><div class="num">'
+    + '<span>acuerdos<b>' + acuerdos.length + '</b></span>'
     + '<span>reservas<b>' + reservas.length + '</b></span>'
     + '<span>pagos<b>' + Object.values(porReserva).reduce((a, v) => a + v.length, 0) + '</b></span>'
     + '<span>con problemas<b style="color:' + (conProblema ? 'var(--rojo)' : 'var(--verde-osc)') + ';">'
@@ -187,30 +216,55 @@ function pintar(reservas, porReserva, huerfanos, limpiezas) {
       + '</div>';
   }
 
-  h += revisadas.map(({ r, ps, rev }) => {
-    const saldo = rev.total - rev.pagado;
-    return '<div class="tarj res' + (rev.mal.length ? ' mal' : '') + '">'
-      + '<div class="cab"><b>' + esc(r.clienteNombre || '(sin nombre)') + '</b>'
-      + '<span class="et">' + esc(r.estado || '?') + '</span>'
-      + '<span class="et">' + esc(r.cabanaId || 'sin cabaña') + '</span>'
-      + (r.origen ? '<span class="et">' + esc(r.origen) + '</span>' : '')
-      + '<span class="et ' + (Math.abs(saldo) < 0.01 ? 'verde' : 'rojo') + '">'
-      + (Math.abs(saldo) < 0.01 ? 'saldada' : 'saldo ' + fmt(saldo, rev.mon)) + '</span></div>'
+  h += acuerdos.map((a) => {
+    const mon = monedaAcuerdo(a);
+    const total = totalAcuerdo(a);
+    const ps = pagosAcuerdo(a, porReserva);
+    const pagado = ps.reduce((x, p) => x + aporte(p, mon), 0);
+    const saldo = total - pagado;
+    const r0 = a.rs[0];
+    const problemas = a.rs.flatMap((r) =>
+      (revisadas.find((x) => x.r.id === r.id).rev.mal).map((m) =>
+        (a.esGrupo ? '<b>' + esc(r.cabanaId) + ':</b> ' : '') + m));
+    if (total > 0 && pagado > total + 0.01) {
+      problemas.unshift('El acuerdo está <b>sobrepagado</b>: ' + fmt(pagado, mon)
+        + ' sobre ' + fmt(total, mon) + '.');
+    }
+    const monedas = [...new Set(a.rs.map(monedaDe))];
+    if (monedas.length > 1) {
+      problemas.unshift('Las cabañas del acuerdo están en <b>monedas distintas</b> ('
+        + esc(monedas.join(', ')) + '). El total del acuerdo no significa nada así.');
+    }
 
-      + '<div class="campos">'
-      + '<code>' + esc(r.id) + '</code><br>'
-      + dia(r.checkIn) + ' → ' + dia(r.checkOut)
-      + ' · <b>' + esc(rev.mon) + '</b>'
-      + ' · total <b>' + esc(fmt(rev.total, rev.mon)) + '</b>'
-      + ' · pagado <b>' + esc(fmt(rev.pagado, rev.mon)) + '</b>'
-      + (r.total === undefined && r.totalBRL !== undefined ? ' <i>(desde totalBRL)</i>' : '')
-      + '</div>'
+    return '<div class="tarj res' + (problemas.length ? ' mal' : '') + '">'
+      + '<div class="cab"><b>' + esc(r0.clienteNombre || '(sin nombre)') + '</b>'
+      + (a.esGrupo ? '<span class="et verde">acuerdo · ' + a.rs.length + ' cabañas</span>' : '')
+      + [...new Set(a.rs.map((r) => r.estado))].map((e) => '<span class="et">' + esc(e) + '</span>').join('')
+      + '<span class="et ' + (Math.abs(saldo) < 0.01 ? 'verde' : 'rojo') + '">'
+      + (Math.abs(saldo) < 0.01 ? 'saldado' : 'saldo ' + fmt(saldo, mon)) + '</span></div>'
+
+      // LO ECONÓMICO VIVE ACÁ Y SOLO ACÁ: un total, un pagado, un saldo.
+      + '<div class="campos"><code>' + esc(a.clave) + '</code><br>'
+      + '<b>' + esc(mon) + '</b> · total <b>' + esc(fmt(total, mon)) + '</b>'
+      + ' · pagado <b>' + esc(fmt(pagado, mon)) + '</b>'
+      + ' · saldo <b>' + esc(fmt(saldo, mon)) + '</b></div>'
+
+      // Y acá lo de cada cabaña: fechas, gente, su PARTE del total. Sin saldo:
+      // no existe deuda contra una cabaña.
+      + '<div style="margin-top:8px;">' + a.rs.map((r) => '<div class="pago">'
+        + '<span><b>' + esc(r.cabanaId || '?') + '</b></span>'
+        + '<span>' + esc(dia(r.checkIn)) + ' → ' + esc(dia(r.checkOut))
+        + ' · 👤' + (r.adultos ?? 0) + (r.ninos ? '+' + r.ninos : '')
+        + (limpiezas.has('limp-' + r.id) ? ' · 🧹' : '')
+        + '</span>'
+        + '<span class="m">' + (a.esGrupo ? 'parte ' : '') + esc(fmt(totalDe(r), monedaDe(r))) + '</span>'
+        + '</div>').join('') + '</div>'
 
       + (ps.length
         ? '<div style="margin-top:8px;">' + ps.map((p) => {
             const pm = p.moneda || 'BRL';
-            const eq = pm !== rev.mon
-              ? ' (≈' + fmt(aporte(p, rev.mon), rev.mon) + (aporte(p, rev.mon) ? '' : ' ¡CERO!') + ')'
+            const eq = pm !== mon
+              ? ' (≈' + fmt(aporte(p, mon), mon) + (aporte(p, mon) ? '' : ' ¡CERO!') + ')'
               : '';
             return '<div class="pago"><span>' + esc(dia(p.fecha)) + '</span>'
               + '<span>' + esc(p.concepto || 'pago') + ' · ' + esc(p.metodo || '—') + '</span>'
@@ -218,9 +272,9 @@ function pintar(reservas, porReserva, huerfanos, limpiezas) {
           }).join('') + '</div>'
         : '<div class="campos"><i>Sin pagos registrados.</i></div>')
 
-      + (rev.mal.length
+      + (problemas.length
         ? '<div class="prob"><b>Revisar:</b><ul>'
-          + rev.mal.map((m) => '<li>' + m + '</li>').join('') + '</ul></div>'
+          + problemas.map((m) => '<li>' + m + '</li>').join('') + '</ul></div>'
         : '')
       + '</div>';
   }).join('');
@@ -230,26 +284,35 @@ function pintar(reservas, porReserva, huerfanos, limpiezas) {
   // nombre, y esto se pega en una conversación.
   const volcado = {
     generado: new Date().toISOString(),
-    reservas: reservas.map((r) => ({
-      id: r.id, estado: r.estado, cabanaId: r.cabanaId,
-      clienteNombre: r.clienteNombre, clienteId: r.clienteId,
-      checkIn: r.checkIn, checkOut: r.checkOut,
-      horaEntrada: r.horaEntrada, horaSalida: r.horaSalida,
-      moneda: r.moneda, total: r.total, totalBRL: r.totalBRL,
-      adultos: r.adultos, ninos: r.ninos, origen: r.origen,
-      notas: r.notas ? '(' + String(r.notas).length + ' caracteres)' : null,
-      camposPresentes: Object.keys(r).sort(),
-      pagos: (porReserva[r.id] || []).map((p) => ({
-        id: p.id, fecha: p.fecha, concepto: p.concepto, metodo: p.metodo,
-        monto: p.monto, moneda: p.moneda,
-        montoEquiv: p.montoEquiv, monedaReserva: p.monedaReserva, montoBRL: p.montoBRL,
-        cuentaDestino: p.cuentaDestino, categoria: p.categoria,
-        camposPresentes: Object.keys(p).sort()
-      })),
-      tieneLimpieza: limpiezas.has('limp-' + r.id),
-      problemas: revisadas.find((x) => x.r.id === r.id).rev.mal
-        .map((m) => m.replace(/<[^>]*>/g, ''))
-    })),
+    acuerdos: acuerdos.map((a) => {
+      const mon = monedaAcuerdo(a);
+      const ps = pagosAcuerdo(a, porReserva);
+      const pagado = ps.reduce((x, p) => x + aporte(p, mon), 0);
+      return {
+        clave: a.clave, esGrupo: a.esGrupo,
+        cliente: a.rs[0].clienteNombre, clienteId: a.rs[0].clienteId,
+        moneda: mon, total: totalAcuerdo(a), pagado, saldo: totalAcuerdo(a) - pagado,
+        cabanas: a.rs.map((r) => ({
+          id: r.id, cabanaId: r.cabanaId, estado: r.estado,
+          checkIn: r.checkIn, checkOut: r.checkOut,
+          horaEntrada: r.horaEntrada, horaSalida: r.horaSalida,
+          adultos: r.adultos, ninos: r.ninos, origen: r.origen,
+          parteDelTotal: totalDe(r),
+          notas: r.notas ? '(' + String(r.notas).length + ' caracteres)' : null,
+          tieneLimpieza: limpiezas.has('limp-' + r.id),
+          camposPresentes: Object.keys(r).sort()
+        })),
+        pagos: ps.map((p) => ({
+          id: p.id, fecha: p.fecha, concepto: p.concepto, metodo: p.metodo,
+          monto: p.monto, moneda: p.moneda, montoEquiv: p.montoEquiv,
+          monedaReserva: p.monedaReserva, montoBRL: p.montoBRL,
+          reservaId: p.reservaId, grupoId: p.grupoId,
+          camposPresentes: Object.keys(p).sort()
+        })),
+        problemas: a.rs.flatMap((r) =>
+          revisadas.find((x) => x.r.id === r.id).rev.mal.map((m) => r.cabanaId + ': ' + m.replace(/<[^>]*>/g, '')))
+      };
+    }),
     pagosHuerfanos: huerfanos.map((p) => ({
       id: p.id, reservaId: p.reservaId, fecha: p.fecha,
       monto: p.monto, moneda: p.moneda
