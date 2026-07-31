@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Migrar reservas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+<link rel="stylesheet" href="design-system.css">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .aviso { background: #fdf1d8; border: 1px solid #e8d5a3; border-radius: 10px;
+    padding: 11px 13px; font-size: .85rem; margin: 0 0 14px; line-height: 1.5; }
+  .aviso.rojo { background: #fdeceb; border-color: #f0b8b4; }
+  .tarj { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 13px; margin: 12px 0; box-shadow: var(--sombra); }
+  .tarj > h2 { margin: 0 0 3px; font-size: .98rem; }
+  .tarj > .sub { color: var(--gris); font-size: .82rem; margin: 0 0 10px; line-height: 1.5; }
+  .fila { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0;
+    border-top: 1px solid var(--linea); min-height: 44px; }
+  .fila:first-of-type { border-top: 0; }
+  .fila input[type=checkbox] { width: 22px; height: 22px; flex: 0 0 auto; margin-top: 2px; }
+  .fila .txt { flex: 1; min-width: 0; font-size: .86rem; }
+  .fila .txt b { display: block; }
+  .fila .txt small { display: block; color: var(--gris); font-size: .77rem; line-height: 1.5; }
+  .fila code { font-size: .7rem; color: var(--gris); overflow-wrap: anywhere; }
+  .et { font-size: .66rem; font-weight: 700; padding: 2px 6px; border-radius: 999px;
+    background: #f2f1ec; color: var(--gris); margin-left: 5px; }
+  .et.rojo { background: #fdeceb; color: var(--rojo); }
+  .et.verde { background: var(--verde-claro); color: var(--verde-osc); }
+  .grupo { border-left: 4px solid var(--verde); padding-left: 10px; margin: 10px 0; }
+  .acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .log { background: var(--crema); border-radius: 8px; padding: 10px; margin-top: 10px;
+    font-size: .78rem; font-family: ui-monospace, monospace; white-space: pre-wrap;
+    max-height: 260px; overflow: auto; }
+  .cargando { text-align: center; color: var(--gris); padding: 34px; }
+  .sellado { opacity: .55; }
+</style>
+</head>
+<body>
+
+<div class="contenedor">
+  <h1>Migrar reservas</h1>
+
+  <div class="aviso rojo">
+    <b>Esta página ESCRIBE y BORRA.</b> Herramienta temporal: no está en el menú
+    ni en el service worker. Nada se ejecuta sin que marques qué y confirmes.
+    Cada acción muestra antes exactamente lo que va a hacer.
+    <br><br>
+    <b>Antes de empezar</b>, entrá a <a href="./revisar-reservas.html">Revisar
+    reservas</a> y copiá el volcado: es la foto de cómo estaba todo. No hay
+    deshacer.
+  </div>
+
+  <div id="cuerpo"><div class="cargando">Leyendo…</div></div>
+</div>
+
+<script type="module">
+// ═══════════════════════════════════════════════════════════
+// MIGRAR RESERVAS — dos trabajos de una sola vez, jul-2026.
+//
+// 1. ACUERDOS. Hasta hoy una reserva era una cabaña. Pero las dos reservas
+//    vivas del sistema son en realidad UN acuerdo repartido en varias
+//    cabañas: Alejandro tomó las tres por U$D 2000 y pagó 500 de seña. Como
+//    no había dónde poner esa plata, quedó colgada de una cabaña arbitraria
+//    y las otras dos decían "sin pagos" en rojo.
+//    Se agrega 'grupoId' a reservas y pagos. Es un texto compartido, no una
+//    colección: el acuerdo NO se guarda, se deriva de las reservas que lo
+//    comparten. El total es la suma; lo derivado nunca se almacena.
+//
+// 2. DEPURAR. Las pruebas de julio (Carlitos y compañía) ensucian cualquier
+//    revisión futura. Se borran con sus pagos y sus movimientos de Dinero.
+//
+// LO QUE NO CAMBIA, y conviene tenerlo escrito: la limpieza (limp-<id>), la
+// disponibilidad pública, las barras del calendario y la detección de
+// superposiciones siguen siendo POR RESERVA. El acuerdo es comercial; la
+// ocupación es física. Cada cabaña sigue generando su limpieza y su control.
+// ═══════════════════════════════════════════════════════════
+import {
+  db, collection, getDocs, doc, updateDoc, deleteDoc, serverTimestamp
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+const u = await CV2.verificarAuth();
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+// Borrar movimientos es tocar plata: va con 'finanzas', igual que la regla.
+if (!CV2.puede('reservas') || !CV2.puede('finanzas')) {
+  $('cuerpo').innerHTML = '<div class="cargando">Hace falta permiso de reservas '
+    + 'y de finanzas: esta herramienta borra movimientos de Dinero.</div>';
+  throw new Error('sin permiso');
+}
+
+let reservas = [], pagos = [], movimientos = [];
+
+const monedaDe = (r) => (r && r.moneda) || 'BRL';
+const totalDe = (r) => Number((r && (r.total ?? r.totalBRL)) || 0);
+const fmt = (n, m) => CV2.fmtMonto(n, m || 'BRL');
+const pagosDe = (rid) => pagos.filter((p) => p.reservaId === rid);
+
+// Un movimiento sellado por un balance NO se borra ni se toca. La regla de
+// Firestore solo mira 'pendiente.cierreId', pero el balance nuevo sella con
+// 'cierreId' en la raíz: si solo confiáramos en la regla, se podría borrar un
+// movimiento que ya está contado en un cierre y el balance dejaría de cuadrar.
+const selladoEnBalance = (m) =>
+  !!(m.cierreId || (m.pendiente && m.pendiente.cierreId));
+
+const movsDePago = (pagoId) =>
+  movimientos.filter((m) => m.refTipo === 'pago' && m.refId === pagoId);
+
+function log(txt) {
+  const el = $('log');
+  if (el) { el.textContent += txt + '\n'; el.scrollTop = el.scrollHeight; }
+}
+
+// ═══ 1 · Acuerdos ═════════════════════════════════════════
+// Se proponen por cliente, pero NO se aplican solos. Un acuerdo es un hecho
+// comercial, no una coincidencia de datos: lo confirma una persona.
+function pintarAcuerdos() {
+  const vivas = reservas.filter((r) => r.estado === 'confirmada' || r.estado === 'presupuesto');
+  const porCliente = {};
+  vivas.forEach((r) => {
+    const k = r.clienteId || r.clienteNombre || r.id;
+    (porCliente[k] = porCliente[k] || []).push(r);
+  });
+
+  const candidatos = Object.values(porCliente).filter((v) => v.length > 1);
+  if (!candidatos.length) {
+    return '<div class="tarj"><h2>1 · Acuerdos</h2>'
+      + '<p class="sub">No hay ningún cliente con más de una reserva viva. '
+      + 'Nada para agrupar.</p></div>';
+  }
+
+  let h = '<div class="tarj"><h2>1 · Acuerdos</h2>'
+    + '<p class="sub">Reservas del mismo cliente que probablemente sean un solo '
+    + 'acuerdo. Marcá las que se cobran juntas y confirmá. Las fechas pueden ser '
+    + 'distintas; lo que las une es que se pagan como una.</p>';
+
+  candidatos.forEach((grupo, i) => {
+    const monedas = [...new Set(grupo.map(monedaDe))];
+    const yaAgrupadas = grupo.filter((r) => r.grupoId);
+    const total = grupo.reduce((a, r) => a + totalDe(r), 0);
+    const pagado = grupo.reduce((a, r) =>
+      a + pagosDe(r.id).reduce((b, p) => b + (Number(p.montoEquiv ?? p.monto) || 0), 0), 0);
+
+    h += '<div class="grupo"><b style="font-size:.9rem;">' + esc(grupo[0].clienteNombre || '(sin nombre)') + '</b>'
+      + (monedas.length > 1
+        ? '<div class="aviso rojo" style="margin:6px 0;">Estas reservas están en '
+          + 'monedas distintas (' + esc(monedas.join(', ')) + '). Un acuerdo tiene UNA '
+          + 'moneda: sumar dólares con reales no significa nada. Corregí la moneda '
+          + 'antes de agruparlas.</div>'
+        : '<small style="color:var(--gris);font-size:.78rem;">total ' + esc(fmt(total, monedas[0]))
+          + ' · pagado ' + esc(fmt(pagado, monedas[0]))
+          + ' · saldo <b>' + esc(fmt(total - pagado, monedas[0])) + '</b></small>')
+      + (yaAgrupadas.length
+        ? '<div class="aviso" style="margin:6px 0;">Ya tienen acuerdo: <code>'
+          + esc(yaAgrupadas[0].grupoId) + '</code>. Volver a agrupar lo reemplaza.</div>'
+        : '');
+
+    grupo.forEach((r) => {
+      const ps = pagosDe(r.id);
+      h += '<div class="fila">'
+        + '<input type="checkbox" data-grupo="' + i + '" value="' + esc(r.id) + '"'
+        + (monedas.length > 1 ? '' : ' checked') + '>'
+        + '<div class="txt"><b>' + esc(r.cabanaId || '?') + ' · ' + esc(fmt(totalDe(r), monedaDe(r)))
+        + '<span class="et">' + esc(r.estado) + '</span></b>'
+        + '<small>' + esc(r.checkIn || '?') + ' → ' + esc(r.checkOut || '?')
+        + (ps.length ? ' · ' + ps.length + ' pago(s): '
+            + ps.map((p) => fmt(p.monto, p.moneda)).join(', ') : ' · sin pagos')
+        + '</small><code>' + esc(r.id) + '</code></div></div>';
+    });
+
+    h += '<div class="acciones"><button class="btn btn-primario" data-crear="' + i + '">'
+      + '<span class="material-icons">link</span> Crear acuerdo</button></div></div>';
+  });
+
+  return h + '</div>';
+}
+
+async function crearAcuerdo(i) {
+  const marcados = [...document.querySelectorAll('[data-grupo="' + i + '"]:checked')]
+    .map((c) => c.value);
+  if (marcados.length < 2) {
+    CV2.toast('Marcá al menos dos reservas', 'error');
+    return;
+  }
+  const rs = marcados.map((id) => reservas.find((r) => r.id === id));
+  const monedas = [...new Set(rs.map(monedaDe))];
+  if (monedas.length > 1) {
+    CV2.toast('No se puede: hay monedas distintas', 'error');
+    return;
+  }
+
+  // ID determinista y trazable: nace de la primera reserva del acuerdo
+  // (§3.5). No es una referencia viva, es una etiqueta: si esa reserva se
+  // borrara, las demás siguen unidas igual.
+  const ordenadas = rs.slice().sort((a, b) => (a.checkIn ?? '').localeCompare(b.checkIn ?? ''));
+  const grupoId = 'grp-' + ordenadas[0].id;
+
+  const psAfectados = marcados.flatMap((id) => pagosDe(id));
+  const resumen = 'Se va a crear el acuerdo ' + grupoId + '\n\n'
+    + rs.length + ' reserva(s):\n'
+    + rs.map((r) => '  · ' + (r.cabanaId || '?') + '  ' + r.checkIn + ' → ' + r.checkOut
+        + '  ' + fmt(totalDe(r), monedaDe(r))).join('\n')
+    + '\n\nTotal del acuerdo: ' + fmt(rs.reduce((a, r) => a + totalDe(r), 0), monedas[0])
+    + '\n\n' + psAfectados.length + ' pago(s) pasan a contar para el acuerdo entero.'
+    + '\n\nNo se toca ninguna limpieza, ni la disponibilidad, ni el calendario.';
+  if (!confirm(resumen + '\n\n¿Seguimos?')) return;
+
+  log('── Acuerdo ' + grupoId);
+  try {
+    for (const r of rs) {
+      await updateDoc(doc(db, 'reservas', r.id), {
+        grupoId, actualizadoEn: serverTimestamp()
+      });
+      r.grupoId = grupoId;
+      log('  reserva ' + r.cabanaId + ' (' + r.id + ') → grupoId');
+    }
+    for (const p of psAfectados) {
+      await updateDoc(doc(db, 'pagos', p.id), { grupoId });
+      p.grupoId = grupoId;
+      log('  pago ' + fmt(p.monto, p.moneda) + ' (' + p.id + ') → grupoId');
+    }
+    log('  listo: ' + rs.length + ' reserva(s), ' + psAfectados.length + ' pago(s)');
+    CV2.toast('Acuerdo creado', 'success');
+    render();
+  } catch (e) {
+    log('  ERROR: ' + (e.code ?? e.message));
+    CV2.toast('Falló: ' + (e.code ?? e.message), 'error');
+  }
+}
+
+// ═══ 2 · Depurar pruebas ══════════════════════════════════
+function pintarDepurar() {
+  const hoy = CV2.hoyISO();
+  // Candidata: terminada o anulada, y con la salida ya pasada. Una reserva
+  // viva nunca se ofrece para borrar, por más vieja que parezca.
+  const cand = reservas.filter((r) =>
+    (r.estado === 'anulada' || r.estado === 'finalizada')
+    && typeof r.checkOut === 'string' && r.checkOut < hoy);
+
+  if (!cand.length) {
+    return '<div class="tarj"><h2>2 · Depurar pruebas</h2>'
+      + '<p class="sub">No hay reservas anuladas ni finalizadas con la salida pasada.</p></div>';
+  }
+
+  let h = '<div class="tarj"><h2>2 · Depurar pruebas</h2>'
+    + '<p class="sub">Reservas anuladas o finalizadas con la salida ya pasada. Al '
+    + 'borrarlas se borran también sus pagos y los movimientos de Dinero que esos '
+    + 'pagos generaron. <b>Un movimiento ya contado en un balance no se toca</b>, y '
+    + 'esa reserva no se puede borrar: aparece atenuada.</p>';
+
+  cand.forEach((r) => {
+    const ps = pagosDe(r.id);
+    const movs = ps.flatMap((p) => movsDePago(p.id));
+    const trabado = movs.some(selladoEnBalance);
+    h += '<div class="fila' + (trabado ? ' sellado' : '') + '">'
+      + '<input type="checkbox" data-borrar value="' + esc(r.id) + '"'
+      + (trabado ? ' disabled' : '') + '>'
+      + '<div class="txt"><b>' + esc(r.clienteNombre || '(sin nombre)')
+      + '<span class="et ' + (r.estado === 'anulada' ? 'rojo' : '') + '">' + esc(r.estado) + '</span></b>'
+      + '<small>' + esc(r.cabanaId || '?') + ' · ' + esc(r.checkIn || '?') + ' → ' + esc(r.checkOut || '?')
+      + ' · ' + esc(fmt(totalDe(r), monedaDe(r)))
+      + (ps.length ? ' · <b style="color:var(--rojo);">' + ps.length + ' pago(s) por '
+          + esc(ps.map((p) => fmt(p.monto, p.moneda)).join(', ')) + '</b>' : '')
+      + (movs.length ? ' · ' + movs.length + ' movimiento(s) en Dinero' : '')
+      + (trabado ? '<br><b style="color:var(--rojo);">Tiene un movimiento contado en un '
+          + 'balance cerrado. No se puede borrar sin descuadrar ese balance.</b>' : '')
+      + '</small><code>' + esc(r.id) + '</code></div></div>';
+  });
+
+  return h + '<div class="acciones">'
+    + '<button class="btn" id="marcarTodo">Marcar todo lo que se puede</button>'
+    + '<button class="btn btn-primario" id="borrar" style="background:var(--rojo);border-color:var(--rojo);">'
+    + '<span class="material-icons">delete_forever</span> Borrar lo marcado</button>'
+    + '</div></div>';
+}
+
+async function borrarMarcadas() {
+  const ids = [...document.querySelectorAll('[data-borrar]:checked')].map((c) => c.value);
+  if (!ids.length) { CV2.toast('No hay nada marcado', 'error'); return; }
+
+  const rs = ids.map((id) => reservas.find((r) => r.id === id));
+  const ps = ids.flatMap((id) => pagosDe(id));
+  const ms = ps.flatMap((p) => movsDePago(p.id));
+  if (ms.some(selladoEnBalance)) {
+    CV2.toast('Hay un movimiento sellado en un balance: no se puede', 'error');
+    return;
+  }
+
+  const resumen = 'SE VA A BORRAR, sin deshacer:\n\n'
+    + rs.length + ' reserva(s):\n'
+    + rs.map((r) => '  · ' + (r.clienteNombre || '?') + '  ' + (r.cabanaId || '?')
+        + '  ' + r.checkIn).join('\n')
+    + '\n\n' + ps.length + ' pago(s):\n'
+    + (ps.length ? ps.map((p) => '  · ' + fmt(p.monto, p.moneda) + '  ' + p.fecha).join('\n') : '  (ninguno)')
+    + '\n\n' + ms.length + ' movimiento(s) de Dinero:\n'
+    + (ms.length ? ms.map((m) => '  · ' + fmt(m.monto, m.moneda) + '  ' + m.fecha
+        + '  ' + (m.cuenta || 'sin cuenta')).join('\n') : '  (ninguno)');
+  if (!confirm(resumen + '\n\n¿Borrar?')) return;
+  if (!confirm('Última confirmación. No hay deshacer.\n\n¿Seguro?')) return;
+
+  log('── Depuración');
+  let ok = 0, err = 0;
+  // Orden: primero los movimientos, después los pagos, al final las reservas.
+  // Si algo falla a mitad de camino, lo que queda es un pago sin movimiento
+  // (visible y arreglable) y no un movimiento apuntando a un pago fantasma.
+  for (const m of ms) {
+    try { await deleteDoc(doc(db, 'movimientos', m.id)); ok++; log('  movimiento ' + fmt(m.monto, m.moneda) + ' borrado'); }
+    catch (e) { err++; log('  ERROR movimiento ' + m.id + ': ' + (e.code ?? e.message)); }
+  }
+  for (const p of ps) {
+    try { await deleteDoc(doc(db, 'pagos', p.id)); ok++; log('  pago ' + fmt(p.monto, p.moneda) + ' borrado'); }
+    catch (e) { err++; log('  ERROR pago ' + p.id + ': ' + (e.code ?? e.message)); }
+  }
+  for (const r of rs) {
+    try { await deleteDoc(doc(db, 'reservas', r.id)); ok++; log('  reserva ' + (r.clienteNombre || r.id) + ' borrada'); }
+    catch (e) { err++; log('  ERROR reserva ' + r.id + ': ' + (e.code ?? e.message)); }
+  }
+  // La disponibilidad pública se espeja por reserva: si quedó algún registro
+  // de una reserva borrada, el sitio mostraría ocupado algo que está libre.
+  for (const r of rs) {
+    try { await deleteDoc(doc(db, 'disponibilidad', r.id)); log('  disponibilidad ' + r.id + ' limpiada'); }
+    catch (e) { /* lo normal es que no exista */ }
+  }
+  log('  listo: ' + ok + ' borrado(s)' + (err ? ', ' + err + ' error(es)' : ''));
+  CV2.toast(err ? 'Terminó con errores' : 'Depurado', err ? 'error' : 'success');
+  await cargar();
+  render();
+}
+
+// ═══ Render ═══════════════════════════════════════════════
+function render() {
+  $('cuerpo').innerHTML = pintarAcuerdos() + pintarDepurar()
+    + '<div class="tarj"><h2>Registro</h2>'
+    + '<p class="sub">Lo que se fue haciendo, para copiar y guardar.</p>'
+    + '<div class="log" id="log">(nada todavía)</div>'
+    + '<div class="acciones"><a class="btn" href="./revisar-reservas.html">'
+    + '<span class="material-icons">fact_check</span> Revisar cómo quedó</a></div></div>';
+
+  document.querySelectorAll('[data-crear]').forEach((b) => {
+    b.addEventListener('click', () => crearAcuerdo(b.dataset.crear));
+  });
+  const mt = $('marcarTodo');
+  if (mt) mt.addEventListener('click', () => {
+    document.querySelectorAll('[data-borrar]:not([disabled])').forEach((c) => { c.checked = true; });
+  });
+  const bb = $('borrar');
+  if (bb) bb.addEventListener('click', borrarMarcadas);
+}
+
+// ═══ Cargas — AL FINAL ════════════════════════════════════
+async function cargar() {
+  const [sr, sp, sm] = await Promise.all([
+    getDocs(collection(db, 'reservas')),
+    getDocs(collection(db, 'pagos')),
+    getDocs(collection(db, 'movimientos'))
+  ]);
+  reservas = []; pagos = []; movimientos = [];
+  sr.forEach((d) => reservas.push({ id: d.id, ...d.data() }));
+  sp.forEach((d) => pagos.push({ id: d.id, ...d.data() }));
+  sm.forEach((d) => movimientos.push({ id: d.id, ...d.data() }));
+  reservas.sort((a, b) => (b.checkIn ?? '').localeCompare(a.checkIn ?? ''));
+}
+
+try {
+  await cargar();
+  render();
+} catch (e) {
+  console.error(e);
+  $('cuerpo').innerHTML = '<div class="cargando">No se pudo leer: '
+    + esc((e && (e.code ?? e.message)) || 'error') + '</div>';
+}
+</script>
+</body>
+</html>
