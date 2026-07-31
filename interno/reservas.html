@@ -53,7 +53,11 @@
   .cabana-acuerdo { padding: 7px 0; border-top: 1px dashed var(--linea); }
   .cabana-acuerdo:first-of-type { border-top: 0; }
   .ca-1 { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-  .ca-monto { margin-left: auto; font-size: .82rem; color: var(--gris); white-space: nowrap; }
+  /* Dentro de un acuerdo, la cabaña NO muestra su monto: cuatro cifras para un
+     solo cobro se leen como cuatro saldos, y tres de ellas serían mentira. Lo
+     económico vive en el acuerdo. El total por cabaña sigue existiendo en el
+     dato —es lo que suma— y se edita entrando a la cabaña. */
+  .ca-sep { margin-left: auto; }
   .ca-2 { font-size: .78rem; color: var(--gris); margin-top: 3px; line-height: 1.5; }
   dialog { border: 0; border-radius: 14px; padding: 16px; width: min(500px, 94vw);
     max-height: 88dvh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
@@ -399,7 +403,7 @@ function render() {
             <div class="ca-1">
               <span class="cab" style="background:${CV2.pastelDe(colorCab(r.cabanaId))};color:${colorCab(r.cabanaId)};">${esc(nombreCab(r.cabanaId))}</span>
               <span class="est ${r.estado}">${r.estado}</span>
-              <span class="ca-monto">${CV2.fmtMonto(totalDe(r), monedaDe(r))}</span>
+              <span class="ca-sep"></span>
               ${CV2.puede('reservas') ? `<button class="btn-ico" style="border:0;padding:3px;" onclick="editar('${r.id}')" title="Editar esta cabaña"><span class="material-icons" style="font-size:17px;">edit</span></button>` : ''}
               ${CV2.puede('reservas') && r.estado !== 'anulada' ? `<button class="btn-ico" style="border:0;padding:3px;" onclick="cambiarEstado('${r.id}','anulada')" title="Anular esta cabaña"><span class="material-icons" style="font-size:17px;color:var(--rojo);">cancel</span></button>` : ''}
             </div>
@@ -412,7 +416,8 @@ function render() {
           </div>`).join('')}
           <div style="font-size:.75rem;color:var(--gris);margin-top:8px;">
             Cada cabaña tiene sus fechas, su limpieza, su control de salida y su lugar
-            en el calendario. Lo que comparten es el cobro.
+            en el calendario. <b>La plata vive solo en el acuerdo</b>: el total de arriba
+            es la suma de lo cargado en cada una, y se ajusta entrando a editarlas.
           </div>
         </div>` : ''}
 
