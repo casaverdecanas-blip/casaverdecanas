@@ -236,16 +236,58 @@ const MOTIVOS = {
 async function verSesion() {
   if (!FB) return;
   anotar('\n=== 3 · SESIÓN ===');
+
+  // La configuración con la que Firebase arrancó DE VERDAD. Si alguien tocó
+  // firebase-init.js sin querer —otro proyecto, otra clave, otro dominio—,
+  // acá se ve. Comprobar que el archivo "contiene cierta palabra" no alcanza.
+  let cabecera = '';
+  try {
+    const o = (FB.app && FB.app.options) || {};
+    const okProy = o.projectId === 'casaverde-20';
+    const okDom = o.authDomain === 'casaverde-20.firebaseapp.com';
+    const okClave = typeof o.apiKey === 'string' && o.apiKey.slice(0, 12) === 'AIzaSyDG12Fs';
+    cabecera += linea(okProy && okDom && okClave ? 'ok' : 'mal',
+      'Configuración del proyecto: ' + (okProy && okDom && okClave ? 'correcta' : 'CAMBIADA'),
+      'projectId ' + o.projectId + ' · authDomain ' + o.authDomain
+      + ' · clave ' + String(o.apiKey || '').slice(0, 12) + '…');
+    anotar('config: projectId=' + o.projectId + ' authDomain=' + o.authDomain
+      + ' apiKey=' + String(o.apiKey || '').slice(0, 12) + '… → '
+      + (okProy && okDom && okClave ? 'correcta' : 'CAMBIADA'));
+  } catch (e) {
+    cabecera += linea('mal', 'No se pudo leer la configuración', e.message);
+    anotar('config: ERROR ' + e.message);
+  }
+  $('s3').innerHTML = cabecera;
+  // CON PLAZO. Si Auth no logra abrir su base local (pasa cuando "Reparar la
+  // app" borró firebaseLocalStorageDb con otra pestaña abierta), este oyente
+  // NO SE DISPARA NUNCA: la sección quedaba vacía y no se entendía por qué.
+  // Un silencio no es un diagnóstico.
+  let contesto = false;
   await new Promise((res) => {
+    setTimeout(() => {
+      if (contesto) return;
+      contesto = true;
+      $('s3').innerHTML = cabecera + linea('mal',
+        'Firebase Auth NO ARRANCA',
+        'El control de sesión no contestó en 8 segundos. No es la contraseña ni '
+        + 'la red: Auth no consigue abrir su base local en este navegador. '
+        + 'Suele quedar así después de "Reparar la app". Se arregla borrando los '
+        + 'datos del sitio desde Chrome, o probando en una ventana de incógnito.');
+      anotar('AUTH NO ARRANCA: onAuthStateChanged no contestó en 8s');
+      res();
+    }, 8000);
+
     const off = FB.onAuthStateChanged(FB.auth, async (u) => {
+      if (contesto) return;
+      contesto = true;
       off();
       if (!u) {
-        $('s3').innerHTML = linea('duda', 'Sin sesión iniciada',
-          'Probá entrar acá abajo para ver qué contesta Firebase.');
-        anotar('sesion: ninguna');
+        $('s3').innerHTML = cabecera + linea('duda', 'Sin sesión iniciada',
+          'Auth arrancó bien. Probá entrar acá abajo.');
+        anotar('sesion: ninguna (Auth arrancó OK)');
         res(); return;
       }
-      let h = linea('ok', 'Sesión iniciada', u.email + ' · uid ' + u.uid);
+      let h = cabecera + linea('ok', 'Sesión iniciada', u.email + ' · uid ' + u.uid);
       anotar('sesion: ' + u.email + ' · uid ' + u.uid);
       // El perfil: existir en Auth no es lo mismo que estar dado de alta.
       try {
@@ -373,8 +415,11 @@ const PRUEBAS = [
   { n: 'firestore.googleapis.com', que: 'los datos · pide cabañas, que son públicas',
     url: 'https://firestore.googleapis.com/v1/projects/' + PROY
        + '/databases/(default)/documents/cabanas?key=' + CLAVE },
-  { n: 'firebaseapp.com', que: 'el dominio de autenticación del proyecto',
-    url: 'https://' + PROY + '.firebaseapp.com/__/auth/handler' }
+  // (Acá había una prueba a firebaseapp.com/__/auth/handler. Se sacó: ese
+  //  endpoint no manda cabeceras CORS, así que un fetch normal SIEMPRE falla
+  //  aunque esté perfecto — la prueba daba un falso negativo. Y además
+  //  signInWithEmailAndPassword no lo usa: solo hace falta para entrar con
+  //  Google. Una prueba que miente es peor que no tenerla.)
 ];
 
 $('btnRed').addEventListener('click', async () => {
