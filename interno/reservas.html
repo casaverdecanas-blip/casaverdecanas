@@ -218,12 +218,13 @@ const _volverA = _q.get('volver');
 let resaltada = _pedida || null;
 let traidaALaVista = false;
 let editId = null;
-let pagoReservaId = null;      // reserva a la que se registra un pago
+let pagoReservaId = null;      // reserva desde la que se cargó (rastro)
+let pagoAcuerdo = null;        // el acuerdo al que pertenece el pago
+let grupoDestino = null;       // acuerdo al que se suma la reserva que se crea
+let grupoOrigen = null;        // reserva suelta que pasa a ser acuerdo al sumarle otra
 let clientes = [];
 
 // Derivados de dinero — NUNCA guardados (CONVENCIONES)
-const pagosDe = (rid) => pagos.filter((p) => p.reservaId === rid)
-  .sort((a, b) => (b.fecha ?? '').localeCompare(a.fecha ?? ''));
 // Cada reserva vive en SU moneda de principio a fin. Un pago en otra moneda
 // aporta su equivalente EN LA MONEDA DE LA RESERVA (no siempre en reales).
 // Las reservas viejas no tienen 'moneda': se asumen en R$.
@@ -231,12 +232,11 @@ const monedaDe = (r) => (r && r.moneda) || 'BRL';
 const totalDe = (r) => Number((r && (r.total ?? r.totalBRL)) || 0);
 const aporte = (p, mon) =>
   Number(p.moneda === mon ? p.monto : (p.montoEquiv ?? p.montoBRL)) || 0;
-const pagadoDe = (rid) => {
-  const r = reservas.find((x) => x.id === rid);
-  const mon = monedaDe(r);
-  return pagosDe(rid).reduce((a, p) => a + aporte(p, mon), 0);
-};
-const tieneSena = (rid) => pagosDe(rid).some((p) => p.concepto === 'sena');
+// (Acá vivían 'pagadoDe' y 'tieneSena', que calculaban por RESERVA. Los
+// reemplazaron 'pagadoAcuerdo' y 'senaAcuerdo', que calculan por ACUERDO —
+// ver más abajo. Se borraron en vez de dejarlos: código muerto del modelo
+// anterior es lo que hizo que 'enBRL' sobreviviera sin definición y que el
+// calendario mostrara un chip de limpieza inventado durante cuarenta tandas.)
 
 const COLORES_CAB = ['#2a9d8f', '#e76f51', '#4361ee', '#b8860b', '#7209b7'];
 
@@ -270,6 +270,60 @@ const pasaFiltro = (r) => {
   return r.estado === filtro;
 };
 
+// ── El acuerdo ───────────────────────────────────────────
+// Una reserva es UNA cabaña: sus fechas, su limpieza, su lugar en el
+// calendario. Pero un mismo cliente puede tomar varias y pagarlas juntas.
+// Eso es un ACUERDO, y es donde vive la plata.
+//
+// El acuerdo NO se guarda en ningún lado: se deriva de las reservas que
+// comparten 'grupoId'. El total es la suma; lo derivado nunca se almacena.
+// Una reserva sin 'grupoId' es un acuerdo de una sola cabaña, y todo se
+// comporta igual que antes.
+//
+// QUÉ NO TOCA EL ACUERDO: la limpieza (limp-<reservaId>), la disponibilidad
+// pública, las barras del calendario y la detección de superposiciones
+// siguen siendo POR RESERVA. El acuerdo es comercial; la ocupación es física.
+function agrupar(lista) {
+  const mapa = new Map();
+  lista.forEach((r) => {
+    const k = r.grupoId || r.id;
+    if (!mapa.has(k)) mapa.set(k, { clave: k, esGrupo: !!r.grupoId, rs: [] });
+    mapa.get(k).rs.push(r);
+  });
+  const out = [...mapa.values()];
+  out.forEach((a) => a.rs.sort((x, y) =>
+    (x.checkIn ?? '').localeCompare(y.checkIn ?? '')
+    || (x.cabanaId ?? '').localeCompare(y.cabanaId ?? '')));
+  // Mismo criterio que antes: lo más próximo primero.
+  out.sort((a, b) => (b.rs[0].checkIn ?? '').localeCompare(a.rs[0].checkIn ?? ''));
+  return out;
+}
+
+// Los pagos de un acuerdo. El guard '!p.grupoId' del caso suelto es lo que
+// impide el DOBLE CONTEO: un pago que pertenece a un acuerdo no puede contar
+// además para la reserva desde la que se cargó.
+const pagosAcuerdo = (a) => (a.esGrupo
+  ? pagos.filter((p) => p.grupoId === a.clave)
+  : pagos.filter((p) => p.reservaId === a.clave && !p.grupoId)
+).sort((x, y) => (y.fecha ?? '').localeCompare(x.fecha ?? ''));
+
+const monedaAcuerdo = (a) => monedaDe(a.rs[0]);
+const totalAcuerdo = (a) => a.rs.reduce((x, r) => x + totalDe(r), 0);
+const pagadoAcuerdo = (a) => {
+  const mon = monedaAcuerdo(a);
+  return pagosAcuerdo(a).reduce((x, p) => x + aporte(p, mon), 0);
+};
+const senaAcuerdo = (a) => pagosAcuerdo(a).some((p) => p.concepto === 'sena');
+const acuerdoDe = (clave) => agrupar(reservas).find((a) => a.clave === clave);
+
+// El rango del acuerdo: la entrada más temprana y la salida más tardía. Las
+// cabañas pueden tener fechas distintas — es un acuerdo comercial, no un
+// bloque de fechas.
+const rangoAcuerdo = (a) => ({
+  desde: a.rs.map((r) => r.checkIn).filter(Boolean).sort()[0],
+  hasta: a.rs.map((r) => r.checkOut).filter(Boolean).sort().slice(-1)[0]
+});
+
 function render() {
   const fs = reservas.filter(pasaFiltro);
   const cont = $('lista');
@@ -277,65 +331,93 @@ function render() {
     cont.innerHTML = `<div class="vacio">${reservas.length ? 'Nada con este filtro.' : 'Sin reservas todavía.<br>Creá la primera con el botón <b>Reserva</b>.'}</div>`;
     return;
   }
-  cont.innerHTML = fs.map((r) => {
-    const col = colorCab(r.cabanaId);
-    let h = `<div class="res${r.id === resaltada ? ' resaltada' : ''}" id="res-${r.id}" style="border-left:5px solid ${col};" onclick="abrir('${r.id}')">
+
+  cont.innerHTML = agrupar(fs).map((a) => {
+    const r0 = a.rs[0];
+    const mon = monedaAcuerdo(a);
+    const total = totalAcuerdo(a);
+    const pagado = pagadoAcuerdo(a);
+    const saldo = total - pagado;
+    const col = colorCab(r0.cabanaId);
+    const rango = rangoAcuerdo(a);
+    const estados = [...new Set(a.rs.map((r) => r.estado))];
+    const algunaEnCasa = a.rs.some(enCasa);
+
+    let h = `<div class="res${a.clave === resaltada || a.rs.some((r) => r.id === resaltada) ? ' resaltada' : ''}" id="res-${a.clave}" style="border-left:5px solid ${a.esGrupo ? 'var(--verde-osc)' : col};" onclick="abrir('${a.clave}')">
       <div class="fila1">
-        <span class="quien">${esc(r.clienteNombre)}</span>
-        ${enCasa(r) ? '<span class="encasa">🏠 En casa</span>' : ''}
-        ${r.origen === 'airbnb' ? '<span class="est" style="background:#fde8ec;color:#b0164a;">Airbnb</span>' : ''}
-        <span class="est ${r.estado}">${r.estado}</span>
+        <span class="quien">${esc(r0.clienteNombre)}</span>
+        ${a.esGrupo ? `<span class="est" style="background:var(--verde-claro);color:var(--verde-osc);">acuerdo · ${a.rs.length} cabañas</span>` : ''}
+        ${algunaEnCasa ? '<span class="encasa">🏠 En casa</span>' : ''}
+        ${r0.origen === 'airbnb' ? '<span class="est" style="background:#fde8ec;color:#b0164a;">Airbnb</span>' : ''}
+        ${estados.map((e) => `<span class="est ${e}">${e}</span>`).join('')}
       </div>
       <div class="fila2">
-        <span class="cab" style="background:${CV2.pastelDe(col)};color:${col};">${esc(nombreCab(r.cabanaId))}</span>
-        <span>${CV2.fmtFecha(r.checkIn)} ${r.horaEntrada ?? '14:00'} → ${CV2.fmtFecha(r.checkOut)} ${r.horaSalida ?? '10:00'} · ${noches(r)} noche(s)</span>
-        <span>👤 ${r.adultos}${r.ninos ? ' + ' + r.ninos + ' 🧒' : ''}</span>
-        <span><b>${CV2.fmtMonto(totalDe(r), monedaDe(r))}</b></span>
+        ${a.esGrupo
+          ? `<span>${a.rs.map((r) => esc(nombreCab(r.cabanaId))).join(' + ')}</span>`
+          : `<span class="cab" style="background:${CV2.pastelDe(col)};color:${col};">${esc(nombreCab(r0.cabanaId))}</span>`}
+        <span>${CV2.fmtFecha(rango.desde)} → ${CV2.fmtFecha(rango.hasta)}${a.esGrupo ? '' : ` · ${noches(r0)} noche(s)`}</span>
+        <span>👤 ${a.rs.reduce((x, r) => x + (r.adultos ?? 0), 0)}${a.rs.reduce((x, r) => x + (r.ninos ?? 0), 0) ? ' + ' + a.rs.reduce((x, r) => x + (r.ninos ?? 0), 0) + ' 🧒' : ''}</span>
+        <span><b>${CV2.fmtMonto(total, mon)}</b></span>
         ${(() => {
-          const pag = pagadoDe(r.id);
-          const saldo = totalDe(r) - pag;
-          if (pag <= 0) return r.estado === 'presupuesto' ? '' : '<span style="color:var(--rojo);">sin pagos</span>';
-          // fmtMonto SIN moneda asume reales: una reserva en dólares mostraba
-          // su saldo en R$. La reserva vive en su moneda de principio a fin.
-          return `<span style="color:${saldo > 0.01 ? 'var(--amarillo)' : 'var(--ok)'};">${saldo > 0.01 ? 'saldo ' + CV2.fmtMonto(saldo, monedaDe(r)) : '✓ pagada'}</span>`;
+          if (pagado <= 0) return estados.every((e) => e === 'presupuesto') ? '' : '<span style="color:var(--rojo);">sin pagos</span>';
+          return `<span style="color:${saldo > 0.01 ? 'var(--amarillo)' : 'var(--ok)'};">${saldo > 0.01 ? 'saldo ' + CV2.fmtMonto(saldo, mon) : '✓ pagada'}</span>`;
         })()}
-        ${tieneSena(r.id) && r.estado === 'presupuesto' ? '<span class="est" style="background:#fdf1d8;color:#8a6206;">señada</span>' : ''}
+        ${senaAcuerdo(a) && estados.includes('presupuesto') ? '<span class="est" style="background:#fdf1d8;color:#8a6206;">señada</span>' : ''}
       </div>`;
 
-    if (abierta === r.id) {
-      const ultimos = (r.historial ?? []).slice(-3).reverse()
-        .map((x) => `${CV2.fmtFecha(x.fecha)} · ${esc(x.autorNombre)}: ${esc(x.cambio)}`).join('<br>');
-      const ps = pagosDe(r.id);
+    if (abierta === a.clave) {
+      const ps = pagosAcuerdo(a);
       const CONC = { sena: 'Seña', saldo: 'Saldo', otro: 'Pago' };
       h += `<div class="detalle" onclick="event.stopPropagation()">
+
+        ${a.esGrupo ? `<div style="margin-bottom:8px;">
+          <b>Cabañas del acuerdo</b>
+          ${a.rs.map((r) => `<div style="display:flex;gap:8px;align-items:center;font-size:.82rem;margin-top:4px;flex-wrap:wrap;">
+            <span class="cab" style="background:${CV2.pastelDe(colorCab(r.cabanaId))};color:${colorCab(r.cabanaId)};">${esc(nombreCab(r.cabanaId))}</span>
+            <span style="color:var(--gris);">${CV2.fmtFecha(r.checkIn)} → ${CV2.fmtFecha(r.checkOut)} · ${noches(r)} noche(s) · 👤${r.adultos}</span>
+            <span class="est ${r.estado}">${r.estado}</span>
+            <b style="margin-left:auto;">${CV2.fmtMonto(totalDe(r), monedaDe(r))}</b>
+            ${CV2.puede('reservas') ? `<button class="btn-ico" style="border:0;padding:2px;" onclick="editar('${r.id}')" title="Editar esta cabaña"><span class="material-icons" style="font-size:16px;">edit</span></button>` : ''}
+            ${CV2.puede('reservas') && r.estado !== 'anulada' ? `<button class="btn-ico" style="border:0;padding:2px;" onclick="cambiarEstado('${r.id}','anulada')" title="Anular esta cabaña"><span class="material-icons" style="font-size:16px;color:var(--rojo);">cancel</span></button>` : ''}
+          </div>`).join('')}
+          <div style="font-size:.75rem;color:var(--gris);margin-top:6px;">
+            Cada cabaña tiene su propia limpieza, su control de salida y su lugar en el
+            calendario. Lo que comparten es el cobro.
+          </div>
+        </div>` : ''}
+
         ${ps.length ? `<div style="margin-bottom:6px;">
-          <!-- El equivalente se muestra en la MONEDA DE LA RESERVA, nunca en
-               reales. Acá había una llamada a enBRL(), una función que NO
-               EXISTÍA en este archivo: resto del pivote en reales anterior a
-               la tanda 11.1. Como está dentro del map que arma la lista, un
-               solo pago en moneda distinta rompía la página entera, no solo
-               esa fila. Nadie lo vio porque todavía no hubo un pago así. -->
-          <b>Pagos</b> · pagado ${CV2.fmtMonto(pagadoDe(r.id), monedaDe(r))} de ${CV2.fmtMonto(totalDe(r), monedaDe(r))}
+          <b>Pagos${a.esGrupo ? ' del acuerdo' : ''}</b> · pagado ${CV2.fmtMonto(pagado, mon)} de ${CV2.fmtMonto(total, mon)}
           ${ps.map((p) => `<div style="display:flex;gap:8px;align-items:center;font-size:.82rem;color:var(--gris);margin-top:3px;">
             <span>${CV2.fmtFecha(p.fecha)}</span>
             <span style="flex:1;">${CONC[p.concepto] ?? 'Pago'} · ${esc(p.metodo ?? '')}${p.categoria ? ' · ' + esc(p.categoria) : ''}${p.cuentaDestino ? ' → ' + esc(p.cuentaDestino) : ''}${p.nota ? ' · ' + esc(p.nota) : ''}</span>
-            <b style="color:var(--tinta);">${CV2.fmtMonto(p.monto, p.moneda ?? 'BRL')}${(p.moneda ?? 'BRL') !== monedaDe(r) ? ' <span style="font-weight:400;color:var(--gris);">(≈' + CV2.fmtMonto(aporte(p, monedaDe(r)), monedaDe(r)) + ')</span>' : ''}</b>
+            <b style="color:var(--tinta);">${CV2.fmtMonto(p.monto, p.moneda ?? 'BRL')}${(p.moneda ?? 'BRL') !== mon ? ' <span style="font-weight:400;color:var(--gris);">(≈' + CV2.fmtMonto(aporte(p, mon), mon) + ')</span>' : ''}</b>
             ${CV2.puede('finanzas') ? `<button class="btn-ico" style="border:0;padding:2px;" onclick="borrarPago('${p.id}')" title="Eliminar pago"><span class="material-icons" style="font-size:15px;color:var(--rojo)">delete_outline</span></button>` : ''}
           </div>`).join('')}
         </div>` : ''}
-        ${r.notas ? `<div>📝 ${esc(r.notas)}</div>` : ''}
-        ${ultimos ? `<div class="hist">${ultimos}</div>` : ''}
+
+        ${a.rs.map((r) => r.notas ? `<div>📝 ${esc(r.notas)}</div>` : '').join('')}
+        ${(() => {
+          const ultimos = a.rs.flatMap((r) => r.historial ?? [])
+            .sort((x, y) => (y.fecha?.toMillis?.() ?? 0) - (x.fecha?.toMillis?.() ?? 0))
+            .slice(0, 3)
+            .map((x) => `${CV2.fmtFecha(x.fecha)} · ${esc(x.autorNombre)}: ${esc(x.cambio)}`).join('<br>');
+          return ultimos ? `<div class="hist">${ultimos}</div>` : '';
+        })()}
+
         <div class="acciones">
-          ${CV2.puede('reservas') && r.estado === 'presupuesto'
-            ? `<button class="btn-ico" style="border-color:var(--ok);color:var(--ok);" onclick="cambiarEstado('${r.id}','confirmada')"><span class="material-icons">check_circle</span> Confirmar</button>` : ''}
-          ${CV2.puede('reservas') && r.estado === 'confirmada' && r.checkOut <= CV2.hoyISO()
-            ? `<button class="btn-ico" onclick="cambiarEstado('${r.id}','finalizada')"><span class="material-icons">flag</span> Finalizar</button>` : ''}
-          ${CV2.puede('reservas') && (r.estado === 'presupuesto' || r.estado === 'confirmada')
-            ? `<button class="btn-ico" style="color:var(--rojo);" onclick="cambiarEstado('${r.id}','anulada')"><span class="material-icons">cancel</span> Anular</button>` : ''}
-          ${CV2.puede('reservas') && r.estado !== 'anulada'
-            ? `<button class="btn-ico" style="border-color:var(--verde);color:var(--verde-osc);" onclick="abrirPago('${r.id}')"><span class="material-icons">attach_money</span> Pago</button>` : ''}
-          ${CV2.puede('reservas')
-            ? `<button class="btn-ico" onclick="editar('${r.id}')"><span class="material-icons">edit</span> Editar</button>` : ''}
+          ${CV2.puede('reservas') && a.rs.some((r) => r.estado === 'presupuesto')
+            ? `<button class="btn-ico" style="border-color:var(--ok);color:var(--ok);" onclick="confirmarAcuerdo('${a.clave}')"><span class="material-icons">check_circle</span> Confirmar${a.esGrupo ? ' todo' : ''}</button>` : ''}
+          ${CV2.puede('reservas') && a.rs.some((r) => r.estado === 'confirmada' && r.checkOut <= CV2.hoyISO())
+            ? `<button class="btn-ico" onclick="finalizarAcuerdo('${a.clave}')"><span class="material-icons">flag</span> Finalizar</button>` : ''}
+          ${CV2.puede('reservas') && a.rs.some((r) => r.estado !== 'anulada')
+            ? `<button class="btn-ico" style="border-color:var(--verde);color:var(--verde-osc);" onclick="abrirPago('${a.clave}')"><span class="material-icons">attach_money</span> Pago${a.esGrupo ? ' del acuerdo' : ''}</button>` : ''}
+          ${CV2.puede('reservas') && a.rs.some((r) => r.estado !== 'anulada')
+            ? `<button class="btn-ico" onclick="agregarCabana('${a.clave}')"><span class="material-icons">add_home</span> Otra cabaña</button>` : ''}
+          ${CV2.puede('reservas') && !a.esGrupo
+            ? `<button class="btn-ico" onclick="editar('${r0.id}')"><span class="material-icons">edit</span> Editar</button>` : ''}
+          ${CV2.puede('reservas') && !a.esGrupo && r0.estado !== 'anulada'
+            ? `<button class="btn-ico" style="color:var(--rojo);" onclick="cambiarEstado('${r0.id}','anulada')"><span class="material-icons">cancel</span> Anular</button>` : ''}
         </div>
       </div>`;
     }
@@ -343,13 +425,38 @@ function render() {
   }).join('');
 }
 
+// Confirmar y finalizar actúan sobre TODO el acuerdo: son estados
+// comerciales. Anular y editar siguen siendo por cabaña — se puede caer una
+// sola del grupo sin tocar las demás.
+window.confirmarAcuerdo = async (clave) => {
+  const a = acuerdoDe(clave);
+  const pend = a.rs.filter((r) => r.estado === 'presupuesto');
+  if (!pend.length) return;
+  if (!confirm(pend.length > 1
+    ? '¿Confirmar las ' + pend.length + ' cabañas del acuerdo?'
+    : '¿Confirmar la reserva?')) return;
+  for (const r of pend) await cambiarEstado(r.id, 'confirmada', true);
+};
+window.finalizarAcuerdo = async (clave) => {
+  const a = acuerdoDe(clave);
+  const fin = a.rs.filter((r) => r.estado === 'confirmada' && r.checkOut <= CV2.hoyISO());
+  if (!fin.length) return;
+  if (!confirm(fin.length > 1
+    ? '¿Marcar como finalizadas las ' + fin.length + ' cabañas?'
+    : '¿Marcar como finalizada?')) return;
+  for (const r of fin) await cambiarEstado(r.id, 'finalizada', true);
+};
+
 window.abrir = (id) => { abierta = abierta === id ? null : id; render(); };
 
 // ═══ Cambios de estado (con historial) ════════════════════
-window.cambiarEstado = async (id, nuevo) => {
+// 'sinPreguntar' lo usan confirmarAcuerdo y finalizarAcuerdo: ya preguntaron
+// una vez por todo el acuerdo, y encadenar tres confirmaciones seguidas para
+// tres cabañas es como se termina apretando Aceptar sin leer.
+window.cambiarEstado = async (id, nuevo, sinPreguntar) => {
   const r = reservas.find((x) => x.id === id);
   const textos = { confirmada: '¿Confirmar la reserva?', finalizada: '¿Marcar como finalizada?', anulada: '¿ANULAR esta reserva?' };
-  if (!confirm(textos[nuevo])) return;
+  if (!sinPreguntar && !confirm(textos[nuevo])) return;
 
   if (nuevo === 'confirmada') {
     const c = conflicto(r.cabanaId, r.checkIn, r.checkOut, id);
@@ -384,9 +491,11 @@ const calcN = () => {
 };
 ['fIn', 'fOut'].forEach((i) => $(i).addEventListener('input', calcN));
 
-function abrirModal(r) {
+function abrirModal(r, base) {
   editId = r?.id ?? null;
-  $('mTit').textContent = editId ? 'Editar reserva' : 'Nueva reserva';
+  const b = base || null;   // datos heredados al sumar una cabaña a un acuerdo
+  $('mTit').textContent = editId ? 'Editar reserva'
+    : (b ? 'Otra cabaña del acuerdo' : 'Nueva reserva');
   $('fCabana').innerHTML = cabanas.map((c) =>
     `<option value="${c.id}">${esc(nombreCab(c.id))}</option>`).join('');
 
@@ -395,26 +504,30 @@ function abrirModal(r) {
     + clientes.map((c) => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('')
     + '<option value="__nuevo">➕ Nuevo cliente (con ficha)…</option>'
     + '<option value="__libre">✎ Solo nombre (sin ficha)</option>';
-  if (r?.clienteId && clientes.some((c) => c.id === r.clienteId)) {
-    $('fCliente').value = r.clienteId;
+  const cliId = r?.clienteId ?? b?.clienteId;
+  if (cliId && clientes.some((c) => c.id === cliId)) {
+    $('fCliente').value = cliId;
     $('fNombre').classList.add('oculto');
-  } else if (r) {
+  } else if (r || b) {
     $('fCliente').value = '__libre';
     $('fNombre').classList.remove('oculto');
   } else {
     $('fNombre').classList.add('oculto');
   }
-  $('fNombre').value = r?.clienteNombre ?? '';
+  $('fNombre').value = r?.clienteNombre ?? b?.clienteNombre ?? '';
   $('fCabana').value = r?.cabanaId ?? (cabanas[0]?.id ?? '');
-  $('fIn').value = r?.checkIn ?? '';
-  $('fOut').value = r?.checkOut ?? '';
-  $('fHoraIn').value = r?.horaEntrada ?? '14:00';
-  $('fHoraOut').value = r?.horaSalida ?? '10:00';
+  $('fIn').value = r?.checkIn ?? b?.checkIn ?? '';
+  $('fOut').value = r?.checkOut ?? b?.checkOut ?? '';
+  $('fHoraIn').value = r?.horaEntrada ?? b?.horaEntrada ?? '14:00';
+  $('fHoraOut').value = r?.horaSalida ?? b?.horaSalida ?? '10:00';
   $('fAdultos').value = r?.adultos ?? 2;
   $('fNinos').value = r?.ninos ?? 0;
   $('fTotal').value = r ? totalDe(r) : '';
-  $('fMonedaRes').value = monedaDe(r);
-  $('fEstado').value = r?.estado === 'confirmada' ? 'confirmada' : 'presupuesto';
+  // La moneda la manda el acuerdo: no se puede tener una cabaña en dólares
+  // y otra en reales dentro del mismo cobro.
+  $('fMonedaRes').value = b?.moneda ?? monedaDe(r);
+  $('fMonedaRes').disabled = !!b;
+  $('fEstado').value = (r?.estado ?? b?.estado) === 'confirmada' ? 'confirmada' : 'presupuesto';
   $('fEstado').disabled = !!editId;   // el estado se cambia con los botones, no editando
   $('fNotas').value = r?.notas ?? '';
   calcN();
@@ -446,9 +559,48 @@ $('fCliente').addEventListener('change', async () => {
   } catch (e) { CV2.toast('No se pudo crear: ' + (e.code ?? e.message), 'error'); $('fCliente').value = ''; }
 });
 
-$('btnNueva').addEventListener('click', () => abrirModal(null));
-window.editar = (id) => abrirModal(reservas.find((x) => x.id === id));
+$('btnNueva').addEventListener('click', () => {
+  grupoDestino = null; grupoOrigen = null;
+  abrirModal(null);
+});
+window.editar = (id) => {
+  grupoDestino = null; grupoOrigen = null;
+  abrirModal(reservas.find((x) => x.id === id));
+};
+
+// ASÍ NACE UN ACUERDO, y es el flujo real: se reserva una cabaña y después
+// el cliente quiere otra. No hay pantalla de "crear acuerdo" — se agrega una
+// cabaña y el acuerdo aparece solo.
+//   · Sobre un acuerdo existente → la nueva se suma con el mismo grupoId.
+//   · Sobre una reserva suelta → se le inventa el grupoId a las dos, y los
+//     pagos que ya tenía pasan al acuerdo (si no, dejarían de contar).
+window.agregarCabana = (clave) => {
+  const a = acuerdoDe(clave);
+  if (!a) return;
+  const base = a.rs[0];
+  if (a.esGrupo) {
+    grupoDestino = a.clave;
+    grupoOrigen = null;
+  } else {
+    grupoDestino = 'grp-' + base.id;
+    grupoOrigen = base.id;
+  }
+  // Se hereda lo del acuerdo (cliente, fechas, moneda) y se deja en blanco lo
+  // propio de la cabaña: cuál es, cuánta gente y cuánto sale.
+  abrirModal(null, {
+    clienteId: base.clienteId, clienteNombre: base.clienteNombre,
+    checkIn: base.checkIn, checkOut: base.checkOut,
+    horaEntrada: base.horaEntrada, horaSalida: base.horaSalida,
+    moneda: monedaDe(base), estado: base.estado
+  });
+};
 $('mCancelar').addEventListener('click', () => $('modal').close());
+// El acuerdo destino no puede sobrevivir al cierre del modal: si quedara,
+// la próxima reserva nueva entraría a un acuerdo ajeno sin que nadie lo pida.
+$('modal').addEventListener('close', () => {
+  grupoDestino = null; grupoOrigen = null;
+  $('fMonedaRes').disabled = false;
+});
 
 $('mGuardar').addEventListener('click', async () => {
   const selCli = $('fCliente').value;
@@ -502,12 +654,38 @@ $('mGuardar').addEventListener('click', async () => {
       const nuevaRef = await addDoc(collection(db, 'reservas'), {
         ...datos,
         estado,
+        grupoId: grupoDestino,
         origen: 'directa',
         googleEventId: null,
         historial: [{ fecha: Timestamp.now(), autorUid: u.uid, autorNombre: u.nombre ?? '', cambio: `creada (${estado})` }],
         creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
       });
-      CV2.toast('Creada', 'success');
+      CV2.toast(grupoDestino ? 'Cabaña sumada al acuerdo' : 'Creada', 'success');
+
+      // Si el acuerdo NACE acá (se sumó una cabaña a una reserva suelta), la
+      // original tiene que entrar también — y sus pagos con ella. Si los pagos
+      // se quedaran sin grupoId dejarían de contar: el saldo del acuerdo los
+      // busca por grupoId, no por reserva.
+      if (grupoOrigen) {
+        try {
+          await updateDoc(doc(db, 'reservas', grupoOrigen), {
+            grupoId: grupoDestino,
+            historial: registrarCambio('se sumó a un acuerdo'),
+            actualizadoEn: serverTimestamp()
+          });
+          const previos = pagos.filter((p) => p.reservaId === grupoOrigen && !p.grupoId);
+          for (const p of previos) {
+            await updateDoc(doc(db, 'pagos', p.id), { grupoId: grupoDestino });
+          }
+          if (previos.length) {
+            CV2.toast(previos.length + ' pago(s) pasaron al acuerdo', 'info');
+          }
+        } catch (e2) {
+          console.warn('acuerdo:', e2);
+          CV2.toast('La cabaña se creó, pero no se pudo armar el acuerdo: '
+            + (e2.code ?? e2.message), 'error');
+        }
+      }
       // Si nace confirmada, se le crea la limpieza ya mismo. Si el check-in
       // está a más de 7 días, todavía no se materializa: se avisa para no
       // dejar al usuario esperando algo que no va a aparecer.
@@ -569,25 +747,30 @@ async function manejarNueva(sel, campo) {
 $('pCategoria').addEventListener('change', () => manejarNueva($('pCategoria'), 'categoriasRecepcion'));
 $('pCuenta').addEventListener('change', () => manejarNueva($('pCuenta'), 'cuentasDestino'));
 function refrescarEquiv() {
-  const r = reservas.find((x) => x.id === pagoReservaId);
-  const mon = monedaDe(r);
+  const mon = pagoAcuerdo ? monedaAcuerdo(pagoAcuerdo) : 'BRL';
   const distinta = $('pMoneda').value !== mon;
   $('grupoEquiv').classList.toggle('oculto', !distinta);
   if (distinta) {
     $('lblEquiv').textContent = 'Equivalente en ' + (mon === 'BRL' ? 'R$' : 'U$D')
-      + ' (moneda de la reserva, al cambio de hoy)';
+      + ' (moneda del acuerdo, al cambio de hoy)';
   }
 }
 $('pMoneda').addEventListener('change', refrescarEquiv);
 
-window.abrirPago = (rid) => {
-  pagoReservaId = rid;
-  const r = reservas.find((x) => x.id === rid);
-  const mon = monedaDe(r);
-  const saldo = totalDe(r) - pagadoDe(rid);
-  $('pQuien').textContent = `${r.clienteNombre} · ${nombreCab(r.cabanaId)} · saldo ${CV2.fmtMonto(Math.max(0, saldo), mon)}`;
-  $('pConcepto').value = pagosDe(rid).length ? 'saldo' : 'sena';
-  $('pMetodo').value = r.origen === 'airbnb' ? 'airbnb' : 'pix';
+// El pago se registra contra el ACUERDO. Antes iba contra una cabaña, y con
+// varias cabañas cobradas juntas la plata quedaba colgada de una arbitraria:
+// las otras decían "sin pagos" en rojo aunque el cliente ya hubiera pagado.
+window.abrirPago = (clave) => {
+  pagoAcuerdo = acuerdoDe(clave);
+  const a = pagoAcuerdo;
+  pagoReservaId = a.rs[0].id;   // rastro de dónde se cargó
+  const mon = monedaAcuerdo(a);
+  const saldo = totalAcuerdo(a) - pagadoAcuerdo(a);
+  $('pQuien').textContent = a.rs[0].clienteNombre + ' · '
+    + (a.esGrupo ? a.rs.length + ' cabañas' : nombreCab(a.rs[0].cabanaId))
+    + ' · saldo ' + CV2.fmtMonto(Math.max(0, saldo), mon);
+  $('pConcepto').value = pagosAcuerdo(a).length ? 'saldo' : 'sena';
+  $('pMetodo').value = a.rs[0].origen === 'airbnb' ? 'airbnb' : 'pix';
   $('pMoneda').value = mon;
   $('grupoEquiv').classList.add('oculto');
   $('pEquiv').value = '';
@@ -603,8 +786,9 @@ $('pGuardar').addEventListener('click', async () => {
   const monto = Math.max(0, parseFloat($('pMonto').value) || 0);
   if (!monto) { CV2.toast('Falta el monto', 'error'); return; }
   const moneda = $('pMoneda').value;
-  const rAct = reservas.find((x) => x.id === pagoReservaId);
-  const monRes = monedaDe(rAct);
+  const a = pagoAcuerdo;
+  const rAct = a.rs[0];
+  const monRes = monedaAcuerdo(a);
   // El equivalente se pide en la moneda de LA RESERVA, para que su saldo
   // cierre. La plata en sí se guarda en la moneda en que entró.
   const montoEquiv = moneda === monRes
@@ -620,9 +804,13 @@ $('pGuardar').addEventListener('click', async () => {
   }
   $('pGuardar').disabled = true;
   try {
-    const r = reservas.find((x) => x.id === pagoReservaId);
+    const r = rAct;
     const pagoRef = await addDoc(collection(db, 'pagos'), {
       reservaId: pagoReservaId,
+      // Cuando hay acuerdo, el saldo se calcula por acuerdo y 'reservaId'
+      // queda solo como rastro de dónde se cargó. Sin acuerdo va null y el
+      // pago cuenta para su reserva, igual que siempre.
+      grupoId: a.esGrupo ? a.clave : null,
       monto, moneda, montoEquiv, monedaReserva: monRes,
       // Se conserva montoBRL solo cuando aplica, por compatibilidad.
       montoBRL: moneda === 'BRL' ? monto : (monRes === 'BRL' ? montoEquiv : 0),
@@ -760,9 +948,14 @@ onSnapshot(query(collection(db, 'reservas')), (snap) => {
   // trae a la vista. UNA sola vez: después el onSnapshot vuelve a correr con
   // cada cambio, y reabrirla en cada uno pelearía con lo que esté haciendo la
   // persona.
-  if (_pedida && !traidaALaVista && reservas.some((r) => r.id === _pedida)) {
+  const rPedida = _pedida ? reservas.find((r) => r.id === _pedida) : null;
+  if (rPedida && !traidaALaVista) {
     traidaALaVista = true;
-    abierta = _pedida;
+    // El calendario enlaza una RESERVA (una cabaña), pero la tarjeta es la del
+    // ACUERDO. Sin esta traducción, el id 'res-<reservaId>' no existe cuando
+    // esa cabaña está agrupada y la página no se movería a ningún lado.
+    abierta = rPedida.grupoId || rPedida.id;
+    resaltada = abierta;
     // El filtro por defecto es 'vigentes': una reserva finalizada o vieja
     // quedaría escondida y la pantalla se vería vacía sin explicar por qué.
     filtro = 'todas';
@@ -771,7 +964,7 @@ onSnapshot(query(collection(db, 'reservas')), (snap) => {
     });
     render();
     setTimeout(() => {
-      const el = $('res-' + _pedida);
+      const el = $('res-' + abierta);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 60);
     return;
