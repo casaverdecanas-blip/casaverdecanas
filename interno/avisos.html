@@ -89,6 +89,7 @@
   <h1>Mis avisos</h1>
   <p class="aclara" style="color:var(--gris);font-size:.85rem;margin-top:-4px;">
     Elegí qué te avisa el sistema y por dónde. Se guarda solo, apenas tocás cada llave.
+    <br><small id="sello" style="font-size:.72rem;"></small>
   </p>
 
   <!-- ═══ Por dónde ═══════════════════════════════════════ -->
@@ -485,6 +486,9 @@ $('btnProbarDefecto').addEventListener('click', async () => {
 });
 
 // ═══ Cargas iniciales — AL FINAL ══════════════════════════
+// El sello dice qué versión de nucleo.js está corriendo de verdad. Si no
+// coincide con la esperada, lo que se probó no es lo que se cree.
+$('sello').textContent = 'motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
 $('miMail').textContent = u.email ?? 'sin correo cargado';
 $('kEmail').checked = notif.canalEmail !== false;
 $('kWa').checked = notif.canalWhatsapp === true;

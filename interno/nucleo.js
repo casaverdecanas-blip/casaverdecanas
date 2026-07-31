@@ -676,6 +676,14 @@ CV2.toast = function (msj, tipo = 'info') {
 //  la interfaz. Si CallMeBot no contesta, el mensaje ya está enviado.
 //  (Misma lección que el aviso de horas manuales, T7.4.)
 // ═════════════════════════════════════════════════════════════
+// Sello de versión de ESTE archivo. Se muestra en 'Mis avisos'.
+// Existe porque el 30-jul-2026 se perdió media hora diagnosticando un envío
+// que fallaba por tener una versión anterior de nucleo.js subida: el síntoma
+// (el WhatsApp iba al número por defecto) era idéntico a un problema de
+// configuración, y no había forma de saber qué código estaba corriendo.
+// Se sube a mano cada vez que se toca el bloque de avisos.
+CV2.VERSION = 'nucleo-avisos-4';
+
 CV2.NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
 
 // Identificadores públicos por diseño, igual que la apiKey de Firebase: el
