@@ -125,8 +125,10 @@
   <div class="tarj">
     <h2>Tu WhatsApp</h2>
     <p class="aclara">
-      Tu número y tu clave los ve <b>solo vos y el administrador</b>. El resto del
-      equipo no. Si ya te llegaban avisos en el sistema anterior, son los mismos datos.
+      Guardá tu número y ya está: no hace falta que nadie más haga nada. Si ya te
+      llegaban avisos en el sistema anterior, son los mismos datos de siempre.
+      <br><small style="color:var(--gris);">Tu número y tu clave los ve el equipo. Una clave de
+      CallMeBot solo sirve para mandarte mensajes a vos, y la cortás cuando quieras.</small>
     </p>
     <div class="campo">
       <label for="inTel">Tu número, con código de país</label>
@@ -170,8 +172,8 @@
           Si no llega en dos minutos, hay que esperar 24 horas y reintentar.</li>
         <li>Volvé acá, escribí <b>tu número</b> (con el <code>+</code> y el código de país,
           sin espacios ni guiones) y <b>la clave</b>. Tocá <b>Guardar mi número</b>.</li>
-        <li>Avisale al administrador: tiene que subirlo al servidor. Hasta que lo haga,
-          la prueba va a fallar.</li>
+        <li>Tocá <b>Probar WhatsApp</b> para confirmar, y encendé la llave de WhatsApp
+          allá arriba.</li>
       </ol>
       <p style="font-size:.82rem;color:var(--gris);margin:6px 0 0;">
         <b>Si la prueba dice que la cuenta está en pausa:</b> mandale la palabra
@@ -187,38 +189,20 @@
   <div class="tarj oculto" id="tarjAdmin">
     <h2>Administrador · los WhatsApp del equipo</h2>
     <p class="aclara">
-      CallMeBot exige que el teléfono y la clave de cada persona vivan en el servidor.
-      Cargá acá los datos de cada uno —son los mismos que ya usabas— y abajo sale
-      armada la variable de Netlify, <b>con los <code>uid</code> nuevos</b>.
+      Cada uno carga su número desde esta misma página y funciona al instante:
+      ya no hay que copiar nada a Netlify. Esto es para ver cómo está cada uno
+      y para corregir un dato mal copiado.
     </p>
-    <div class="estado" id="avisoUid" style="margin-top:0;">
-      <b>Ojo con la variable vieja.</b> El sistema anterior era otro proyecto de
-      Firebase, así que sus <code>uid</code> no sirven acá. Los teléfonos y las claves
-      se reusan enteros; las llaves del JSON, no. Copiá de Netlify solo los valores.
-    </div>
 
     <div id="filas"></div>
-
-    <div id="jsonWrap" style="margin-top:14px;">
-      <label style="display:block;font-size:.78rem;font-weight:600;color:var(--gris);margin-bottom:3px;">
-        Para pegar en Netlify → <code>CALLMEBOT_RECIPIENTS</code>
-      </label>
-      <textarea id="json" readonly></textarea>
-    </div>
-    <div class="acciones">
-      <button class="btn btn-primario" id="btnCopiar">
-        <span class="material-icons">content_copy</span> Copiar
-      </button>
-    </div>
 
     <h2 style="margin-top:18px;">Probar la cadena entera</h2>
     <p class="aclara">
       Manda un WhatsApp al <b>número por defecto del servidor</b>
-      (<code>CALLMEBOT_PHONE</code>), sin pasar por el JSON de arriba. Sirve para
+      (<code>CALLMEBOT_PHONE</code>), sin pasar por ningún contacto. Sirve para
       separar dos cosas que se confunden: si esto llega, la cadena entera funciona
       —navegador, función de Netlify, CallMeBot, teléfono— y cualquier falla que
-      quede es del <code>uid</code> de alguien. Si no llega, el problema está antes
-      y no tiene sentido tocar el JSON.
+      quede es del contacto de alguien.
     </p>
     <div class="acciones">
       <button class="btn" id="btnProbarDefecto">
@@ -326,8 +310,7 @@ $('btnGuardar').addEventListener('click', async () => {
       actualizadoEn: serverTimestamp()
     }, { merge: true });
     $('inTel').value = tel;
-    decir('Guardado. Ahora avisale al administrador para que lo suba al servidor; '
-      + 'hasta que lo haga, la prueba de WhatsApp va a fallar.', 'bien');
+    decir('Guardado. Probá el WhatsApp para confirmar que llega.', 'bien');
   } catch (e) {
     decir('No se pudo guardar: ' + (e.code ?? e.message), 'mal');
   } finally {
@@ -341,15 +324,21 @@ $('btnGuardar').addEventListener('click', async () => {
 $('btnProbarWa').addEventListener('click', async () => {
   $('btnProbarWa').disabled = true;
   decir('Mandando…');
-  const r = await CV2.enviarWhatsApp('Prueba de Casa Verde: si leés esto, tu WhatsApp está listo.', u.uid);
+  const tel = limpiarTel($('inTel').value);
+  const key = $('inKey').value.trim();
+  if (!tel || !key) {
+    decir('Primero escribí tu número y tu clave, y tocá Guardar mi número.', 'mal');
+    $('btnProbarWa').disabled = false;
+    return;
+  }
+  const r = await CV2.enviarWhatsApp(
+    'Prueba de Casa Verde: si leés esto, tu WhatsApp está listo.',
+    { telefono: tel, apikey: key });
   if (r && r.ok) {
     decir('Enviado. Debería llegarte en menos de un minuto.', 'bien');
   } else {
     const det = (r && r.detalle) ?? 'sin detalle';
-    decir(String(det).indexOf('no tiene WhatsApp configurado') !== -1
-      ? 'Tu número todavía no está en el servidor. Guardalo acá arriba y pedile al '
-        + 'administrador que lo cargue; después volvé a probar.'
-      : det, 'mal');
+    decir(det, 'mal');
   }
   $('btnProbarWa').disabled = false;
 });
@@ -435,29 +424,6 @@ function pintarFilas() {
   $('filas').querySelectorAll('[data-guardar]').forEach((b) => {
     b.addEventListener('click', () => guardarDe(b.dataset.guardar, b));
   });
-  pintarJson();
-}
-
-// Solo entran al JSON quienes tienen los DOS datos. Un bloque a medias es
-// peor que ninguno: la función lo encuentra, lo da por configurado y manda
-// el WhatsApp a la nada.
-function pintarJson() {
-  const obj = {};
-  personas.forEach((p) => {
-    const c = contactos[p.uid];
-    if (c && c.telefono && c.apikey) obj[p.uid] = { phone: c.telefono, apikey: c.apikey };
-  });
-  $('json').value = JSON.stringify(obj, null, 2);
-  const faltan = personas.filter((p) => p.notif.canalWhatsapp === true
-    && !(contactos[p.uid] && contactos[p.uid].telefono && contactos[p.uid].apikey));
-  $('avisoUid').className = 'estado' + (faltan.length ? ' mal' : '');
-  $('avisoUid').innerHTML = faltan.length
-    ? '<b>Falta cargar a ' + faltan.map((p) => esc(p.nombre || p.uid)).join(', ')
-      + '.</b> Tienen la llave de WhatsApp encendida y no van a recibir nada hasta que '
-      + 'completes su número y su clave acá arriba.'
-    : '<b>Ojo con la variable vieja.</b> El sistema anterior era otro proyecto de '
-      + 'Firebase, así que sus <code>uid</code> no sirven acá. Los teléfonos y las claves '
-      + 'se reusan enteros; las llaves del JSON, no. Copiá de Netlify solo los valores.';
 }
 
 async function guardarDe(uid, btn) {
@@ -477,7 +443,7 @@ async function guardarDe(uid, btn) {
     }, { merge: true });
     contactos[uid] = Object.assign({}, contactos[uid], { telefono: tel, apikey: key });
     pintarFilas();
-    CV2.toast('Guardado. Acordate de pegar el JSON en Netlify.', 'success');
+    CV2.toast('Guardado', 'success');
   } catch (e) {
     CV2.toast('No se pudo guardar: ' + (e.code ?? e.message), 'error');
   } finally {
@@ -498,7 +464,7 @@ $('btnProbarDefecto').addEventListener('click', async () => {
   if (r && r.ok) {
     el.className = 'estado bien';
     el.textContent = 'Enviado y aceptado. La cadena entera funciona: navegador, función de '
-      + 'Netlify, CallMeBot y teléfono. Lo único que falta es el JSON con los uid nuevos.';
+      + 'Netlify, CallMeBot y teléfono.';
   } else {
     const det = (r && r.detalle) ?? 'sin detalle';
     el.className = 'estado mal';
@@ -508,21 +474,6 @@ $('btnProbarDefecto').addEventListener('click', async () => {
       : det;
   }
   b.disabled = false;
-});
-
-$('btnCopiar').addEventListener('click', async () => {
-  const ta = $('json');
-  try {
-    await navigator.clipboard.writeText(ta.value);
-    CV2.toast('Copiado', 'success');
-  } catch {
-    // En la PWA sin permiso de portapapeles, el camino viejo todavía anda.
-    ta.removeAttribute('readonly');
-    ta.select();
-    try { document.execCommand('copy'); CV2.toast('Copiado', 'success'); }
-    catch { CV2.toast('Copialo a mano desde el cuadro', 'error'); }
-    ta.setAttribute('readonly', 'readonly');
-  }
 });
 
 // ═══ Cargas iniciales — AL FINAL ══════════════════════════
@@ -539,8 +490,7 @@ try {
     $('inTel').value = c.telefono ?? '';
     $('inKey').value = c.apikey ?? '';
     if (c.telefono && c.apikey) {
-      decir('Tu número está guardado. Probá el WhatsApp para ver si el administrador '
-        + 'ya lo subió al servidor.');
+      decir('Tu número está guardado. Probá el WhatsApp para confirmar que llega.');
     }
   }
 } catch (e) { console.warn('mi contacto', e); }

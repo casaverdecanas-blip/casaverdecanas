@@ -1,0 +1,589 @@
+rules_version = '2';
+
+// ═══════════════════════════════════════════════════════════════
+//  CASAVERDE 2.0 — firestore.rules
+//  Criterio (CONVENCIONES §5): deny por defecto, SIN catch-all.
+//  Cada colección tiene su bloque explícito; lo no declarado, se niega.
+//
+//  MODELO DE ACCESO: una sola cuenta 'admin' (CasaVerde, mantenimiento
+//  y acceso sin restricciones). Todos los demás trabajan con permisos
+//  explícitos: reservas · dinero · finanzas · contenido · horas.
+//
+//  ⚠ LAS REGLAS SE SUMAN: basta con que UN bloque permita para que el
+//  acceso quede abierto. Por eso este archivo se edita SIEMPRE completo,
+//  nunca por fragmentos, y los casos especiales (config/integraciones)
+//  se excluyen a mano del bloque general.
+//
+//  CAMBIO jul-2026 · RECUERDOS DE HUÉSPEDES
+//  Se habilita login anónimo y Google para que el huésped pueda dejar su
+//  recuerdo desde el QR. Eso cambia un supuesto que atravesaba TODO este
+//  archivo: a partir de ahora existen sesiones SIN documento en /usuarios/.
+//  'logueado()' ya no significa "es del equipo".
+//  Por eso se tocaron exactamente tres cosas, marcadas con [ANÓNIMO]:
+//    1. activo() comprueba que el perfil exista antes de leerlo.
+//    2. /usuarios/ deja de abrirse a cualquier sesión.
+//    3. bloque nuevo /recuerdos/.
+//
+//  CAMBIO jul-2026 (tarde) · LA CLAVE DEL QR ES LA LLAVE  [CLAVE]
+//  Tener sesión NO es permiso: una sesión anónima se la abre cualquiera
+//  desde la consola del navegador, sin haber pisado Canasvieiras. Para
+//  escribir un recuerdo hace falta la CLAVE que viaja dentro del QR
+//  pegado en el alojamiento. Funciona como una apikey y se verifica acá.
+//  Cambios marcados con [CLAVE]:
+//    4. funciones claveDeRecuerdo() y claveValida().
+//    5. bloque nuevo /claves_recuerdos/  — get abierto, list cerrado.
+//    6. /recuerdos/ reescrito: create exige clave; update PROHÍBE que la
+//       clave y el mail queden en el documento (lo publicado lo lee todo
+//       el mundo y en Firestore no hay seguridad por campo).
+//    7. bloques nuevos /recuerdos_contactos/ y /huespedes/.
+//
+//  CAMBIO jul-2026 · AVISOS INSTANTÁNEOS  [AVISOS]
+//  El canal de coordinación pasa a avisar sin abrir la aplicación. Dos
+//  cambios, marcados con [AVISOS]:
+//    8. /usuarios/{uid}: el hasOnly del update propio suma 'notif' — cada
+//       uno elige por dónde le llegan las cosas y de qué. Sigue sin poder
+//       tocar su rol ni sus permisos.
+//    9. bloque nuevo /avisos_contacto/{uid} — el teléfono y la clave de
+//       CallMeBot de cada persona. LO LEE TODO EL EQUIPO: el navegador de
+//       quien avisa necesita el contacto del destinatario para pasárselo a
+//       la función de Netlify. Escribir, solo su dueño y el admin.
+// ═══════════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Ayudantes ──────────────────────────────────────────────
+    function logueado() {
+      return request.auth != null;
+    }
+
+    function perfil() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+
+    // [ANÓNIMO] Antes alcanzaba con 'logueado()'. Ahora hay sesiones sin
+    // perfil (huéspedes anónimos o con Google), y un get() a un documento
+    // inexistente devuelve null: 'perfil().activo' NO niega, revienta la
+    // regla entera — y en una consulta de lista eso rechaza toda la
+    // consulta. El exists() convierte ese estallido en un "no" limpio.
+    function tienePerfil() {
+      return logueado()
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+    }
+
+    function activo() {
+      return tienePerfil() && perfil().activo == true;
+    }
+
+    function esAdmin() {
+      return activo() && perfil().rol == 'admin';
+    }
+
+    // ¿Tiene este permiso? El admin siempre puede.
+    // El .get() con valor por defecto evita que un perfil viejo (sin el
+    // campo 'permisos') haga fallar la regla entera.
+    function tiene(p) {
+      return activo() && (
+           perfil().rol == 'admin'
+        || perfil().get('permisos', {}).get(p, false) == true
+      );
+    }
+
+    // Guarda contra 'resource' nulo (documento inexistente): sin el chequeo,
+    // consultar algo que todavía no existe tira permission-denied.
+    function esMio(campo) {
+      return logueado() && resource != null && resource.data[campo] == request.auth.uid;
+    }
+
+    // Un movimiento contado en un balance es intocable.
+    function movSellado() {
+      return resource.data.pendiente != null
+          && resource.data.pendiente.cierreId != null;
+    }
+
+    // ── Alcance de un tema de comunicación ─────────────────────
+    // Un mensaje HEREDA el alcance de su tema padre: para tocarlo hay que
+    // poder ver el tema. 'equipo' (o un tema viejo sin 'audiencia') lo ve
+    // todo el equipo; 'directo' solo sus participantes. El exists() evita
+    // que un get() sobre un tema inexistente rompa la regla entera.
+    function comData(id) {
+      return get(/databases/$(database)/documents/comunicaciones/$(id)).data;
+    }
+    function comVisible(id) {
+      return exists(/databases/$(database)/documents/comunicaciones/$(id))
+        && ( comData(id).get('audiencia', 'equipo') == 'equipo'
+          || request.auth.uid in comData(id).get('participantes', []) );
+    }
+
+    // ── [CLAVE] La llave del QR ────────────────────────────────
+    // El ID del documento en /claves_recuerdos/ ES la clave: no hay un
+    // campo 'token' adentro, la clave es la dirección. Así la regla la
+    // resuelve con un exists() de una línea.
+    // El get() de una regla NO pasa por los permisos de lectura: por eso
+    // esto funciona aunque nadie pueda listar la colección desde afuera.
+    function claveDeRecuerdo(c) {
+      return get(/databases/$(database)/documents/claves_recuerdos/$(c)).data;
+    }
+
+    // Existe, está activa y no venció. El matches() filtra basura ANTES de
+    // armar la ruta: una barra dentro de la clave la volvería inválida.
+    function claveValida(c) {
+      return c is string
+        && c.size() >= 6 && c.size() <= 64
+        && c.matches('^[A-Za-z0-9._-]+$')
+        && exists(/databases/$(database)/documents/claves_recuerdos/$(c))
+        && claveDeRecuerdo(c).activa == true
+        && ( claveDeRecuerdo(c).get('vence', null) == null
+          || request.time < claveDeRecuerdo(c).vence );
+    }
+
+
+    // ═══ PERSONAS ════════════════════════════════════════════
+    // Lectura del PROPIO perfil para cualquiera con sesión: 'verificarAuth'
+    // necesita leerlo ANTES de saber si está activo (si acá se exigiera
+    // activo(), la comprobación se mordería la cola y nadie entraría, y
+    // quien está inactivo no vería su cartel de inactivo).
+    // [ANÓNIMO] Para leer el perfil de OTRO ahora hay que tener perfil
+    // propio. Sin esa condición, cualquier visitante del sitio público
+    // —que a partir de ahora arranca con sesión anónima— podría listar el
+    // equipo entero con sus mails y sus roles.
+    // Los permisos los reparte solo el administrador.
+    match /usuarios/{uid} {
+      allow read: if logueado() && (request.auth.uid == uid || tienePerfil());
+      allow create, delete: if esAdmin();
+      // El admin edita todo. Además, cada uno puede escribir SOLO cuatro
+      // campos suyos: la marca de última visita al Inicio (para saber qué
+      // novedades ya vio), su FOTO de perfil, sus preferencias de AVISO y la
+      // fecha de actualización. Nunca su rol ni sus permisos: el hasOnly es
+      // la garantía, no la interfaz.
+      //
+      // POR QUÉ 'notif' VIVE ACÁ Y NO EN 'estado_usuario' (que sería el lugar
+      // natural para una preferencia): porque el navegador de QUIEN AVISA
+      // tiene que leer las preferencias del DESTINATARIO para saber si le
+      // manda o no, y 'estado_usuario' es solo de su dueño. /usuarios/ lo lee
+      // todo el equipo, así que acá funciona. No hay nada sensible en un
+      // interruptor: el teléfono y la clave de CallMeBot van aparte, en
+      // /avisos_contacto/, justamente porque esto lo lee cualquiera.
+      allow update: if esAdmin()
+                    || (logueado() && request.auth.uid == uid
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['ultimaVisitaInicio', 'fotoUrl', 'notif', 'actualizadoEn'])
+                        && request.resource.data.get('fotoUrl', '') is string
+                        && request.resource.data.get('fotoUrl', '').size() <= 400
+                        && request.resource.data.get('notif', {}) is map);
+    }
+
+    // Preferencias de cada uno dentro del panel: hoy, las actividades que
+    // marcó con estrella. SOLO su dueño. Es una colección de primer nivel y
+    // no una subcolección de /usuarios/ porque el ID del documento ya es el
+    // uid: la ruta sola alcanza para aislarla.
+    // FALTABA. Sin este bloque —y este archivo niega por defecto— guardar
+    // una estrella daba error y LEERLA también; como la lectura estaba
+    // envuelta en un catch que la daba por "primera vez", el filtro
+    // Destacadas se veía vacío para siempre sin que nadie sospechara nada.
+    match /estado_usuario/{uid} {
+      allow read, write: if logueado() && request.auth.uid == uid;
+    }
+
+    // (Acá vivía el libro personal de cada uno,
+    // /usuarios/{uid}/movimientos_personales/. Se retiró en la tanda 11.13.
+    // Sin bloque no hay acceso: este archivo niega por defecto y no tiene
+    // catch-all. Si alguna vez volviera a hacer falta, el bloque era
+    // 'allow read, write: if logueado() && request.auth.uid == uid'.)
+
+
+    // ═══ OPERACIÓN ═══════════════════════════════════════════
+    // Actividades: se repite acá la lógica de alcance de la consulta del
+    // core, para que cada rama del or() sea demostrable.
+    // Las cuatro ramas espejan EXACTAMENTE Core.consultaActividades. Cada
+    // rama fija su 'alcance' igual que la query. La rama de 'competencias'
+    // NO lleva 'competencias is list': la consulta usa array-contains, que
+    // ya garantiza que el campo es un array con ese uid; agregar la
+    // verificación de tipo hace la rama indemostrable y Firestore rechaza
+    // la consulta entera con permission-denied (aunque las otras ramas
+    // estén bien). El admin no lo sufre: su consulta es query(col) sin ramas.
+    // OJO: sobre un documento que NO existe, 'resource' es null y cualquier
+    // 'resource.data.x' hace fallar la regla entera con permission-denied.
+    // Por eso la primera rama es 'resource == null': sin ella, un colaborador
+    // no puede ni consultar si una actividad existe todavía (que es lo que
+    // hace el upsert de limpiezas antes de crearla). El admin no lo sufría
+    // porque esAdmin() corta antes de tocar resource.
+    match /actividades/{id} {
+      allow read: if esAdmin() || (activo() && (
+                       resource == null
+                    || resource.data.alcance == 'equipo'
+                    || (resource.data.alcance == 'personal'
+                        && resource.data.creadoPor == request.auth.uid)
+                    || (resource.data.alcance == 'asignados'
+                        && resource.data.creadoPor == request.auth.uid)
+                    || (resource.data.alcance == 'asignados'
+                        && request.auth.uid in resource.data.competencias)
+                  ));
+      allow create: if activo();
+      allow update: if activo();
+      allow delete: if esAdmin() || esMio('creadoPor');
+    }
+
+    // Sesiones: el equipo lee todo (frenar el cronómetro de otro al
+    // cerrar una actividad lo exige). Crear: la propia, o quien gobierna
+    // las horas en nombre de otro. Borrar: dueño, 'horas' o admin.
+    match /sesiones/{id} {
+      allow read: if activo();
+      allow create: if tiene('horas')
+                    || (activo() && request.resource.data.uid == request.auth.uid);
+      allow update: if activo();
+      allow delete: if tiene('horas') || esMio('uid');
+    }
+
+    // Honorarios: cada uno ve los suyos; 'finanzas' ve y paga los de
+    // todos; 'horas' puede actualizarlos porque el gestor de sesiones
+    // recalcula los ciclos al editar o borrar tiempo.
+    match /honorarios/{id} {
+      allow read: if tiene('finanzas') || esMio('uid');
+      allow create: if activo();
+      allow update: if tiene('finanzas') || tiene('horas');
+      allow delete: if tiene('finanzas');
+    }
+
+
+    // ═══ RESERVAS ════════════════════════════════════════════
+    // Lectura para todo el equipo: el calendario y las limpiezas
+    // dependen de ver quién entra y quién sale.
+    match /reservas/{id} {
+      allow read: if activo();
+      allow create, update, delete: if tiene('reservas');
+    }
+
+    // Registrar un cobro es trabajo de reservas; BORRARLO es tocar
+    // plata y va con 'finanzas'.
+    match /pagos/{id} {
+      allow read: if activo();
+      allow create, update: if tiene('reservas') || tiene('finanzas');
+      allow delete: if tiene('finanzas');
+    }
+
+    match /clientes/{id} {
+      allow read: if activo();
+      allow create, update, delete: if tiene('reservas');
+    }
+
+    // Chequeos de inventario por reserva (entrada/salida, faltantes, daños).
+    // Los hace quien limpia: cualquiera del equipo activo. Borrarlos, admin.
+    match /chequeos/{id} {
+      allow read: if activo();
+      allow create, update: if activo();
+      allow delete: if esAdmin();
+    }
+
+
+    // ═══ DINERO ══════════════════════════════════════════════
+    // 'finanzas' ve todo el libro del negocio. 'dinero' registra gastos
+    // y ve ÚNICAMENTE los suyos — por eso toda alta debe sellar
+    // 'creadoPor': sin ese campo el movimiento queda invisible para
+    // quien lo cargó.
+    match /movimientos/{id} {
+      allow read: if tiene('finanzas')
+                  || (tiene('dinero') && resource != null
+                      && resource.data.creadoPor == request.auth.uid);
+      // 'reservas' también crea: cada cobro de reserva genera su ingreso en
+      // Dinero (puente automático). Sin esto, el cobro se registra pero el
+      // ingreso se rechaza y Dinero queda incompleto.
+      allow create: if tiene('dinero') || tiene('finanzas') || tiene('reservas');
+      allow update, delete: if tiene('finanzas') && !movSellado();
+    }
+
+    // El balance es una foto: se crea y no se retoca nunca más.
+    match /cierres/{id} {
+      allow read: if tiene('finanzas');
+      allow create: if tiene('finanzas');
+      allow update, delete: if false;
+    }
+
+
+    // ═══ CONTENIDO DEL SITIO ═════════════════════════════════
+    // Lectura PÚBLICA sin sesión: son la fuente del sitio público y no
+    // contienen nada privado (nombres, fotos, tarifas publicadas).
+    // El sitio público las lee sin sesión. Escritura de 'contenido'.
+    // (Los faltantes ya NO se guardan acá: cada check-out con novedades crea
+    // una actividad en la rama de faltantes de la cabaña — ver actividades.)
+    match /cabanas/{id} {
+      allow read: if true;
+      allow write: if tiene('contenido');
+    }
+
+    match /espacios_comunes/{id} {
+      allow read: if true;
+      allow write: if tiene('contenido');
+    }
+
+    // Espejo público de ocupación: SOLO cabaña y fechas, sin datos de
+    // huéspedes. Existe para que el sitio muestre disponibilidad sin exponer
+    // /reservas/ (que tiene nombres, teléfonos y montos y sigue cerrada).
+    match /disponibilidad/{id} {
+      allow read: if true;
+      allow write: if tiene('reservas');
+    }
+
+    // ── [CLAVE] Las claves del QR ──────────────────────────────
+    // 'get' abierto a propósito: hay que saber la clave ENTERA, y solo la
+    // sabe quien escaneó el QR. Sirve para avisarle al huésped que su
+    // código no vale ANTES de que escriba 600 caracteres.
+    // 'list' cerrado: nadie enumera las claves desde afuera. Sin list, un
+    // 'get' sobre una clave inventada es la única jugada posible, y son 12
+    // caracteres al azar sobre 31 símbolos.
+    match /claves_recuerdos/{clave} {
+      allow get:    if true;
+      allow list:   if tiene('contenido');
+      allow create, update, delete: if tiene('contenido');
+    }
+
+    // ── Recuerdos de huéspedes ─────────────────────────────────
+    // [ANÓNIMO] El muro del QR de cada cabaña. Es la ÚNICA colección donde
+    // escribe alguien de afuera, así que la validación vive acá y no
+    // confía en nada del navegador:
+    //   · nace siempre 'pendiente' — nadie se publica solo;
+    //   · firma con su propio uid — nadie escribe a nombre de otro;
+    //   · 'creadoEn' es la hora del servidor — no se puede antedatar;
+    //   · hasOnly cierra la lista de campos: ningún dato de contrabando.
+    // [CLAVE] Y ahora, además, trae la clave del QR: tener sesión no es
+    // permiso. El 'cabanaId' lo decide la CLAVE, no el visitante — un dato
+    // que puede venir de la llave no se le pregunta a nadie.
+    // No hay forma de limitar la frecuencia desde las reglas: el freno real
+    // es la clave revocable, la moderación (nada se ve hasta que alguien de
+    // 'contenido' aprueba) y el preset propio de Cloudinary, que se puede
+    // apagar solo para recuerdos sin tocar comprobantes ni fotos.
+    // Afuera SOLO se ven los aprobados. La consulta pública tiene que venir
+    // filtrada por estado == 'publicado': sin ese filtro Firestore rechaza
+    // la consulta entera, aunque los documentos publicados sean legibles.
+    match /recuerdos/{id} {
+      allow read: if (resource != null && resource.data.estado == 'publicado')
+                  || activo();
+
+      allow create: if logueado()
+        && claveValida(request.resource.data.clave)
+        && request.resource.data.keys().hasOnly(
+             ['nombre', 'email', 'texto', 'foto', 'cabanaId',
+              'estado', 'uid', 'proveedor', 'clave', 'claveEtiqueta', 'creadoEn'])
+        && request.resource.data.keys().hasAll(
+             ['nombre', 'texto', 'estado', 'uid', 'clave', 'creadoEn'])
+        && request.resource.data.estado == 'pendiente'
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.creadoEn == request.time
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() >= 2
+        && request.resource.data.nombre.size() <= 60
+        && request.resource.data.texto is string
+        && request.resource.data.texto.size() >= 1
+        && request.resource.data.texto.size() <= 600
+        && request.resource.data.get('email', '') is string
+        && request.resource.data.get('email', '').size() <= 120
+        && request.resource.data.get('claveEtiqueta', '') is string
+        && request.resource.data.get('claveEtiqueta', '').size() <= 60
+        && request.resource.data.get('proveedor', 'anonimo') in ['google', 'anonimo']
+        // El alojamiento lo dice la clave. '' = clave general, sin cabaña.
+        && request.resource.data.get('cabanaId', '')
+             == claveDeRecuerdo(request.resource.data.clave).get('cabanaId', '')
+        // Foto: de NUESTRO Cloudinary, o ninguna. Sin esto, 'foto' es un
+        // agujero para colgar cualquier imagen ajena en nuestro sitio.
+        && ( request.resource.data.get('foto', null) == null
+          || ( request.resource.data.foto is string
+            && request.resource.data.foto.size() <= 500
+            && request.resource.data.foto
+                 .matches('https://res[.]cloudinary[.]com/dnwfu8ffn/.*') ));
+
+      // [CLAVE] Moderar: aprobar, ocultar o corregir desde el panel.
+      // La clave y el mail NO pueden quedar en el documento. Un recuerdo
+      // publicado lo lee cualquier navegador del mundo y en Firestore NO
+      // hay seguridad por campo: si el documento es legible, todos sus
+      // campos lo son. El panel los archiva en /recuerdos_contactos/ y los
+      // borra con deleteField(); esta regla lo garantiza aunque el código
+      // se olvide.
+      allow update: if tiene('contenido')
+        && !('clave' in request.resource.data)
+        && !('email' in request.resource.data)
+        && request.resource.data.estado in ['pendiente', 'publicado', 'oculto'];
+
+      allow delete: if tiene('contenido');
+    }
+
+    // [CLAVE] Lo privado que sale del recuerdo al moderar: mail del
+    // huésped y de qué QR vino. Mismo ID que el recuerdo. Nunca público.
+    match /recuerdos_contactos/{id} {
+      allow read, write: if tiene('contenido');
+    }
+
+    // ── [CLAVE] Registro de huéspedes ──────────────────────────
+    // Quien deja un recuerdo queda anotado, para poder hablarle después
+    // (novedades, promociones, reservas directas). El ID es su uid de Auth:
+    //   · con Google el uid es estable → la persona se reconoce entre visitas;
+    //   · anónimo, el uid es del dispositivo → vale como contacto, no como
+    //     identidad.
+    // Cada uno escribe SOLO su propio documento, y solo con la clave del QR
+    // en la mano: si no, cualquiera con una sesión anónima llenaría la lista
+    // de basura. Leerla es de 'contenido'; el dueño puede leer la suya.
+    // 'novedades' es un SÍ explícito del huésped, nunca por defecto: es la
+    // única base legítima para mandarle algo (LGPD).
+    match /huespedes/{uid} {
+      allow read: if tiene('contenido') || (logueado() && request.auth.uid == uid);
+
+      allow create: if logueado() && request.auth.uid == uid
+        && claveValida(request.resource.data.clave)
+        && request.resource.data.keys().hasOnly(
+             ['nombre', 'email', 'proveedor', 'cabanaId', 'clave',
+              'claveEtiqueta', 'idioma', 'novedades', 'primeraVez', 'ultimaVez'])
+        && request.resource.data.keys().hasAll(
+             ['nombre', 'proveedor', 'clave', 'novedades', 'primeraVez', 'ultimaVez'])
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() <= 60
+        && request.resource.data.get('email', '') is string
+        && request.resource.data.get('email', '').size() <= 120
+        && request.resource.data.get('idioma', '') is string
+        && request.resource.data.get('idioma', '').size() <= 12
+        && request.resource.data.novedades is bool
+        && request.resource.data.primeraVez == request.time
+        && request.resource.data.ultimaVez == request.time;
+
+      // Volver a pasar por el muro actualiza el contacto, pero no puede
+      // reescribir la fecha de la primera vez.
+      allow update: if logueado() && request.auth.uid == uid
+        && claveValida(request.resource.data.clave)
+        && request.resource.data.keys().hasOnly(
+             ['nombre', 'email', 'proveedor', 'cabanaId', 'clave',
+              'claveEtiqueta', 'idioma', 'novedades', 'primeraVez', 'ultimaVez'])
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() <= 60
+        && request.resource.data.get('email', '') is string
+        && request.resource.data.get('email', '').size() <= 120
+        && request.resource.data.novedades is bool
+        && request.resource.data.ultimaVez == request.time
+        && request.resource.data.primeraVez == resource.data.primeraVez;
+
+      // Borrar es del equipo: es el "quiero que me saquen de la lista".
+      allow delete: if tiene('contenido');
+    }
+
+
+    // ═══ COMUNICACIÓN ════════════════════════════════════════
+    // Dos alcances en la MISMA colección (sin módulo aparte):
+    //   · audiencia 'equipo'  → lo ve y escribe todo el equipo activo.
+    //   · audiencia 'directo' → solo los uid de 'participantes' (y el admin).
+    // Un tema viejo SIN 'audiencia' se trata como 'equipo' con .get(_, 'equipo'),
+    // así los hilos heredados siguen visibles aunque el backfill todavía no
+    // los haya rellenado. El listado desde el cliente debe venir filtrado
+    // (or equipo / array-contains uid): un getDocs sin filtro incluiría temas
+    // que el colaborador no puede leer y Firestore rechaza la consulta entera.
+    //
+    // NOTA DE ALCANCE (decisión Mauro, jul-2026): CUALQUIER participante puede
+    // 'update' el tema — es obligatorio, porque cada mensaje enviado mueve
+    // 'ultimaActividad' en el doc del tema. Sumar personas a un tema directo
+    // se limita a creador/admin en la UI, no en la regla (restringirlo por
+    // regla bloquearía el envío normal de mensajes del resto).
+    match /comunicaciones/{id} {
+      allow read: if esAdmin() || (activo() && (
+                       resource == null
+                    || resource.data.get('audiencia', 'equipo') == 'equipo'
+                    || request.auth.uid in resource.data.get('participantes', [])
+                  ));
+      allow create: if activo();
+      allow update: if esAdmin() || (activo() && (
+                       resource.data.get('audiencia', 'equipo') == 'equipo'
+                    || request.auth.uid in resource.data.get('participantes', [])
+                  ));
+      // BORRAR UN TEMA es por persona: quien lo borra se agrega a
+      // 'ocultoPara' (un update común, ya permitido arriba) y el tema le
+      // desaparece a él solo. La eliminación DE VERDAD ocurre cuando esa
+      // lista cubre a toda la audiencia, y la hace el último que borra.
+      //
+      // Hasta dónde llega la garantía de esta regla, dicho sin adornos:
+      //   · En un tema DIRECTO se comprueba entero: no se borra si algún
+      //     participante todavía no lo escondió. Es demostrable porque la
+      //     lista de participantes está en el propio documento.
+      //   · En un tema de EQUIPO, "todos" son las personas activas de
+      //     /usuarios/, y una regla no puede recorrer esa colección. Acá
+      //     solo se exige pertenecer al tema y haberlo escondido primero;
+      //     el "ya nadie lo quiere" lo verifica la página. Es un límite
+      //     conocido, no un olvido: el riesgo es que alguien del equipo
+      //     borre un tema de equipo que otros todavía ven, y todos los que
+      //     pueden hacerlo ya podían editarlo y escribir en él.
+      allow delete: if esAdmin()
+        || ( activo()
+          && request.auth.uid in resource.data.get('ocultoPara', [])
+          && ( resource.data.get('audiencia', 'equipo') != 'directo'
+            || resource.data.get('participantes', [])
+                 .hasOnly(resource.data.get('ocultoPara', [])) ) );
+
+      // Única subcolección del sistema. Hereda el alcance del tema padre.
+      match /mensajes/{mid} {
+        allow read: if esAdmin() || comVisible(id);
+        allow create: if esAdmin() || comVisible(id);
+        allow update: if esAdmin() || esMio('autorUid');
+        // Borrar: el autor borra el suyo. Y quien ya escondió el tema puede
+        // vaciarlo, porque vaciar es el paso previo obligatorio a eliminarlo
+        // (Firestore no borra subcolecciones en cascada: si los mensajes no
+        // se van primero, quedan huérfanos y ocupando lugar para siempre).
+        allow delete: if esAdmin() || esMio('autorUid')
+          || ( activo() && request.auth.uid in comData(id).get('ocultoPara', []) );
+      }
+    }
+
+    // Marcas de lectura Y de borrado por persona: cada uno la suya.
+    // Estructura: { lecturas: {comId: Timestamp}, eliminados: {msgId: true} }.
+    // El borrado de un mensaje es POR PERSONA y vive acá (no toca el mensaje),
+    // por eso no hace falta ninguna regla nueva en /mensajes.
+    match /comunicaciones_lecturas/{uid} {
+      allow read, write: if logueado() && request.auth.uid == uid;
+    }
+
+
+    // ═══ AVISOS ══════════════════════════════════════════════
+    // El teléfono y la clave de CallMeBot de cada persona.
+    //
+    // LECTURA: todo el equipo activo. No es un descuido, es lo que hace
+    // funcionar el sistema: para avisarle a alguien por WhatsApp, el
+    // navegador de QUIEN AVISA tiene que mandarle a la función de Netlify el
+    // teléfono y la clave del DESTINATARIO. Sin esta lectura habría que
+    // mantener esos mismos datos duplicados en una variable de entorno de
+    // Netlify, que es justamente lo que se sacó (ver notify-whatsapp.js).
+    //
+    // Qué se está exponiendo, dicho sin adornos: el equipo puede ver el
+    // teléfono y la clave de CallMeBot de los demás. Una clave de CallMeBot
+    // SOLO sirve para mandarle mensajes al número que la generó — no abre
+    // ninguna cuenta, no lee nada, y su dueño la revoca mandándole 'stop' al
+    // bot. El teléfono ya se lo conocen entre ellos. Decisión Mauro,
+    // jul-2026, sobre un equipo de tres personas.
+    //
+    // ESCRITURA: solo su dueño y el administrador. Nadie cambia el número de
+    // otro; el admin puede corregir una clave mal copiada.
+    match /avisos_contacto/{uid} {
+      allow read: if activo();
+      allow write: if esAdmin() || (logueado() && request.auth.uid == uid);
+    }
+
+
+    // ═══ CONFIGURACIÓN ═══════════════════════════════════════
+    // 'integraciones' guarda claves de terceros. La lee quien las
+    // necesita para trabajar (la sincronización de Airbnb pide la clave
+    // de Google Calendar); escribirla es solo del administrador.
+    match /config/integraciones {
+      allow read: if esAdmin() || tiene('reservas');
+      allow write: if esAdmin();
+    }
+
+    // Textos y contacto del sitio público: los edita 'contenido' desde el
+    // panel y el sitio los lee SIN sesión (no tiene login). Va antes del
+    // bloque general de config, que exige sesión.
+    match /config/sitio {
+      allow read: if true;
+      allow write: if tiene('contenido');
+    }
+
+    // OJO: las reglas se suman. Este bloque tiene que excluir
+    // 'integraciones' a mano — si no, anularía al de arriba y cualquiera
+    // leería la clave de Google.
+    match /config/{doc} {
+      allow read: if activo() && doc != 'integraciones';
+      allow write: if activo() && doc != 'integraciones';
+    }
+
+  }
+}

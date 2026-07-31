@@ -785,13 +785,21 @@ CV2._leerRespuestaWa = function (txt) {
 };
 
 /**
- * Manda un WhatsApp a UNA persona por su uid. La función del servidor lo
- * busca en CALLMEBOT_RECIPIENTS, así que el administrador tiene que haberlo
- * cargado antes. Sin 'paraUid' cae en el número por defecto del servidor.
- * Nunca revienta: devuelve { ok, ... } pase lo que pase.
+ * Manda un WhatsApp.
+ * Nunca revienta: devuelve { ok, motivo, detalle } pase lo que pase.
+ *
+ *   CV2.enviarWhatsApp(texto)                    → al número por defecto del
+ *                                                  servidor (CALLMEBOT_PHONE)
+ *   CV2.enviarWhatsApp(texto, { telefono, apikey }) → a esa persona
+ *
+ * El contacto viaja EN EL PEDIDO y sale de avisos_contacto, que es la fuente
+ * única. Antes vivía duplicado en una variable de entorno de Netlify indexada
+ * por uid; se sacó porque Netlify no aplica variables nuevas sin desplegar y
+ * cada alta obligaba a rearmar el paquete a mano (jul-2026).
  */
-CV2.enviarWhatsApp = function (texto, paraUid) {
-  const clave = paraUid || '_defecto';
+CV2.enviarWhatsApp = function (texto, contacto) {
+  const c = contacto || {};
+  const clave = c.telefono || '_defecto';
   const ahora = Date.now();
   if (CV2._ultimoWa[clave] && (ahora - CV2._ultimoWa[clave]) < CV2.WA_ESPERA) {
     return Promise.resolve({
@@ -800,15 +808,20 @@ CV2.enviarWhatsApp = function (texto, paraUid) {
     });
   }
   CV2._ultimoWa[clave] = ahora;
+  const cuerpo = { text: String(texto || '').slice(0, 900) };
+  if (c.telefono && c.apikey) {
+    cuerpo.phone = c.telefono;
+    cuerpo.apikey = c.apikey;
+  }
   return fetch(CV2.NETLIFY + '/notify-whatsapp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: String(texto || '').slice(0, 900), to: paraUid || '' })
+    body: JSON.stringify(cuerpo)
   })
     .then((r) => r.json())
     .then((d) => {
-      // La función de Netlify ya falló por su cuenta (falta la variable, el
-      // uid no está en el mapa): eso viene con ok:false y su propio error.
+      // La función de Netlify ya falló por su cuenta (falta una variable, el
+      // teléfono mal formado): eso viene con ok:false y su propio error.
       if (!d || d.ok !== true) {
         return { ok: false, motivo: 'servidor', detalle: (d && d.error) ?? 'sin detalle' };
       }
@@ -817,6 +830,22 @@ CV2.enviarWhatsApp = function (texto, paraUid) {
       return { ok: r.ok, motivo: r.motivo, detalle: r.detalle };
     })
     .catch((e) => ({ ok: false, motivo: 'red', detalle: e.message }));
+};
+
+/**
+ * El contacto de WhatsApp de una persona, de avisos_contacto.
+ * Devuelve null si no lo cargó (o si la regla no deja leerlo).
+ */
+CV2.contactoWa = async function (uid) {
+  try {
+    const s = await getDoc(doc(db, 'avisos_contacto', uid));
+    if (!s.exists()) return null;
+    const c = s.data() || {};
+    return (c.telefono && c.apikey) ? { telefono: c.telefono, apikey: c.apikey } : null;
+  } catch (e) {
+    console.warn('contactoWa:', e);
+    return null;
+  }
 };
 
 // ── Email ────────────────────────────────────────────────────
@@ -897,9 +926,16 @@ CV2.avisar = async function (op) {
   const o = op || {};
   if (!o.evento || !o.texto) return { intentos: 0, enviados: 0 };
   try {
-    const snap = await getDocs(collection(db, 'usuarios'));
+    // Las dos colecciones de una: quién es cada uno y por dónde se le llega.
+    const [snapU, snapC] = await Promise.all([
+      getDocs(collection(db, 'usuarios')),
+      getDocs(collection(db, 'avisos_contacto'))
+    ]);
+    const contactos = {};
+    snapC.forEach((d) => { contactos[d.id] = d.data() || {}; });
+
     const tareas = [];
-    snap.forEach((d) => {
+    snapU.forEach((d) => {
       const x = d.data() || {};
       const uid = d.id;
       if (x.activo === false) return;
@@ -916,7 +952,12 @@ CV2.avisar = async function (op) {
         ));
       }
       if (n.canalWhatsapp === true) {
-        tareas.push(CV2.enviarWhatsApp(o.texto, uid));
+        const c = contactos[uid];
+        // Sin número cargado no hay a dónde mandar. NO se cae al número por
+        // defecto: le sonaría el teléfono al admin por un aviso ajeno.
+        if (c && c.telefono && c.apikey) {
+          tareas.push(CV2.enviarWhatsApp(o.texto, { telefono: c.telefono, apikey: c.apikey }));
+        }
       }
     });
     const res = await Promise.all(tareas);
