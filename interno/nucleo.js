@@ -810,7 +810,11 @@ CV2.enviarWhatsApp = function (texto, contacto) {
   CV2._ultimoWa[clave] = ahora;
   const cuerpo = { text: String(texto || '').slice(0, 900) };
   if (c.telefono && c.apikey) {
-    cuerpo.phone = c.telefono;
+    // SIN el '+': la URL de ejemplo que el propio bot de CallMeBot entrega va
+    // con el número pelado ('phone=554891720737'), y esa es la que está
+    // probada. El '+' se guarda y se muestra porque se lee mejor, pero no
+    // viaja. Verificado el 30-jul-2026 contra la respuesta real del bot.
+    cuerpo.phone = String(c.telefono).replace(/[^\d]/g, '');
     cuerpo.apikey = c.apikey;
   }
   return fetch(CV2.NETLIFY + '/notify-whatsapp', {
@@ -878,21 +882,27 @@ CV2.enviarMail = function (asunto, cuerpoHtml, paraEmail) {
     .catch((e) => ({ ok: false, error: e.message }));
 };
 
-// El texto llega como líneas sueltas y sale como HTML simple. Sin plantilla
-// elaborada: un aviso se lee en la notificación del teléfono, no se abre.
+// TEXTO PLANO, a propósito.
+// La plantilla de EmailJS escapa el HTML en vez de interpretarlo, así que un
+// cuerpo con etiquetas llega con las etiquetas a la vista y es ilegible
+// (comprobado jul-2026). Y para un aviso —tres líneas que se leen en la
+// notificación del teléfono— el formato no aporta nada. Si algún día hiciera
+// falta HTML, el arreglo NO es acá: es la plantilla de EmailJS.
 CV2._cuerpoMail = function (texto, enlace) {
-  const parrafos = String(texto || '').split('\n')
-    .filter((l) => l.trim() !== '')
-    .map((l) => '<p style="margin:0 0 8px;">' + CV2.esc(l) + '</p>')
-    .join('');
-  return '<div style="font-family:Arial,Helvetica,sans-serif;color:#2a2a2a;font-size:15px;line-height:1.5;">'
-    + parrafos
-    + (enlace
-      ? '<p style="margin:16px 0 0;"><a href="' + CV2.esc(enlace) + '" style="color:#2d5a27;font-weight:bold;">Abrir en el panel</a></p>'
-      : '')
-    + '<p style="margin:18px 0 0;color:#8a8a8a;font-size:12px;">Aviso automático de Casa Verde Canas. '
-    + 'Podés elegir qué te llega y por dónde en “Mis avisos”, dentro del panel.</p>'
-    + '</div>';
+  const lineas = String(texto || '').split('\n').filter((l) => l.trim() !== '');
+  let cuerpo = lineas.join('\n');
+  if (enlace) {
+    // Un './comunicacion.html' no significa nada dentro de un correo: hay que
+    // resolverlo contra la dirección real desde donde se está mandando. Así
+    // sirve igual en casaverdecanas.com.br, en GitHub Pages o en una prueba
+    // local, sin escribir el dominio a mano en ningún lado.
+    let url = enlace;
+    try { url = new URL(enlace, location.href).href; } catch (e) { /* queda como vino */ }
+    cuerpo += '\n\n' + url;
+  }
+  cuerpo += '\n\n--\nAviso automático de Casa Verde Canas.'
+    + '\nPodés elegir qué te llega y por dónde en "Mis avisos", dentro del panel.';
+  return cuerpo;
 };
 
 // ¿A esta persona le toca este aviso?

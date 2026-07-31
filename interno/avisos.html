@@ -282,11 +282,15 @@ $('kWa').addEventListener('change', () => {
 });
 
 // ═══ Mi número ════════════════════════════════════════════
-// Solo dígitos y un '+' adelante: CallMeBot rechaza espacios y guiones sin
-// decir por qué, y ese silencio es el peor de los errores para depurar.
+// Solo dígitos, con '+' adelante para que se lea claro.
+// El '+' es SOLO para mostrarlo: al mandarlo a CallMeBot se saca, porque la
+// URL que el propio bot entrega como ejemplo va sin él (verificado jul-2026:
+// 'whatsapp.php?phone=554891720737...'). Eso lo hace CV2.enviarWhatsApp, en
+// un solo lugar. Los espacios y guiones se sacan siempre: CallMeBot los
+// rechaza sin decir por qué.
 function limpiarTel(v) {
-  const s = String(v || '').replace(/[^\d+]/g, '');
-  return s.indexOf('+') === 0 ? '+' + s.slice(1).replace(/\+/g, '') : s.replace(/\+/g, '');
+  const s = String(v || '').replace(/[^\d]/g, '');
+  return s ? '+' + s : '';
 }
 
 $('inTel').addEventListener('blur', () => { $('inTel').value = limpiarTel($('inTel').value); });
@@ -335,7 +339,11 @@ $('btnProbarWa').addEventListener('click', async () => {
     'Prueba de Casa Verde: si leés esto, tu WhatsApp está listo.',
     { telefono: tel, apikey: key });
   if (r && r.ok) {
-    decir('Enviado. Debería llegarte en menos de un minuto.', 'bien');
+    // Se muestra la respuesta CRUDA aunque haya salido bien: cuando CallMeBot
+    // acepta el pedido y el mensaje igual no llega (bot muerto, número mal
+    // formado), este texto es lo único que permite entender qué pasó.
+    decir('CallMeBot aceptó el pedido. Si en un minuto no llega, el problema está '
+      + 'del lado de CallMeBot, no de la app. Contestó: ' + (r.detalle || 'sin detalle'), 'bien');
   } else {
     const det = (r && r.detalle) ?? 'sin detalle';
     decir(det, 'mal');
@@ -463,8 +471,8 @@ $('btnProbarDefecto').addEventListener('click', async () => {
   const r = await CV2.enviarWhatsApp('Prueba de Casa Verde: la cadena de avisos está viva.');
   if (r && r.ok) {
     el.className = 'estado bien';
-    el.textContent = 'Enviado y aceptado. La cadena entera funciona: navegador, función de '
-      + 'Netlify, CallMeBot y teléfono.';
+    el.textContent = 'Aceptado. La cadena funciona: navegador, función de Netlify y '
+      + 'CallMeBot. Contestó: ' + (r.detalle || 'sin detalle');
   } else {
     const det = (r && r.detalle) ?? 'sin detalle';
     el.className = 'estado mal';
