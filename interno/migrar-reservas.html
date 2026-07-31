@@ -231,6 +231,78 @@ async function crearAcuerdo(i) {
   }
 }
 
+// ═══ 1b · Notas del acuerdo ═══════════════════════════════
+// Al cargar un acuerdo a mano es natural pegar la misma nota comercial en
+// cada cabaña. Después el detalle la muestra tres veces y no se entiende de
+// quién es.
+//
+// Dónde va: el grupoId es 'grp-<idDeLaPrimeraReserva>', así que la reserva
+// RAÍZ se deduce del identificador. Su nota es la del acuerdo; las otras
+// quedan libres para lo suyo — que llegan tarde, que traen cuna, lo que sea
+// de la preparación de esa cabaña.
+const raizDe = (grupoId) => grupoId.replace(/^grp-/, '');
+
+function pintarNotas() {
+  const grupos = {};
+  reservas.filter((r) => r.grupoId).forEach((r) => {
+    (grupos[r.grupoId] = grupos[r.grupoId] || []).push(r);
+  });
+  const conRepetida = Object.entries(grupos).filter(([g, rs]) => {
+    const raiz = rs.find((r) => r.id === raizDe(g));
+    const nota = (raiz && raiz.notas) || '';
+    return nota && rs.some((r) => r.id !== raizDe(g) && (r.notas || '') === nota);
+  });
+
+  if (!conRepetida.length) {
+    return '<div class="tarj"><h2>1b · Notas del acuerdo</h2>'
+      + '<p class="sub">Ninguna nota repetida entre las cabañas de un acuerdo.</p></div>';
+  }
+
+  let h = '<div class="tarj"><h2>1b · Notas del acuerdo</h2>'
+    + '<p class="sub">La misma nota está copiada en varias cabañas del acuerdo. '
+    + 'Se conserva en la reserva raíz —de donde sale el identificador del acuerdo— '
+    + 'y se borra de las demás, que quedan libres para lo suyo.</p>';
+
+  conRepetida.forEach(([g, rs]) => {
+    const raiz = rs.find((r) => r.id === raizDe(g));
+    const dup = rs.filter((r) => r.id !== raizDe(g) && (r.notas || '') === (raiz.notas || ''));
+    h += '<div class="grupo"><b style="font-size:.9rem;">' + esc(raiz.clienteNombre || '?') + '</b>'
+      + '<div class="fila"><div class="txt">'
+      + '<small>Queda en <b>' + esc(raiz.cabanaId) + '</b> (raíz del acuerdo):</small>'
+      + '<small style="color:var(--tinta);margin-top:3px;">📝 ' + esc(raiz.notas || '') + '</small>'
+      + '<small style="margin-top:5px;">Se borra de: <b>'
+      + esc(dup.map((r) => r.cabanaId).join(', ')) + '</b></small>'
+      + '</div></div>'
+      + '<div class="acciones"><button class="btn btn-primario" data-notas="' + esc(g) + '">'
+      + '<span class="material-icons">cleaning_services</span> Dejarla solo en la raíz</button></div></div>';
+  });
+  return h + '</div>';
+}
+
+async function limpiarNotas(grupoId) {
+  const rs = reservas.filter((r) => r.grupoId === grupoId);
+  const raiz = rs.find((r) => r.id === raizDe(grupoId));
+  const dup = rs.filter((r) => r.id !== raizDe(grupoId) && (r.notas || '') === (raiz.notas || ''));
+  if (!dup.length) return;
+  if (!confirm('Se borra la nota de ' + dup.length + ' cabaña(s):\n'
+    + dup.map((r) => '  · ' + r.cabanaId).join('\n')
+    + '\n\nQueda en ' + raiz.cabanaId + '. ¿Seguimos?')) return;
+
+  log('── Notas de ' + grupoId);
+  try {
+    for (const r of dup) {
+      await updateDoc(doc(db, 'reservas', r.id), { notas: '', actualizadoEn: serverTimestamp() });
+      r.notas = '';
+      log('  ' + r.cabanaId + ': nota borrada');
+    }
+    CV2.toast('Notas limpiadas', 'success');
+    render();
+  } catch (e) {
+    log('  ERROR: ' + (e.code ?? e.message));
+    CV2.toast('Falló: ' + (e.code ?? e.message), 'error');
+  }
+}
+
 // ═══ 2 · Depurar pruebas ══════════════════════════════════
 function pintarDepurar() {
   const hoy = CV2.hoyISO();
@@ -332,7 +404,7 @@ async function borrarMarcadas() {
 
 // ═══ Render ═══════════════════════════════════════════════
 function render() {
-  $('cuerpo').innerHTML = pintarAcuerdos() + pintarDepurar()
+  $('cuerpo').innerHTML = pintarAcuerdos() + pintarNotas() + pintarDepurar()
     + '<div class="tarj"><h2>Registro</h2>'
     + '<p class="sub">Lo que se fue haciendo, para copiar y guardar.</p>'
     + '<div class="log" id="log">(nada todavía)</div>'
@@ -341,6 +413,9 @@ function render() {
 
   document.querySelectorAll('[data-crear]').forEach((b) => {
     b.addEventListener('click', () => crearAcuerdo(b.dataset.crear));
+  });
+  document.querySelectorAll('[data-notas]').forEach((b) => {
+    b.addEventListener('click', () => limpiarNotas(b.dataset.notas));
   });
   const mt = $('marcarTodo');
   if (mt) mt.addEventListener('click', () => {

@@ -45,6 +45,16 @@
     font-size: .88rem; font-weight: 600; }
   .volver .material-icons { font-size: 19px; }
   .res.resaltada { outline: 2px solid var(--verde); }
+
+  /* Una cabaña dentro de un acuerdo. Lo económico vive arriba, en el acuerdo;
+     acá va lo operativo: qué cabaña, cuándo entra y sale, cuánta gente. El
+     monto queda en gris y chico porque sirve para saber cuánto rinde cada
+     una, no para controlar el cobro — ese es del acuerdo. */
+  .cabana-acuerdo { padding: 7px 0; border-top: 1px dashed var(--linea); }
+  .cabana-acuerdo:first-of-type { border-top: 0; }
+  .ca-1 { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .ca-monto { margin-left: auto; font-size: .82rem; color: var(--gris); white-space: nowrap; }
+  .ca-2 { font-size: .78rem; color: var(--gris); margin-top: 3px; line-height: 1.5; }
   dialog { border: 0; border-radius: 14px; padding: 16px; width: min(500px, 94vw);
     max-height: 88dvh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
   dialog::backdrop { background: rgba(20,30,18,.45); }
@@ -316,6 +326,18 @@ const pagadoAcuerdo = (a) => {
 const senaAcuerdo = (a) => pagosAcuerdo(a).some((p) => p.concepto === 'sena');
 const acuerdoDe = (clave) => agrupar(reservas).find((a) => a.clave === clave);
 
+// El grupoId es 'grp-<idDeLaPrimeraReserva>', así que la reserva RAÍZ del
+// acuerdo se deduce del propio identificador. Su nota es la del acuerdo —el
+// trato comercial— y las de las demás son de esa cabaña: que llegan tarde,
+// que traen cuna, lo que sea de la preparación.
+// Esto evita inventar una colección 'grupos' para guardar un solo campo: el
+// acuerdo se sigue derivando, no se almacena.
+const raizDeAcuerdo = (a) => {
+  if (!a.esGrupo) return a.rs[0];
+  const id = a.clave.replace(/^grp-/, '');
+  return a.rs.find((r) => r.id === id) || a.rs[0];
+};
+
 // El rango del acuerdo: la entrada más temprana y la salida más tardía. Las
 // cabañas pueden tener fechas distintas — es un acuerdo comercial, no un
 // bloque de fechas.
@@ -367,22 +389,30 @@ function render() {
 
     if (abierta === a.clave) {
       const ps = pagosAcuerdo(a);
+      const notaAcuerdo = raizDeAcuerdo(a).notas || '';
       const CONC = { sena: 'Seña', saldo: 'Saldo', otro: 'Pago' };
       h += `<div class="detalle" onclick="event.stopPropagation()">
 
         ${a.esGrupo ? `<div style="margin-bottom:8px;">
           <b>Cabañas del acuerdo</b>
-          ${a.rs.map((r) => `<div style="display:flex;gap:8px;align-items:center;font-size:.82rem;margin-top:4px;flex-wrap:wrap;">
-            <span class="cab" style="background:${CV2.pastelDe(colorCab(r.cabanaId))};color:${colorCab(r.cabanaId)};">${esc(nombreCab(r.cabanaId))}</span>
-            <span style="color:var(--gris);">${CV2.fmtFecha(r.checkIn)} → ${CV2.fmtFecha(r.checkOut)} · ${noches(r)} noche(s) · 👤${r.adultos}</span>
-            <span class="est ${r.estado}">${r.estado}</span>
-            <b style="margin-left:auto;">${CV2.fmtMonto(totalDe(r), monedaDe(r))}</b>
-            ${CV2.puede('reservas') ? `<button class="btn-ico" style="border:0;padding:2px;" onclick="editar('${r.id}')" title="Editar esta cabaña"><span class="material-icons" style="font-size:16px;">edit</span></button>` : ''}
-            ${CV2.puede('reservas') && r.estado !== 'anulada' ? `<button class="btn-ico" style="border:0;padding:2px;" onclick="cambiarEstado('${r.id}','anulada')" title="Anular esta cabaña"><span class="material-icons" style="font-size:16px;color:var(--rojo);">cancel</span></button>` : ''}
+          ${a.rs.map((r) => `<div class="cabana-acuerdo">
+            <div class="ca-1">
+              <span class="cab" style="background:${CV2.pastelDe(colorCab(r.cabanaId))};color:${colorCab(r.cabanaId)};">${esc(nombreCab(r.cabanaId))}</span>
+              <span class="est ${r.estado}">${r.estado}</span>
+              <span class="ca-monto">${CV2.fmtMonto(totalDe(r), monedaDe(r))}</span>
+              ${CV2.puede('reservas') ? `<button class="btn-ico" style="border:0;padding:3px;" onclick="editar('${r.id}')" title="Editar esta cabaña"><span class="material-icons" style="font-size:17px;">edit</span></button>` : ''}
+              ${CV2.puede('reservas') && r.estado !== 'anulada' ? `<button class="btn-ico" style="border:0;padding:3px;" onclick="cambiarEstado('${r.id}','anulada')" title="Anular esta cabaña"><span class="material-icons" style="font-size:17px;color:var(--rojo);">cancel</span></button>` : ''}
+            </div>
+            <div class="ca-2">
+              ${CV2.fmtFecha(r.checkIn)} ${esc(r.horaEntrada ?? '14:00')} → ${CV2.fmtFecha(r.checkOut)} ${esc(r.horaSalida ?? '10:00')}
+              · ${noches(r)} noche(s)
+              · 👤 ${r.adultos}${r.ninos ? ' + ' + r.ninos + ' 🧒' : ''}
+            </div>
+            ${r.notas && r.notas !== notaAcuerdo ? `<div class="ca-2">📝 ${esc(r.notas)}</div>` : ''}
           </div>`).join('')}
-          <div style="font-size:.75rem;color:var(--gris);margin-top:6px;">
-            Cada cabaña tiene su propia limpieza, su control de salida y su lugar en el
-            calendario. Lo que comparten es el cobro.
+          <div style="font-size:.75rem;color:var(--gris);margin-top:8px;">
+            Cada cabaña tiene sus fechas, su limpieza, su control de salida y su lugar
+            en el calendario. Lo que comparten es el cobro.
           </div>
         </div>` : ''}
 
@@ -396,7 +426,7 @@ function render() {
           </div>`).join('')}
         </div>` : ''}
 
-        ${a.rs.map((r) => r.notas ? `<div>📝 ${esc(r.notas)}</div>` : '').join('')}
+        ${notaAcuerdo ? `<div>📝 ${esc(notaAcuerdo)}</div>` : ''}
         ${(() => {
           const ultimos = a.rs.flatMap((r) => r.historial ?? [])
             .sort((x, y) => (y.fecha?.toMillis?.() ?? 0) - (x.fecha?.toMillis?.() ?? 0))
