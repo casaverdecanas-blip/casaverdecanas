@@ -30,6 +30,9 @@
   .evt { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px dashed var(--linea); font-size: .88rem; }
   .evt:last-child { border-bottom: 0; }
   .evt .material-icons { font-size: 18px; }
+  .evt { cursor: pointer; min-height: 44px; }
+  .evt:active { background: var(--verde-claro); }
+  .evt .ir { color: var(--gris); font-size: 20px; }
   .vacio { text-align: center; color: var(--gris); padding: 20px 10px; }
 </style>
 </head>
@@ -40,7 +43,7 @@
 <div class="contenedor">
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
     <h1 style="margin-right:auto;">Calendario</h1>
-    <button class="btn oculto" id="btnSync" title="Generar/actualizar limpiezas de todas las reservas">
+    <button class="btn oculto" id="btnSync" title="Crear las limpiezas de entrada de las reservas que entran en los próximos 7 días">
       <span class="material-icons">cleaning_services</span> Limpiezas
     </button>
   </div>
@@ -134,20 +137,45 @@ function renderDia() {
   const salidas = reservas.filter((r) => (r.estado === 'confirmada' || r.estado === 'finalizada') && r.checkOut === d);
   const encasa = activasEn(d).filter((r) => r.checkIn !== d);
 
+  // El calendario dice SOLO lo que es siempre cierto: quién entra, quién sale
+  // y quién está en casa. Nada de limpiezas.
+  //
+  // ACÁ VIVÍA UN CHIP "🧹 limpieza" EN CADA SALIDA, y era mentira. Texto fijo:
+  // no leía ninguna actividad, no consultaba si existía la limpieza, no creaba
+  // nada. Nació en la tanda 2.3, cuando la limpieza SÍ colgaba de la salida; el
+  // modelo cambió en las tandas 2.6 y 2.6b —la limpieza pasó a la ENTRADA y el
+  // control de salida nace de terminarla— y el chip se quedó describiendo un
+  // sistema que ya no existía. Confundió al propio administrador meses después.
+  // Regla que deja: una pantalla no afirma nada que no haya leído.
+  const fila = (r, icono, color, texto) =>
+    `<div class="evt" onclick="verReserva('${r.id}')" title="Abrir la reserva">
+      <span class="material-icons" style="color:${color};">${icono}</span>
+      <span style="flex:1;">${texto}</span>
+      <span class="material-icons ir">chevron_right</span>
+    </div>`;
+
   let h = '';
-  for (const r of salidas) h += `<div class="evt"><span class="material-icons" style="color:var(--rojo);">logout</span>
-    <span style="flex:1;"><b>${esc(r.clienteNombre)}</b> deja ${esc(nomCab(r.cabanaId))} a las ${r.horaSalida ?? '10:00'}</span>
-    <span class="chip">🧹 limpieza</span></div>`;
-  for (const r of entradas) h += `<div class="evt"><span class="material-icons" style="color:var(--ok);">login</span>
-    <span style="flex:1;"><b>${esc(r.clienteNombre)}</b> entra a ${esc(nomCab(r.cabanaId))} a las ${r.horaEntrada ?? '14:00'}</span>
-    <span class="texto-gris">${r.adultos}p</span></div>`;
-  for (const r of encasa) h += `<div class="evt"><span class="material-icons" style="color:var(--verde);">home</span>
-    <span style="flex:1;">${esc(r.clienteNombre)} en ${esc(nomCab(r.cabanaId))} (hasta ${CV2.fmtFecha(r.checkOut)})</span></div>`;
+  for (const r of salidas) h += fila(r, 'logout', 'var(--rojo)',
+    `<b>${esc(r.clienteNombre)}</b> deja ${esc(nomCab(r.cabanaId))} a las ${r.horaSalida ?? '10:00'}`);
+  for (const r of entradas) h += fila(r, 'login', 'var(--ok)',
+    `<b>${esc(r.clienteNombre)}</b> entra a ${esc(nomCab(r.cabanaId))} a las ${r.horaEntrada ?? '14:00'} · ${r.adultos}p`);
+  for (const r of encasa) h += fila(r, 'home', 'var(--verde)',
+    `${esc(r.clienteNombre)} en ${esc(nomCab(r.cabanaId))} (hasta ${CV2.fmtFecha(r.checkOut)})`);
 
   $('diaDetalle').innerHTML = h || '<div class="vacio">Día tranquilo: sin movimientos.</div>';
 }
 
 window.verDia = (d) => { diaSel = d; render(); };
+
+// Abrir una reserva SIN duplicar su ficha acá. La ficha de reservas.html
+// depende de la suscripción a pagos, de diez helpers de moneda y de dos
+// modales: copiarla serían ~400 líneas en dos lugares, que se desincronizan
+// a la primera corrección. Se navega, y se lleva el día para poder volver
+// exactamente a esta pantalla.
+window.verReserva = (id) => {
+  location.href = './reservas.html?r=' + encodeURIComponent(id)
+    + '&volver=' + encodeURIComponent(diaSel || '');
+};
 
 $('prev').addEventListener('click', () => { mes--; if (mes < 0) { mes = 11; anio--; } render(); });
 $('next').addEventListener('click', () => { mes++; if (mes > 11) { mes = 0; anio++; } render(); });
@@ -169,6 +197,16 @@ if (CV2.esAdmin()) {
 const hoy = new Date();
 anio = hoy.getFullYear(); mes = hoy.getMonth();
 diaSel = CV2.hoyISO();
+
+// Al volver desde una reserva llega ?d=YYYY-MM-DD: se abre el mismo mes y el
+// mismo día que se estaba mirando. Sin esto, volver del detalle deja en el mes
+// actual y hay que buscar otra vez dónde se estaba.
+const _d = new URLSearchParams(location.search).get('d');
+if (_d && /^\d{4}-\d{2}-\d{2}$/.test(_d)) {
+  anio = Number(_d.slice(0, 4));
+  mes = Number(_d.slice(5, 7)) - 1;
+  diaSel = _d;
+}
 
 const sc = await getDocs(collection(db, 'cabanas'));
 sc.forEach((d) => cabanas.push({ id: d.id, ...d.data() }));

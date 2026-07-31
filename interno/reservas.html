@@ -39,6 +39,12 @@
   .hist { font-size: .76rem; color: var(--gris); margin-top: 6px; }
   .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
 
+  .volver { display: flex; align-items: center; gap: 6px; min-height: 44px;
+    margin: 0 0 10px; padding: 9px 12px; background: var(--verde-claro);
+    border-radius: 10px; color: var(--verde-osc); text-decoration: none;
+    font-size: .88rem; font-weight: 600; }
+  .volver .material-icons { font-size: 19px; }
+  .res.resaltada { outline: 2px solid var(--verde); }
   dialog { border: 0; border-radius: 14px; padding: 16px; width: min(500px, 94vw);
     max-height: 88dvh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
   dialog::backdrop { background: rgba(20,30,18,.45); }
@@ -50,6 +56,11 @@
 <div id="nav"></div>
 
 <div class="contenedor">
+  <!-- Aparece SOLO si se llegó desde el calendario (?volver=). Vuelve al
+       mismo día que se estaba mirando, después de editar lo que sea. -->
+  <a class="volver oculto" id="volver" href="./calendario.html">
+    <span class="material-icons">arrow_back</span> Volver al calendario
+  </a>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
     <h1 style="margin-right:auto;">Reservas</h1>
     <button class="btn oculto" id="btnAirbnb" title="Sincronizar con los calendarios de Airbnb">
@@ -194,6 +205,18 @@ let materializado = false;     // materializar una sola vez por carga
 let pagos = [];                // colección plana; se agrupa por reservaId
 let filtro = 'vigentes';
 let abierta = null;
+
+// ── Llegada desde el calendario ──────────────────────────
+// ?r=<reservaId>  → abre esa reserva y la trae a la vista
+// ?volver=<YYYY-MM-DD> → muestra el botón que devuelve al calendario, al
+//   mismo día que se estaba mirando.
+// La ficha vive SOLO acá: el calendario no la duplica (dependería de la
+// suscripción a pagos, de los helpers de moneda y de los dos modales).
+const _q = new URLSearchParams(location.search);
+const _pedida = _q.get('r');
+const _volverA = _q.get('volver');
+let resaltada = _pedida || null;
+let traidaALaVista = false;
 let editId = null;
 let pagoReservaId = null;      // reserva a la que se registra un pago
 let clientes = [];
@@ -256,7 +279,7 @@ function render() {
   }
   cont.innerHTML = fs.map((r) => {
     const col = colorCab(r.cabanaId);
-    let h = `<div class="res" style="border-left:5px solid ${col};" onclick="abrir('${r.id}')">
+    let h = `<div class="res${r.id === resaltada ? ' resaltada' : ''}" id="res-${r.id}" style="border-left:5px solid ${col};" onclick="abrir('${r.id}')">
       <div class="fila1">
         <span class="quien">${esc(r.clienteNombre)}</span>
         ${enCasa(r) ? '<span class="encasa">🏠 En casa</span>' : ''}
@@ -272,7 +295,9 @@ function render() {
           const pag = pagadoDe(r.id);
           const saldo = totalDe(r) - pag;
           if (pag <= 0) return r.estado === 'presupuesto' ? '' : '<span style="color:var(--rojo);">sin pagos</span>';
-          return `<span style="color:${saldo > 0.01 ? 'var(--amarillo)' : 'var(--ok)'};">${saldo > 0.01 ? 'saldo ' + CV2.fmtMonto(saldo) : '✓ pagada'}</span>`;
+          // fmtMonto SIN moneda asume reales: una reserva en dólares mostraba
+          // su saldo en R$. La reserva vive en su moneda de principio a fin.
+          return `<span style="color:${saldo > 0.01 ? 'var(--amarillo)' : 'var(--ok)'};">${saldo > 0.01 ? 'saldo ' + CV2.fmtMonto(saldo, monedaDe(r)) : '✓ pagada'}</span>`;
         })()}
         ${tieneSena(r.id) && r.estado === 'presupuesto' ? '<span class="est" style="background:#fdf1d8;color:#8a6206;">señada</span>' : ''}
       </div>`;
@@ -284,11 +309,17 @@ function render() {
       const CONC = { sena: 'Seña', saldo: 'Saldo', otro: 'Pago' };
       h += `<div class="detalle" onclick="event.stopPropagation()">
         ${ps.length ? `<div style="margin-bottom:6px;">
+          <!-- El equivalente se muestra en la MONEDA DE LA RESERVA, nunca en
+               reales. Acá había una llamada a enBRL(), una función que NO
+               EXISTÍA en este archivo: resto del pivote en reales anterior a
+               la tanda 11.1. Como está dentro del map que arma la lista, un
+               solo pago en moneda distinta rompía la página entera, no solo
+               esa fila. Nadie lo vio porque todavía no hubo un pago así. -->
           <b>Pagos</b> · pagado ${CV2.fmtMonto(pagadoDe(r.id), monedaDe(r))} de ${CV2.fmtMonto(totalDe(r), monedaDe(r))}
           ${ps.map((p) => `<div style="display:flex;gap:8px;align-items:center;font-size:.82rem;color:var(--gris);margin-top:3px;">
             <span>${CV2.fmtFecha(p.fecha)}</span>
             <span style="flex:1;">${CONC[p.concepto] ?? 'Pago'} · ${esc(p.metodo ?? '')}${p.categoria ? ' · ' + esc(p.categoria) : ''}${p.cuentaDestino ? ' → ' + esc(p.cuentaDestino) : ''}${p.nota ? ' · ' + esc(p.nota) : ''}</span>
-            <b style="color:var(--tinta);">${CV2.fmtMonto(p.monto, p.moneda ?? 'BRL')}${p.moneda && p.moneda !== 'BRL' ? ' <span style="font-weight:400;color:var(--gris);">(≈' + CV2.fmtMonto(enBRL(p)) + ')</span>' : ''}</b>
+            <b style="color:var(--tinta);">${CV2.fmtMonto(p.monto, p.moneda ?? 'BRL')}${(p.moneda ?? 'BRL') !== monedaDe(r) ? ' <span style="font-weight:400;color:var(--gris);">(≈' + CV2.fmtMonto(aporte(p, monedaDe(r)), monedaDe(r)) + ')</span>' : ''}</b>
             ${CV2.puede('finanzas') ? `<button class="btn-ico" style="border:0;padding:2px;" onclick="borrarPago('${p.id}')" title="Eliminar pago"><span class="material-icons" style="font-size:15px;color:var(--rojo)">delete_outline</span></button>` : ''}
           </div>`).join('')}
         </div>` : ''}
@@ -702,6 +733,17 @@ try {
   }
 }
 
+// El botón de volver se enciende SOLO si se llegó desde el calendario.
+// Lleva el día que se estaba mirando, así se vuelve al mismo lugar y no al
+// mes actual. Es un enlace común: funciona después de editar, de pagar o de
+// anular, sin depender del historial del navegador.
+if (_volverA !== null) {
+  $('volver').classList.remove('oculto');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(_volverA)) {
+    $('volver').href = './calendario.html?d=' + _volverA;
+  }
+}
+
 // ═══ Suscripción — AL FINAL ═══════════════════════════════
 onSnapshot(query(collection(db, 'pagos')), (snap) => {
   pagos = [];
@@ -713,6 +755,27 @@ onSnapshot(query(collection(db, 'reservas')), (snap) => {
   reservas = [];
   snap.forEach((d) => reservas.push({ id: d.id, ...d.data() }));
   reservas.sort((a, b) => (b.checkIn ?? '').localeCompare(a.checkIn ?? ''));
+
+  // Si se llegó desde el calendario pidiendo una reserva, se abre sola y se
+  // trae a la vista. UNA sola vez: después el onSnapshot vuelve a correr con
+  // cada cambio, y reabrirla en cada uno pelearía con lo que esté haciendo la
+  // persona.
+  if (_pedida && !traidaALaVista && reservas.some((r) => r.id === _pedida)) {
+    traidaALaVista = true;
+    abierta = _pedida;
+    // El filtro por defecto es 'vigentes': una reserva finalizada o vieja
+    // quedaría escondida y la pantalla se vería vacía sin explicar por qué.
+    filtro = 'todas';
+    $('filtros').querySelectorAll('.fchip').forEach((b) => {
+      b.classList.toggle('activo', b.dataset.f === 'todas');
+    });
+    render();
+    setTimeout(() => {
+      const el = $('res-' + _pedida);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 60);
+    return;
+  }
   render();
   // Materializa (sin bloquear el render) las limpiezas y controles que
   // entran en la ventana de 7 días. Idempotente: no duplica.
