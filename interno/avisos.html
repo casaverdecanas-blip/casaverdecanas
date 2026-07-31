@@ -336,6 +336,11 @@ $('btnProbarWa').addEventListener('click', async () => {
     $('btnProbarWa').disabled = false;
     return;
   }
+  // Se muestra el número tal como va a viajar (sin '+', como lo manda
+  // CallMeBot). Si acá aparece vacío o distinto al tuyo, el problema está en
+  // esta pantalla; si aparece bien y CallMeBot contesta otro, está más abajo.
+  const aQuien = String(tel).replace(/[^\d]/g, '');
+  decir('Mandando a ' + aQuien + '…');
   const r = await CV2.enviarWhatsApp(
     'Prueba de Casa Verde: si leés esto, tu WhatsApp está listo.',
     { telefono: tel, apikey: key });
@@ -343,8 +348,15 @@ $('btnProbarWa').addEventListener('click', async () => {
     // Se muestra la respuesta CRUDA aunque haya salido bien: cuando CallMeBot
     // acepta el pedido y el mensaje igual no llega (bot muerto, número mal
     // formado), este texto es lo único que permite entender qué pasó.
-    decir('CallMeBot aceptó el pedido. Si en un minuto no llega, el problema está '
-      + 'del lado de CallMeBot, no de la app. Contestó: ' + (r.detalle || 'sin detalle'), 'bien');
+    const dijo = r.detalle || 'sin detalle';
+    // Si CallMeBot dice haber recibido OTRO número, el contacto se perdió en
+    // el camino y el mensaje va a llegarle a otra persona.
+    const coincide = dijo.replace(/[^\d]/g, '').indexOf(aQuien) !== -1;
+    decir((coincide
+      ? 'Mandado a ' + aQuien + ' y aceptado. Si en un minuto no llega, el problema es de CallMeBot.'
+      : 'OJO: se pidió mandar a ' + aQuien + ' pero CallMeBot dice otra cosa. El contacto se '
+        + 'perdió en el camino.')
+      + ' Contestó: ' + dijo, coincide ? 'bien' : 'mal');
   } else {
     const det = (r && r.detalle) ?? 'sin detalle';
     decir(det, 'mal');
@@ -488,7 +500,7 @@ $('btnProbarDefecto').addEventListener('click', async () => {
 // ═══ Cargas iniciales — AL FINAL ══════════════════════════
 // El sello dice qué versión de nucleo.js está corriendo de verdad. Si no
 // coincide con la esperada, lo que se probó no es lo que se cree.
-$('sello').textContent = 'motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
+$('sello').textContent = 'pantalla: avisos-4 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
 $('miMail').textContent = u.email ?? 'sin correo cargado';
 $('kEmail').checked = notif.canalEmail !== false;
 $('kWa').checked = notif.canalWhatsapp === true;
