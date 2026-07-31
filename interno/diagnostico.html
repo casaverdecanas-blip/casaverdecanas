@@ -82,6 +82,13 @@
     <div id="s4">Hace falta entrar primero.</div>
     <div class="acc"><button id="btnDatos">Probar los permisos</button></div></div>
 
+  <div class="tarj"><h2>5 · La conexión con Google, sin intermediarios</h2>
+    <p class="sub" style="margin:0 0 6px;">Pide directo a cada servicio de Google,
+      sin el SDK de Firebase en el medio. Separa "no llega la red" de
+      "el SDK hace algo raro".</p>
+    <div id="s5">Sin probar.</div>
+    <div class="acc"><button class="p" id="btnRed">Probar la conexión</button></div></div>
+
   <div class="tarj"><h2>Para traer al chat</h2>
     <textarea id="informe" readonly></textarea>
     <div class="acc"><button class="p" id="btnCopiar">Copiar el informe</button>
@@ -307,12 +314,14 @@ const COLECCIONES = ['usuarios', 'grupos', 'reservas', 'pagos', 'clientes',
 $('btnDatos').addEventListener('click', async () => {
   if (!FB) return;
   const b = $('btnDatos'); b.disabled = true;
-  $('s4').innerHTML = 'Probando…';
+  $('s4').innerHTML = 'Probando… (hasta 8 segundos por colección si no hay red)';
   anotar('\n=== 4 · PERMISOS DE LECTURA ===');
   let h = '';
   for (const c of COLECCIONES) {
     try {
-      const s = await FB.getDocs(FB.collection(FB.db, c));
+      // Con plazo: sin red, getDocs no falla — espera. Sin esto la sección
+      // quedaba en blanco y parecía que el botón no hacía nada.
+      const s = await conPlazo(FB.getDocs(FB.collection(FB.db, c)), 8000);
       h += linea('ok', c, s.size + ' documento(s)');
       anotar(c + ': OK · ' + s.size + ' doc(s)');
     } catch (e) {
@@ -320,11 +329,80 @@ $('btnDatos').addEventListener('click', async () => {
       h += linea('mal', c + ' — ' + cod,
         cod === 'permission-denied'
           ? 'Las reglas no dejan leer esta colección con este usuario.'
-          : e.message);
+          : cod === 'plazo'
+            ? 'Firestore no contestó. No es un permiso: no se está llegando al servidor.'
+            : e.message);
       anotar(c + ': FALLÓ ' + cod);
     }
   }
   $('s4').innerHTML = h;
+  b.disabled = false;
+});
+
+// ── 5 · La conexión con Google, a mano ───────────────────
+// Por qué existe: 'auth/network-request-failed' dice que el pedido no llegó,
+// pero no a DÓNDE no llegó. El SDK habla con TRES servidores distintos y
+// basta que uno esté bloqueado —una WiFi corporativa, un bloqueador de
+// anuncios, un DNS con filtro— para que todo parezca "sin internet" aunque
+// el resto ande. Acá se prueba cada uno por separado.
+//
+// La clave del proyecto es pública por diseño (identifica, no autoriza): lo
+// que protege los datos son las reglas de Firestore, no esta clave.
+const CLAVE = 'AIzaSyDG12FsMYyGVzkodq07N1SSWQfMcTJ-3yM';
+const PROY = 'casaverde-20';
+
+// Con plazo: sin esto, un servidor que no contesta deja la prueba colgada
+// para siempre y parece que la página no hace nada — que es exactamente lo
+// que pasó con la sección 4.
+function conPlazo(promesa, ms) {
+  return Promise.race([
+    promesa,
+    new Promise((_, rej) => setTimeout(() => {
+      const e = new Error('no contestó en ' + (ms / 1000) + ' segundos');
+      e.code = 'plazo';
+      rej(e);
+    }, ms))
+  ]);
+}
+
+const PRUEBAS = [
+  { n: 'gstatic.com', que: 'de donde se baja el SDK de Firebase',
+    url: 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js' },
+  { n: 'identitytoolkit.googleapis.com', que: 'el LOGIN — es el que está fallando',
+    url: 'https://identitytoolkit.googleapis.com/v1/projects?key=' + CLAVE },
+  { n: 'firestore.googleapis.com', que: 'los datos · pide cabañas, que son públicas',
+    url: 'https://firestore.googleapis.com/v1/projects/' + PROY
+       + '/databases/(default)/documents/cabanas?key=' + CLAVE },
+  { n: 'firebaseapp.com', que: 'el dominio de autenticación del proyecto',
+    url: 'https://' + PROY + '.firebaseapp.com/__/auth/handler' }
+];
+
+$('btnRed').addEventListener('click', async () => {
+  const b = $('btnRed'); b.disabled = true;
+  $('s5').innerHTML = 'Probando…';
+  anotar('\n=== 5 · CONEXIÓN DIRECTA ===');
+  let h = '';
+  for (const p of PRUEBAS) {
+    const t0 = Date.now();
+    try {
+      const r = await conPlazo(fetch(p.url, { cache: 'no-store' }), 12000);
+      const ms = Date.now() - t0;
+      // Un 400 o un 401 son BUENAS noticias acá: significan que el servidor
+      // contestó. Lo que importa es si se llega, no si el pedido es válido.
+      h += linea('ok', p.n + ' — responde',
+        'HTTP ' + r.status + ' en ' + ms + ' ms · ' + p.que);
+      anotar(p.n + ': HTTP ' + r.status + ' (' + ms + ' ms)');
+    } catch (e) {
+      const ms = Date.now() - t0;
+      h += linea('mal', p.n + ' — NO SE LLEGA',
+        (e.code === 'plazo' ? 'se colgó ' + ms + ' ms sin respuesta'
+          : e.message + ' (' + ms + ' ms)')
+        + ' · ' + p.que
+        + '. Lo bloquea la red, un bloqueador de anuncios o el DNS.');
+      anotar(p.n + ': FALLA — ' + (e.message || e.code) + ' (' + ms + ' ms)');
+    }
+  }
+  $('s5').innerHTML = h;
   b.disabled = false;
 });
 
