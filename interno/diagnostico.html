@@ -349,9 +349,20 @@ $('btnReset').addEventListener('click', async () => {
 });
 
 // ── 4 · Los permisos, colección por colección ────────────
-const COLECCIONES = ['usuarios', 'grupos', 'reservas', 'pagos', 'clientes',
-  'cabanas', 'actividades', 'sesiones', 'honorarios', 'movimientos',
-  'comunicaciones', 'avisos_contacto', 'disponibilidad', 'chequeos'];
+// OJO CON 'actividades': su regla exige que la consulta venga FILTRADA (las
+// cuatro ramas demostrables de §5). Pedir la colección entera da
+// permission-denied aunque todo esté perfecto — y una herramienta de
+// diagnóstico que da falsas alarmas es peor que no tenerla. Se prueba con el
+// mismo filtro que usa la app: alcance == 'equipo'.
+const COLECCIONES = [
+  { c: 'usuarios' }, { c: 'grupos' }, { c: 'reservas' }, { c: 'pagos' },
+  { c: 'clientes' }, { c: 'cabanas' },
+  { c: 'actividades', filtro: ['alcance', '==', 'equipo'],
+    nota: 'con filtro de alcance, como lo hace la app' },
+  { c: 'sesiones' }, { c: 'honorarios' }, { c: 'movimientos' },
+  { c: 'comunicaciones' }, { c: 'avisos_contacto' },
+  { c: 'disponibilidad' }, { c: 'chequeos' }
+];
 
 $('btnDatos').addEventListener('click', async () => {
   if (!FB) return;
@@ -359,12 +370,17 @@ $('btnDatos').addEventListener('click', async () => {
   $('s4').innerHTML = 'Probando… (hasta 8 segundos por colección si no hay red)';
   anotar('\n=== 4 · PERMISOS DE LECTURA ===');
   let h = '';
-  for (const c of COLECCIONES) {
+  for (const item of COLECCIONES) {
+    const c = item.c;
     try {
       // Con plazo: sin red, getDocs no falla — espera. Sin esto la sección
       // quedaba en blanco y parecía que el botón no hacía nada.
-      const s = await conPlazo(FB.getDocs(FB.collection(FB.db, c)), 8000);
-      h += linea('ok', c, s.size + ' documento(s)');
+      const col = FB.collection(FB.db, c);
+      const consulta = item.filtro
+        ? FB.query(col, FB.where(item.filtro[0], item.filtro[1], item.filtro[2]))
+        : col;
+      const s = await conPlazo(FB.getDocs(consulta), 8000);
+      h += linea('ok', c, s.size + ' documento(s)' + (item.nota ? ' · ' + item.nota : ''));
       anotar(c + ': OK · ' + s.size + ' doc(s)');
     } catch (e) {
       const cod = e.code || 'error';

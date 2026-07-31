@@ -114,8 +114,19 @@ function agrupar(lista) {
 const pagosAcuerdo = (a, porReserva) => a.esGrupo
   ? Object.values(porReserva).flat().filter((p) => p.grupoId === a.clave)
   : (porReserva[a.clave] || []).filter((p) => !p.grupoId);
-const monedaAcuerdo = (a) => monedaDe(a.rs[0]);
-const totalAcuerdo = (a) => a.rs.reduce((x, r) => x + totalDe(r), 0);
+// El precio sale del documento del ACUERDO (grupos/{id}). El respaldo —sumar
+// las partes— cubre las reservas anteriores a la migración. Mismo criterio
+// que reservas.html: si acá se calculara distinto, la revisión mentiría.
+let grupos = {};
+const monedaAcuerdo = (a) => {
+  const g = grupos[a.clave];
+  return (g && g.moneda) || monedaDe(a.rs[0]);
+};
+const totalAcuerdo = (a) => {
+  const g = grupos[a.clave];
+  if (g && g.total != null) return Number(g.total) || 0;
+  return a.rs.reduce((x, r) => x + totalDe(r), 0);
+};
 const dia = (s) => (typeof s === 'string' ? s : '—');
 
 // Cuántos días faltan para una fecha ISO (negativo = ya pasó).
@@ -226,6 +237,11 @@ function pintar(reservas, porReserva, huerfanos, limpiezas) {
     const problemas = a.rs.flatMap((r) =>
       (revisadas.find((x) => x.r.id === r.id).rev.mal).map((m) =>
         (a.esGrupo ? '<b>' + esc(r.cabanaId) + ':</b> ' : '') + m));
+    if (a.esGrupo && !grupos[a.clave]) {
+      problemas.unshift('El acuerdo <b>no tiene documento en grupos/</b>: el total que '
+        + 'se muestra es la suma de las partes, no un precio negociado. Entrá a la '
+        + 'reserva y usá <b>Editar el acuerdo</b> para fijarlo.');
+    }
     if (total > 0 && pagado > total + 0.01) {
       problemas.unshift('El acuerdo está <b>sobrepagado</b>: ' + fmt(pagado, mon)
         + ' sobre ' + fmt(total, mon) + '.');
@@ -349,10 +365,12 @@ function pintar(reservas, porReserva, huerfanos, limpiezas) {
 
 // ═══ Cargas — AL FINAL ════════════════════════════════════
 try {
-  const [sr, sp] = await Promise.all([
+  const [sr, sp, sg] = await Promise.all([
     getDocs(collection(db, 'reservas')),
-    getDocs(collection(db, 'pagos'))
+    getDocs(collection(db, 'pagos')),
+    getDocs(collection(db, 'grupos'))
   ]);
+  sg.forEach((d) => { grupos[d.id] = { id: d.id, ...d.data() }; });
 
   const reservas = [];
   sr.forEach((d) => reservas.push({ id: d.id, ...d.data() }));
