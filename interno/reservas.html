@@ -84,6 +84,7 @@
       <span class="material-icons">add</span> Reserva
     </button>
   </div>
+  <small id="sello" style="display:block;font-size:.7rem;color:var(--gris);margin:2px 0 8px;"></small>
 
   <div class="filtros" id="filtros">
     <button class="fchip activo" data-f="vigentes">Vigentes</button>
@@ -144,6 +145,16 @@
 
   <label>Notas</label>
   <textarea id="fNotas" rows="2"></textarea>
+
+  <!-- Dónde se crea un acuerdo: NO acá. Se guarda esta reserva con el precio
+       de TODA la estadía y después, en su ficha, el botón "Otra cabaña" suma
+       las que falten sin volver a preguntar plata. Esta pista existe porque el
+       administrador buscó el acuerdo en este formulario y no lo encontró: si
+       hay que explicarlo en un chat, la interfaz todavía no lo dice. -->
+  <p id="pistaAcuerdo" style="font-size:.78rem;color:var(--gris);margin:10px 0 0;line-height:1.5;">
+    ¿La estadía ocupa <b>más de una cabaña</b>? Poné acá el precio del conjunto,
+    guardá, y en la ficha de la reserva usá <b>Otra cabaña</b> para sumar las demás.
+  </p>
 
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
     <button class="btn" id="mCancelar">Cancelar</button>
@@ -628,7 +639,7 @@ function abrirModal(r, base) {
   pidePrecio = !b && soloUna;
   $('boxMoneda').classList.toggle('oculto', !pidePrecio);
   $('boxTotal').classList.toggle('oculto', !pidePrecio);
-  $('pistaAcuerdo').classList.toggle('oculto', !pidePrecio || !!editId);
+  if ($('pistaAcuerdo')) $('pistaAcuerdo').classList.toggle('oculto', !pidePrecio || !!editId);
   $('fTotal').value = (r && aDeR) ? totalAcuerdo(aDeR) : '';
   // La moneda la manda el acuerdo: no se puede tener una cabaña en dólares
   // y otra en reales dentro del mismo cobro.
@@ -1069,7 +1080,13 @@ if (_volverA !== null) {
   }
 }
 
-$('sello').textContent = 'pantalla: ' + SELLO + ' · motor: ' + (CV2.VERSION ?? 'nucleo viejo');
+// §3.9 — el sello es decorativo y NO puede estar en el camino crítico. Sin
+// este guard, el 31-jul-2026 un elemento que no se había creado dejó la página
+// en "Cargando…" para siempre: la línea reventaba justo antes de las
+// suscripciones y no se cargaba ni una reserva.
+if ($('sello')) {
+  $('sello').textContent = 'pantalla: ' + SELLO + ' · motor: ' + (CV2.VERSION ?? 'nucleo viejo');
+}
 
 // ═══ Suscripción — AL FINAL ═══════════════════════════════
 // Los acuerdos primero: el precio de todo lo demás sale de acá.
