@@ -152,25 +152,33 @@
     </div>
 
     <details class="guia">
-      <summary><span class="material-icons">help_outline</span> No tengo clave todavía · cómo conseguirla (5 minutos, una sola vez)</summary>
+      <summary><span class="material-icons">help_outline</span> No tengo clave, o la perdí · cómo conseguirla</summary>
+      <p style="font-size:.86rem;margin:4px 0 8px;">
+        <b>Si alguna vez te llegaron avisos, ya tenés clave y es la de siempre.</b>
+        CallMeBot nunca genera una nueva: siempre te devuelve la misma. Mandale
+        <code>Recover APIKey</code> al bot y te la reenvía.
+      </p>
       <ol>
-        <li>Guardá en tus contactos el número <code>+34 644 51 95 23</code>. Es el
-          robot de CallMeBot, el servicio gratuito que manda los WhatsApps.</li>
-        <li>Abrile una conversación de WhatsApp y mandale <b>exactamente</b> este texto:
+        <li>Conseguí el número del bot en <b>callmebot.com/blog/free-api-whatsapp-messages/</b>.
+          <b>Ojo:</b> ese número cambia cada tanto y no es el mismo para todos, así que
+          hay que mirarlo en el momento y no confiar en uno anotado de antes.</li>
+        <li>Guardalo en tus contactos y abrile una conversación de WhatsApp
+          <b>desde el teléfono donde querés recibir los avisos</b>.</li>
+        <li>Mandale <b>exactamente</b> este texto:
           <br><code>I allow callmebot to send me messages</code></li>
-        <li>En un rato te contesta con un mensaje que dice <i>“Your APIKEY is …”</i>
-          seguido de un número. Ese número es tu clave.</li>
-        <li>Volvé acá, escribí <b>tu número de teléfono</b> (con el <code>+</code> y el
-          código de país, sin espacios ni guiones) y <b>la clave</b> que te llegó.
-          Tocá <b>Guardar mi número</b>.</li>
-        <li>Avisale al administrador que ya lo cargaste: tiene que subirlo al
-          servidor. Hasta que lo haga, la prueba va a fallar.</li>
-        <li>Cuando te diga que está, tocá <b>Probar WhatsApp</b>. Y no te olvides de
-          encender la llave de WhatsApp allá arriba.</li>
+        <li>Te contesta con <i>“Your APIKEY is …”</i> y un número. Esa es tu clave.
+          Si no llega en dos minutos, hay que esperar 24 horas y reintentar.</li>
+        <li>Volvé acá, escribí <b>tu número</b> (con el <code>+</code> y el código de país,
+          sin espacios ni guiones) y <b>la clave</b>. Tocá <b>Guardar mi número</b>.</li>
+        <li>Avisale al administrador: tiene que subirlo al servidor. Hasta que lo haga,
+          la prueba va a fallar.</li>
       </ol>
       <p style="font-size:.82rem;color:var(--gris);margin:6px 0 0;">
-        Si algún día no querés más avisos por WhatsApp, alcanza con apagar la llave.
-        Y si querés cortarlo de raíz, mandale <code>stop</code> al robot.
+        <b>Si la prueba dice que la cuenta está en pausa:</b> mandale la palabra
+        <code>resume</code> al bot desde ese mismo teléfono. Le pasa a cualquiera
+        cada tanto y se arregla solo con eso.
+        <br>Para no recibir más: apagá la llave de acá arriba, o mandale
+        <code>stop</code> al bot para cortarlo de raíz.
       </p>
     </details>
   </div>
@@ -334,19 +342,14 @@ $('btnProbarWa').addEventListener('click', async () => {
   $('btnProbarWa').disabled = true;
   decir('Mandando…');
   const r = await CV2.enviarWhatsApp('Prueba de Casa Verde: si leés esto, tu WhatsApp está listo.', u.uid);
-  if (r && r.error === 'espera') {
-    decir(r.detalle, 'mal');
-  } else if (r && r.ok) {
-    decir('CallMeBot aceptó el pedido. Si el mensaje no te llega en un minuto, '
-      + 'revisá que el número y la clave estén bien. Respuesta del servicio: '
-      + (r.respuesta ?? 'sin detalle'), 'bien');
+  if (r && r.ok) {
+    decir('Enviado. Debería llegarte en menos de un minuto.', 'bien');
   } else {
-    const det = (r && (r.error ?? r.respuesta)) ?? 'sin detalle';
-    const falta = String(det).indexOf('no tiene WhatsApp configurado') !== -1;
-    decir(falta
+    const det = (r && r.detalle) ?? 'sin detalle';
+    decir(String(det).indexOf('no tiene WhatsApp configurado') !== -1
       ? 'Tu número todavía no está en el servidor. Guardalo acá arriba y pedile al '
         + 'administrador que lo cargue; después volvé a probar.'
-      : 'No salió: ' + det, 'mal');
+      : det, 'mal');
   }
   $('btnProbarWa').disabled = false;
 });
@@ -492,21 +495,17 @@ $('btnProbarDefecto').addEventListener('click', async () => {
   el.className = 'estado';
   el.textContent = 'Mandando…';
   const r = await CV2.enviarWhatsApp('Prueba de Casa Verde: la cadena de avisos está viva.');
-  if (r && r.error === 'espera') {
-    el.className = 'estado mal';
-    el.textContent = r.detalle;
-  } else if (r && r.ok) {
+  if (r && r.ok) {
     el.className = 'estado bien';
-    el.textContent = 'CallMeBot aceptó el pedido. Si el mensaje llega al teléfono, la cadena '
-      + 'entera funciona y lo único que falta es el JSON con los uid nuevos. Respuesta del '
-      + 'servicio: ' + (r.respuesta ?? 'sin detalle');
+    el.textContent = 'Enviado y aceptado. La cadena entera funciona: navegador, función de '
+      + 'Netlify, CallMeBot y teléfono. Lo único que falta es el JSON con los uid nuevos.';
   } else {
-    const det = (r && (r.error ?? r.respuesta)) ?? 'sin detalle';
+    const det = (r && r.detalle) ?? 'sin detalle';
     el.className = 'estado mal';
     el.textContent = String(det).indexOf('faltan variables') !== -1
       ? 'La función no encuentra CALLMEBOT_PHONE o CALLMEBOT_APIKEY. Puede que Netlify '
         + 'necesite un despliegue nuevo para tomarlas.'
-      : 'No salió: ' + det;
+      : det;
   }
   b.disabled = false;
 });
