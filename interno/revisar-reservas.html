@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Revisar reservas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+<link rel="stylesheet" href="design-system.css">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .aviso { background: #fdf1d8; border: 1px solid #e8d5a3; border-radius: 10px;
+    padding: 11px 13px; font-size: .85rem; margin: 0 0 14px; }
+  .tarj { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 13px; margin: 10px 0; box-shadow: var(--sombra); }
+  .tarj h2 { margin: 0 0 8px; font-size: .95rem; }
+  .res { border-left: 5px solid var(--verde); }
+  .res.mal { border-left-color: var(--rojo); }
+  .cab { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cab b { font-size: .95rem; }
+  .et { font-size: .68rem; font-weight: 700; padding: 2px 7px; border-radius: 999px;
+    background: #f2f1ec; color: var(--gris); white-space: nowrap; }
+  .et.rojo { background: #fdeceb; color: var(--rojo); }
+  .et.verde { background: var(--verde-claro); color: var(--verde-osc); }
+  .campos { font-size: .82rem; color: var(--gris); margin-top: 6px; line-height: 1.6; }
+  .campos b { color: var(--tinta); }
+  .pago { display: flex; gap: 8px; align-items: baseline; font-size: .8rem;
+    padding: 4px 0; border-top: 1px dashed var(--linea); }
+  .pago:first-of-type { border-top: 0; }
+  .pago .m { margin-left: auto; font-weight: 600; color: var(--tinta); white-space: nowrap; }
+  .prob { background: #fdeceb; color: #8e2b2b; border-radius: 8px; padding: 7px 10px;
+    font-size: .8rem; margin-top: 7px; }
+  .prob b { display: block; }
+  .prob ul { margin: 4px 0 0; padding-left: 17px; }
+  textarea { width: 100%; box-sizing: border-box; min-height: 220px;
+    font-family: ui-monospace, monospace; font-size: .7rem; }
+  .acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .cargando { text-align: center; color: var(--gris); padding: 34px; }
+  .num { display: flex; gap: 16px; flex-wrap: wrap; font-size: .85rem; }
+  .num span b { display: block; font-size: 1.3rem; color: var(--verde-osc); }
+</style>
+</head>
+<body>
+
+<div class="contenedor">
+  <h1>Revisar reservas</h1>
+
+  <div class="aviso">
+    <b>Esta página no escribe nada.</b> Solo lee y muestra. Es una herramienta
+    temporal de revisión: no está en el menú ni en el service worker, se entra
+    por dirección directa. Si después hay que migrar algo, se hace con otra
+    herramienta, escrita a la vista de estos datos.
+  </div>
+
+  <div id="cuerpo"><div class="cargando">Leyendo…</div></div>
+</div>
+
+<script type="module">
+// ═══════════════════════════════════════════════════════════
+// REVISAR RESERVAS — foto del estado real, para mirarla entre dos.
+//
+// Para qué existe: antes de tocar la estructura de las reservas hay que
+// VER lo que hay, no suponerlo. Junta cada reserva con sus pagos y marca
+// las incoherencias que hoy no se ven en ninguna pantalla porque fallan
+// en silencio (un pago que aporta CERO al saldo, por ejemplo).
+//
+// Reglas del 2.0 que sigue: getDocs y no onSnapshot (es una foto), un solo
+// where por consulta, definiciones primero y cargas al final.
+// ═══════════════════════════════════════════════════════════
+import {
+  db, collection, query, where, getDocs
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+const u = await CV2.verificarAuth();
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+if (!CV2.puede('reservas')) {
+  $('cuerpo').innerHTML = '<div class="cargando">Esta página es para quien gestiona reservas.</div>';
+  throw new Error('sin permiso');
+}
+
+// ── El modelo, copiado TAL CUAL de reservas.html ─────────────
+// A propósito: si acá se calculara distinto, la revisión mentiría. Si
+// alguna vez cambia allá, cambia acá.
+const monedaDe = (r) => (r && r.moneda) || 'BRL';
+const totalDe = (r) => Number((r && (r.total ?? r.totalBRL)) || 0);
+const aporte = (p, mon) =>
+  Number(p.moneda === mon ? p.monto : (p.montoEquiv ?? p.montoBRL)) || 0;
+
+const fmt = (n, m) => CV2.fmtMonto(n, m || 'BRL');
+const dia = (s) => (typeof s === 'string' ? s : '—');
+
+// Cuántos días faltan para una fecha ISO (negativo = ya pasó).
+function faltanDias(iso) {
+  if (typeof iso !== 'string') return null;
+  const a = new Date(CV2.hoyISO() + 'T12:00:00');
+  const b = new Date(iso + 'T12:00:00');
+  return Math.round((b - a) / 86400000);
+}
+
+// ── Revisión de una reserva ──────────────────────────────────
+// Cada problema dice QUÉ pasa y QUÉ consecuencia tiene, no solo que algo
+// está raro: un aviso que no explica la consecuencia se ignora.
+function revisar(r, ps, tieneLimpieza) {
+  const mal = [];
+  const mon = monedaDe(r);
+
+  if (!r.moneda) {
+    mal.push('No tiene campo <b>moneda</b>. El sistema la asume en R$ '
+      + '(comportamiento correcto para las reservas viejas, pero conviene saberlo).');
+  }
+  if (r.total === undefined && r.totalBRL !== undefined) {
+    mal.push('Usa <b>totalBRL</b> en vez de <b>total</b>. Funciona por compatibilidad; '
+      + 'es del modelo anterior a la tanda 11.1.');
+  }
+  if (typeof r.checkIn !== 'string' || typeof r.checkOut !== 'string') {
+    mal.push('Le faltan las <b>fechas</b>. Sin ellas no se genera la limpieza '
+      + 'ni se espeja la disponibilidad del sitio público.');
+  } else if (r.checkOut <= r.checkIn) {
+    mal.push('El <b>check-out no es posterior al check-in</b>.');
+  }
+  if (!r.cabanaId) mal.push('No tiene <b>cabaña</b> asignada.');
+
+  ps.forEach((p) => {
+    const pm = p.moneda || 'BRL';
+    if (pm !== mon && !(p.montoEquiv ?? p.montoBRL)) {
+      mal.push('El pago del ' + dia(p.fecha) + ' está en <b>' + pm + '</b> y la reserva en <b>'
+        + mon + '</b>, pero <b>no tiene equivalente cargado</b>. '
+        + 'Consecuencia: aporta <b>CERO</b> al saldo de la reserva, en silencio.');
+    }
+    if (p.monedaReserva && p.monedaReserva !== mon) {
+      mal.push('El pago del ' + dia(p.fecha) + ' fue registrado cuando la reserva estaba en <b>'
+        + p.monedaReserva + '</b> y hoy está en <b>' + mon + '</b>. '
+        + 'Su equivalente quedó en la moneda vieja: el saldo no cierra.');
+    }
+  });
+
+  const pagado = ps.reduce((a, p) => a + aporte(p, mon), 0);
+  const total = totalDe(r);
+  if (total > 0 && pagado > total + 0.01) {
+    mal.push('Está <b>sobrepagada</b>: ' + fmt(pagado, mon) + ' sobre ' + fmt(total, mon) + '.');
+  }
+  if (total <= 0 && r.estado !== 'anulada') {
+    mal.push('El <b>total es cero</b>. No se puede controlar ningún saldo.');
+  }
+
+  // La limpieza de entrada se materializa una semana antes del check-in.
+  // Si la reserva está confirmada y ya entró en esa ventana, debería existir.
+  const faltan = faltanDias(r.checkIn);
+  if (r.estado === 'confirmada' && faltan !== null && faltan <= 7 && !tieneLimpieza) {
+    mal.push('Confirmada y a <b>' + faltan + ' día(s)</b> del check-in, pero '
+      + '<b>no existe su limpieza</b> (limp-' + r.id + '). '
+      + (faltan < 0
+        ? 'Si ya se hizo y se cerró, puede ser normal.'
+        : 'Debería haberse creado al abrir Reservas.'));
+  }
+
+  return { mal, pagado, total, mon };
+}
+
+// ── Pintar ───────────────────────────────────────────────────
+function pintar(reservas, porReserva, huerfanos, limpiezas) {
+  const revisadas = reservas.map((r) => ({
+    r, ps: porReserva[r.id] || [],
+    rev: revisar(r, porReserva[r.id] || [], limpiezas.has('limp-' + r.id))
+  }));
+  const conProblema = revisadas.filter((x) => x.rev.mal.length).length;
+
+  let h = '<div class="tarj"><div class="num">'
+    + '<span>reservas<b>' + reservas.length + '</b></span>'
+    + '<span>pagos<b>' + Object.values(porReserva).reduce((a, v) => a + v.length, 0) + '</b></span>'
+    + '<span>con problemas<b style="color:' + (conProblema ? 'var(--rojo)' : 'var(--verde-osc)') + ';">'
+    + conProblema + '</b></span>'
+    + '<span>pagos huérfanos<b style="color:' + (huerfanos.length ? 'var(--rojo)' : 'var(--verde-osc)') + ';">'
+    + huerfanos.length + '</b></span>'
+    + '</div></div>';
+
+  if (huerfanos.length) {
+    h += '<div class="tarj res mal"><h2>Pagos sin reserva</h2>'
+      + '<div class="campos">Apuntan a una reserva que ya no existe. La plata quedó '
+      + 'registrada en Dinero pero no cuenta para ningún saldo.</div>'
+      + huerfanos.map((p) => '<div class="pago"><span>' + esc(dia(p.fecha)) + '</span>'
+        + '<span>reservaId: <code>' + esc(p.reservaId || '—') + '</code></span>'
+        + '<span class="m">' + esc(fmt(p.monto, p.moneda)) + '</span></div>').join('')
+      + '</div>';
+  }
+
+  h += revisadas.map(({ r, ps, rev }) => {
+    const saldo = rev.total - rev.pagado;
+    return '<div class="tarj res' + (rev.mal.length ? ' mal' : '') + '">'
+      + '<div class="cab"><b>' + esc(r.clienteNombre || '(sin nombre)') + '</b>'
+      + '<span class="et">' + esc(r.estado || '?') + '</span>'
+      + '<span class="et">' + esc(r.cabanaId || 'sin cabaña') + '</span>'
+      + (r.origen ? '<span class="et">' + esc(r.origen) + '</span>' : '')
+      + '<span class="et ' + (Math.abs(saldo) < 0.01 ? 'verde' : 'rojo') + '">'
+      + (Math.abs(saldo) < 0.01 ? 'saldada' : 'saldo ' + fmt(saldo, rev.mon)) + '</span></div>'
+
+      + '<div class="campos">'
+      + '<code>' + esc(r.id) + '</code><br>'
+      + dia(r.checkIn) + ' → ' + dia(r.checkOut)
+      + ' · <b>' + esc(rev.mon) + '</b>'
+      + ' · total <b>' + esc(fmt(rev.total, rev.mon)) + '</b>'
+      + ' · pagado <b>' + esc(fmt(rev.pagado, rev.mon)) + '</b>'
+      + (r.total === undefined && r.totalBRL !== undefined ? ' <i>(desde totalBRL)</i>' : '')
+      + '</div>'
+
+      + (ps.length
+        ? '<div style="margin-top:8px;">' + ps.map((p) => {
+            const pm = p.moneda || 'BRL';
+            const eq = pm !== rev.mon
+              ? ' (≈' + fmt(aporte(p, rev.mon), rev.mon) + (aporte(p, rev.mon) ? '' : ' ¡CERO!') + ')'
+              : '';
+            return '<div class="pago"><span>' + esc(dia(p.fecha)) + '</span>'
+              + '<span>' + esc(p.concepto || 'pago') + ' · ' + esc(p.metodo || '—') + '</span>'
+              + '<span class="m">' + esc(fmt(p.monto, pm) + eq) + '</span></div>';
+          }).join('') + '</div>'
+        : '<div class="campos"><i>Sin pagos registrados.</i></div>')
+
+      + (rev.mal.length
+        ? '<div class="prob"><b>Revisar:</b><ul>'
+          + rev.mal.map((m) => '<li>' + m + '</li>').join('') + '</ul></div>'
+        : '')
+      + '</div>';
+  }).join('');
+
+  // ── Volcado para traer al chat ─────────────────────────────
+  // Sin teléfonos ni mails: para revisar la ESTRUCTURA alcanza con el
+  // nombre, y esto se pega en una conversación.
+  const volcado = {
+    generado: new Date().toISOString(),
+    reservas: reservas.map((r) => ({
+      id: r.id, estado: r.estado, cabanaId: r.cabanaId,
+      clienteNombre: r.clienteNombre, clienteId: r.clienteId,
+      checkIn: r.checkIn, checkOut: r.checkOut,
+      horaEntrada: r.horaEntrada, horaSalida: r.horaSalida,
+      moneda: r.moneda, total: r.total, totalBRL: r.totalBRL,
+      adultos: r.adultos, ninos: r.ninos, origen: r.origen,
+      notas: r.notas ? '(' + String(r.notas).length + ' caracteres)' : null,
+      camposPresentes: Object.keys(r).sort(),
+      pagos: (porReserva[r.id] || []).map((p) => ({
+        id: p.id, fecha: p.fecha, concepto: p.concepto, metodo: p.metodo,
+        monto: p.monto, moneda: p.moneda,
+        montoEquiv: p.montoEquiv, monedaReserva: p.monedaReserva, montoBRL: p.montoBRL,
+        cuentaDestino: p.cuentaDestino, categoria: p.categoria,
+        camposPresentes: Object.keys(p).sort()
+      })),
+      tieneLimpieza: limpiezas.has('limp-' + r.id),
+      problemas: revisadas.find((x) => x.r.id === r.id).rev.mal
+        .map((m) => m.replace(/<[^>]*>/g, ''))
+    })),
+    pagosHuerfanos: huerfanos.map((p) => ({
+      id: p.id, reservaId: p.reservaId, fecha: p.fecha,
+      monto: p.monto, moneda: p.moneda
+    })),
+    actividadesDeLimpieza: [...limpiezas].sort()
+  };
+
+  h += '<div class="tarj"><h2>Para traer al chat</h2>'
+    + '<div class="campos">Sin teléfonos ni mails: para revisar la estructura alcanza '
+    + 'con esto. Incluye la lista de campos presentes en cada documento, que es lo que '
+    + 'permite ver si falta alguno.</div>'
+    + '<textarea id="json" readonly></textarea>'
+    + '<div class="acciones">'
+    + '<button class="btn btn-primario" id="copiar"><span class="material-icons">content_copy</span> Copiar</button>'
+    + '<a class="btn" href="./reservas.html"><span class="material-icons">arrow_back</span> Reservas</a>'
+    + '</div></div>';
+
+  $('cuerpo').innerHTML = h;
+  $('json').value = JSON.stringify(volcado, null, 1);
+
+  $('copiar').addEventListener('click', async () => {
+    const ta = $('json');
+    try {
+      await navigator.clipboard.writeText(ta.value);
+      CV2.toast('Copiado', 'success');
+    } catch {
+      ta.removeAttribute('readonly'); ta.select();
+      try { document.execCommand('copy'); CV2.toast('Copiado', 'success'); }
+      catch { CV2.toast('Copialo a mano desde el cuadro', 'error'); }
+      ta.setAttribute('readonly', 'readonly');
+    }
+  });
+}
+
+// ═══ Cargas — AL FINAL ════════════════════════════════════
+try {
+  const [sr, sp] = await Promise.all([
+    getDocs(collection(db, 'reservas')),
+    getDocs(collection(db, 'pagos'))
+  ]);
+
+  const reservas = [];
+  sr.forEach((d) => reservas.push({ id: d.id, ...d.data() }));
+  reservas.sort((a, b) => (b.checkIn ?? '').localeCompare(a.checkIn ?? ''));
+
+  const ids = new Set(reservas.map((r) => r.id));
+  const porReserva = {};
+  const huerfanos = [];
+  sp.forEach((d) => {
+    const p = { id: d.id, ...d.data() };
+    if (p.reservaId && ids.has(p.reservaId)) {
+      (porReserva[p.reservaId] = porReserva[p.reservaId] || []).push(p);
+    } else {
+      huerfanos.push(p);
+    }
+  });
+  Object.values(porReserva).forEach((v) =>
+    v.sort((a, b) => (a.fecha ?? '').localeCompare(b.fecha ?? '')));
+
+  // Un solo where, sin orderBy: no necesita índice compuesto (§3).
+  const limpiezas = new Set();
+  try {
+    const sa = await getDocs(query(collection(db, 'actividades'),
+      where('parentId', '==', 'proj-limpiezas')));
+    sa.forEach((d) => limpiezas.add(d.id));
+  } catch (e) {
+    console.warn('actividades:', e);
+  }
+
+  if (!reservas.length) {
+    $('cuerpo').innerHTML = '<div class="cargando">No hay ninguna reserva cargada.</div>';
+  } else {
+    pintar(reservas, porReserva, huerfanos, limpiezas);
+  }
+} catch (e) {
+  console.error(e);
+  $('cuerpo').innerHTML = '<div class="cargando">No se pudo leer: '
+    + esc((e && (e.code ?? e.message)) || 'error') + '</div>';
+}
+</script>
+</body>
+</html>
