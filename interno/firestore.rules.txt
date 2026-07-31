@@ -47,6 +47,13 @@ rules_version = '2';
 //       CallMeBot de cada persona. LO LEE TODO EL EQUIPO: el navegador de
 //       quien avisa necesita el contacto del destinatario para pasárselo a
 //       la función de Netlify. Escribir, solo su dueño y el admin.
+//
+//  CAMBIO jul-2026 · EL ACUERDO  [ACUERDO]
+//   10. bloque nuevo /grupos/{id} — lo comercial de una estadía: un precio,
+//       una moneda, un cliente, una nota. Existe SIEMPRE, aunque la estadía
+//       sea de una sola cabaña, para que la plata viva siempre en el mismo
+//       lugar. Las reservas pasan a guardar solo la ocupación física y ya
+//       no llevan total ni moneda.
 // ═══════════════════════════════════════════════════════════════
 
 service cloud.firestore {
@@ -247,6 +254,23 @@ service cloud.firestore {
 
 
     // ═══ RESERVAS ════════════════════════════════════════════
+    // EL ACUERDO. Lo comercial de una estadía: un precio, una moneda, un
+    // cliente, una nota. Existe SIEMPRE — una cabaña sola es un acuerdo de
+    // una— para que la plata viva siempre en el mismo lugar.
+    //
+    // Por qué es una colección y no un campo más de la reserva: el precio de
+    // un acuerdo se negocia UNA vez sobre el conjunto ("las tres cabañas por
+    // 2000"), no es la suma de precios por cabaña. Guardarlo en la reserva
+    // raíz obligaba a que su campo 'total' significara "esta cabaña" a veces
+    // y "el acuerdo entero" otras — un campo que significa dos cosas es
+    // exactamente lo que fabrica errores silenciosos.
+    //
+    // La lectura es del equipo, igual que /reservas/ (que ya expone totales).
+    match /grupos/{id} {
+      allow read: if activo();
+      allow create, update, delete: if tiene('reservas');
+    }
+
     // Lectura para todo el equipo: el calendario y las limpiezas
     // dependen de ver quién entra y quién sale.
     match /reservas/{id} {

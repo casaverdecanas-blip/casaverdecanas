@@ -112,14 +112,26 @@ RCore.sincronizarAirbnb = async (reservas, cabanas, u) => {
 
       if (!existente) {
         const codigo = ((e.description ?? '').match(/([A-Z0-9]{8,12})/) ?? [])[1];
+        // Toda reserva vive dentro de un ACUERDO (grupos/{id}), que es donde
+        // está la plata. Airbnb no informa el precio en el calendario, así que
+        // el acuerdo nace en cero y se completa a mano.
+        // PENDIENTE DE VERIFICAR (jul-2026): esta importación nunca corrió con
+        // reservas reales de Airbnb; hoy se cargan a mano porque el calendario
+        // tampoco trae los detalles que hacen falta.
+        const gRef = await addDoc(collection(db, 'grupos'), {
+          total: 0, moneda: 'BRL', nota: 'Importada de Airbnb · falta el precio',
+          clienteId: null,
+          clienteNombre: 'Airbnb' + (codigo ? ' · ' + codigo : ''),
+          creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: 'Sync Airbnb'
+        });
         const ref = await addDoc(collection(db, 'reservas'), {
+          grupoId: gRef.id,
           clienteNombre: 'Airbnb' + (codigo ? ' · ' + codigo : ''),
           clienteId: null,
           cabanaId: cab.id,
           checkIn, checkOut,
           horaEntrada: '14:00', horaSalida: '10:00',
           adultos: 2, ninos: 0,
-          totalBRL: 0,
           estado: 'confirmada',
           origen: 'airbnb',
           googleEventId: e.id,
