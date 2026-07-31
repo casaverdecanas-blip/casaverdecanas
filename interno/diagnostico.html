@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Diagnóstico</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+<link rel="stylesheet" href="design-system.css">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  /* Estilos propios y mínimos: si design-system.css no cargara, esta página
+     tiene que seguir siendo legible. Es la que se abre cuando algo se rompe. */
+  body { font-family: system-ui, -apple-system, Arial, sans-serif; margin: 0;
+    background: #f6f5f0; color: #2a2a2a; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 14px 14px 40px; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  .sub { color: #7a776e; font-size: .84rem; margin: 0 0 14px; line-height: 1.5; }
+  .tarj { background: #fff; border: 1px solid #e2e0d8; border-radius: 12px;
+    padding: 13px; margin: 12px 0; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .tarj h2 { font-size: .95rem; margin: 0 0 8px; }
+  .l { display: flex; gap: 9px; align-items: flex-start; padding: 6px 0;
+    border-top: 1px solid #efeee8; font-size: .84rem; line-height: 1.5; }
+  .l:first-of-type { border-top: 0; }
+  .l .ic { flex: 0 0 auto; font-weight: 700; width: 18px; text-align: center; }
+  .ok { color: #2d7a3e; } .mal { color: #b3261e; } .duda { color: #8a6206; }
+  .l .txt { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .l .txt b { display: block; }
+  .l .txt small { color: #7a776e; font-size: .77rem; }
+  code { background: #f2f1ec; padding: 1px 5px; border-radius: 5px; font-size: .78rem;
+    overflow-wrap: anywhere; }
+  input { width: 100%; box-sizing: border-box; padding: 11px; font-size: 16px;
+    border: 1px solid #d8d6cd; border-radius: 9px; margin-top: 4px; background: #fff; }
+  label { font-size: .8rem; font-weight: 600; color: #7a776e; }
+  button { font-family: inherit; font-size: .9rem; padding: 11px 15px; border-radius: 9px;
+    border: 1px solid #d8d6cd; background: #fff; cursor: pointer; min-height: 44px; }
+  button.p { background: #2d5a27; border-color: #2d5a27; color: #fff; }
+  .acc { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  textarea { width: 100%; box-sizing: border-box; min-height: 220px; font-size: .72rem;
+    font-family: ui-monospace, monospace; border: 1px solid #d8d6cd; border-radius: 9px;
+    padding: 9px; }
+  .nota { background: #fdf1d8; border: 1px solid #e8d5a3; border-radius: 9px;
+    padding: 10px 12px; font-size: .82rem; line-height: 1.5; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Diagnóstico</h1>
+  <p class="sub">
+    No hace falta estar dentro del panel. Esta página mira el navegador, los
+    archivos que están en el servidor, la sesión y los permisos, y dice el
+    <b>error exacto</b> de cada cosa — no el mensaje amable que muestran las
+    otras pantallas.
+  </p>
+
+  <div class="tarj"><h2>1 · Este navegador</h2><div id="s1">Mirando…</div></div>
+  <div class="tarj"><h2>2 · Los archivos en el servidor</h2>
+    <p class="sub" style="margin:0 0 6px;">Se piden salteando toda caché. Si acá
+      aparece la versión nueva pero la app se comporta como la vieja, el problema
+      es del teléfono, no del repositorio.</p>
+    <div id="s2">Mirando…</div></div>
+
+  <div class="tarj"><h2>3 · La sesión</h2>
+    <div id="s3">Mirando…</div>
+    <div id="formLogin" style="margin-top:10px;">
+      <label>Email</label>
+      <input id="em" type="email" inputmode="email" autocomplete="off">
+      <label style="margin-top:8px;display:block;">Contraseña</label>
+      <input id="cl" type="password" autocomplete="off">
+      <div class="acc">
+        <button class="p" id="btnEntrar">Probar entrar</button>
+        <button id="btnReset">Mandarme un correo para cambiarla</button>
+      </div>
+      <div id="rLogin" style="margin-top:9px;font-size:.84rem;"></div>
+      <p class="sub" style="margin:8px 0 0;">Nada de esto se guarda. Solo se usa
+        para pedirle a Firebase que conteste y mostrar su respuesta tal cual.</p>
+    </div>
+  </div>
+
+  <div class="tarj"><h2>4 · Los datos</h2>
+    <p class="sub" style="margin:0 0 6px;">Prueba de lectura, colección por
+      colección. Necesita sesión iniciada.</p>
+    <div id="s4">Hace falta entrar primero.</div>
+    <div class="acc"><button id="btnDatos">Probar los permisos</button></div></div>
+
+  <div class="tarj"><h2>Para traer al chat</h2>
+    <textarea id="informe" readonly></textarea>
+    <div class="acc"><button class="p" id="btnCopiar">Copiar el informe</button>
+      <a href="./login.html" style="text-decoration:none;"><button>Ir al login</button></a></div>
+  </div>
+</div>
+
+<script type="module">
+// ═══════════════════════════════════════════════════════════
+// DIAGNÓSTICO — la página que se abre cuando algo se rompe.
+//
+// Tres decisiones de fondo:
+//  1. NO usa CV2.verificarAuth. Si esa comprobación fuera el problema, una
+//     página que la use para arrancar no puede diagnosticarla.
+//  2. NO depende de nucleo.js para funcionar. Lo importa aparte y con red:
+//     si nucleo.js está roto o es viejo, esta página igual carga y lo dice.
+//  3. Muestra el CÓDIGO CRUDO de cada error. "Revisá email y contraseña"
+//     esconde la diferencia entre una clave mal escrita, una cuenta que no
+//     existe y un bloqueo por demasiados intentos — tres problemas con tres
+//     soluciones distintas (§3.19: mostrar el dato, no el resultado).
+// ═══════════════════════════════════════════════════════════
+const $ = (id) => document.getElementById(id);
+const linea = (est, titulo, detalle) =>
+  '<div class="l"><span class="ic ' + est + '">'
+  + (est === 'ok' ? '✓' : est === 'mal' ? '✗' : '!')
+  + '</span><div class="txt"><b>' + titulo + '</b>'
+  + (detalle ? '<small>' + detalle + '</small>' : '') + '</div></div>';
+
+const informe = [];
+const anotar = (t) => { informe.push(t); $('informe').value = informe.join('\n'); };
+
+// ── 1 · El navegador ─────────────────────────────────────
+async function verNavegador() {
+  let h = '';
+  anotar('=== 1 · NAVEGADOR ===');
+  anotar('fecha: ' + new Date().toISOString());
+  anotar('url: ' + location.href);
+
+  try {
+    const regs = ('serviceWorker' in navigator)
+      ? await navigator.serviceWorker.getRegistrations() : [];
+    if (!regs.length) {
+      h += linea('duda', 'Sin service worker registrado',
+        'Normal si acabás de reparar la app. Se vuelve a registrar al entrar al panel.');
+      anotar('service worker: ninguno');
+    } else {
+      regs.forEach((r) => {
+        const est = r.active ? 'activo' : (r.waiting ? 'esperando' : 'instalando');
+        h += linea('ok', 'Service worker ' + est, r.scope);
+        anotar('service worker: ' + est + ' · ' + r.scope);
+      });
+    }
+  } catch (e) { h += linea('mal', 'No se pudo leer el service worker', e.message); }
+
+  try {
+    const claves = window.caches ? await caches.keys() : [];
+    if (!claves.length) {
+      h += linea('duda', 'Sin cachés guardadas', 'Todo se va a pedir por red.');
+      anotar('caches: ninguna');
+    } else {
+      h += linea(claves.length === 1 ? 'ok' : 'duda',
+        'Cachés: ' + claves.join(', '),
+        claves.length > 1
+          ? 'Hay más de una. La vieja debería borrarse sola al activarse la nueva.'
+          : '');
+      anotar('caches: ' + claves.join(', '));
+    }
+  } catch (e) { h += linea('mal', 'No se pudieron leer las cachés', e.message); }
+
+  h += linea(navigator.onLine ? 'ok' : 'mal',
+    navigator.onLine ? 'Con conexión' : 'SIN conexión',
+    navigator.onLine ? '' : 'Nada va a poder validarse contra el servidor.');
+  anotar('online: ' + navigator.onLine);
+  anotar('modo: ' + (window.matchMedia('(display-mode: standalone)').matches
+    ? 'PWA instalada' : 'navegador'));
+  h += linea('ok', window.matchMedia('(display-mode: standalone)').matches
+    ? 'Abierta como app instalada' : 'Abierta en el navegador', '');
+  $('s1').innerHTML = h;
+}
+
+// ── 2 · Los archivos ─────────────────────────────────────
+// Cada archivo lleva una marca que solo existe en su versión nueva. Se pide
+// con cache:'no-store' para preguntarle al SERVIDOR, no al teléfono.
+const ARCHIVOS = [
+  { f: 'reservas.html', marca: 'reservas-acuerdos-1', que: 'la lista de reservas con acuerdos' },
+  { f: 'nucleo.js', marca: 'nucleo-avisos-4', que: 'el motor común' },
+  { f: 'avisos.html', marca: 'avisos-4', que: 'Mis avisos' },
+  { f: 'sw.js', marca: 'cv2-shell-v60', que: 'el service worker' },
+  { f: 'calendario.html', marca: 'verReserva', que: 'el calendario que lleva a la reserva' },
+  { f: 'reservas-core.js', marca: "collection(db, 'grupos')", que: 'el motor de limpiezas' },
+  { f: 'firebase-init.js', marca: 'signInWithEmailAndPassword', que: 'la conexión con Firebase' },
+  { f: 'design-system.css', marca: 'cv-barra', que: 'los estilos' }
+];
+
+async function verArchivos() {
+  let h = '';
+  anotar('\n=== 2 · ARCHIVOS EN EL SERVIDOR ===');
+  for (const a of ARCHIVOS) {
+    try {
+      const r = await fetch('./' + a.f + '?d=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) {
+        h += linea('mal', a.f + ' — no está', 'HTTP ' + r.status + ' · ' + a.que);
+        anotar(a.f + ': HTTP ' + r.status);
+        continue;
+      }
+      const txt = await r.text();
+      const tiene = txt.indexOf(a.marca) !== -1;
+      const kb = Math.round(txt.length / 1024);
+      h += linea(tiene ? 'ok' : 'mal',
+        a.f + (tiene ? ' — versión nueva' : ' — VERSIÓN VIEJA'),
+        kb + ' KB · ' + a.que + (tiene ? '' : ' · falta la marca "' + a.marca + '"'));
+      anotar(a.f + ': ' + (tiene ? 'nueva' : 'VIEJA') + ' (' + kb + ' KB)');
+    } catch (e) {
+      h += linea('mal', a.f + ' — error al pedirlo', e.message);
+      anotar(a.f + ': ERROR ' + e.message);
+    }
+  }
+  $('s2').innerHTML = h;
+}
+
+// ── Firebase, importado aparte y con red ─────────────────
+let FB = null;
+async function cargarFirebase() {
+  try {
+    FB = await import('./firebase-init.js?d=' + Date.now());
+    return true;
+  } catch (e) {
+    $('s3').innerHTML = linea('mal', 'No se pudo cargar firebase-init.js', e.message);
+    anotar('\n=== 3 · SESIÓN ===\nfirebase-init.js NO CARGA: ' + e.message);
+    return false;
+  }
+}
+
+// ── 3 · La sesión ────────────────────────────────────────
+const MOTIVOS = {
+  'auth/invalid-credential': 'El email o la contraseña no coinciden. (Firebase ya no distingue cuál de los dos.)',
+  'auth/wrong-password': 'La contraseña no es la correcta.',
+  'auth/user-not-found': 'No existe ninguna cuenta con ese email.',
+  'auth/invalid-email': 'Ese email está mal escrito.',
+  'auth/user-disabled': 'La cuenta está deshabilitada desde Firebase.',
+  'auth/too-many-requests': 'FIREBASE BLOQUEÓ LA CUENTA UN RATO por demasiados intentos fallidos. La contraseña correcta también rebota hasta que pase. Esperá unos minutos, o mandate el correo de cambio de contraseña con el botón de al lado.',
+  'auth/network-request-failed': 'No llegó a Firebase. Es la conexión, no la contraseña.'
+};
+
+async function verSesion() {
+  if (!FB) return;
+  anotar('\n=== 3 · SESIÓN ===');
+  await new Promise((res) => {
+    const off = FB.onAuthStateChanged(FB.auth, async (u) => {
+      off();
+      if (!u) {
+        $('s3').innerHTML = linea('duda', 'Sin sesión iniciada',
+          'Probá entrar acá abajo para ver qué contesta Firebase.');
+        anotar('sesion: ninguna');
+        res(); return;
+      }
+      let h = linea('ok', 'Sesión iniciada', u.email + ' · uid ' + u.uid);
+      anotar('sesion: ' + u.email + ' · uid ' + u.uid);
+      // El perfil: existir en Auth no es lo mismo que estar dado de alta.
+      try {
+        const s = await FB.getDoc(FB.doc(FB.db, 'usuarios', u.uid));
+        if (!s.exists()) {
+          h += linea('mal', 'No tiene perfil en el sistema',
+            'La cuenta existe en Firebase pero no hay documento en usuarios/. '
+            + 'El panel te va a rebotar al login con e=sinperfil.');
+          anotar('perfil: NO EXISTE');
+        } else {
+          const p = s.data();
+          h += linea(p.activo === true ? 'ok' : 'mal',
+            'Perfil: ' + (p.nombre || '(sin nombre)') + ' · ' + (p.rol || '?'),
+            'activo: ' + p.activo + ' · permisos: '
+            + Object.keys(p.permisos || {}).filter((k) => p.permisos[k]).join(', ') || 'ninguno');
+          anotar('perfil: ' + (p.nombre || '?') + ' · rol ' + p.rol + ' · activo ' + p.activo);
+          anotar('permisos: ' + Object.keys(p.permisos || {}).filter((k) => p.permisos[k]).join(', '));
+        }
+      } catch (e) {
+        h += linea('mal', 'No se pudo leer el perfil', (e.code || '') + ' ' + e.message);
+        anotar('perfil: ERROR ' + (e.code || e.message));
+      }
+      $('s3').innerHTML = h;
+      res();
+    });
+  });
+}
+
+$('btnEntrar').addEventListener('click', async () => {
+  if (!FB) return;
+  const b = $('btnEntrar'); b.disabled = true;
+  $('rLogin').innerHTML = 'Preguntando a Firebase…';
+  try {
+    await FB.signInWithEmailAndPassword(FB.auth, $('em').value.trim(), $('cl').value);
+    $('rLogin').innerHTML = linea('ok', 'Entró bien', 'La cuenta y la contraseña están bien.');
+    anotar('login: OK');
+    await verSesion();
+  } catch (e) {
+    const cod = e.code || 'sin-codigo';
+    $('rLogin').innerHTML = linea('mal', cod, MOTIVOS[cod] || e.message);
+    anotar('login: FALLÓ ' + cod + ' — ' + (e.message || ''));
+  }
+  b.disabled = false;
+});
+
+$('btnReset').addEventListener('click', async () => {
+  if (!FB) return;
+  const em = $('em').value.trim();
+  if (!em) { $('rLogin').innerHTML = linea('duda', 'Escribí el email primero', ''); return; }
+  try {
+    await FB.sendPasswordResetEmail(FB.auth, em);
+    $('rLogin').innerHTML = linea('ok', 'Correo enviado a ' + em,
+      'Revisá la bandeja y también el correo no deseado.');
+    anotar('reset: enviado a ' + em);
+  } catch (e) {
+    $('rLogin').innerHTML = linea('mal', e.code || 'error', e.message);
+    anotar('reset: FALLÓ ' + (e.code || e.message));
+  }
+});
+
+// ── 4 · Los permisos, colección por colección ────────────
+const COLECCIONES = ['usuarios', 'grupos', 'reservas', 'pagos', 'clientes',
+  'cabanas', 'actividades', 'sesiones', 'honorarios', 'movimientos',
+  'comunicaciones', 'avisos_contacto', 'disponibilidad', 'chequeos'];
+
+$('btnDatos').addEventListener('click', async () => {
+  if (!FB) return;
+  const b = $('btnDatos'); b.disabled = true;
+  $('s4').innerHTML = 'Probando…';
+  anotar('\n=== 4 · PERMISOS DE LECTURA ===');
+  let h = '';
+  for (const c of COLECCIONES) {
+    try {
+      const s = await FB.getDocs(FB.collection(FB.db, c));
+      h += linea('ok', c, s.size + ' documento(s)');
+      anotar(c + ': OK · ' + s.size + ' doc(s)');
+    } catch (e) {
+      const cod = e.code || 'error';
+      h += linea('mal', c + ' — ' + cod,
+        cod === 'permission-denied'
+          ? 'Las reglas no dejan leer esta colección con este usuario.'
+          : e.message);
+      anotar(c + ': FALLÓ ' + cod);
+    }
+  }
+  $('s4').innerHTML = h;
+  b.disabled = false;
+});
+
+// ── Copiar ───────────────────────────────────────────────
+$('btnCopiar').addEventListener('click', async () => {
+  const ta = $('informe');
+  try { await navigator.clipboard.writeText(ta.value); $('btnCopiar').textContent = 'Copiado ✓'; }
+  catch {
+    ta.removeAttribute('readonly'); ta.select();
+    try { document.execCommand('copy'); $('btnCopiar').textContent = 'Copiado ✓'; }
+    catch { $('btnCopiar').textContent = 'Copialo a mano'; }
+    ta.setAttribute('readonly', 'readonly');
+  }
+  setTimeout(() => { $('btnCopiar').textContent = 'Copiar el informe'; }, 2200);
+});
+
+// ── Arranque ─────────────────────────────────────────────
+await verNavegador();
+await verArchivos();
+if (await cargarFirebase()) await verSesion();
+</script>
+</body>
+</html>
