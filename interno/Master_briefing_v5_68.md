@@ -1,5 +1,5 @@
 Master Briefing — Casa Verde Canas
-# v5.68 — Avisos, el acuerdo, y una noche de fósiles (T11.18 y T11.19)
+# v5.68 — Avisos, el acuerdo, y una noche de fósiles (T11.18 a T11.21)
 
 > **Registro v5.68 (Tandas 11.18 y 11.19 — 30 y 31 de julio de 2026):**
 >
@@ -36,10 +36,32 @@ Master Briefing — Casa Verde Canas
 > todo estaba bien, archivos subidos a una rama en vez de a `main`, y "Reparar la app"
 > dejando Firebase Auth trancado. Todo está escrito en `CONVENCIONES` §2.1 y §8.
 >
-> **Pendientes que deja:** el chat disparando avisos (`comunicacion.html`) ·
-> `notify-recuerdo` muerta · borrar de las reservas los `total`/`totalBRL`/`moneda`
-> viejos · el rediseño de `actividades.html` con `.cv-nodo` en el sistema de diseño ·
-> los cinco flujos que faltan escribir · borrar `CALLMEBOT_RECIPIENTS` de Netlify.
+> **T11.20 · Cierre de los pendientes de la noche.** `comunicacion.html` dispara el
+> aviso al escribir y al abrir un tema —con esto el canal por fin avisa sin tener la
+> app abierta—. `actividades.html` rediseñado sobre **`.cv-nodo`**, que sube a
+> `design-system.css`: un solo gesto por zona (tocar abre hijos, ⋯ abre detalle), los
+> chips bajan al detalle y la sangría pasa de 26 a 24px con la línea del color del
+> proyecto. `sw.js` → v62. `CONVENCIONES` §3.16b y §10 · F4 (disponibilidad pública) y
+> F5 (Airbnb, **marcado sin verificar**).
+>
+> **T11.21 · §10 completa.** Los nueve flujos del sistema escritos, cada uno con su
+> archivo delante: F6 actividades y ciclos, F7 de las horas al cobro, F8 dinero hasta
+> el balance, F9 el recuerdo del huésped. Con índice. A partir de acá la sección ya no
+> crece: **se mantiene** — cada tanda que toque un proceso actualiza su flujo antes de
+> cerrarse (§7.9), y la línea "dónde se muestra" es la lista de pantallas a revisar.
+>
+> **Y tres referencias muertas encontradas al escribirlos**, que es exactamente para
+> lo que sirve leer un proceso entero: §3.16 mandaba el código compartido a `utils.js`
+> —el núcleo del **1.0**, que ya no existe: seguir esa instrucción era escribir en un
+> archivo muerto—; §4 nombraba `migracion-fotos.html` en presente, una herramienta ya
+> retirada; y §3.13 listaba `cabana.html` entre las páginas del sitio público.
+> Corregidas las tres.
+>
+> **Pendientes que deja:** `notify-recuerdo` muerta · borrar de las reservas los
+> `total`/`totalBRL`/`moneda` viejos (espera a que existan los dos `grupos`) · aplicar
+> `.cv-nodo` a las cabañas del acuerdo en `reservas.html` (espera a que el
+> administrador vea el resultado en Actividades) · los cuatro flujos que faltan, cada
+> uno con su archivo delante · borrar `CALLMEBOT_RECIPIENTS` de Netlify.
 
 ---
 

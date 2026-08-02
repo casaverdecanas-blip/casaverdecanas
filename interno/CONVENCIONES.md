@@ -368,7 +368,7 @@ sin leer. Un desajuste de forma se disfraza de error de lógica y cuesta horas.
 ### 3.13 · Una página pública no importa `nucleo.js`
 `nucleo.js` es el corazón del PANEL: arranca `verificarAuth` y manda al login a quien
 no tenga perfil en `/usuarios/`, que es exactamente el caso de todo visitante. Una
-página de la raíz (`index.html`, `cabana.html`, `recuerdos.html`):
+página de la raíz (hoy `index.html` y `recuerdos.html`):
 
 - importa desde `./interno/firebase-init.js` — punto único de contacto con el SDK
   también desde la raíz (regla 3.1 sigue valiendo);
@@ -714,8 +714,10 @@ airbnbUrl, notaEspecial {es,pt,en}, inventarioBase []`
   `CV2.urlEntrega()`, que es **idempotente** (correrla de nuevo no ensucia la URL).
   Motivo: el sitio público **no importa `nucleo.js`** — guardando la URL ya optimizada,
   recibe la versión liviana (WebP/AVIF según el navegador) sin una línea de código.
-  Nunca se guarda una URL cruda ni un link a un servidor ajeno: `migracion-fotos.html`
-  trae a Cloudinary lo que esté afuera y normaliza lo que ya está adentro.
+  Nunca se guarda una URL cruda ni un link a un servidor ajeno. Para traer a Cloudinary
+  una imagen que vive en otro servidor está `CV2.traerImagenDesdeUrl()`.
+  *(Acá se nombraba `migracion-fotos.html`, una herramienta temporal ya retirada del
+  repositorio.)*
 
 ### `espacios_comunes/{slug}`
 `nombre {es,pt,en}, slug, orden, fotos [url]`
@@ -1200,7 +1202,10 @@ Sacar algo tiene tantos lugares como ponerlo, y uno más: los datos que quedaron
 - **Cuando el mismo cálculo se escribe dos veces, la segunda sale mal.** El agrupamiento
   de pendientes por moneda estaba bien en `dinero.html` y mal en `index.html`: la misma
   trampa de §8, cometida de nuevo al escribir un archivo nuevo. Si un cálculo de plata
-  hace falta en dos lados, va a `utils.js`.
+  hace falta en dos lados, va a `nucleo.js`.
+  *(Acá decía `utils.js`, que es el núcleo del sistema **1.0** y ya no existe en el
+  repositorio: seguir esa instrucción era escribir en un archivo muerto. Corregido en
+  julio de 2026 revisando §10.)*
 - **Una regla no puede recorrer una colección para saber "todos".** Si la comprobación
   necesita la lista completa de personas, o la lista vive dentro del propio documento
   (y ahí sí es demostrable), o la comprobación queda del lado de la página — y entonces
@@ -1376,6 +1381,18 @@ uno escribiría: *qué NO hace*.
 Esa última línea es una obligación, no una nota: **cuando cambia un flujo se revisan
 todas las pantallas que lo mencionan** (§7.9).
 
+| | Flujo | Empieza en |
+|---|---|---|
+| **F1** | Limpieza y control por reserva | una reserva confirmada entra en la ventana de 7 días |
+| **F2** | El acuerdo: de presupuesto a cobrado | se crea una reserva |
+| **F3** | Los avisos | un hecho concreto en una página |
+| **F4** | El espejo de disponibilidad pública | cualquier cambio de estado de una reserva |
+| **F5** | Sincronización con Airbnb | el botón, a mano · **sin verificar** |
+| **F6** | Actividades, ciclos y recurrencias | alguien da una actividad por hecha |
+| **F7** | De las horas al cobro | el cierre de ciclo de F6 |
+| **F8** | Dinero, del movimiento al balance | se carga un movimiento |
+| **F9** | El recuerdo del huésped | alguien escanea el QR |
+
 ---
 
 ### F1 · Limpieza y control por reserva
@@ -1450,6 +1467,16 @@ editar siguen siendo por cabaña**: se puede caer una sola sin tocar las demás.
 - **No convierte monedas.** Si el pago entra en otra, se pide el equivalente **en la
   moneda del acuerdo** y la plata se guarda como entró.
 
+**Dos estilos de identificador, y es a propósito**
+- Los acuerdos **migrados** en julio de 2026 tienen ID `grp-<idDeLaPrimeraReserva>`:
+  la herramienta lo armó así para que la reserva raíz fuera deducible.
+- Los acuerdos **nuevos** tienen un ID automático de Firestore.
+
+Conviven sin problema porque nada depende de la forma del ID salvo `raizDeAcuerdo()`,
+que le saca el prefijo `grp-` si lo tiene y, si no encuentra esa reserva, cae en la
+primera del grupo. **No unificar por prolijidad**: renombrar un ID obliga a reescribir
+todas las reservas y todos los pagos que lo apuntan, y el beneficio sería estético.
+
 **Dónde se muestra** — `reservas.html`, `revisar-reservas.html`, `calendario.html`
 (que enlaza a la reserva), `dinero.html` (el movimiento que genera cada pago).
 
@@ -1490,11 +1517,233 @@ CallMeBot, según lo que cada persona haya elegido en `usuarios/{uid}.notif`.
 
 ---
 
+### F4 · El espejo de disponibilidad pública
+
+**Qué lo dispara** — cualquier paso de una reserva por `sincronizarLimpiezas`:
+crearla, confirmarla, editarla, anularla. Se llama en `espejarDisponibilidad(r)`,
+una por reserva.
+
+**Qué crea** — `disponibilidad/{reservaId}` con **solo tres campos**: `cabanaId`,
+`desde`, `hasta`. Nada más.
+
+**Quién lo ve** — **todo el mundo, sin sesión.** Es la única colección de ocupación
+que el sitio público puede leer.
+
+**Cómo termina** — el documento se borra cuando la reserva deja de ocupar: al
+anularse, al volver a presupuesto o al perder las fechas.
+
+**Qué NO hace**
+- **No expone ni un dato del huésped.** Existe precisamente para que el sitio muestre
+  disponibilidad sin abrir `/reservas/`, que tiene nombres, teléfonos y montos.
+- **No cuenta los presupuestos.** Solo `confirmada` ocupa: un presupuesto no bloquea
+  una fecha en el sitio.
+- **No hace fracasar nada.** Si el espejo falla, se anota en la consola y la reserva
+  se guarda igual. Un problema de publicidad no puede impedir un cobro.
+- **Nada lo borra en cascada.** Si una reserva se elimina desde afuera —una
+  herramienta, la consola de Firebase— su documento queda huérfano y el sitio muestra
+  ocupado algo que está libre. `migrar-reservas.html` lo limpia a mano por eso.
+
+**Dónde se muestra** — `reservas-core.js` (`espejarDisponibilidad`), el sitio público
+(`index.html` de la raíz), `migrar-reservas.html`.
+
+---
+
+### F5 · Sincronización con Airbnb
+
+> ⚠ **SIN VERIFICAR.** Nunca corrió con reservas reales de Airbnb (julio de 2026).
+> Hoy esas reservas se cargan a mano, porque el calendario tampoco trae los detalles
+> que hacen falta. Este flujo describe lo que el código **dice** que hace, no lo que
+> se comprobó que hace.
+
+**Qué lo dispara** — el botón **Airbnb** de `reservas.html`. **Es manual**: no hay
+ningún reloj y nadie sincroniza solo.
+
+**Qué crea**
+Por cada cabaña con `calendarId`, lee su calendario de Google (eventos desde 30 días
+atrás) y, por cada evento:
+- si no existe reserva con ese `googleEventId` → crea `grupos/{id}` en cero y
+  `reservas/{id}` con `origen: 'airbnb'`;
+- si existe y cambiaron las fechas → la actualiza;
+- si la reserva existe y el evento **ya no está** → la anula.
+Después llama a `sincronizarLimpiezas` sobre todo lo tocado.
+
+**Quién lo ve** — el botón es de quien tiene permiso `reservas`. La clave de Google
+Calendar vive en `config/integraciones`, que solo leen el admin y `reservas`.
+
+**Cómo termina** — devuelve un recuento: nuevas, actualizadas, anuladas y cabañas sin
+calendario configurado.
+
+**Qué NO hace**
+- **No trae el precio.** El calendario de Airbnb no lo informa: el acuerdo nace en
+  cero, con la nota *"falta el precio"*, y se completa a mano.
+- **No trae huésped, ni teléfono, ni cantidad de personas.** Pone 2 adultos por
+  defecto y el nombre `Airbnb · <código>` si logra extraerlo de la descripción.
+- **No borra reservas**: las anula. Anular conserva los pagos y el historial.
+- **No toca las reservas directas.** Solo mira las que tienen `googleEventId`.
+- **No sincroniza en sentido inverso**: nada de lo que hagas acá vuelve a Airbnb.
+
+**Dónde se muestra** — `reservas.html` (el botón y el recuento), `reservas-core.js`
+(`RCore.sincronizarAirbnb`), `cabanas.html` (el `calendarId` de cada cabaña).
+
+---
+
+### F6 · Actividades, ciclos y recurrencias
+
+**Qué lo dispara** — que alguien la dé por hecha, de dos maneras:
+**⏹ Stop con "terminada"** (con cronómetro) o **✔ Tildar** (sin él). Las dos pasan por
+`_cerrarCiclo()` en `actividades-core.js`. **Nada cierra un ciclo por fecha.**
+
+**Qué crea**
+1. Frena **todos** los cronómetros abiertos en esa actividad, de cualquier persona, y
+   registra sus horas.
+2. Si la actividad tiene `monto`, crea uno o varios `honorarios` **proporcionales a
+   las horas de cada uno en ese ciclo**. Sin horas registradas —un tilde puro— el
+   monto entero va a quien cierra.
+3. Reprograma o tacha: si `recurrenciaDias > 0`, la actividad vuelve a `pendiente` con
+   `fechaInicio` a N días; si no, queda `hecho: true`.
+
+El corte entre ciclos es `ultimoCierreEn`: una sesión cuyo `fin` sea anterior
+**pertenece a un ciclo ya cerrado** y no se vuelve a pagar.
+
+**Quién lo ve** — según `alcance`: `equipo` (todos), `personal` (solo su creador) o
+`asignados` (creador + los uid de `competencias`). La regla de Firestore espeja
+exactamente las cuatro ramas de la consulta: **si la consulta no viene filtrada,
+Firestore la rechaza entera**, aunque los documentos sean legibles.
+
+**Cómo termina** — una única queda tachada; una recurrente **no termina nunca**: cada
+cierre abre el ciclo siguiente.
+
+**Qué NO hace**
+- **No deja dos cronómetros a la vez por persona.** `Core.iniciar` falla con
+  `crono-ocupado` si ya tenés uno corriendo en otra actividad.
+- **No cierra el ciclo dos veces.** Si otro terminó la actividad y tu reloj quedó
+  frenado por ese cierre, tu Stop devuelve `sin-sesion` y no genera honorarios
+  duplicados.
+- **"Stop, todavía no" NO cierra nada**: registra tus horas y deja los relojes de los
+  demás corriendo.
+- **No borra el registro.** Todo —incluido un tilde sin tiempo— queda como sesión en
+  `/sesiones/`, así el historial de realizaciones vive en un solo lugar.
+
+**Dónde se muestra** — `actividades.html` (el árbol y los botones),
+`actividades-core.js` (el motor), `gestion-sesiones.html`, `honorarios.html`,
+`horas-stats.html`, `index.html` (vencidas y atrasadas).
+
+---
+
+### F7 · De las horas al cobro
+
+**Qué lo dispara** — el cierre de ciclo de F6. El honorario nace **`pendiente`**.
+
+**Qué crea** — `honorarios/{id}` con `uid`, `horas`, `monto`, `actividadId` y
+`cicloCerradoEn`. Al pagarlo desde Cobros, se crea además el movimiento de salida en
+`/movimientos/` con `refTipo: 'honorario'` y `refId`, y el honorario guarda su
+`movimientoId`.
+
+**Quién lo ve** — cada uno ve **los suyos**; `finanzas` ve y paga los de todos;
+`horas` puede actualizarlos porque el gestor de sesiones recalcula ciclos.
+
+**Cómo termina** — `estado: 'pagado'`, con `movimientoId` apuntando a la salida de
+plata.
+
+**Qué NO hace**
+- **No se paga dos veces.** El vínculo `honorario.movimientoId ↔ movimiento.refId` es
+  la garantía: con `movimientoId` presente, la casilla de crear el movimiento queda
+  deshabilitada.
+- **El Gestor de Sesiones gobierna los cobros, pero no toca lo pagado.** Editar o
+  borrar sesiones dispara `Core.recalcularCiclos`, que rehace el reparto **conservando
+  el pozo de cada ciclo** — cambia quién cobra cuánto, no cuánto se paga en total. Un
+  ciclo con algún honorario **ya pagado no se toca**: se informa para ajustarlo a mano.
+- **No convierte monedas.** Los honorarios son en reales.
+
+**Dónde se muestra** — `honorarios.html`, `gestion-sesiones.html`, `horas-stats.html`,
+`dinero.html` (el movimiento resultante), `actividades-core.js`.
+
+---
+
+### F8 · Dinero, del movimiento al balance
+
+**Qué lo dispara** — cargar un movimiento a mano en Dinero, o un puente automático:
+un cobro de reserva genera su ingreso, un honorario pagado genera su salida.
+
+**Qué crea** — `movimientos/{id}`: fecha, `tipo` (`entro`/`salio`), monto, moneda,
+categoría, cuenta, quién, detalle y comprobante opcional. Si queda algo colgando lleva
+`pendiente`: **`reponer`** (alguien puso plata suya) o **`cobrar`** (todavía no entró).
+
+**Quién lo ve** — `finanzas` ve el libro entero; `dinero` **solo los que cargó él**
+—por eso toda alta debe sellar `creadoPor`, o el movimiento le queda invisible a su
+propio autor.
+
+**Cómo termina** — con **Hacer balance** (`balance.html`, solo `finanzas`), que en un
+solo paso:
+1. crea la foto inmutable en `cierres/{id}` con los totales **por moneda**, los
+   ajustes por cuenta y los cobros saldados;
+2. **sella** cada movimiento del período con `cierreId` — sale de la vista de Dinero y
+   pasa al histórico;
+3. abre el período siguiente con una **línea de apertura por cuenta** con su saldo
+   real.
+
+**Qué NO hace**
+- **El balance NO busca cuadrar con el banco.** Es un corte de control entre dos
+  momentos. La diferencia entre lo calculado y lo real **es** el gasto no registrado,
+  y el ajuste la absorbe dejándola escrita en el cierre para poder leerla después.
+- **Un cierre no se retoca nunca**: la regla lo prohíbe (`update, delete: if false`).
+- **Un movimiento sellado tampoco.** Ojo: la regla solo mira `pendiente.cierreId`,
+  pero el balance sella con **`cierreId` en la raíz** — por eso las herramientas que
+  borran movimientos comprueban los dos.
+- **Un "por cobrar" no cuenta como ingreso** hasta saldarse. Un "reponer" sí cuenta
+  como gasto real desde el momento en que se cargó.
+- **No convierte monedas.** Cada una se totaliza por separado.
+
+**Dónde se muestra** — `dinero.html`, `balance.html`, `honorarios.html`,
+`reservas.html` (el puente del cobro), `actividades.html` (el gasto de un faltante).
+
+---
+
+### F9 · El recuerdo del huésped
+
+**Qué lo dispara** — un huésped escanea el QR pegado en el alojamiento y escribe. Es
+**la única colección donde escribe alguien de afuera del equipo**.
+
+**Qué crea** — `recuerdos/{id}` en estado `pendiente`, más `huespedes/{uid}` con su
+contacto. La llave es la **clave que viaja dentro del QR**: el ID de un documento de
+`claves_recuerdos` es la clave misma, y la regla la verifica con un `exists()`.
+
+**Quién lo ve** — afuera, **solo los `publicado`**. El equipo con permiso `contenido`
+ve todo y modera.
+
+**Cómo termina** — al moderar, en dos pasos y en este orden: **primero** se archiva lo
+privado en `recuerdos_contactos/{id}`, **después** se borran `clave` y `email` del
+recuerdo con `deleteField()` y se le pone el estado. Si el archivado falla, no se
+sigue: se perdería el mail y de qué QR vino.
+
+**Qué NO hace**
+- **Nada se publica solo.** Nace `pendiente` siempre.
+- **Tener sesión no es permiso.** Una sesión anónima se la abre cualquiera desde la
+  consola; hace falta la clave del QR, que es revocable de a una.
+- **El `cabanaId` no se le pregunta al visitante**: lo decide la clave.
+- **La foto solo puede ser de nuestro Cloudinary.** Sin esa comprobación, el campo
+  sería un agujero para colgar cualquier imagen ajena en nuestro sitio.
+- **La clave y el mail NO pueden quedar en el documento publicado.** Un recuerdo
+  publicado lo lee cualquier navegador del mundo y en Firestore **no hay seguridad por
+  campo**: si el documento es legible, todos sus campos lo son. La regla lo garantiza
+  aunque el código se olvide.
+- **No hay límite de frecuencia posible desde las reglas.** Los frenos reales son: la
+  clave revocable, la moderación previa, y el preset propio de Cloudinary, que se
+  puede apagar solo para recuerdos sin tocar comprobantes ni fotos del panel.
+- **⚠ No avisa a nadie** — ver §5.5b de la Guía del Sitio Público: `notify-recuerdo`
+  está muerta. El recuerdo espera moderación sin que nadie se entere.
+
+**Dónde se muestra** — `recuerdos.html` de la raíz (el muro público y el formulario),
+`recuerdos.html` del panel (moderación, claves y huéspedes), `firestore.rules`
+(la validación real).
+
+---
+
 ### Flujos que faltan escribir
 
-Actividades y recurrencias · sesiones y honorarios · dinero hasta el balance ·
-recuerdos del huésped · sincronización con Airbnb (hoy **sin verificar**: nunca corrió
-con datos reales).
+Ninguno: los nueve procesos del sistema están escritos.
 
-Van en tanda propia. Escribir un flujo es leer un proceso entero, y mezclarlo con
-código es como se cuelan los errores.
+Lo que falta es **mantenerlos**. Cada tanda que toque un proceso actualiza su flujo
+antes de darse por cerrada (§7.9), y la línea *"dónde se muestra"* es la lista de
+pantallas que hay que revisar. **Un flujo escrito de memoria es el próximo fósil**: si
+falta el archivo, se pide — no se reconstruye.
