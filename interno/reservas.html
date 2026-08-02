@@ -46,19 +46,12 @@
   .volver .material-icons { font-size: 19px; }
   .res.resaltada { outline: 2px solid var(--verde); }
 
-  /* Una cabaña dentro de un acuerdo. Lo económico vive arriba, en el acuerdo;
-     acá va lo operativo: qué cabaña, cuándo entra y sale, cuánta gente. El
-     monto queda en gris y chico porque sirve para saber cuánto rinde cada
-     una, no para controlar el cobro — ese es del acuerdo. */
-  .cabana-acuerdo { padding: 7px 0; border-top: 1px dashed var(--linea); }
-  .cabana-acuerdo:first-of-type { border-top: 0; }
-  .ca-1 { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-  /* Dentro de un acuerdo, la cabaña NO muestra su monto: cuatro cifras para un
-     solo cobro se leen como cuatro saldos, y tres de ellas serían mentira. Lo
-     económico vive en el acuerdo. El total por cabaña sigue existiendo en el
-     dato —es lo que suma— y se edita entrando a la cabaña. */
-  .ca-sep { margin-left: auto; }
-  .ca-2 { font-size: .78rem; color: var(--gris); margin-top: 3px; line-height: 1.5; }
+  /* Las cabañas de un acuerdo usan .cv-nodo de design-system.css: el mismo
+     lenguaje visual que el árbol de Actividades (§3.16b). Acá no queda nada
+     propio de esa presentación.
+     Y no muestran su monto: cuatro cifras para un solo cobro se leen como
+     cuatro saldos, y tres de ellas serían mentira. Lo económico vive en el
+     acuerdo; la parte de cada cabaña sigue en el dato y se edita entrando. */
   dialog { border: 0; border-radius: 14px; padding: 16px; width: min(500px, 94vw);
     max-height: 88dvh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
   dialog::backdrop { background: rgba(20,30,18,.45); }
@@ -228,7 +221,7 @@ CV2.renderNav('reservas');
 // §3.18 · sello de versión. Sin esto, "subí el archivo nuevo" es una creencia:
 // el 31-jul-2026 se buscó el acuerdo en un formulario que era del archivo
 // anterior, y el síntoma parecía un problema de diseño.
-const SELLO = 'reservas-acuerdos-1';
+const SELLO = 'reservas-acuerdos-2';
 
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
@@ -439,25 +432,31 @@ function render() {
 
         ${a.esGrupo ? `<div style="margin-bottom:8px;">
           <b>Cabañas del acuerdo</b>
-          ${a.rs.map((r) => `<div class="cabana-acuerdo">
-            <div class="ca-1">
-              <span class="cab" style="background:${CV2.pastelDe(colorCab(r.cabanaId))};color:${colorCab(r.cabanaId)};">${esc(nombreCab(r.cabanaId))}</span>
+          <!-- Mismo lenguaje visual que el árbol de Actividades: .cv-nodo del
+               sistema de diseño (§3.16b). La línea de la izquierda toma el color
+               de la primera cabaña, igual que un proyecto marca a sus ítems.
+               Van con '.estatico' porque NO se tocan: no tienen hijos ni detalle
+               propio. Lo declara la clase, así nadie lo descubre tocando. -->
+          <div class="cv-nodo-hijos" style="border-left-color:${col};margin-top:6px;">
+          ${a.rs.map((r) => `<div class="cv-nodo">
+            <div class="cv-nodo-fila estatico" style="background:${CV2.pastelDe(colorCab(r.cabanaId))};">
+              <span class="cv-nodo-tit">${esc(nombreCab(r.cabanaId))}
+                <small>${CV2.fmtFecha(r.checkIn)} ${esc(r.horaEntrada ?? '14:00')} → ${CV2.fmtFecha(r.checkOut)} ${esc(r.horaSalida ?? '10:00')}</small>
+              </span>
               <span class="est ${r.estado}">${r.estado}</span>
-              <span class="ca-sep"></span>
-              ${CV2.puede('reservas') ? `<button class="btn-ico" style="border:0;padding:3px;" onclick="editar('${r.id}')" title="Editar esta cabaña"><span class="material-icons" style="font-size:17px;">edit</span></button>` : ''}
-              ${CV2.puede('reservas') && r.estado !== 'anulada' ? `<button class="btn-ico" style="border:0;padding:3px;" onclick="cambiarEstado('${r.id}','anulada')" title="Anular esta cabaña"><span class="material-icons" style="font-size:17px;color:var(--rojo);">cancel</span></button>` : ''}
+              ${CV2.puede('reservas') ? `<button class="cv-nodo-mas" onclick="editar('${r.id}')" title="Editar esta cabaña"><span class="material-icons">edit</span></button>` : ''}
+              ${CV2.puede('reservas') && r.estado !== 'anulada' ? `<button class="cv-nodo-mas" onclick="cambiarEstado('${r.id}','anulada')" title="Anular esta cabaña"><span class="material-icons" style="color:var(--rojo);">cancel</span></button>` : ''}
             </div>
-            <div class="ca-2">
-              ${CV2.fmtFecha(r.checkIn)} ${esc(r.horaEntrada ?? '14:00')} → ${CV2.fmtFecha(r.checkOut)} ${esc(r.horaSalida ?? '10:00')}
-              · ${noches(r)} noche(s)
-              · 👤 ${r.adultos}${r.ninos ? ' + ' + r.ninos + ' 🧒' : ''}
+            <div style="display:flex;gap:5px;flex-wrap:wrap;margin:5px 0 0 2px;">
+              <span class="cv-mini">${noches(r)} noche(s)</span>
+              <span class="cv-mini">👤 ${r.adultos}${r.ninos ? ' + ' + r.ninos + ' 🧒' : ''}</span>
+              ${r.notas && r.notas !== notaAcuerdo ? `<span class="cv-mini">📝 ${esc(r.notas)}</span>` : ''}
             </div>
-            ${r.notas && r.notas !== notaAcuerdo ? `<div class="ca-2">📝 ${esc(r.notas)}</div>` : ''}
           </div>`).join('')}
+          </div>
           <div style="font-size:.75rem;color:var(--gris);margin-top:8px;">
             Cada cabaña tiene sus fechas, su limpieza, su control de salida y su lugar
-            en el calendario. <b>La plata vive solo en el acuerdo</b>: el total de arriba
-            es la suma de lo cargado en cada una, y se ajusta entrando a editarlas.
+            en el calendario. <b>La plata vive solo en el acuerdo</b>.
           </div>
         </div>` : ''}
 

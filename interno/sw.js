@@ -7,14 +7,16 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
-// v62 (31-jul-2026) — árbol de nodos: design-system.css + actividades.html.
+// v63 (31-jul-2026) — las cabañas del acuerdo adoptan .cv-nodo:
+//       design-system.css + reservas.html.
+// v62 — árbol de nodos: design-system.css + actividades.html.
 // v61 — el chat dispara los avisos: comunicacion.html.
 // v60 — tanda de acuerdos: reservas.html, reservas-core.js, calendario.html,
 //       nucleo.js.
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v62';
+const VERSION = 'cv2-shell-v63';
 
 const SHELL = [
   './',

@@ -1,5 +1,5 @@
 Master Briefing — Casa Verde Canas
-# v5.68 — Avisos, el acuerdo, y una noche de fósiles (T11.18 a T11.21)
+# v5.68 — Avisos, el acuerdo, y una noche de fósiles (T11.18 a T11.22)
 
 > **Registro v5.68 (Tandas 11.18 y 11.19 — 30 y 31 de julio de 2026):**
 >
@@ -57,11 +57,18 @@ Master Briefing — Casa Verde Canas
 > retirada; y §3.13 listaba `cabana.html` entre las páginas del sitio público.
 > Corregidas las tres.
 >
-> **Pendientes que deja:** `notify-recuerdo` muerta · borrar de las reservas los
-> `total`/`totalBRL`/`moneda` viejos (espera a que existan los dos `grupos`) · aplicar
-> `.cv-nodo` a las cabañas del acuerdo en `reservas.html` (espera a que el
-> administrador vea el resultado en Actividades) · los cuatro flujos que faltan, cada
-> uno con su archivo delante · borrar `CALLMEBOT_RECIPIENTS` de Netlify.
+> **T11.22 · Un solo lenguaje visual.** Las cabañas de un acuerdo adoptan `.cv-nodo`:
+> Actividades y Reservas dibujan sus listas anidadas con las mismas clases. Nace el
+> modificador **`.estatico`** para una fila que se ve como nodo pero no se toca — lo
+> declara la clase en vez de que se descubra tocándola. `sw.js` → v63,
+> sello `reservas-acuerdos-2`.
+>
+> **Pendientes que deja:** `notify-recuerdo` muerta (un recuerdo nuevo no avisa a
+> nadie) · borrar de las reservas los `total`/`totalBRL`/`moneda` viejos, una vez que
+> los dos acuerdos tengan su precio cargado · **la regla de `/movimientos/` solo mira
+> `pendiente.cierreId` y el balance sella con `cierreId` en la raíz**: no impide
+> borrar un movimiento ya contado en un cierre (las herramientas lo comprueban por su
+> cuenta) · borrar `CALLMEBOT_RECIPIENTS` de Netlify.
 
 ---
 

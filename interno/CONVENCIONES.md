@@ -450,9 +450,10 @@ y olvidarse en alguna — y la que se olvide es justo la que va a fallar.
 
 ### 3.16b · El árbol de nodos: `.cv-nodo`
 
-Una lista anidada —proyecto → ítems → sub-ítems— se dibuja con las clases
-`.cv-nodo`, `.cv-nodo-fila`, `.cv-nodo-hijos`, `.cv-nodo-detalle`, `.cv-sem` y
+Una lista anidada —proyecto → ítems → sub-ítems, acuerdo → cabañas— se dibuja con las
+clases `.cv-nodo`, `.cv-nodo-fila`, `.cv-nodo-hijos`, `.cv-nodo-detalle`, `.cv-sem` y
 `.cv-mini`, todas en `design-system.css`. No se vuelve a escribir por página.
+La usan hoy **Actividades** (el árbol) y **Reservas** (las cabañas de un acuerdo).
 
 Tres reglas que vienen con el patrón:
 
@@ -465,6 +466,9 @@ Tres reglas que vienen con el patrón:
   para escribirlos enteros: *"↻ cada 7 días"* en vez de *"↻7d"*.
 - **Sangría de 14+10px por nivel**, con la línea del color del proyecto. A tres
   niveles, 26px grises se comían 78px de los 360 de un teléfono.
+- **`.cv-nodo-fila.estatico`** para una fila que se **ve** como nodo pero no se toca:
+  no tiene hijos ni detalle propio, solo muestra y ofrece sus botones. Lo declara la
+  clase, así nadie lo descubre tocándola y esperando que pase algo.
 
 ### 3.17 · Nunca confiar en el código HTTP de un servicio de terceros
 
