@@ -7,12 +7,13 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
-// v60 (31-jul-2026) — tanda de acuerdos: reservas.html, reservas-core.js,
-// calendario.html y nucleo.js. Subir la VERSION no es un trámite: al
-// activarse, el 'activate' borra TODAS las cachés que no sean esta, y esa es
-// la única forma segura de que un teléfono deje de servir la mezcla de
-// archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v60';
+// v61 (31-jul-2026) — el chat dispara los avisos: comunicacion.html.
+// v60 — tanda de acuerdos: reservas.html, reservas-core.js, calendario.html,
+//       nucleo.js.
+// Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
+// las cachés que no sean esta, y esa es la única forma segura de que un
+// teléfono deje de servir la mezcla de archivos viejos y nuevos.
+const VERSION = 'cv2-shell-v61';
 
 const SHELL = [
   './',

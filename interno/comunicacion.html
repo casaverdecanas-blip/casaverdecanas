@@ -459,6 +459,37 @@ async function enviarMensaje(texto, imagenUrl) {
       // que una lista con un tema de más.
       ocultoPara: []
     });
+
+    // ── El aviso ───────────────────────────────────────────
+    // ACÁ es donde el canal deja de exigir que alguien tenga la app abierta.
+    // Hasta la tanda 11.18 el chat solo servía si mirabas: un mensaje urgente
+    // un domingo podía quedar dos días sin leer.
+    //
+    // Tres cosas que NO se hacen acá, y son deliberadas (§10 · F3):
+    //  · NO se espera con await. El mensaje ya está guardado; si CallMeBot
+    //    no contesta, eso no puede hacer fracasar el envío ni frenar la
+    //    interfaz. Un aviso que rompe la acción que lo produjo es peor que
+    //    no tener avisos.
+    //  · NO se avisa al autor. 'excluir' es el propio uid.
+    //  · NO se manda el texto completo si es largo: el aviso es un empujón
+    //    para entrar, no un sustituto de la conversación.
+    const t = temas.find((x) => x.id === abierto);
+    if (t) {
+      const cuerpo = imagenUrl && !texto ? 'mandó una foto' : texto.slice(0, 300);
+      CV2.avisar({
+        evento: 'mensaje',
+        asunto: 'Casa Verde · ' + (t.titulo || 'Mensajes'),
+        texto: (u.nombre || 'Alguien') + ' escribió en "' + (t.titulo || 'un tema') + '":\n'
+          + cuerpo + (texto.length > 300 ? '…' : ''),
+        // La audiencia del aviso ESPEJA la del tema. Si acá se avisara a todo
+        // el equipo, un tema dirigido dejaría de ser privado por la puerta de
+        // atrás: el título y las primeras líneas viajarían a gente que ni
+        // siquiera puede leer el hilo.
+        para: t.audiencia === 'directo' ? (t.participantes || []) : 'todos',
+        excluir: u.uid,
+        enlace: './comunicacion.html'
+      });
+    }
   } catch (e) { CV2.toast('No se pudo enviar: ' + (e.code ?? e.message), 'error'); }
 }
 
@@ -546,6 +577,22 @@ $('nCrear').addEventListener('click', async () => {
     await addDoc(collection(db, 'comunicaciones', ref.id, 'mensajes'), {
       texto: msj, autorUid: u.uid, autorNombre: u.nombre ?? '', creadoEn: serverTimestamp()
     });
+
+    // Un tema nuevo TAMBIÉN avisa. Es el caso donde más importa: nadie está
+    // esperando un tema que todavía no existe, así que sin aviso puede pasar
+    // días sin que se entere el que tiene que actuar.
+    // Va acá y no dentro de enviarMensaje() porque este primer mensaje se
+    // escribe directo — el tema todavía no está abierto ni en 'temas'.
+    CV2.avisar({
+      evento: 'mensaje',
+      asunto: 'Casa Verde · ' + titulo,
+      texto: (u.nombre || 'Alguien') + ' abrió el tema "' + titulo + '":\n'
+        + msj.slice(0, 300) + (msj.length > 300 ? '…' : ''),
+      para: participantes || 'todos',
+      excluir: u.uid,
+      enlace: './comunicacion.html'
+    });
+
     $('mNuevo').close();
     abrirTema(ref.id);
   } catch (e) { CV2.toast('No se pudo crear: ' + (e.code ?? e.message), 'error'); }
