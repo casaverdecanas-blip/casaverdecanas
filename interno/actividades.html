@@ -17,27 +17,10 @@
   }
   .fchip.activo { background: var(--verde); border-color: var(--verde); color: #fff; }
 
-  .act-item { margin: 6px 0; }
-  .act-row {
-    display: flex; align-items: center; gap: 8px;
-    border: 1px solid var(--linea); border-radius: var(--radio);
-    padding: 10px 12px; cursor: pointer; box-shadow: var(--sombra);
-  }
-  .act-row .caret { width: 18px; text-align: center; color: var(--gris); flex: none; font-size: .8rem; }
-  .act-titulo { flex: 1; min-width: 0; font-weight: 600; font-size: .95rem; overflow-wrap: anywhere; }
-  .act-titulo small { display: block; font-weight: 400; color: var(--gris); font-size: .78rem; }
-  .act-chips { display: flex; gap: 5px; align-items: center; flex: none; flex-wrap: wrap; justify-content: flex-end; }
-  .sem { width: 12px; height: 12px; border-radius: 50%; flex: none; }
-  .mini {
-    font-size: .72rem; padding: 2px 8px; border-radius: 999px;
-    background: rgba(255, 255, 255, .75); border: 1px solid var(--linea); color: var(--gris); white-space: nowrap;
-  }
-  .act-children { margin-left: 16px; padding-left: 10px; border-left: 3px solid var(--linea); }
-  .act-detalle {
-    border: 1px solid var(--linea); border-top: 0; border-radius: 0 0 var(--radio) var(--radio);
-    margin: -6px 2px 0; padding: 10px 12px; font-size: .86rem;
-  }
-  .act-detalle .acciones { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
+  /* Los estilos del árbol (.cv-nodo, .cv-mini, .cv-sem) viven en
+     design-system.css: son el lenguaje de cualquier lista anidada del
+     panel, no algo de esta página (§3.16). Acá queda solo lo propio
+     de Actividades. */
 
   /* Botones compactos (pedido del admin) */
   .btn-ico {
@@ -69,8 +52,8 @@
     display: inline-flex; align-items: center; gap: 6px;
   }
   .estrella { color: #c9a227; }
-  .act-row.hecha .act-titulo { text-decoration: line-through; color: var(--gris); font-weight: 500; }
-  .act-row.hecha { opacity: .75; }
+  .cv-nodo-fila.hecha .cv-nodo-tit { text-decoration: line-through; color: var(--gris); font-weight: 500; }
+  .cv-nodo-fila.hecha { opacity: .75; }
   .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
 
   .chtab { opacity: .6; }
@@ -426,34 +409,54 @@ function nodoHTML(id) {
   const esRaiz = !it.parentId;
   const star = destacados.has(id);
   const miCrono = crono?.actId === id;
+  const tieneHijos = hijos.length > 0;
+  const detOpen = detalleAbierto === id;
 
-  let chips = '';
-  if (miCrono) chips += `<span class="crono">⏱ <span class="crono-t" data-ini="${crono.inicioMs}">0:00:00</span></span>`;
-  if ((it.recurrenciaDias ?? 0) > 0) chips += `<span class="mini">↻ ${it.recurrenciaDias}d</span>`;
-  if ((it.monto ?? 0) > 0) chips += `<span class="mini">${CV2.fmtMonto(it.monto)}</span>`;
-  if (it.esCompra) chips += `<span class="mini">🛒</span>`;
-  if (it.alcance === 'personal') chips += `<span class="mini">🔒</span>`;
-  if (it.alcance === 'asignados') chips += `<span class="mini">👥 ${(it.competencias ?? []).length}</span>`;
+  // UN SOLO GESTO POR ZONA. Tocar la fila hace lo MÁS PROBABLE: si el ítem
+  // tiene hijos los abre —que es lo que se quiere en un proyecto—, y si no
+  // los tiene abre su detalle. El botón ⋯ abre el detalle siempre.
+  //
+  // Antes había dos gestos peleando en la misma fila: un caret de 18px para
+  // los hijos y el resto de la fila para el detalle. Ese caret era menos de
+  // la mitad del mínimo táctil de 44px (§6.0): se apuntaba a uno y salía el
+  // otro. Ahora el caret es solo una flecha que indica, no un botón.
+  const alTocar = tieneHijos ? "toggleAbierto('" + id + "')" : "toggleDetalle('" + id + "')";
 
-  let h = `<div class="act-item" id="nodo-${id}">
-    <div class="act-row${it.hecho ? ' hecha' : ''}" style="background:${col.p};${esRaiz ? `border-left:5px solid ${col.a};` : ''}"
-         onclick="toggleDetalle('${id}')">
-      <span class="caret" onclick="event.stopPropagation();toggleAbierto('${id}')">${hijos.length ? (ab ? '▾' : '▸') : ''}</span>
-      ${star ? '<span class="material-icons estrella" style="font-size:17px;">star</span>' : ''}
-      <span class="act-titulo">${esRaiz ? '📁 ' : ''}${esc(it.titulo)}
+  let h = `<div class="cv-nodo" id="nodo-${id}">
+    <div class="cv-nodo-fila${it.hecho ? ' hecha' : ''}" style="background:${col.p};${esRaiz ? `border-left:5px solid ${col.a};` : ''}"
+         onclick="${alTocar}">
+      <span class="cv-caret">${tieneHijos ? (ab ? '▾' : '▸') : ''}</span>
+      ${star ? '<span class="material-icons estrella" style="font-size:17px;flex:none;">star</span>' : ''}
+      <span class="cv-nodo-tit">${esRaiz ? '📁 ' : ''}${esc(it.titulo)}
         ${it.detalle ? `<small>${esc(it.detalle)}</small>` : ''}</span>
-      <span class="act-chips">${chips}</span>
-      <span class="sem" style="background:${s.c}" title="${esc(s.t)}"></span>
+      ${miCrono ? `<span class="crono">⏱ <span class="crono-t" data-ini="${crono.inicioMs}">0:00:00</span></span>` : ''}
+      <span class="cv-sem" style="background:${s.c}" title="${esc(s.t)}"></span>
+      <button class="cv-nodo-mas" title="Ver y hacer" aria-label="Ver y hacer"
+              onclick="event.stopPropagation();toggleDetalle('${id}')">
+        <span class="material-icons">${detOpen ? 'expand_less' : 'more_horiz'}</span></button>
     </div>`;
 
-  if (detalleAbierto === id) {
+  if (detOpen) {
     const partes = [s.t];
     if (it.ultimaRealizacion) partes.push(`última vez ${CV2.fmtFecha(it.ultimaRealizacion)}${it.ultimaRealizacionNombre ? ' (' + esc(it.ultimaRealizacionNombre) + ')' : ''}`);
     if (!(it.recurrenciaDias > 0) && it.fechaVencimiento && !s.t.startsWith('Vence') && s.t !== 'Vencida') partes.push('vence ' + CV2.fmtFecha(it.fechaVencimiento));
     partes.push(`<span id="hrs-${id}">${horasCache[id] != null ? CV2.fmtHM(horasCache[id]) + ' registradas' : '…'}</span>`);
 
-    h += `<div class="act-detalle" style="background:${col.p}">
+    // Los chips bajaron de la fila al detalle. Acá hay lugar para escribirlos
+    // enteros: "↻ cada 7 días" dice lo mismo que "↻7d" y no hay que
+    // adivinarlo. En la fila cerrada eran hasta cinco etiquetas compitiendo
+    // con el título por un ancho de teléfono.
+    const chips = [];
+    if ((it.recurrenciaDias ?? 0) > 0) chips.push(`<span class="cv-mini">↻ cada ${it.recurrenciaDias} días</span>`);
+    if ((it.monto ?? 0) > 0) chips.push(`<span class="cv-mini">${CV2.fmtMonto(it.monto)}</span>`);
+    if (it.esCompra) chips.push('<span class="cv-mini">🛒 compra</span>');
+    if (it.alcance === 'personal') chips.push('<span class="cv-mini">🔒 solo yo</span>');
+    if (it.alcance === 'asignados') chips.push(`<span class="cv-mini">👥 ${(it.competencias ?? []).length} asignado(s)</span>`);
+    if (tieneHijos) chips.push(`<span class="cv-mini">${hijos.length} sub-ítem(s)</span>`);
+
+    h += `<div class="cv-nodo-detalle" style="background:${col.p}">
       <span class="texto-gris">${partes.join(' · ')}</span>
+      ${chips.length ? `<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;">${chips.join('')}</div>` : ''}
       <div class="acciones">
         ${!it.hecho ? (miCrono
           ? `<button class="btn-ico stop" onclick="cronoStop('${id}')" title="Frenar y registrar"><span class="material-icons">stop</span></button>`
@@ -462,7 +465,7 @@ function nodoHTML(id) {
         ${(it.reservaId && it.cabanaId && it.fase === 'entrada') ? `<button class="btn-ico" onclick="abrirChequeo('${id}')" title="Control de inventario (entrada)"><span class="material-icons" style="color:${it.controlEntradaHecho ? 'var(--ok)' : '#33506e'}">inventory</span></button>` : ''}
         ${(it.reservaId && it.cabanaId && it.fase === 'salida') ? `<button class="btn-ico" onclick="abrirChequeo('${id}')" title="Control de salida (check-out)"><span class="material-icons" style="color:#8a6206">logout</span></button>` : ''}
         ${(it.faltantesData && !it.gastoMovimientoId && CV2.puede('dinero')) ? `<button class="btn-ico" onclick="gastoDeFaltante('${id}')" title="Registrar el gasto de reponer en Dinero"><span class="material-icons" style="color:#2d5a27">savings</span></button>` : ''}
-        ${it.gastoMovimientoId ? `<span title="Gasto ya registrado en Dinero" style="font-size:.68rem;padding:2px 7px;border-radius:999px;background:#eef4fb;color:#33506e;">→ Dinero</span>` : ''}
+        ${it.gastoMovimientoId ? '<span title="Gasto ya registrado en Dinero" style="font-size:.68rem;padding:2px 7px;border-radius:999px;background:#eef4fb;color:#33506e;">→ Dinero</span>' : ''}
         ${it.hecho && CV2.esAdmin() ? `<button class="btn-ico" onclick="restaurar('${id}')" title="Restaurar"><span class="material-icons">restart_alt</span></button>` : ''}
         ${!it.hecho ? `<button class="btn-ico" onclick="abrirAlta('${id}')" title="Agregar sub-ítem"><span class="material-icons">add</span></button>` : ''}
         <button class="btn-ico" onclick="verRealizaciones('${id}')" title="Historial de realizaciones">
@@ -475,8 +478,8 @@ function nodoHTML(id) {
     </div>`;
   }
 
-  if (ab && hijos.length) {
-    h += `<div class="act-children" style="border-left-color:${col.a}">${hijos.map(nodoHTML).join('')}</div>`;
+  if (ab && tieneHijos) {
+    h += `<div class="cv-nodo-hijos" style="border-left-color:${col.a}">${hijos.map(nodoHTML).join('')}</div>`;
   }
   return h + '</div>';
 }

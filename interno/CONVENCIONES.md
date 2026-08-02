@@ -448,6 +448,24 @@ y olvidarse en alguna — y la que se olvide es justo la que va a fallar.
 
 ---
 
+### 3.16b · El árbol de nodos: `.cv-nodo`
+
+Una lista anidada —proyecto → ítems → sub-ítems— se dibuja con las clases
+`.cv-nodo`, `.cv-nodo-fila`, `.cv-nodo-hijos`, `.cv-nodo-detalle`, `.cv-sem` y
+`.cv-mini`, todas en `design-system.css`. No se vuelve a escribir por página.
+
+Tres reglas que vienen con el patrón:
+
+- **Un solo gesto por zona.** Tocar la fila hace lo **más probable**: si el ítem
+  tiene hijos, los abre; si no, abre su detalle. El botón **⋯** de 44px abre el
+  detalle siempre. *(Antes competían dos gestos en la misma fila y el caret de los
+  hijos medía 18px — menos de la mitad del mínimo táctil.)*
+- **La fila cerrada lleva solo lo necesario para decidir si entrar**: título,
+  cronómetro si corre, semáforo. Los chips van al detalle, donde además hay lugar
+  para escribirlos enteros: *"↻ cada 7 días"* en vez de *"↻7d"*.
+- **Sangría de 14+10px por nivel**, con la línea del color del proyecto. A tres
+  niveles, 26px grises se comían 78px de los 360 de un teléfono.
+
 ### 3.17 · Nunca confiar en el código HTTP de un servicio de terceros
 
 CallMeBot devuelve **HTTP 200 aunque rechace el pedido**, y mete el error como HTML

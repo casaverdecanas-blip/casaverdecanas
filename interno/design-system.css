@@ -306,6 +306,88 @@ dialog::backdrop { background: rgba(20, 30, 18, .45); }
 .toast-error { background: var(--rojo); }
 .toast-info { background: var(--azul); }
 
+/* ── Nodos en árbol ──────────────────────────────────────────
+   Un ítem que puede tener hijos y un detalle que se despliega.
+   Lo usa Actividades (proyecto → ítems → sub-ítems) y es el
+   lenguaje visual de cualquier lista anidada del panel.
+
+   UN SOLO GESTO POR ZONA. Tocar la fila hace lo MÁS PROBABLE:
+   si el ítem tiene hijos, los abre; si no, abre su detalle. El
+   botón ⋯ abre el detalle siempre.
+   Antes competían dos gestos en la misma fila —un caret de 18px
+   para los hijos y el resto de la fila para el detalle— y ese
+   caret medía menos de la mitad del mínimo táctil de 44px
+   (§6.0): se apuntaba a uno y salía el otro.
+
+   SANGRÍA de 14+10px por nivel, con la línea del color del
+   proyecto. Antes eran 26px grises: a tres niveles se comían
+   78px de los 360 de un teléfono y el título quedaba en una
+   columna angosta, sin decir de qué proyecto era.
+
+   LA FILA CERRADA lleva solo lo que hace falta para decidir si
+   entrar: título, cronómetro si está corriendo, y semáforo. Los
+   chips (recurrencia, monto, alcance) viven en el detalle, donde
+   además hay lugar para escribirlos enteros — "↻ cada 7 días"
+   en vez de "↻7d". */
+.cv-nodo { margin: 6px 0; }
+
+.cv-nodo-fila {
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid var(--linea); border-radius: var(--radio);
+  padding: 6px 8px 6px 12px; cursor: pointer; box-shadow: var(--sombra);
+  min-height: 56px; box-sizing: border-box;
+}
+.cv-nodo-fila:active { filter: brightness(.97); }
+
+.cv-caret {
+  flex: none; width: 14px; text-align: center;
+  color: var(--gris); font-size: .7rem;
+}
+
+.cv-nodo-tit {
+  flex: 1; min-width: 0; font-weight: 600; font-size: .95rem;
+  overflow-wrap: anywhere;
+}
+.cv-nodo-tit small {
+  display: block; font-weight: 400; color: var(--gris); font-size: .78rem;
+}
+
+/* 44px reales de objetivo táctil sin engordar la fila: el padding
+   vertical de la fila es de 6px, así que 44+12 = 56px de alto. */
+.cv-nodo-mas {
+  flex: none; width: 44px; height: 44px; padding: 0;
+  border: 0; background: none; color: var(--gris); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 9px; font: inherit;
+}
+.cv-nodo-mas:active { background: rgba(34, 48, 31, .08); }
+.cv-nodo-mas .material-icons { font-size: 20px; }
+
+.cv-nodo-hijos {
+  margin-left: 14px; padding-left: 10px;
+  border-left: 2px solid var(--linea);
+}
+
+.cv-nodo-detalle {
+  border: 1px solid var(--linea); border-top: 0;
+  border-radius: 0 0 var(--radio) var(--radio);
+  margin: -6px 2px 0; padding: 10px 12px; font-size: .86rem;
+}
+.cv-nodo-detalle .acciones {
+  display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; align-items: center;
+}
+
+/* Punto de color: el estado de un vistazo. */
+.cv-sem { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+
+/* Etiqueta chica y neutra. Vive en el detalle, no en la fila. */
+.cv-mini {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: .74rem; padding: 3px 9px; border-radius: 999px;
+  background: rgba(255, 255, 255, .75); border: 1px solid var(--linea);
+  color: var(--gris); white-space: nowrap;
+}
+
 /* ── Utilidades ──────────────────────────────────────────── */
 .chip {
   display: inline-flex; align-items: center; gap: 4px;
