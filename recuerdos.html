@@ -629,6 +629,59 @@ $('quitarFoto').addEventListener('click', () => {
   $('inArchivo').value = '';
 });
 
+// ═══ Avisar al equipo ═════════════════════════════════════
+// Un recuerdo nuevo espera moderación: si nadie se entera, puede quedar días
+// sin publicarse. Hasta julio de 2026 NO llegaba ningún aviso —había una
+// función de Netlify escrita para esto, 'notify-recuerdo', pero esta página
+// nunca la llamó y le faltaban tres variables de entorno. Se retiró.
+//
+// Ahora el aviso sale desde acá con lo que YA existe y está probado:
+//   · WhatsApp por la función 'notify-whatsapp', que sin destinatario cae en
+//     el número del negocio. Es la misma que usa el panel.
+//   · Correo por EmailJS con la clave PÚBLICA, igual que CV2.enviarMail.
+// Cero variables nuevas, cero despliegues, una función menos que mantener.
+//
+// NADA de esto puede hacer fracasar el recuerdo: se llama sin await, después
+// de que el documento ya está guardado, y cada envío se traga su propio error.
+const NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
+const EMAILJS = {
+  serviceId: 'Mailcasaverde',
+  templateId: 'template_txtqg87',
+  publicKey: 'v9IeaS5cXuzPAKCXh',
+  para: 'casaverdecanas@gmail.com'
+};
+
+function avisarAlEquipo(nombre, texto, etiqueta) {
+  const corto = String(texto || '').slice(0, 200) + (texto.length > 200 ? '…' : '');
+  const cuerpo = '🌿 Recuerdo nuevo para revisar'
+    + (etiqueta ? ' (' + etiqueta + ')' : '')
+    + '\nDe: ' + String(nombre || 'Un huésped').slice(0, 60)
+    + '\n"' + corto + '"'
+    + '\nEntrá al panel, Recuerdos, para publicarlo.';
+
+  fetch(NETLIFY + '/notify-whatsapp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: cuerpo })
+  }).catch((e) => console.warn('aviso wa:', e));
+
+  fetch('https://api.emailjs.com/api/v1.0/email/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      service_id: EMAILJS.serviceId,
+      template_id: EMAILJS.templateId,
+      user_id: EMAILJS.publicKey,
+      template_params: {
+        enviar_a: EMAILJS.para,
+        nombre_remitente: 'Casa Verde Canas',
+        asunto: 'Recuerdo nuevo para revisar',
+        mensaje: cuerpo
+      }
+    })
+  }).catch((e) => console.warn('aviso mail:', e));
+}
+
 /**
  * Anota al huésped en /huespedes/{uid} para poder hablarle después
  * (novedades, promociones, reserva directa). Idempotente: si vuelve,
@@ -709,6 +762,9 @@ $('enviar').addEventListener('click', async () => {
     // El recuerdo ya está guardado: de acá en adelante nada puede hacer
     // fracasar el envío. El registro del huésped es un extra.
     await registrarHuesped();
+    // Y el aviso al equipo, TAMBIÉN un extra: sin await y sin que su fallo
+    // toque nada de lo de arriba.
+    avisarAlEquipo(persona.nombre, texto, acceso.etiqueta);
     $('mEscribir').close();
     $('inTexto').value = '';
     $('cuenta').textContent = '0';
