@@ -234,6 +234,10 @@ tenía que llamarla nunca la llamó**. El aviso de recuerdo nuevo sale ahora des
 página pública con `notify-whatsapp` + EmailJS, sin variables nuevas. La copia
 desplegada es inerte y desaparece en el próximo despliegue.
 
+**Las variables que quedan vivas** (agosto 2026): `GEMINI_API_KEY`, `CALLMEBOT_PHONE`
+y `CALLMEBOT_APIKEY`. `CALLMEBOT_RECIPIENTS` se borró — el contacto de cada persona
+viaja ahora en el pedido, desde `avisos_contacto`.
+
 **Cómo se despliega.** El proyecto NO está enganchado a Git: se sube un `.zip` con
 `netlify.toml` + `netlify/functions/*.js` en **Deploys**, arrastrándolo. El zip
 reemplaza TODO el sitio (`publish = "."`), pero ahí solo tienen que vivir las
@@ -1533,7 +1537,8 @@ primera del grupo. **No unificar por prolijidad**: renombrar un ID obliga a rees
 todas las reservas y todos los pagos que lo apuntan, y el beneficio sería estético.
 
 **Dónde se muestra** — `reservas.html`, `revisar-reservas.html`, `calendario.html`
-(que enlaza a la reserva), `dinero.html` (el movimiento que genera cada pago).
+(que enlaza a la reserva), `index.html` (que agrupa por acuerdo: un huésped con tres
+cabañas es **una** llegada, no tres), `dinero.html` (el movimiento de cada pago).
 
 > **Fósil.** `reservas.html` llamaba a `enBRL()`, una función que **no existía en el
 > archivo**: resto del pivote en reales anterior a la tanda 11.1. Como estaba dentro
@@ -1913,9 +1918,30 @@ falta el archivo, se pide — no se reconstruye.
 > la moneda del **acuerdo**. Se le sumó `precioDe` al volcado, que dice si el total
 > salió del acuerdo o del respaldo — sin eso, leyendo el JSON no se podía distinguir.
 >
-> **Pendientes que deja:** sacar del
-> repositorio `netlify/functions/notify-recuerdo.js` (la copia desplegada es inerte y
-> muere en el próximo despliegue) · borrar `CALLMEBOT_RECIPIENTS` de Netlify.
+> **T11.26 · Limpieza final.** `CALLMEBOT_RECIPIENTS` borrada de Netlify y
+> `notify-recuerdo.js` fuera del repositorio. Quedan **dos** funciones —`claude-proxy`
+> y `notify-whatsapp`— y tres variables. `netlify.toml` reescrito: se le sacaron dos
+> redirecciones de `/interno` que apuntaban a un archivo inexistente desde que el
+> panel se mudó a GitHub Pages.
+>
+> **Se detectó que el repositorio nuevo estaba incompleto**: `netlify/functions/` tenía
+> solo `notify-whatsapp.js`. Faltaban `claude-proxy.js` —la que lee las facturas, que
+> está corriendo en producción— y `netlify.toml`. El sistema andaba, pero sin código
+> fuente de dónde recuperarlo. Repuestos.
+>
+> **Nada de esto necesita desplegar en Netlify**: lo que corre allá ya es correcto.
+> Es poner el repositorio a la par de la realidad.
+>
+> **T11.27 · El Inicio entiende los acuerdos.** Un huésped que toma tres cabañas
+> aparecía **tres veces** —"Llega hoy: Alejandro" repetido— y la novedad de verdad
+> quedaba enterrada entre repeticiones. Ahora es una línea por acuerdo, que además
+> dice cuántas cabañas. Y cada línea **enlaza directo a su reserva** (`?r=`), igual
+> que desde el calendario, en vez de caer en la lista. `sw.js` → v65.
+> *(Revisado también que el Inicio no leyera el precio de las reservas: no lo hace,
+> así que no arrastraba ningún fósil de la migración.)*
+>
+> **Sigue sin verificarse:** el ciclo de limpieza nunca corrió con una reserva real
+> (`actividadesDeLimpieza` está vacío) y la sincronización con Airbnb tampoco.
 
 ---
 
