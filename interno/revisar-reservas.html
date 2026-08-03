@@ -140,18 +140,26 @@ function faltanDias(iso) {
 // ── Revisión de una reserva ──────────────────────────────────
 // Cada problema dice QUÉ pasa y QUÉ consecuencia tiene, no solo que algo
 // está raro: un aviso que no explica la consecuencia se ignora.
-function revisar(r, ps, tieneLimpieza) {
+// La revisión de UNA cabaña. Solo lo que es de la cabaña: ocupación.
+//
+// LO QUE ESTA FUNCIÓN YA NO REVISA, y por qué. Hasta agosto de 2026 miraba
+// 'moneda', 'total' y 'totalBRL' de la reserva y se quejaba cuando faltaban.
+// Después de migrar al modelo de acuerdos esos campos NO TIENEN que estar, y
+// la revisión escupía siete "problemas" que eran su propia desactualización:
+// una pantalla describiendo un modelo que ya no existe, que es exactamente el
+// fósil que estas herramientas vienen a cazar. La plata se revisa una sola
+// vez, a nivel de acuerdo, más abajo.
+function revisar(r, ps, tieneLimpieza, monAcuerdo) {
   const mal = [];
-  const mon = monedaDe(r);
 
-  if (!r.moneda) {
-    mal.push('No tiene campo <b>moneda</b>. El sistema la asume en R$ '
-      + '(comportamiento correcto para las reservas viejas, pero conviene saberlo).');
+  // Al revés que antes: ahora el problema es que TODAVÍA los tenga.
+  const viejos = ['total', 'totalBRL', 'moneda'].filter((k) => r[k] !== undefined);
+  if (viejos.length) {
+    mal.push('Todavía guarda <b>' + viejos.join('</b>, <b>') + '</b>, del modelo '
+      + 'anterior a los acuerdos. No molesta —el acuerdo manda— pero conviene '
+      + 'limpiarlo con la herramienta de migración.');
   }
-  if (r.total === undefined && r.totalBRL !== undefined) {
-    mal.push('Usa <b>totalBRL</b> en vez de <b>total</b>. Funciona por compatibilidad; '
-      + 'es del modelo anterior a la tanda 11.1.');
-  }
+
   if (typeof r.checkIn !== 'string' || typeof r.checkOut !== 'string') {
     mal.push('Le faltan las <b>fechas</b>. Sin ellas no se genera la limpieza '
       + 'ni se espeja la disponibilidad del sitio público.');
@@ -159,33 +167,26 @@ function revisar(r, ps, tieneLimpieza) {
     mal.push('El <b>check-out no es posterior al check-in</b>.');
   }
   if (!r.cabanaId) mal.push('No tiene <b>cabaña</b> asignada.');
+  if (!r.grupoId) {
+    mal.push('No tiene <b>acuerdo</b> (grupoId). Su precio no vive en ningún lado.');
+  }
 
+  // Los pagos se comparan contra la moneda del ACUERDO, que es la que manda.
   ps.forEach((p) => {
     const pm = p.moneda || 'BRL';
-    if (pm !== mon && !(p.montoEquiv ?? p.montoBRL)) {
-      mal.push('El pago del ' + dia(p.fecha) + ' está en <b>' + pm + '</b> y la reserva en <b>'
-        + mon + '</b>, pero <b>no tiene equivalente cargado</b>. '
-        + 'Consecuencia: aporta <b>CERO</b> al saldo de la reserva, en silencio.');
+    if (pm !== monAcuerdo && !(p.montoEquiv ?? p.montoBRL)) {
+      mal.push('El pago del ' + dia(p.fecha) + ' está en <b>' + pm + '</b> y el acuerdo en <b>'
+        + monAcuerdo + '</b>, pero <b>no tiene equivalente cargado</b>. '
+        + 'Consecuencia: aporta <b>CERO</b> al saldo, en silencio.');
     }
-    if (p.monedaReserva && p.monedaReserva !== mon) {
-      mal.push('El pago del ' + dia(p.fecha) + ' fue registrado cuando la reserva estaba en <b>'
-        + p.monedaReserva + '</b> y hoy está en <b>' + mon + '</b>. '
+    if (p.monedaReserva && p.monedaReserva !== monAcuerdo) {
+      mal.push('El pago del ' + dia(p.fecha) + ' se registró con el acuerdo en <b>'
+        + p.monedaReserva + '</b> y hoy está en <b>' + monAcuerdo + '</b>. '
         + 'Su equivalente quedó en la moneda vieja: el saldo no cierra.');
     }
   });
 
-  // OJO: acá NO se revisa el saldo. Dentro de un acuerdo, la reserva tiene
-  // una PARTE del total, no una deuda propia: comparar sus pagos contra su
-  // parte daría "c2 debe 800" cuando nadie le debe nada a una cabaña. El
-  // sobrepago se controla a nivel de acuerdo, más abajo.
-  const pagado = ps.reduce((a, p) => a + aporte(p, mon), 0);
-  const total = totalDe(r);
-  if (total <= 0 && r.estado !== 'anulada') {
-    mal.push('Su parte del total es <b>cero</b>.');
-  }
-
   // La limpieza de entrada se materializa una semana antes del check-in.
-  // Si la reserva está confirmada y ya entró en esa ventana, debería existir.
   const faltan = faltanDias(r.checkIn);
   if (r.estado === 'confirmada' && faltan !== null && faltan <= 7 && !tieneLimpieza) {
     mal.push('Confirmada y a <b>' + faltan + ' día(s)</b> del check-in, pero '
@@ -195,15 +196,18 @@ function revisar(r, ps, tieneLimpieza) {
         : 'Debería haberse creado al abrir Reservas.'));
   }
 
-  return { mal, pagado, total, mon };
+  return { mal };
 }
 
 // ── Pintar ───────────────────────────────────────────────────
 function pintar(reservas, porReserva, huerfanos, limpiezas) {
   const acuerdos = agrupar(reservas);
+  // La moneda de cada reserva sale de SU acuerdo, no de la reserva.
+  const monDe = {};
+  acuerdos.forEach((a) => { a.rs.forEach((r) => { monDe[r.id] = monedaAcuerdo(a); }); });
   const revisadas = reservas.map((r) => ({
     r, ps: porReserva[r.id] || [],
-    rev: revisar(r, porReserva[r.id] || [], limpiezas.has('limp-' + r.id))
+    rev: revisar(r, porReserva[r.id] || [], limpiezas.has('limp-' + r.id), monDe[r.id] || 'BRL')
   }));
   const conProblema = revisadas.filter((x) => x.rev.mal.length).length;
 
@@ -304,8 +308,15 @@ function pintar(reservas, porReserva, huerfanos, limpiezas) {
       const mon = monedaAcuerdo(a);
       const ps = pagosAcuerdo(a, porReserva);
       const pagado = ps.reduce((x, p) => x + aporte(p, mon), 0);
+      // 'precioDe' viaja en el volcado porque sin él NO se puede saber, leyendo
+      // el JSON, si el total salió del acuerdo o del respaldo que suma las
+      // partes. Con las reservas migradas los dos daban el mismo número y el
+      // aviso de "el acuerdo no existe" se veía en pantalla pero no acá.
       return {
         clave: a.clave, esGrupo: a.esGrupo,
+        precioDe: grupos[a.clave]
+          ? 'acuerdo'
+          : 'RESPALDO — el documento grupos/' + a.clave + ' NO existe',
         cliente: a.rs[0].clienteNombre, clienteId: a.rs[0].clienteId,
         moneda: mon, total: totalAcuerdo(a), pagado, saldo: totalAcuerdo(a) - pagado,
         cabanas: a.rs.map((r) => ({

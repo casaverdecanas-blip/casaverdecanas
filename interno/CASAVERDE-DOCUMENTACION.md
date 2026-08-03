@@ -689,10 +689,12 @@ googleEventId, notas, historial [{fecha, autorUid, autorNombre, cambio}]`
   saldo y "pagada / falta tanto" se calculan y muestran en esa moneda. `totalBRL` queda
   solo por compatibilidad; las reservas sin `moneda` se asumen en R$.
 · **`grupoId`** — el ACUERDO al que pertenece. Toda reserva nueva lo lleva.
-· **La reserva NO guarda plata.** `total`, `totalBRL` y `moneda` quedan solo en las
-  anteriores a julio de 2026; el precio vive en `grupos/{id}`. Mientras queden
-  reservas viejas, `totalAcuerdo()` cae en un respaldo que suma esas partes — y ese
-  respaldo se saca el día que no quede ninguna.
+· **La reserva NO guarda plata.** El precio vive en `grupos/{id}`. Los campos `total`,
+  `totalBRL` y `moneda` se borraron de todas las reservas el **3 de agosto de 2026**.
+· **El respaldo que suma las partes sigue en `totalAcuerdo()`** y ya no se usa: hoy no
+  queda ninguna reserva con precio propio. Se conserva para que una reserva importada
+  o restaurada desde un backup viejo no muestre cero. **Si alguna vez se saca, hay que
+  comprobar antes que `revisar-reservas.html` no reporte ningún `precioDe: RESPALDO`.**
 · **El presupuesto es un estado, no otra colección.**
 · **Criterio hotelero — la reserva ocupa las noches desde `checkIn` hasta `checkOut`
   SIN incluir la última.** El día de salida la cabaña ya queda libre para quien entra.
@@ -1900,8 +1902,18 @@ falta el archivo, se pide — no se reconstruye.
 > contrario de lo que hace el sistema desde la tanda 11.1. `sw.js` → v64.
 > `firestore.rules` con la cabecera en orden cronológico.
 >
-> **Pendientes que deja:** borrar de las reservas los `total`/`totalBRL`/`moneda`
-> viejos, una vez que los dos acuerdos tengan su precio cargado · sacar del
+> **T11.25 · Migración hecha.** Los dos acuerdos con su precio real cargado (2000 y
+> 1200) y **las cinco reservas limpias**: ya no guardan `total`, `totalBRL` ni
+> `moneda`. El modelo de acuerdos queda completo.
+>
+> **Y la propia herramienta de revisión era un fósil.** Después de migrar reportó
+> siete "problemas" que no lo eran —*"no tiene campo moneda"*, *"su parte del total es
+> cero"*— porque seguía validando contra el modelo anterior. Corregida: ahora se queja
+> al revés, si una reserva **todavía** guarda esos campos, y compara los pagos contra
+> la moneda del **acuerdo**. Se le sumó `precioDe` al volcado, que dice si el total
+> salió del acuerdo o del respaldo — sin eso, leyendo el JSON no se podía distinguir.
+>
+> **Pendientes que deja:** sacar del
 > repositorio `netlify/functions/notify-recuerdo.js` (la copia desplegada es inerte y
 > muere en el próximo despliegue) · borrar `CALLMEBOT_RECIPIENTS` de Netlify.
 
