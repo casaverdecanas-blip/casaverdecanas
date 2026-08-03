@@ -57,6 +57,7 @@
     <a href="#calendario"><span class="material-icons">calendar_month</span>Calendario</a>
     <a href="#clientes"><span class="material-icons">contacts</span>Clientes</a>
     <a href="#comunicacion"><span class="material-icons">forum</span>Chat</a>
+    <a href="#avisos"><span class="material-icons">notifications</span>Mis avisos</a>
     <a href="#sesiones"><span class="material-icons">schedule</span>Sesiones</a>
     <a href="#horas"><span class="material-icons">insights</span>Horas</a>
     <a href="#honorarios"><span class="material-icons">payments</span>Cobros</a>
@@ -129,7 +130,18 @@
   <div class="cap" id="actividades">
     <h2><span class="material-icons">checklist</span>Actividades</h2>
     <p>Todo el trabajo vive acá, organizado como un árbol: <b>proyectos</b> que contienen
-    tareas, que a su vez pueden contener otras. Tocá un proyecto para abrirlo.</p>
+    tareas, que a su vez pueden contener otras.</p>
+
+    <h3>Cómo se abre cada cosa</h3>
+    <ul>
+      <li><b>Tocar la fila</b> abre lo que casi siempre querés: si el ítem tiene cosas
+        adentro, las despliega; si no tiene, abre su detalle.</li>
+      <li><b>Tocar el <kbd>⋯</kbd></b> de la derecha abre el detalle <b>siempre</b> —
+        también en un proyecto.</li>
+    </ul>
+    <div class="nota">En el detalle está todo lo que se puede hacer con esa tarea, y
+    también sus datos: cada cuántos días se repite, cuánto paga, si es una compra, quién
+    la tiene asignada.</div>
 
     <h3>El semáforo</h3>
     <p>El color del punto dice qué tan urgente está algo:</p>
@@ -141,7 +153,7 @@
     </ul>
 
     <h3>Hacer una tarea</h3>
-    <p>Tocá la tarea para abrir su detalle. Vas a ver:</p>
+    <p>Abrí su detalle. Vas a ver:</p>
     <div class="paso"><span class="n">▶</span><div><b>Cronómetro</b> — arrancalo cuando
       empezás a trabajar y paralo al terminar. Queda registrado cuánto tardaste, y si la
       tarea tiene precio, eso genera tu cobro.</div></div>
@@ -230,18 +242,40 @@
     veces.</p>
 
     <h3>Cargar una reserva</h3>
-    <p>Botón <kbd>Reserva</kbd>. Elegís cabaña, fechas, cuántas personas y el total.
-    Podés crearla directo como confirmada o dejarla en presupuesto.</p>
+    <p>Botón <kbd>Reserva</kbd>. Elegís cabaña, fechas, cuántas personas y el
+    <b>total de la estadía</b>. Podés crearla directo como confirmada o dejarla en
+    presupuesto.</p>
     <div class="nota">Al confirmar, el sistema te avisa si creó la limpieza o si va a
     aparecer más adelante (se materializa una semana antes de la entrada).</div>
+
+    <h3>Cuando la estadía ocupa varias cabañas</h3>
+    <p>Cargás la primera con <b>el precio del conjunto</b> —lo que negociaste por todo—
+    y después, dentro de la reserva, tocás <kbd>Otra cabaña</kbd> para sumar las demás.
+    Ahí <b>no te vuelve a preguntar el precio</b>: ya está cargado.</p>
+    <p>Las cabañas quedan agrupadas en <b>un acuerdo</b>: una sola tarjeta, un total y
+    <b>un saldo</b>. Los cobros se registran contra el acuerdo, no contra una cabaña.</p>
+    <div class="nota">Cada cabaña conserva lo suyo: sus fechas, su limpieza, su control
+    de salida y su lugar en el calendario. Incluso pueden entrar en días distintos. Lo
+    único que comparten es el cobro.</div>
+    <p>Con una sola cabaña no cambia nada: no vas a ver la palabra "acuerdo" en ningún
+    lado.</p>
 
     <h3>Registrar un cobro</h3>
     <p>Botón <kbd>Pago</kbd> dentro de la reserva. Cargás monto, concepto (seña o saldo),
     método y <b>en qué cuenta entró</b>.</p>
     <p>Ese cobro aparece automáticamente en <b>Dinero</b> como un ingreso. No hay que
     cargarlo dos veces.</p>
-    <p>Si el pago fue en otra moneda, cargá también el equivalente en reales del día:
-    el saldo de la reserva siempre cierra en R$.</p>
+
+    <h3>Cuando el pago viene en otra moneda</h3>
+    <p><b>La reserva vive en la moneda en que se acordó, de principio a fin.</b> Si la
+    acordaste en dólares, el saldo se lleva en dólares aunque el huésped te pague en
+    reales.</p>
+    <p>En ese caso cargá el monto <b>como entró</b> —los reales que recibiste— y además
+    el <b>equivalente en la moneda del acuerdo</b>. La plata queda registrada tal como
+    llegó, y para el saldo cuenta lo que saldó.</p>
+    <div class="nota">Es lo mismo que hacés en la cabeza: recibís reales, pero le decís
+    al huésped que saldó tantos dólares. El sistema piensa igual. <b>No hay conversión
+    automática ni pivote en reales.</b></div>
 
     <h3>Anular</h3>
     <p>Anular libera la cabaña y borra la limpieza si todavía no se hizo. Si ya se hizo,
@@ -254,7 +288,12 @@
     <h2><span class="material-icons">calendar_month</span>Calendario</h2>
     <p>La vista mensual de las tres cabañas: quién entra, quién sale y qué está libre.
     Sirve para responder rápido "¿tenés lugar del 10 al 15?".</p>
-    <p>Tocá una reserva para abrirla.</p>
+    <p>Tocá un día para ver el detalle abajo, y tocá una línea del detalle para
+    <b>abrir esa reserva</b>. Arriba aparece <kbd>← Volver al calendario</kbd>, que te
+    devuelve al mismo día que estabas mirando — también después de editar o cobrar.</p>
+    <div class="nota">El calendario muestra <b>solo lo que es siempre cierto</b>: quién
+    entra, quién sale y quién está en casa. Las limpiezas se ven en
+    <b>Tareas</b>.</div>
     <a class="arriba" href="#">↑ Volver al índice</a>
   </div>
 
@@ -321,6 +360,45 @@
 
     <p>Hay un tema que se llena solo: <b>📝 Horas cargadas a mano</b>, donde queda
     registrado cuando alguien carga tiempo manualmente.</p>
+    <a class="arriba" href="#">↑ Volver al índice</a>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="cap" id="avisos">
+    <h2><span class="material-icons">notifications</span>Mis avisos</h2>
+    <p>El sistema te avisa <b>sin que tengas que abrir la aplicación</b>. Cada uno
+    elige qué le llega y por dónde: entrá por el botón redondo de tu foto, arriba a la
+    derecha, y tocá <kbd>Mis avisos</kbd>.</p>
+
+    <h3>Por dónde</h3>
+    <ul>
+      <li><b>Correo</b> — viene encendido. Llega solo y no molesta a nadie.</li>
+      <li><b>WhatsApp</b> — viene apagado. Suena en el teléfono, así que lo prendés
+        vos. Necesita dar de alta tu número una vez.</li>
+    </ul>
+
+    <h3>Dar de alta tu WhatsApp</h3>
+    <p>Se usa <b>CallMeBot</b>, un servicio gratuito. En la misma página hay una guía
+    desplegable con los pasos; en resumen: le escribís al robot desde tu teléfono y te
+    responde con una clave. Esa clave la pegás ahí y listo — <b>no hace falta que nadie
+    más haga nada</b>.</p>
+    <div class="nota">Si alguna vez ya te llegaron avisos, <b>tu clave es la misma de
+    siempre</b>: CallMeBot nunca genera una nueva. Mandale <code>Recover APIKey</code>
+    al robot y te la reenvía.</div>
+    <p>Los botones <kbd>Probar WhatsApp</kbd> y <kbd>Probar correo</kbd> te dicen si
+    funciona, y si algo falla te muestran <b>el motivo exacto</b>.</p>
+
+    <h3>Si el WhatsApp deja de llegar</h3>
+    <p>Pasa cada tanto: CallMeBot pone la cuenta <b>en pausa</b>. Se arregla mandándole
+    la palabra <code>resume</code> al robot <b>desde ese mismo teléfono</b>. La prueba
+    te lo dice con esas palabras cuando ocurre.</p>
+
+    <h3>Qué avisa hoy</h3>
+    <p>Los <b>mensajes del chat</b>: cuando alguien escribe en un tema que te toca, o
+    abre uno nuevo. Nunca te avisa de lo que escribiste vos.</p>
+    <div class="nota">Un tema dirigido avisa <b>solo a sus participantes</b>. Y si hay
+    varios mensajes seguidos, el WhatsApp sale una vez por minuto: el primero avisa que
+    hay algo, el resto se lee entrando.</div>
     <a class="arriba" href="#">↑ Volver al índice</a>
   </div>
 
