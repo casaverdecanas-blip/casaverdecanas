@@ -230,23 +230,47 @@ if (CV2.puede('reservas')) {
     const snap = await getDocs(collection(db, 'reservas'));
     snap.forEach((d) => rs.push({ id: d.id, ...d.data() }));
     const items = [];
-    rs.filter((r) => r.estado === 'presupuesto')
+
+    // UNA LÍNEA POR ACUERDO, no por cabaña. Un huésped que toma las tres
+    // cabañas es UNA llegada, no tres: sin esto el Inicio decía "Llega hoy:
+    // Alejandro" tres veces seguidas y la novedad de verdad quedaba enterrada
+    // entre repeticiones. Es el mismo error que mostraba tres saldos donde
+    // hay uno solo (§10 · F2).
+    // Se agrupa por 'grupoId'; una reserva suelta es un acuerdo de una.
+    function porAcuerdo(lista) {
+      const mapa = new Map();
+      lista.forEach((r) => {
+        const k = r.grupoId || r.id;
+        if (!mapa.has(k)) mapa.set(k, []);
+        mapa.get(k).push(r);
+      });
+      return [...mapa.values()];
+    }
+    // Cuántas cabañas, para decirlo en vez de repetir la línea.
+    const cuantas = (g) => g.length > 1 ? ' · ' + g.length + ' cabañas' : '';
+    // El enlace lleva DIRECTO a esa reserva y la abre allá (?r=), igual que
+    // desde el calendario. Antes caía en la lista y había que buscarla.
+    const aReserva = (r) => './reservas.html?r=' + encodeURIComponent(r.id);
+
+    porAcuerdo(rs.filter((r) => r.estado === 'presupuesto'))
       .slice(0, 4)
-      .forEach((r) => items.push({
-        icono: 'pending_actions', titulo: r.clienteNombre || 'Presupuesto',
-        detalle: 'Sin confirmar · ' + CV2.fmtFecha(r.checkIn),
-        tono: 'aviso', href: './reservas.html',
-        nuevo: esNuevo(r.creadoEn), cuando: haceCuanto(r.creadoEn)
+      .forEach((g) => items.push({
+        icono: 'pending_actions', titulo: g[0].clienteNombre || 'Presupuesto',
+        detalle: 'Sin confirmar · ' + CV2.fmtFecha(g[0].checkIn) + cuantas(g),
+        tono: 'aviso', href: aReserva(g[0]),
+        nuevo: esNuevo(g[0].creadoEn), cuando: haceCuanto(g[0].creadoEn)
       }));
-    rs.filter((r) => r.estado === 'confirmada' && r.checkIn === hoy)
-      .forEach((r) => items.push({
-        icono: 'login', titulo: 'Llega hoy: ' + (r.clienteNombre || ''),
-        detalle: 'Check-in ' + CV2.fmtFecha(r.checkIn), tono: 'ok', href: './reservas.html'
+    porAcuerdo(rs.filter((r) => r.estado === 'confirmada' && r.checkIn === hoy))
+      .forEach((g) => items.push({
+        icono: 'login', titulo: 'Llega hoy: ' + (g[0].clienteNombre || ''),
+        detalle: 'Check-in ' + CV2.fmtFecha(g[0].checkIn) + cuantas(g),
+        tono: 'ok', href: aReserva(g[0])
       }));
-    rs.filter((r) => r.estado === 'confirmada' && r.checkOut === hoy)
-      .forEach((r) => items.push({
-        icono: 'logout', titulo: 'Se va hoy: ' + (r.clienteNombre || ''),
-        detalle: 'Check-out ' + CV2.fmtFecha(r.checkOut), tono: 'aviso', href: './reservas.html'
+    porAcuerdo(rs.filter((r) => r.estado === 'confirmada' && r.checkOut === hoy))
+      .forEach((g) => items.push({
+        icono: 'logout', titulo: 'Se va hoy: ' + (g[0].clienteNombre || ''),
+        detalle: 'Check-out ' + CV2.fmtFecha(g[0].checkOut) + cuantas(g),
+        tono: 'aviso', href: aReserva(g[0])
       }));
     agregar('reservas', 'Reservas', 'king_bed', './reservas.html', items);
   } catch (e) { console.warn('reservas', e); }

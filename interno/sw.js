@@ -7,7 +7,8 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
-// v64 (31-jul-2026) — manual.html: acuerdos, avisos, monedas y el gesto nuevo
+// v65 (3-ago-2026) — index.html: una línea por ACUERDO, no por cabaña.
+// v64 — manual.html: acuerdos, avisos, monedas y el gesto nuevo
 //       de Actividades.
 // v63 — las cabañas del acuerdo adoptan .cv-nodo:
 //       design-system.css + reservas.html.
@@ -18,7 +19,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v64';
+const VERSION = 'cv2-shell-v65';
 
 const SHELL = [
   './',
