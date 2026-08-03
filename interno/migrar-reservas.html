@@ -92,7 +92,8 @@
 // ocupación es física. Cada cabaña sigue generando su limpieza y su control.
 // ═══════════════════════════════════════════════════════════
 import {
-  db, collection, getDocs, doc, setDoc, updateDoc, deleteDoc, deleteField, serverTimestamp
+  db, collection, query, where, getDocs, doc, setDoc, updateDoc, deleteDoc,
+  deleteField, serverTimestamp
 } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
 
