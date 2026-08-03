@@ -1801,6 +1801,41 @@ sigue: se perdería el mail y de qué QR vino.
 
 ---
 
+### Cómo se prueba un flujo
+
+`interno/pruebas.html` acompaña un flujo entero paso a paso mientras se hace **en las
+pantallas de verdad, en otra pestaña**. Entre paso y paso saca una foto de las
+colecciones y compara: qué apareció, qué cambió, qué se borró.
+
+**No automatiza nada, y es deliberado.** Una prueba que escribe los documentos por su
+cuenta no prueba el sistema: prueba la prueba. Cada paso lleva su expectativa sacada
+del código real —`limp-<reservaId>` viene de `RCore.sincronizarLimpiezas`,
+`checkout-<id>` de `actividades.html`— y si no se cumple lo dice y sigue: saber qué
+más falla después es parte del diagnóstico.
+
+Al terminar sabe **exactamente qué documentos creó** y los puede borrar sin tocar nada
+que ya estuviera. Lo que no logra borrar queda en la lista, con el motivo: una lista
+vacía cuando quedó basura sería peor que no haber probado.
+
+**Un flujo nuevo se agrega al array `PRUEBAS`**, con sus pasos y sus expectativas. Hoy
+está el F1 (ciclo de limpieza).
+
+### Las cuatro herramientas de diagnóstico
+
+Viven en `interno/`, **fuera del service worker**, y se entra por dirección directa —
+así se pueden abrir cuando el resto está roto. Las cuatro llevan arriba la misma barra
+para saltar entre ellas:
+
+| | Para qué |
+|---|---|
+| `diagnostico.html` | navegador, archivos en el servidor, sesión, permisos, conexión con Google |
+| `revisar-reservas.html` | foto del estado de acuerdos, reservas y pagos · **solo lee** |
+| `migrar-reservas.html` | agrupar, limpiar notas, limpiar plata vieja, depurar pruebas · **escribe y borra** |
+| `pruebas.html` | probar un flujo de punta a punta, guiado |
+
+Ninguna se declara en el `SHELL` de `sw.js`: son temporales por naturaleza y no tienen
+que sobrevivir a una caché vieja.
+
 ### Flujos que faltan escribir
 
 Ninguno: los nueve procesos del sistema están escritos.
@@ -1940,8 +1975,19 @@ falta el archivo, se pide — no se reconstruye.
 > *(Revisado también que el Inicio no leyera el precio de las reservas: no lo hace,
 > así que no arrastraba ningún fósil de la migración.)*
 >
-> **Sigue sin verificarse:** el ciclo de limpieza nunca corrió con una reserva real
-> (`actividadesDeLimpieza` está vacío) y la sincronización con Airbnb tampoco.
+> **T11.28 · Banco de pruebas guiadas.** Nace `interno/pruebas.html`: acompaña un flujo
+> paso a paso mientras se hace en las pantallas de verdad, saca una foto de las
+> colecciones entre paso y paso y dice si pasó lo que tenía que pasar. Primer flujo
+> cargado: **F1, el ciclo de limpieza** —seis pasos, de crear la reserva hasta anularla,
+> con las expectativas sacadas del código real—. Al terminar borra exactamente lo que
+> creó. Las cuatro herramientas de diagnóstico quedan unificadas con una barra común.
+>
+> *(Escribiendo las expectativas apareció un paso que casi se saltea: la limpieza de
+> entrada **no se puede dar por terminada sin el control de inventario hecho**. El
+> sistema lo impide a propósito y la prueba lo comprueba.)*
+>
+> **Sigue sin verificarse:** el ciclo de limpieza —hasta que se corra esta prueba— y la
+> sincronización con Airbnb.
 
 ---
 

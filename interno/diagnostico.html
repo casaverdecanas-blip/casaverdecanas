@@ -40,6 +40,16 @@
     padding: 9px; }
   .nota { background: #fdf1d8; border: 1px solid #e8d5a3; border-radius: 9px;
     padding: 10px 12px; font-size: .82rem; line-height: 1.5; margin-top: 10px; }
+  /* Barra de Diagnóstico — la misma en las cuatro herramientas. Se repite el
+     bloque en cada archivo a propósito: son páginas temporales, fuera del
+     service worker, y no tienen que depender de nada compartido para abrir
+     cuando el resto del sistema está roto. */
+  .hub { display: flex; gap: 7px; flex-wrap: wrap; margin: 0 0 14px; }
+  .hub a { display: inline-flex; align-items: center; gap: 5px; min-height: 40px;
+    padding: 8px 12px; border: 1px solid #e2e0d8; border-radius: 999px;
+    background: #fff; color: #2a2a2a; text-decoration: none; font-size: .82rem; }
+  .hub a.aqui { background: #2d5a27; border-color: #2d5a27; color: #fff; }
+  .hub a .material-icons { font-size: 17px; }
 </style>
 </head>
 <body>
@@ -52,7 +62,13 @@
     otras pantallas.
   </p>
 
-  <div class="tarj"><h2>1 · Este navegador</h2><div id="s1">Mirando…</div></div>
+    <nav class="hub">
+    <a class="aqui" href="./diagnostico.html"><span class="material-icons">healing</span>Sistema</a>
+    <a href="./revisar-reservas.html"><span class="material-icons">fact_check</span>Revisar reservas</a>
+    <a href="./migrar-reservas.html"><span class="material-icons">build</span>Migrar</a>
+    <a href="./pruebas.html"><span class="material-icons">science</span>Pruebas guiadas</a>
+  </nav>
+<div class="tarj"><h2>1 · Este navegador</h2><div id="s1">Mirando…</div></div>
   <div class="tarj"><h2>2 · Los archivos en el servidor</h2>
     <p class="sub" style="margin:0 0 6px;">Se piden salteando toda caché. Si acá
       aparece la versión nueva pero la app se comporta como la vieja, el problema

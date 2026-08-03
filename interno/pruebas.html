@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Diagnóstico · Pruebas guiadas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+<link rel="stylesheet" href="design-system.css">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .hub { display: flex; gap: 7px; flex-wrap: wrap; margin: 0 0 14px; }
+  .hub a { display: inline-flex; align-items: center; gap: 5px; min-height: 40px;
+    padding: 8px 12px; border: 1px solid var(--linea); border-radius: 999px;
+    background: #fff; color: var(--tinta); text-decoration: none; font-size: .82rem; }
+  .hub a.aqui { background: var(--verde); border-color: var(--verde); color: #fff; }
+  .hub a .material-icons { font-size: 17px; }
+
+  .tarj { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 14px; margin: 12px 0; box-shadow: var(--sombra); }
+  .tarj > h2 { margin: 0 0 4px; font-size: 1rem; }
+  .tarj > .sub { color: var(--gris); font-size: .84rem; margin: 0 0 10px; line-height: 1.55; }
+
+  .paso { border-left: 4px solid var(--linea); padding: 0 0 0 12px; margin: 14px 0; }
+  .paso.activo { border-left-color: var(--verde); }
+  .paso.ok { border-left-color: var(--ok); }
+  .paso.mal { border-left-color: var(--rojo); }
+  .paso.futuro { opacity: .45; }
+  .paso h3 { margin: 0 0 4px; font-size: .92rem; display: flex; align-items: center; gap: 7px; }
+  .paso h3 .n { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--linea); color: var(--gris); font-size: .76rem; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center; }
+  .paso.activo h3 .n { background: var(--verde); color: #fff; }
+  .paso.ok h3 .n { background: var(--ok); color: #fff; }
+  .paso.mal h3 .n { background: var(--rojo); color: #fff; }
+  .paso .hacer { font-size: .88rem; line-height: 1.6; }
+  .paso .espera { font-size: .8rem; color: var(--gris); margin-top: 6px;
+    background: var(--crema); border-radius: 9px; padding: 8px 11px; }
+  .paso .espera b { color: var(--tinta); }
+  .datos { background: var(--verde-claro); border-radius: 9px; padding: 10px 12px;
+    margin-top: 8px; font-size: .85rem; line-height: 1.7; }
+  .datos code { background: #fff; padding: 1px 6px; border-radius: 5px; font-weight: 600; }
+
+  .veredicto { margin-top: 9px; padding: 9px 12px; border-radius: 9px; font-size: .84rem;
+    line-height: 1.55; }
+  .veredicto.ok { background: var(--verde-claro); }
+  .veredicto.mal { background: #fdeceb; color: #8e2b2b; }
+  .veredicto ul { margin: 5px 0 0; padding-left: 18px; }
+  .cambios { font-size: .78rem; color: var(--gris); margin-top: 7px; font-family: ui-monospace, monospace;
+    white-space: pre-wrap; max-height: 150px; overflow: auto; }
+
+  .acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 11px; }
+  .btn-l { min-height: 44px; }
+  textarea { width: 100%; box-sizing: border-box; min-height: 240px; font-size: .72rem;
+    font-family: ui-monospace, monospace; border: 1px solid var(--linea);
+    border-radius: 9px; padding: 9px; }
+  .aviso { background: #fdf1d8; border: 1px solid #e8d5a3; border-radius: 10px;
+    padding: 11px 13px; font-size: .84rem; line-height: 1.55; margin: 0 0 14px; }
+  .aviso.rojo { background: #fdeceb; border-color: #f0b8b4; }
+  .cargando { text-align: center; color: var(--gris); padding: 30px; }
+  .lista-borrar { font-size: .8rem; font-family: ui-monospace, monospace;
+    background: var(--crema); border-radius: 9px; padding: 9px; margin-top: 8px;
+    max-height: 190px; overflow: auto; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <h1>Pruebas guiadas</h1>
+  <p class="sub" style="color:var(--gris);font-size:.85rem;margin:-4px 0 12px;">
+    Te acompaña paso a paso por un flujo completo mientras lo hacés <b>en otra
+    pestaña, con las pantallas de verdad</b>, y va anotando qué cambió en la base
+    después de cada paso. Al final te da un informe para traer al chat.
+  </p>
+
+  <nav class="hub">
+    <a href="./diagnostico.html"><span class="material-icons">healing</span>Sistema</a>
+    <a href="./revisar-reservas.html"><span class="material-icons">fact_check</span>Revisar reservas</a>
+    <a href="./migrar-reservas.html"><span class="material-icons">build</span>Migrar</a>
+    <a class="aqui" href="./pruebas.html"><span class="material-icons">science</span>Pruebas guiadas</a>
+  </nav>
+
+  <div id="cuerpo"><div class="cargando">Preparando…</div></div>
+</div>
+
+<script type="module">
+// ═══════════════════════════════════════════════════════════
+// PRUEBAS GUIADAS — probar un flujo entero sin simular nada.
+//
+// El problema que resuelve: hay flujos —el ciclo de limpieza, sobre todo—
+// que nunca corrieron con datos reales. Se pueden leer, se pueden razonar,
+// pero hasta que no pasan de punta a punta no se sabe si funcionan.
+//
+// CÓMO FUNCIONA, y por qué así:
+//  · NO automatiza nada. Vos hacés cada paso en las pantallas de verdad, en
+//    otra pestaña. Una prueba que escribe los documentos por su cuenta no
+//    prueba el sistema: prueba la prueba.
+//  · Antes de cada paso saca una FOTO de las colecciones, y después compara.
+//    Lo que apareció, lo que cambió y lo que se borró.
+//  · Cada paso lleva escrita SU EXPECTATIVA, sacada del código real. Si no
+//    se cumple, lo dice y sigue: un paso fallado no corta la prueba, porque
+//    saber qué más falla después es parte del diagnóstico.
+//  · Al final sabe EXACTAMENTE qué documentos creó la prueba, así que puede
+//    borrarlos sin tocar nada más.
+//
+// Regla que se respeta: los datos de prueba se marcan con un nombre
+// inconfundible y se limpian al terminar. Nada queda ensuciando el sistema.
+// ═══════════════════════════════════════════════════════════
+import {
+  db, collection, query, where, getDocs, doc, deleteDoc
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('pruebas');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+// ── Qué se observa ───────────────────────────────────────
+// 'actividades' va CON FILTRO: su regla exige que la consulta venga acotada
+// (las cuatro ramas demostrables de §5) y pedir la colección entera da
+// permission-denied aunque todo esté bien. Las de limpieza son de alcance
+// 'equipo', así que este filtro las alcanza a todas.
+const OBSERVA = [
+  { c: 'reservas' }, { c: 'grupos' },
+  { c: 'actividades', filtro: ['alcance', '==', 'equipo'] },
+  { c: 'sesiones' }, { c: 'chequeos' }, { c: 'disponibilidad' },
+  { c: 'honorarios' }, { c: 'movimientos' }, { c: 'pagos' }
+];
+
+async function foto() {
+  const out = {};
+  for (const o of OBSERVA) {
+    try {
+      const col = collection(db, o.c);
+      const q = o.filtro ? query(col, where(o.filtro[0], o.filtro[1], o.filtro[2])) : col;
+      const snap = await getDocs(q);
+      out[o.c] = {};
+      snap.forEach((d) => { out[o.c][d.id] = d.data(); });
+    } catch (e) {
+      out[o.c] = { __error: (e.code || e.message) };
+      console.warn('foto ' + o.c, e);
+    }
+  }
+  return out;
+}
+
+// Comparación de dos fotos. Solo mira los campos que importan para entender
+// qué pasó: volcar el documento entero llenaría el informe de timestamps.
+const INTERESAN = ['estado', 'hecho', 'fase', 'parentId', 'cabanaId', 'reservaId',
+  'grupoId', 'total', 'monto', 'horas', 'fechaInicio', 'controlEntradaHecho',
+  'sesionActualId', 'tipo', 'titulo', 'ultimaRealizacion', 'cierreId', 'desde', 'hasta'];
+
+function resumirDoc(x) {
+  const o = {};
+  INTERESAN.forEach((k) => { if (x && x[k] !== undefined) o[k] = x[k]; });
+  return o;
+}
+
+function comparar(antes, despues) {
+  const d = { nuevos: {}, cambiados: {}, borrados: {} };
+  OBSERVA.forEach((o) => {
+    const c = o.c;
+    const a = antes[c] || {}, b = despues[c] || {};
+    d.nuevos[c] = Object.keys(b).filter((k) => !(k in a));
+    d.borrados[c] = Object.keys(a).filter((k) => !(k in b));
+    d.cambiados[c] = Object.keys(b).filter((k) => {
+      if (!(k in a)) return false;
+      return JSON.stringify(resumirDoc(a[k])) !== JSON.stringify(resumirDoc(b[k]));
+    });
+  });
+  return d;
+}
+
+function textoCambios(d, despues, antes) {
+  const l = [];
+  OBSERVA.forEach((o) => {
+    const c = o.c;
+    d.nuevos[c].forEach((k) => l.push('+ ' + c + '/' + k + '  ' + JSON.stringify(resumirDoc(despues[c][k]))));
+    d.cambiados[c].forEach((k) => {
+      const a = resumirDoc(antes[c][k]), b = resumirDoc(despues[c][k]);
+      const dif = Object.keys(b).filter((x) => JSON.stringify(a[x]) !== JSON.stringify(b[x]))
+        .map((x) => x + ': ' + JSON.stringify(a[x]) + ' → ' + JSON.stringify(b[x]));
+      l.push('~ ' + c + '/' + k + '  ' + dif.join(' · '));
+    });
+    d.borrados[c].forEach((k) => l.push('− ' + c + '/' + k));
+  });
+  return l.length ? l.join('\n') : '(no cambió nada)';
+}
+
+// ── Ayudas para las expectativas ─────────────────────────
+const sumar = (iso, n) => {
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+const hoy = CV2.hoyISO();
+const ENTRADA = sumar(hoy, 5);
+const SALIDA = sumar(hoy, 7);
+const CLIENTE = 'PRUEBA — borrar';
+
+// Estado que la prueba va acumulando entre pasos.
+const ctx = {};
+
+// ═══ LA PRUEBA DEL CICLO DE LIMPIEZA (§10 · F1) ═══════════
+// Cada expectativa sale del código real, no de la memoria:
+//   · limp-<reservaId>  ← RCore.sincronizarLimpiezas, ventana de 7 días
+//   · checkout-<id>     ← actividades.html, al terminar la limpieza de entrada
+//   · falta-<id>        ← actividades.html, si el control de salida encuentra algo
+const PRUEBAS = [{
+  id: 'limpieza',
+  titulo: 'Ciclo de limpieza por reserva',
+  flujo: '§10 · F1',
+  porQue: 'Es la parte más trabajada del sistema y nunca corrió con una reserva real: '
+    + 'hoy no existe ni una sola actividad de limpieza. La primera de verdad sería la de '
+    + 'Nati en diciembre — conviene que no sea la primera.',
+  pasos: [
+    {
+      titulo: 'Crear la reserva de prueba',
+      hacer: 'Abrí <b>Reservas</b> en otra pestaña y creá una reserva con estos datos exactos. '
+        + 'Elegí <b>cualquier cabaña que esté libre</b> esos días. Guardala como '
+        + '<b>confirmada</b>, no como presupuesto.',
+      datos: [
+        ['Cliente (nombre suelto)', CLIENTE],
+        ['Entrada', ENTRADA + '  (dentro de 5 días)'],
+        ['Salida', SALIDA],
+        ['Total de la estadía', '1'],
+        ['Estado', 'Confirmada']
+      ],
+      espera: 'Una <b>reserva</b> nueva, su <b>acuerdo</b>, su <b>limpieza</b> '
+        + '<code>limp-&lt;idReserva&gt;</code> y su <b>disponibilidad</b> para el sitio público. '
+        + 'La entrada a 5 días entra en la ventana de 7, así que la limpieza se materializa ya.',
+      chequear: (d, desp) => {
+        const fallas = [];
+        const nuevaR = d.nuevos.reservas.find((id) => desp.reservas[id].clienteNombre === CLIENTE);
+        if (!nuevaR) return { ok: false, fallas: ['No apareció ninguna reserva con el nombre «' + CLIENTE + '».'] };
+        ctx.reservaId = nuevaR;
+        const r = desp.reservas[nuevaR];
+        ctx.cabanaId = r.cabanaId;
+        if (r.estado !== 'confirmada') fallas.push('La reserva quedó en <b>' + r.estado + '</b>, no confirmada. Sin confirmar no se genera la limpieza.');
+        if (r.checkIn !== ENTRADA) fallas.push('La entrada quedó en ' + r.checkIn + ' y esperábamos ' + ENTRADA + '. La ventana de 7 días puede no aplicar.');
+        if (!r.grupoId) fallas.push('La reserva NO tiene <b>grupoId</b>: nació sin acuerdo y su precio no vive en ningún lado.');
+        else if (!desp.grupos[r.grupoId]) fallas.push('Tiene grupoId pero el documento <b>grupos/' + r.grupoId + '</b> no existe.');
+        if (!desp.actividades['limp-' + nuevaR]) {
+          fallas.push('<b>NO se creó la limpieza</b> <code>limp-' + nuevaR + '</code>. Es la falla que esta prueba vino a buscar.');
+        } else {
+          const l = desp.actividades['limp-' + nuevaR];
+          ctx.limpId = 'limp-' + nuevaR;
+          if (l.fase !== 'entrada') fallas.push('La limpieza no tiene <b>fase: entrada</b> (tiene «' + l.fase + '»).');
+          if (l.parentId !== 'proj-limpiezas') fallas.push('La limpieza no cuelga de <b>proj-limpiezas</b> (cuelga de «' + l.parentId + '»).');
+          if (l.fechaInicio !== sumar(ENTRADA, -1)) fallas.push('Su fechaInicio es ' + l.fechaInicio + ' y debería ser ' + sumar(ENTRADA, -1) + ' (un día antes de la entrada, para que el semáforo se ponga rojo a tiempo).');
+        }
+        if (!desp.disponibilidad[nuevaR]) fallas.push('No se espejó la <b>disponibilidad</b>: el sitio público va a mostrar esa cabaña libre.');
+        return { ok: !fallas.length, fallas };
+      }
+    },
+    {
+      titulo: 'Control de inventario de ENTRADA',
+      hacer: 'Abrí <b>Tareas</b>, buscá la limpieza dentro del proyecto de limpiezas y abrí su '
+        + 'detalle con el botón <b>⋯</b>. Tocá el ícono <b>📦</b> (Control de inventario) y '
+        + 'completá el conteo de entrada. Guardalo.',
+      espera: 'Un <b>chequeo</b> nuevo y la limpieza marcada con <code>controlEntradaHecho</code>. '
+        + 'Sin este paso <b>la limpieza no se puede dar por terminada</b>: el sistema lo impide '
+        + 'a propósito.',
+      chequear: (d, desp) => {
+        const fallas = [];
+        if (!d.nuevos.chequeos.length) fallas.push('No se creó ningún <b>chequeo</b>.');
+        const l = desp.actividades[ctx.limpId];
+        if (!l) fallas.push('La limpieza desapareció.');
+        else if (l.controlEntradaHecho !== true) fallas.push('La limpieza NO quedó con <b>controlEntradaHecho</b>. El próximo paso va a fallar por eso.');
+        return { ok: !fallas.length, fallas };
+      }
+    },
+    {
+      titulo: 'Arrancar el cronómetro',
+      hacer: 'En el detalle de la limpieza, tocá <b>▶</b>. Dejalo correr unos segundos.',
+      espera: 'Una <b>sesión</b> nueva en curso, con tu uid, y la limpieza en estado '
+        + '<code>en_curso</code> apuntando a esa sesión.',
+      chequear: (d, desp) => {
+        const fallas = [];
+        const s = d.nuevos.sesiones[0];
+        if (!s) return { ok: false, fallas: ['No se creó ninguna <b>sesión</b>.'] };
+        ctx.sesionId = s;
+        const ses = desp.sesiones[s];
+        if (ses.estado !== 'en_curso') fallas.push('La sesión no quedó <b>en_curso</b> (quedó «' + ses.estado + '»).');
+        if (ses.actividadId !== ctx.limpId) fallas.push('La sesión apunta a otra actividad.');
+        const l = desp.actividades[ctx.limpId];
+        if (l && l.sesionActualId !== s) fallas.push('La limpieza no guardó el <b>sesionActualId</b>.');
+        return { ok: !fallas.length, fallas };
+      }
+    },
+    {
+      titulo: 'Frenar y dar la limpieza por terminada',
+      hacer: 'Tocá <b>⏹</b> y elegí <b>terminada</b> (no «todavía no»). '
+        + 'O si preferís, usá <b>✓ Realizada</b> directamente.',
+      espera: 'La sesión <b>finalizada</b> con sus horas, la limpieza <b>hecha</b>, y —lo más '
+        + 'importante— el <b>control de salida</b> <code>checkout-&lt;idReserva&gt;</code> recién '
+        + 'nacido, colgando de la limpieza. <b>No nace por fecha: nace de esta acción.</b>',
+      chequear: (d, desp) => {
+        const fallas = [];
+        const ses = desp.sesiones[ctx.sesionId];
+        if (ses && ses.estado !== 'finalizada') fallas.push('La sesión no quedó <b>finalizada</b>.');
+        const l = desp.actividades[ctx.limpId];
+        if (l && l.hecho !== true) fallas.push('La limpieza no quedó marcada como <b>hecha</b>.');
+        const co = 'checkout-' + ctx.reservaId;
+        if (!desp.actividades[co]) {
+          fallas.push('<b>NO nació el control de salida</b> <code>' + co + '</code>.');
+        } else {
+          ctx.checkoutId = co;
+          const c = desp.actividades[co];
+          if (c.fase !== 'salida') fallas.push('El control de salida no tiene <b>fase: salida</b>.');
+          if (c.parentId !== ctx.limpId) fallas.push('El control de salida no cuelga de la limpieza.');
+        }
+        return { ok: !fallas.length, fallas };
+      }
+    },
+    {
+      titulo: 'Control de salida, con un faltante',
+      hacer: 'Abrí el <b>control de salida</b> (cuelga de la limpieza, con el ícono <b>📤</b>). '
+        + 'Hacé el conteo de salida y <b>marcá menos cantidad en algún ítem</b>, para que '
+        + 'detecte un faltante. Guardalo.',
+      espera: 'Otro <b>chequeo</b>, y la actividad de <b>faltantes</b> '
+        + '<code>falta-&lt;idReserva&gt;</code> colgando del control de salida, con el detalle de '
+        + 'qué faltó. Esa actividad es la que después permite registrar el gasto de reponer.',
+      chequear: (d, desp) => {
+        const fallas = [];
+        if (!d.nuevos.chequeos.length) fallas.push('No se creó ningún <b>chequeo</b> de salida.');
+        const fa = 'falta-' + ctx.reservaId;
+        if (!desp.actividades[fa]) {
+          fallas.push('No nació la actividad de <b>faltantes</b> <code>' + fa + '</code>. '
+            + 'Si no marcaste ningún faltante, es lo esperado.');
+        } else {
+          ctx.faltaId = fa;
+          if (desp.actividades[fa].parentId !== ctx.checkoutId) fallas.push('Los faltantes no cuelgan del control de salida.');
+        }
+        return { ok: !fallas.length, fallas };
+      }
+    },
+    {
+      titulo: 'Anular la reserva',
+      hacer: 'Volvé a <b>Reservas</b>, abrí la de prueba y tocá <b>Anular</b>.',
+      espera: 'La reserva en <b>anulada</b> y su <b>disponibilidad borrada</b> — el sitio '
+        + 'público tiene que volver a mostrar esa cabaña libre. <b>La limpieza NO se borra</b>: '
+        + 'ya se hizo, alguien trabajó.',
+      chequear: (d, desp) => {
+        const fallas = [];
+        const r = desp.reservas[ctx.reservaId];
+        if (!r) fallas.push('La reserva desapareció en vez de anularse.');
+        else if (r.estado !== 'anulada') fallas.push('La reserva quedó en <b>' + r.estado + '</b>.');
+        if (desp.disponibilidad[ctx.reservaId]) fallas.push('La <b>disponibilidad NO se borró</b>: el sitio público sigue mostrando esa cabaña ocupada.');
+        if (!desp.actividades[ctx.limpId]) fallas.push('Se borró la limpieza, y no debería: ya estaba hecha.');
+        return { ok: !fallas.length, fallas };
+      }
+    }
+  ]
+}];
+
+// ═══ Estado de la corrida ═════════════════════════════════
+let prueba = null;
+let paso = 0;
+let fotoPrevia = null;
+let registro = [];      // {n, titulo, ok, fallas, cambios, cuando}
+let creados = [];       // {col, id} — todo lo que la prueba hizo aparecer
+let corriendo = false;
+
+function pintar() {
+  if (!prueba) {
+    $('cuerpo').innerHTML = PRUEBAS.map((p, i) =>
+      '<div class="tarj"><h2>' + esc(p.titulo) + '</h2>'
+      + '<p class="sub">' + esc(p.flujo) + ' · ' + p.pasos.length + ' pasos<br>' + esc(p.porQue) + '</p>'
+      + '<div class="acciones"><button class="btn btn-primario btn-l" data-empezar="' + i + '">'
+      + '<span class="material-icons">play_arrow</span> Empezar</button></div></div>'
+    ).join('') + '<div class="tarj"><h2>Cómo se usa</h2>'
+      + '<p class="sub">Dejá <b>esta pestaña abierta</b> y hacé cada paso en otra. Volvés, '
+      + 'tocás «Ya lo hice», y la herramienta compara la base contra la foto anterior y te '
+      + 'dice si pasó lo que tenía que pasar.<br><br>'
+      + 'Al terminar podés <b>borrar todo lo que creó la prueba</b> — sabe exactamente qué '
+      + 'documentos aparecieron, así que no toca nada más.</p></div>';
+    document.querySelectorAll('[data-empezar]').forEach((b) => {
+      b.addEventListener('click', () => empezar(Number(b.dataset.empezar)));
+    });
+    return;
+  }
+
+  let h = '<div class="aviso"><b>' + esc(prueba.titulo) + '</b> · ' + esc(prueba.flujo)
+    + '<br>Hacé cada paso en <b>otra pestaña</b> y volvé acá. Los datos de prueba llevan el '
+    + 'nombre «' + esc(CLIENTE) + '» para no confundirlos con nada real.</div>';
+
+  h += '<div class="tarj">';
+  prueba.pasos.forEach((p, i) => {
+    const reg = registro.find((x) => x.n === i);
+    const clase = reg ? (reg.ok ? 'ok' : 'mal') : (i === paso ? 'activo' : 'futuro');
+    h += '<div class="paso ' + clase + '">'
+      + '<h3><span class="n">' + (reg ? (reg.ok ? '✓' : '!') : (i + 1)) + '</span>'
+      + esc(p.titulo) + '</h3>';
+
+    if (i === paso || reg) {
+      h += '<div class="hacer">' + p.hacer + '</div>';
+      if (p.datos && i === paso) {
+        h += '<div class="datos">' + p.datos.map((d) =>
+          '<div>' + esc(d[0]) + ': <code>' + esc(d[1]) + '</code></div>').join('') + '</div>';
+      }
+      h += '<div class="espera"><b>Qué tiene que pasar:</b> ' + p.espera + '</div>';
+    }
+
+    if (reg) {
+      h += '<div class="veredicto ' + (reg.ok ? 'ok' : 'mal') + '">'
+        + (reg.ok ? '<b>Pasó.</b>' : '<b>No pasó lo esperado:</b><ul><li>'
+            + reg.fallas.join('</li><li>') + '</li></ul>')
+        + '</div><div class="cambios">' + esc(reg.cambios) + '</div>';
+    }
+
+    if (i === paso && !corriendo) {
+      h += '<div class="acciones">'
+        + '<button class="btn btn-primario btn-l" id="hecho">'
+        + '<span class="material-icons">check</span> Ya lo hice</button>'
+        + '<button class="btn btn-l" id="saltar">Saltear este paso</button>'
+        + '</div>';
+    }
+    h += '</div>';
+  });
+  h += '</div>';
+
+  if (paso >= prueba.pasos.length) {
+    const ok = registro.filter((x) => x.ok).length;
+    h += '<div class="tarj"><h2>Terminó</h2>'
+      + '<p class="sub"><b>' + ok + ' de ' + registro.length + '</b> pasos hicieron lo esperado.</p>';
+    if (creados.length) {
+      h += '<p class="sub">La prueba hizo aparecer estos documentos. Se pueden borrar todos '
+        + 'de una: la herramienta los vio nacer, así que no toca nada que ya estuviera.</p>'
+        + '<div class="lista-borrar">'
+        + esc(creados.map((c) => c.col + '/' + c.id + (c.error ? '   ← NO se pudo: ' + c.error : '')).join('\n'))
+        + '</div>'
+        + '<div class="acciones"><button class="btn btn-l" id="limpiar" '
+        + 'style="background:var(--rojo);border-color:var(--rojo);color:#fff;">'
+        + '<span class="material-icons">delete_forever</span> Borrar lo que creó la prueba</button></div>';
+    }
+    h += '</div>';
+  }
+
+  h += '<div class="tarj"><h2>Informe para el chat</h2>'
+    + '<textarea id="informe" readonly></textarea>'
+    + '<div class="acciones"><button class="btn btn-primario btn-l" id="copiar">'
+    + '<span class="material-icons">content_copy</span> Copiar</button>'
+    + '<button class="btn btn-l" id="salir">Volver a la lista</button></div></div>';
+
+  $('cuerpo').innerHTML = h;
+  $('informe').value = armarInforme();
+
+  const bh = $('hecho'); if (bh) bh.addEventListener('click', () => verificar(false));
+  const bs = $('saltar'); if (bs) bs.addEventListener('click', () => verificar(true));
+  const bl = $('limpiar'); if (bl) bl.addEventListener('click', limpiar);
+  $('salir').addEventListener('click', () => { prueba = null; pintar(); });
+  $('copiar').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('informe').value); CV2.toast('Copiado', 'success'); }
+    catch { CV2.toast('Copialo a mano del cuadro', 'error'); }
+  });
+}
+
+async function empezar(i) {
+  prueba = PRUEBAS[i];
+  paso = 0; registro = []; creados = [];
+  Object.keys(ctx).forEach((k) => delete ctx[k]);
+  corriendo = true;
+  $('cuerpo').innerHTML = '<div class="cargando">Sacando la foto inicial…</div>';
+  fotoPrevia = await foto();
+  corriendo = false;
+  pintar();
+}
+
+async function verificar(salteado) {
+  corriendo = true;
+  pintar();
+  const p = prueba.pasos[paso];
+  const despues = await foto();
+  const d = comparar(fotoPrevia, despues);
+  const cambios = textoCambios(d, despues, fotoPrevia);
+
+  // Todo lo que apareció queda anotado para poder limpiarlo después.
+  OBSERVA.forEach((o) => d.nuevos[o.c].forEach((id) => creados.push({ col: o.c, id })));
+
+  let res = { ok: false, fallas: ['Paso salteado a mano.'] };
+  if (!salteado) {
+    try { res = p.chequear(d, despues, fotoPrevia); }
+    catch (e) { res = { ok: false, fallas: ['La comprobación reventó: ' + esc(e.message)] }; }
+  }
+
+  registro.push({
+    n: paso, titulo: p.titulo, ok: res.ok, fallas: res.fallas || [],
+    cambios, cuando: new Date().toISOString()
+  });
+  fotoPrevia = despues;
+  paso++;
+  corriendo = false;
+  pintar();
+}
+
+async function limpiar() {
+  if (!confirm('Se borran ' + creados.length + ' documento(s) que creó la prueba.\n\n'
+    + 'Solo los que la herramienta vio aparecer. No hay deshacer.\n\n¿Seguimos?')) return;
+  let ok = 0;
+  const quedan = [];
+  // Orden inverso: primero lo que cuelga de otra cosa. Así no queda un hijo
+  // apuntando a un padre que ya no está.
+  for (const c of creados.slice().reverse()) {
+    try { await deleteDoc(doc(db, c.col, c.id)); ok++; }
+    catch (e) {
+      // Lo que NO se pudo borrar se queda en la lista, a la vista. Vaciarla
+      // igual sería decir que quedó todo limpio cuando no es cierto — y algo
+      // de prueba dando vueltas en el sistema es peor que no haber probado.
+      quedan.push(Object.assign({}, c, { error: (e.code || e.message) }));
+      console.warn('borrar', c, e);
+    }
+  }
+  creados = quedan.reverse();
+  CV2.toast(ok + ' borrado(s)'
+    + (creados.length ? ' · ' + creados.length + ' NO se pudieron borrar' : ''),
+    creados.length ? 'error' : 'success');
+  pintar();
+}
+
+function armarInforme() {
+  if (!prueba) return '';
+  const l = ['=== PRUEBA: ' + prueba.titulo + ' (' + prueba.flujo + ') ==='];
+  l.push('quién: ' + (u.nombre || u.email) + ' · ' + new Date().toISOString());
+  l.push('reserva de prueba: ' + (ctx.reservaId || '—') + ' · cabaña ' + (ctx.cabanaId || '—'));
+  l.push('entrada ' + ENTRADA + ' · salida ' + SALIDA);
+  l.push('');
+  registro.forEach((r) => {
+    l.push('── PASO ' + (r.n + 1) + ' · ' + r.titulo + ' → ' + (r.ok ? 'OK' : 'FALLÓ'));
+    if (!r.ok) r.fallas.forEach((f) => l.push('   ! ' + f.replace(/<[^>]*>/g, '')));
+    l.push('   cambios en la base:');
+    r.cambios.split('\n').forEach((c) => l.push('     ' + c));
+    l.push('');
+  });
+  if (paso >= prueba.pasos.length) {
+    l.push('=== RESULTADO: ' + registro.filter((x) => x.ok).length + '/' + registro.length + ' pasos OK ===');
+  } else {
+    l.push('(prueba a medio hacer: paso ' + (paso + 1) + ' de ' + prueba.pasos.length + ')');
+  }
+  return l.join('\n');
+}
+
+// ═══ Arranque ═════════════════════════════════════════════
+if (!CV2.puede('reservas')) {
+  $('cuerpo').innerHTML = '<div class="cargando">Estas pruebas crean y anulan reservas: '
+    + 'hace falta permiso de reservas.</div>';
+} else {
+  pintar();
+}
+</script>
+</body>
+</html>

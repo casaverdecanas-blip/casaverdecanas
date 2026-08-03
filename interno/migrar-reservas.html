@@ -34,6 +34,16 @@
     max-height: 260px; overflow: auto; }
   .cargando { text-align: center; color: var(--gris); padding: 34px; }
   .sellado { opacity: .55; }
+  /* Barra de Diagnóstico — la misma en las cuatro herramientas. Se repite el
+     bloque en cada archivo a propósito: son páginas temporales, fuera del
+     service worker, y no tienen que depender de nada compartido para abrir
+     cuando el resto del sistema está roto. */
+  .hub { display: flex; gap: 7px; flex-wrap: wrap; margin: 0 0 14px; }
+  .hub a { display: inline-flex; align-items: center; gap: 5px; min-height: 40px;
+    padding: 8px 12px; border: 1px solid #e2e0d8; border-radius: 999px;
+    background: #fff; color: #2a2a2a; text-decoration: none; font-size: .82rem; }
+  .hub a.aqui { background: #2d5a27; border-color: #2d5a27; color: #fff; }
+  .hub a .material-icons { font-size: 17px; }
 </style>
 </head>
 <body>
@@ -51,6 +61,12 @@
     deshacer.
   </div>
 
+  <nav class="hub">
+    <a href="./diagnostico.html"><span class="material-icons">healing</span>Sistema</a>
+    <a href="./revisar-reservas.html"><span class="material-icons">fact_check</span>Revisar reservas</a>
+    <a class="aqui" href="./migrar-reservas.html"><span class="material-icons">build</span>Migrar</a>
+    <a href="./pruebas.html"><span class="material-icons">science</span>Pruebas guiadas</a>
+  </nav>
   <div id="cuerpo"><div class="cargando">Leyendo…</div></div>
 </div>
 
