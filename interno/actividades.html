@@ -496,16 +496,35 @@ window.cronoPlay = async (id) => {
 
 window.cronoStop = async (id) => {
   const it = byId[id];
-  let terminada = true;
-  if ((it.recurrenciaDias ?? 0) > 0) {
-    terminada = confirm('El tiempo trabajado se registra ahora.\n\n¿La actividad quedó TERMINADA por este ciclo?\n\nAceptar = sí (se reprograma)\nCancelar = todavía no (queda pendiente, con el tiempo ya registrado)');
-  } else {
-    if (!confirm('¿Frenar y registrar el tiempo trabajado?')) return;
-  }
+
+  // SIEMPRE se pregunta si quedó terminada, sea recurrente o no.
+  // Frenar el reloj significa "dejé de trabajar"; si la tarea quedó lista es
+  // OTRA cosa, y no siempre coinciden — se puede parar a mitad de una
+  // limpieza. Hasta agosto de 2026 esta pregunta solo aparecía en las
+  // actividades recurrentes y en el resto se daba por terminada sin
+  // consultar: quien paraba un rato cerraba el ciclo sin querer.
+  const recurrente = (it.recurrenciaDias ?? 0) > 0;
+  const terminada = confirm(
+    'Se registra el tiempo trabajado.\n\n¿La tarea quedó TERMINADA?\n\n'
+    + 'Aceptar = sí' + (recurrente ? ' (se reprograma)' : '') + '\n'
+    + 'Cancelar = todavía no (queda pendiente, con el tiempo ya registrado)');
+
+  // Si la da por terminada y es una limpieza de entrada, valen las mismas
+  // condiciones que con el botón ✓. Antes este camino se las salteaba.
+  if (terminada && faltaControlEntrada(it)) return;
+
   try {
     const r = await Core.finalizar(id, u, terminada);
     crono = null;
     delete horasCache[id];
+
+    if (terminada && esLimpiezaEntrada(it)) {
+      await abrirControlDeSalida(it, id);
+      render();
+      CV2.toast(CV2.fmtHM(r.horas) + ' registradas · se abrió el control de check-out', 'success');
+      return;
+    }
+
     render();
     CV2.toast(terminada
       ? `✅ ${CV2.fmtHM(r.horas)} registradas — ciclo cerrado`
@@ -541,34 +560,53 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) { _ultVerifCrono = 0; verificarCrono(); }
 });
 
+// ═══ Cerrar una limpieza de ENTRADA ═══════════════════════
+// Cerrar una limpieza tiene dos consecuencias que NO viven en el core:
+//   1. exige el control de inventario de entrada hecho;
+//   2. hace nacer el control de CHECK-OUT.
+// Vivían dentro de realizada() y nada más. Cerrar la misma limpieza con el
+// CRONÓMETRO se las salteaba las dos: el control de salida no nacía nunca,
+// y se podía cerrar sin haber contado el inventario. Dos caminos para la
+// misma acción y la regla escrita en uno solo — lo encontró la primera
+// corrida de pruebas.html (ago-2026). Ahora está en un lugar y lo llaman
+// los dos.
+const esLimpiezaEntrada = (it) => !!(it && it.reservaId && it.fase === 'entrada');
+
+function faltaControlEntrada(it) {
+  if (!esLimpiezaEntrada(it) || it.controlEntradaHecho) return false;
+  CV2.toast('Primero hacé el control de inventario de entrada (botón 📦).', 'error');
+  return true;
+}
+
+// Crea checkout-<reservaId> colgando de la limpieza. No depende de fechas:
+// nace de la acción de terminarla, así existe solo si hubo limpieza real.
+async function abrirControlDeSalida(it, id) {
+  const nom = it.titulo
+    ? it.titulo.replace(/^Limpieza\s+/, '').replace(/\s+·\s+entrada.*$/, '')
+    : (it.cabanaId || '');
+  await setDoc(doc(db, 'actividades', 'checkout-' + it.reservaId), {
+    titulo: 'Check-out ' + nom,
+    detalle: 'Control de salida — inventario y faltantes',
+    parentId: id,                 // hijo de la limpieza de entrada
+    tipo: 'normal', alcance: 'equipo', competencias: [],
+    cabanaId: it.cabanaId, reservaId: it.reservaId, fase: 'salida',
+    prioridad: 'rojo', recurrenciaDias: 0, monto: 0,
+    fechaInicio: CV2.hoyISO(), fechaVencimiento: '',
+    esCompra: false, hecho: false, estado: 'pendiente',
+    sesionActualId: null, ultimoCierreEn: null, orden: 0,
+    creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? '',
+    actualizadoEn: serverTimestamp()
+  }, { merge: true });
+}
+
 window.realizada = async (id) => {
   const it = byId[id];
-  // La limpieza de entrada no se cierra sin el control de inventario hecho.
-  if (it && it.reservaId && it.fase === 'entrada' && !it.controlEntradaHecho) {
-    CV2.toast('Primero hacé el control de inventario de entrada (botón 📦).', 'error');
-    return;
-  }
+  if (faltaControlEntrada(it)) return;
   try {
     const r = await Core.tildar(id, u);
     delete horasCache[id];
-    // Al terminar una limpieza de ENTRADA nace su control de CHECK-OUT como
-    // hijo: queda abierto hasta que alguien haga el control de inventario de
-    // salida. No depende de fechas — nace de esta acción.
-    if (it && it.reservaId && it.fase === 'entrada') {
-      const nom = it.titulo ? it.titulo.replace(/^Limpieza\s+/, '').replace(/\s+·\s+entrada.*$/, '') : (it.cabanaId || '');
-      await setDoc(doc(db, 'actividades', 'checkout-' + it.reservaId), {
-        titulo: 'Check-out ' + nom,
-        detalle: 'Control de salida — inventario y faltantes',
-        parentId: id,                 // hijo de la limpieza de entrada
-        tipo: 'normal', alcance: 'equipo', competencias: [],
-        cabanaId: it.cabanaId, reservaId: it.reservaId, fase: 'salida',
-        prioridad: 'rojo', recurrenciaDias: 0, monto: 0,
-        fechaInicio: CV2.hoyISO(), fechaVencimiento: '',
-        esCompra: false, hecho: false, estado: 'pendiente',
-        sesionActualId: null, ultimoCierreEn: null, orden: 0,
-        creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? '',
-        actualizadoEn: serverTimestamp()
-      }, { merge: true });
+    if (esLimpiezaEntrada(it)) {
+      await abrirControlDeSalida(it, id);
       CV2.toast('✔ Limpieza terminada · se abrió el control de check-out', 'success');
       return;
     }

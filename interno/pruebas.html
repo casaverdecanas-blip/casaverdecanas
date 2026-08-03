@@ -276,13 +276,25 @@ const PRUEBAS = [{
     },
     {
       titulo: 'Arrancar el cronómetro',
-      hacer: 'En el detalle de la limpieza, tocá <b>▶</b>. Dejalo correr unos segundos.',
+      hacer: 'En el detalle de la limpieza, tocá <b>▶</b>. Dejalo correr unos segundos. '
+        + '<b>No lo frenes todavía</b> — eso es el paso siguiente.',
       espera: 'Una <b>sesión</b> nueva en curso, con tu uid, y la limpieza en estado '
         + '<code>en_curso</code> apuntando a esa sesión.',
       chequear: (d, desp) => {
         const fallas = [];
         const s = d.nuevos.sesiones[0];
-        if (!s) return { ok: false, fallas: ['No se creó ninguna <b>sesión</b>.'] };
+        if (!s) {
+          // El motivo más probable, dicho: en la primera corrida la limpieza
+          // ya venía cerrada del paso anterior y el ▶ no aparecía.
+          const l = desp.actividades[ctx.limpId];
+          return { ok: false, fallas: [
+            'No se creó ninguna <b>sesión</b>.'
+            + (l && l.hecho === true
+              ? ' La limpieza <b>ya está cerrada</b>: el botón ▶ no aparece sobre una tarea hecha. '
+                + 'Si la cerraste en el paso anterior, restaurala (botón ↺, solo admin) o empezá de nuevo.'
+              : ' ¿Tocaste ▶ en el detalle de la limpieza?')
+          ] };
+        }
         ctx.sesionId = s;
         const ses = desp.sesiones[s];
         if (ses.estado !== 'en_curso') fallas.push('La sesión no quedó <b>en_curso</b> (quedó «' + ses.estado + '»).');
@@ -294,8 +306,9 @@ const PRUEBAS = [{
     },
     {
       titulo: 'Frenar y dar la limpieza por terminada',
-      hacer: 'Tocá <b>⏹</b> y elegí <b>terminada</b> (no «todavía no»). '
-        + 'O si preferís, usá <b>✓ Realizada</b> directamente.',
+      hacer: 'Tocá <b>⏹</b>. Ahora <b>siempre</b> pregunta si la tarea quedó terminada: '
+        + 'aceptá que <b>sí</b>. (Cancelar registraría tus horas y dejaría la limpieza '
+        + 'pendiente, que es lo correcto cuando parás a mitad de camino.)',
       espera: 'La sesión <b>finalizada</b> con sus horas, la limpieza <b>hecha</b>, y —lo más '
         + 'importante— el <b>control de salida</b> <code>checkout-&lt;idReserva&gt;</code> recién '
         + 'nacido, colgando de la limpieza. <b>No nace por fecha: nace de esta acción.</b>',

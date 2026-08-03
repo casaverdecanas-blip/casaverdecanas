@@ -1480,6 +1480,20 @@ de terminar la limpieza, así existe solo si hubo limpieza real.
 **Cómo termina** — con el control de salida hecho. Si hubo faltantes, queda `falta-`
 abierta hasta que alguien registre el gasto de reponer.
 
+**Los dos caminos para cerrarla hacen lo mismo — y hubo que arreglarlo**
+Una limpieza se cierra con **✓ Realizada** o con **⏹ Stop** del cronómetro. Las dos
+exigen el control de inventario de entrada y las dos abren el control de salida.
+Hasta agosto de 2026 **solo el primer camino lo hacía**: cerrar con el reloj salteaba
+las dos condiciones y el `checkout-` no nacía nunca. La regla estaba escrita en un solo
+lugar de los dos. Ahora vive en `abrirControlDeSalida()` y `faltaControlEntrada()`, y
+la llaman ambos. *(Lo encontró la primera corrida de `pruebas.html`.)*
+
+**Frenar el reloj no es terminar la tarea**
+El Stop **siempre** pregunta si quedó terminada, sea recurrente o no. Antes esa
+pregunta solo aparecía en las recurrentes y en el resto se daba por terminada sin
+consultar: quien paraba un rato a mitad de una limpieza cerraba el ciclo sin querer.
+Cancelar registra las horas y deja la tarea pendiente.
+
 **Qué NO hace**
 - **La salida NO genera limpieza.** El día del check-out solo puede aparecer el
   **control de inventario**, y solo si la limpieza de entrada ya se hizo.
@@ -1986,8 +2000,21 @@ falta el archivo, se pide — no se reconstruye.
 > entrada **no se puede dar por terminada sin el control de inventario hecho**. El
 > sistema lo impide a propósito y la prueba lo comprueba.)*
 >
-> **Sigue sin verificarse:** el ciclo de limpieza —hasta que se corra esta prueba— y la
-> sincronización con Airbnb.
+> **T11.29 · La primera corrida encontró un bug de verdad.** Los pasos 1 y 2 pasaron;
+> el 3 y el 4 fallaron, y por una razón real:
+>
+> · **El Stop del cronómetro solo preguntaba «¿quedó terminada?» en las actividades
+>   recurrentes.** En el resto —una limpieza incluida— cerraba el ciclo sin consultar.
+>   Frenar el reloj es *"dejé de trabajar"*; que la tarea esté lista es otra pregunta y
+>   no siempre coinciden. Ahora se pregunta siempre. *(Lo planteó el administrador.)*
+> · **Cerrar una limpieza con ⏹ y con ✓ hacían cosas distintas.** Solo el botón ✓
+>   exigía el control de inventario de entrada y hacía nacer el `checkout-`. Con el
+>   cronómetro, **el control de salida no aparecía nunca** — en el flujo más trabajado
+>   del sistema. La misma regla escrita en un lugar de dos; ahora en uno solo, llamado
+>   por ambos. `sw.js` → v66.
+>
+> **Sigue sin verificarse:** el ciclo de limpieza completo —la prueba quedó a mitad— y
+> la sincronización con Airbnb.
 
 ---
 

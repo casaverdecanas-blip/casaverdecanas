@@ -7,7 +7,10 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
-// v65 (3-ago-2026) — index.html: una línea por ACUERDO, no por cabaña.
+// v66 (3-ago-2026) — actividades.html: el Stop del cronómetro pregunta
+//       siempre si la tarea quedó terminada, y cerrar una limpieza con el
+//       reloj abre el control de check-out igual que con el botón ✓.
+// v65 — index.html: una línea por ACUERDO, no por cabaña.
 // v64 — manual.html: acuerdos, avisos, monedas y el gesto nuevo
 //       de Actividades.
 // v63 — las cabañas del acuerdo adoptan .cv-nodo:
@@ -19,7 +22,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v65';
+const VERSION = 'cv2-shell-v66';
 
 const SHELL = [
   './',
