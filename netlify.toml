@@ -1,0 +1,27 @@
+# netlify.toml — Casa Verde Canas
+#
+# Este proyecto de Netlify sirve ÚNICAMENTE las funciones de servidor. El
+# panel y el sitio público van por GitHub Pages, en casaverdecanas.com.br.
+#
+# Se despliega a mano, soltando un .zip en Deploys: no hay repositorio
+# enganchado. Y OJO — el proyecto tiene "Auto Publishing Locked": construye
+# el despliegue pero NO lo publica hasta que se destraba desde esa misma
+# pantalla. El registro dice "Site is live" igual. Ver CONVENCIONES §2.1.
+#
+# Las funciones no usan librerías externas —solo fetch, que viene con
+# Node 24—, así que no hace falta package.json ni node_modules.
+
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# esbuild empaqueta cada función. El límite de una función en el plan
+# gratuito es de 26 segundos, y claude-proxy lo necesita entero cuando
+# interpreta la foto de una factura con Gemini.
+[functions]
+  node_bundler = "esbuild"
+
+# (Acá vivían dos redirecciones de /interno a /interno/index.html, de cuando
+#  el panel se servía desde este mismo proyecto. Hoy el panel está en GitHub
+#  Pages y acá no hay ningún /interno: la redirección apuntaba a un archivo
+#  inexistente. Se retiraron en agosto de 2026.)
