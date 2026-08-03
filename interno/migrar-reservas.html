@@ -76,7 +76,7 @@
 // ocupación es física. Cada cabaña sigue generando su limpieza y su control.
 // ═══════════════════════════════════════════════════════════
 import {
-  db, collection, getDocs, doc, updateDoc, deleteDoc, serverTimestamp
+  db, collection, getDocs, doc, setDoc, updateDoc, deleteDoc, deleteField, serverTimestamp
 } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
 
@@ -93,6 +93,7 @@ if (!CV2.puede('reservas') || !CV2.puede('finanzas')) {
 }
 
 let reservas = [], pagos = [], movimientos = [];
+let grupos = {};   // los ACUERDOS: {grupoId: {total, moneda, ...}}
 
 const monedaDe = (r) => (r && r.moneda) || 'BRL';
 const totalDe = (r) => Number((r && (r.total ?? r.totalBRL)) || 0);
@@ -198,18 +199,41 @@ async function crearAcuerdo(i) {
   const ordenadas = rs.slice().sort((a, b) => (a.checkIn ?? '').localeCompare(b.checkIn ?? ''));
   const grupoId = 'grp-' + ordenadas[0].id;
 
+  // El precio del acuerdo se PREGUNTA, con la suma de las partes como
+  // sugerencia. No se guarda la suma sin más: un acuerdo se negocia sobre el
+  // conjunto ("las tres cabañas por 2000") y esa suma es una reconstrucción,
+  // no un dato. Quien migra sabe el número real; el sistema no.
+  const sugerido = rs.reduce((a, r) => a + totalDe(r), 0);
+  const v = prompt('Precio del acuerdo en ' + monedas[0] + '\n\n'
+    + 'La suma de las partes da ' + fmt(sugerido, monedas[0]) + ', pero lo que vale es '
+    + 'el precio que se negoció. Corregilo si no coincide.', sugerido);
+  if (v === null) return;
+  const total = Math.max(0, parseFloat(String(v).replace(',', '.')) || 0);
+
   const psAfectados = marcados.flatMap((id) => pagosDe(id));
   const resumen = 'Se va a crear el acuerdo ' + grupoId + '\n\n'
     + rs.length + ' reserva(s):\n'
     + rs.map((r) => '  · ' + (r.cabanaId || '?') + '  ' + r.checkIn + ' → ' + r.checkOut
         + '  ' + fmt(totalDe(r), monedaDe(r))).join('\n')
-    + '\n\nTotal del acuerdo: ' + fmt(rs.reduce((a, r) => a + totalDe(r), 0), monedas[0])
+    + '\n\nPrecio del acuerdo: ' + fmt(total, monedas[0])
     + '\n\n' + psAfectados.length + ' pago(s) pasan a contar para el acuerdo entero.'
     + '\n\nNo se toca ninguna limpieza, ni la disponibilidad, ni el calendario.';
   if (!confirm(resumen + '\n\n¿Seguimos?')) return;
 
   log('── Acuerdo ' + grupoId);
   try {
+    // El documento del acuerdo PRIMERO: sin él, las reservas apuntarían a un
+    // acuerdo que no existe y la limpieza de 1c —con razón— se negaría a
+    // borrarles el precio.
+    await setDoc(doc(db, 'grupos', grupoId), {
+      total, moneda: monedas[0],
+      nota: (ordenadas[0].notas || ''),
+      clienteId: ordenadas[0].clienteId ?? null,
+      clienteNombre: ordenadas[0].clienteNombre ?? '',
+      creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
+    }, { merge: true });
+    log('  grupos/' + grupoId + ' creado · ' + fmt(total, monedas[0]));
+
     for (const r of rs) {
       await updateDoc(doc(db, 'reservas', r.id), {
         grupoId, actualizadoEn: serverTimestamp()
@@ -301,6 +325,107 @@ async function limpiarNotas(grupoId) {
     log('  ERROR: ' + (e.code ?? e.message));
     CV2.toast('Falló: ' + (e.code ?? e.message), 'error');
   }
+}
+
+// ═══ 1c · Limpiar la plata de las reservas ════════════════
+// El precio vive en el ACUERDO (grupos/{id}). Los campos 'total', 'totalBRL' y
+// 'moneda' que quedan en las reservas son del modelo anterior a julio de 2026.
+// Mientras estén, 'totalAcuerdo()' los usa como RESPALDO cuando el acuerdo no
+// tiene precio cargado — así migrar nunca fue urgente ni rompió nada.
+//
+// ESTE ES EL PASO SIN VUELTA ATRÁS, y por eso NO se le pregunta a nadie si ya
+// cargó los precios: se COMPRUEBA. Una reserva solo se puede limpiar si su
+// acuerdo existe y tiene un total mayor que cero. Si no, queda atenuada y
+// dice por qué. Confiar en que alguien se acuerde es cómo se pierde un dato.
+const tienePlataVieja = (r) =>
+  r.total !== undefined || r.totalBRL !== undefined || r.moneda !== undefined;
+
+// El acuerdo de una reserva, con su estado de salud.
+function acuerdoSano(r) {
+  if (!r.grupoId) return { ok: false, por: 'la reserva no tiene acuerdo (grupoId)' };
+  const g = grupos[r.grupoId];
+  if (!g) return { ok: false, por: 'su acuerdo <code>' + esc(r.grupoId) + '</code> no existe en grupos/' };
+  const t = Number(g.total);
+  if (!(t > 0)) return { ok: false, por: 'su acuerdo existe pero el total está en cero' };
+  return { ok: true, g: g, total: t, moneda: g.moneda || 'BRL' };
+}
+
+function pintarLimpieza() {
+  const cand = reservas.filter(tienePlataVieja);
+  if (!cand.length) {
+    return '<div class="tarj"><h2>1c · Limpiar la plata de las reservas</h2>'
+      + '<p class="sub">Ninguna reserva conserva <code>total</code>, <code>totalBRL</code> '
+      + 'ni <code>moneda</code>. El precio vive solo en los acuerdos.</p></div>';
+  }
+
+  const listas = cand.filter((r) => acuerdoSano(r).ok);
+  let h = '<div class="tarj"><h2>1c · Limpiar la plata de las reservas</h2>'
+    + '<p class="sub">Estas reservas todavía guardan el precio del modelo viejo. Se les '
+    + 'borran <code>total</code>, <code>totalBRL</code> y <code>moneda</code>: el precio '
+    + 'queda solo en el acuerdo, que es donde vive.<br>'
+    + '<b>Solo se puede limpiar una reserva cuyo acuerdo ya tenga precio cargado.</b> '
+    + 'Las demás aparecen atenuadas con el motivo — no se comprueba de palabra.</p>';
+
+  cand.forEach((r) => {
+    const a = acuerdoSano(r);
+    const viejos = [];
+    if (r.total !== undefined) viejos.push('total ' + fmt(r.total, r.moneda));
+    if (r.totalBRL !== undefined) viejos.push('totalBRL ' + r.totalBRL);
+    if (r.moneda !== undefined) viejos.push('moneda ' + r.moneda);
+    h += '<div class="fila' + (a.ok ? '' : ' sellado') + '">'
+      + '<input type="checkbox" data-limpiar value="' + esc(r.id) + '"' + (a.ok ? '' : ' disabled') + '>'
+      + '<div class="txt"><b>' + esc(r.clienteNombre || '(sin nombre)') + ' · ' + esc(r.cabanaId || '?') + '</b>'
+      + '<small>guarda: ' + esc(viejos.join(' · ')) + '</small>'
+      + (a.ok
+        ? '<small style="color:var(--verde-osc);">acuerdo con ' + esc(fmt(a.total, a.moneda)) + ' → se puede limpiar</small>'
+        : '<small style="color:var(--rojo);">NO se puede: ' + a.por + '</small>')
+      + '<code>' + esc(r.id) + '</code></div></div>';
+  });
+
+  return h + '<div class="acciones">'
+    + '<button class="btn" id="marcarLimpiar">Marcar las ' + listas.length + ' que se pueden</button>'
+    + '<button class="btn btn-primario" id="limpiar">'
+    + '<span class="material-icons">cleaning_services</span> Limpiar lo marcado</button>'
+    + '</div></div>';
+}
+
+async function limpiarMarcadas() {
+  const ids = [...document.querySelectorAll('[data-limpiar]:checked')].map((c) => c.value);
+  if (!ids.length) { CV2.toast('No hay nada marcado', 'error'); return; }
+  const rs = ids.map((id) => reservas.find((r) => r.id === id));
+
+  // Doble comprobación en el momento de escribir: entre que se pintó la lista
+  // y se apretó el botón alguien pudo cambiar un acuerdo desde otra pantalla.
+  const malas = rs.filter((r) => !acuerdoSano(r).ok);
+  if (malas.length) {
+    CV2.toast('Algo cambió: ' + malas.length + ' reserva(s) ya no se pueden limpiar', 'error');
+    render(); return;
+  }
+
+  if (!confirm('Se borran total, totalBRL y moneda de ' + rs.length + ' reserva(s):\n'
+    + rs.map((r) => '  · ' + (r.clienteNombre || '?') + '  ' + (r.cabanaId || '?')
+        + '  → acuerdo ' + fmt(acuerdoSano(r).total, acuerdoSano(r).moneda)).join('\n')
+    + '\n\nEl precio queda SOLO en el acuerdo. No hay deshacer.\n\n¿Seguimos?')) return;
+
+  log('── Limpieza de plata vieja');
+  let ok = 0, err = 0;
+  for (const r of rs) {
+    try {
+      await updateDoc(doc(db, 'reservas', r.id), {
+        total: deleteField(), totalBRL: deleteField(), moneda: deleteField(),
+        actualizadoEn: serverTimestamp()
+      });
+      ok++;
+      log('  ' + (r.clienteNombre || r.id) + ' · ' + (r.cabanaId || '?') + ': limpia');
+    } catch (e) {
+      err++;
+      log('  ERROR ' + r.id + ': ' + (e.code ?? e.message));
+    }
+  }
+  log('  listo: ' + ok + ' limpiada(s)' + (err ? ', ' + err + ' error(es)' : ''));
+  CV2.toast(err ? 'Terminó con errores' : 'Limpio', err ? 'error' : 'success');
+  await cargar();
+  render();
 }
 
 // ═══ 2 · Depurar pruebas ══════════════════════════════════
@@ -404,7 +529,7 @@ async function borrarMarcadas() {
 
 // ═══ Render ═══════════════════════════════════════════════
 function render() {
-  $('cuerpo').innerHTML = pintarAcuerdos() + pintarNotas() + pintarDepurar()
+  $('cuerpo').innerHTML = pintarAcuerdos() + pintarNotas() + pintarLimpieza() + pintarDepurar()
     + '<div class="tarj"><h2>Registro</h2>'
     + '<p class="sub">Lo que se fue haciendo, para copiar y guardar.</p>'
     + '<div class="log" id="log">(nada todavía)</div>'
@@ -417,6 +542,12 @@ function render() {
   document.querySelectorAll('[data-notas]').forEach((b) => {
     b.addEventListener('click', () => limpiarNotas(b.dataset.notas));
   });
+  const ml = $('marcarLimpiar');
+  if (ml) ml.addEventListener('click', () => {
+    document.querySelectorAll('[data-limpiar]:not([disabled])').forEach((c) => { c.checked = true; });
+  });
+  const bl = $('limpiar');
+  if (bl) bl.addEventListener('click', limpiarMarcadas);
   const mt = $('marcarTodo');
   if (mt) mt.addEventListener('click', () => {
     document.querySelectorAll('[data-borrar]:not([disabled])').forEach((c) => { c.checked = true; });
@@ -427,12 +558,14 @@ function render() {
 
 // ═══ Cargas — AL FINAL ════════════════════════════════════
 async function cargar() {
-  const [sr, sp, sm] = await Promise.all([
+  const [sr, sp, sm, sg] = await Promise.all([
     getDocs(collection(db, 'reservas')),
     getDocs(collection(db, 'pagos')),
-    getDocs(collection(db, 'movimientos'))
+    getDocs(collection(db, 'movimientos')),
+    getDocs(collection(db, 'grupos'))
   ]);
-  reservas = []; pagos = []; movimientos = [];
+  reservas = []; pagos = []; movimientos = []; grupos = {};
+  sg.forEach((d) => { grupos[d.id] = { id: d.id, ...d.data() }; });
   sr.forEach((d) => reservas.push({ id: d.id, ...d.data() }));
   sp.forEach((d) => pagos.push({ id: d.id, ...d.data() }));
   sm.forEach((d) => movimientos.push({ id: d.id, ...d.data() }));
