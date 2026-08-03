@@ -7,7 +7,10 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
-// v67 (3-ago-2026) — las limpiezas se ordenan por FECHA dentro de su
+// v68 (3-ago-2026) — los modales de inventario de actividades.html tenían
+//       'padding: 0' heredado y NINGÚN desplazamiento: con un inventario
+//       largo el botón de confirmar quedaba fuera de la pantalla.
+// v67 — las limpiezas se ordenan por FECHA dentro de su
 //       proyecto y llevan marca propia (🧹 📤 🛒); el enlace del cronómetro
 //       andando lleva a SU actividad. actividades.html + index.html.
 // v66 — actividades.html: el Stop del cronómetro pregunta
@@ -25,7 +28,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v67';
+const VERSION = 'cv2-shell-v68';
 
 const SHELL = [
   './',

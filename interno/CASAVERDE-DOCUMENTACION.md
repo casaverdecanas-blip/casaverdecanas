@@ -1845,14 +1845,17 @@ olvidarse de uno deja basura que después nadie sabe de dónde salió.
 | `movimientos` | los que generaron esos pagos · **nunca uno sellado en un cierre** |
 | `disponibilidad/{reservaId}` | o el sitio público muestra ocupado algo libre |
 | `actividades` | `limp-`, `checkout-`, `falta-` y todo lo que cuelgue de ellas |
-| `chequeos` | los de inventario de esa reserva |
+| `chequeos` | los de inventario · **solo el administrador puede borrarlos** (`allow delete: if esAdmin()`), así que un colaborador los deja huérfanos |
 | `reservas/{id}` | al final |
 
 El orden importa: **primero lo que cuelga**, después lo que lo sostiene. Si algo falla a
 mitad de camino, lo que queda es un huérfano visible y no una referencia rota.
 
 Vive en `huellaDe()` y `borrarHuellas()` de `migrar-reservas.html`, y lo usan las dos
-secciones que borran. *(Hasta agosto de 2026 la depuración borraba solo cuatro de los
+secciones que borran. La sección **`1e · Huérfanos`** barre lo que quedó de borrados
+anteriores: actividades y chequeos que apuntan a una reserva inexistente, y acuerdos
+que ninguna reserva usa. **Nadie los ve nunca** —no aparecen en ninguna pantalla— y sin
+esa sección no habría forma de saber que están. *(Hasta agosto de 2026 la depuración borraba solo cuatro de los
 siete: el acuerdo, las actividades y los chequeos quedaban dando vueltas.)*
 
 ### Cómo se prueba un flujo
@@ -2075,6 +2078,30 @@ falta el archivo, se pide — no se reconstruye.
 > *(De paso: la revisión mostraba «parte R$ 0,00» en cada cabaña. Un cero inventado y
 > en la moneda equivocada, porque sin campo `moneda` se asume reales. Otro resto de la
 > migración.)*
+>
+> **T11.32 · Un registro que se borraba solo.** La depuración avisó *"terminó con
+> errores"* y no había manera de saber cuáles: el recuadro del registro vive dentro del
+> contenedor que `render()` reescribe entero, y **cada acción borraba su propio
+> registro** justo después de escribirlo —todas terminan con `cargar(); render()`—.
+> Ahora el registro vive en una variable, fuera del DOM.
+>
+> **El error escondido era un permiso:** borrar un chequeo de inventario es solo del
+> administrador, y un colaborador con todos los permisos igual no puede. Ahora se
+> avisa **antes** de borrar, en la propia fila, y no cuenta como falla: es una regla.
+>
+> **Sección `1e · Huérfanos`** para barrer lo que quedó de borrados anteriores.
+>
+> **T11.33 · Un modal sin salida.** Los diálogos de **control de inventario** y de
+> **historial** de `actividades.html` heredaban el `padding: 0` del estilo base —que
+> está pensado para los diálogos que traen su propia estructura `.m-head/.m-body/.m-pie`—
+> y no tenían **ningún desplazamiento**. Con un inventario largo, el botón de confirmar
+> quedaba fuera de la pantalla y **no había forma de llegar**: no era estético, era una
+> pantalla sin salida. Ahora el diálogo entero se desplaza y respeta la franja de
+> gestos. `sw.js` → v68.
+>
+> *(Revisadas las demás páginas con diálogos —reservas, dinero, honorarios,
+> gestión de sesiones—: todas traen su propio relleno y desplazamiento. El problema
+> era solo de estas dos.)*
 >
 > **Sigue sin verificarse:** el ciclo de limpieza completo —la prueba quedó a mitad— y
 > la sincronización con Airbnb.
