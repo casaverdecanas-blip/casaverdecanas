@@ -118,6 +118,13 @@ const totalDe = (r) => Number((r && (r.total ?? r.totalBRL)) || 0);
 const fmt = (n, m) => CV2.fmtMonto(n, m || 'BRL');
 const pagosDe = (rid) => pagos.filter((p) => p.reservaId === rid);
 
+// Borrar un chequeo de inventario es SOLO del administrador (regla de
+// /chequeos/). Un colaborador con todos los permisos igual no puede, y el
+// borrado de una reserva de prueba le deja el chequeo huérfano. Se avisa
+// ANTES, no después: descubrirlo por un "terminó con errores" sin detalle es
+// lo que pasó el 3-ago-2026.
+const puedeChequeos = CV2.esAdmin();
+
 // Un movimiento sellado por un balance NO se borra ni se toca. La regla de
 // Firestore solo mira 'pendiente.cierreId', pero el balance nuevo sella con
 // 'cierreId' en la raíz: si solo confiáramos en la regla, se podría borrar un
@@ -128,9 +135,16 @@ const selladoEnBalance = (m) =>
 const movsDePago = (pagoId) =>
   movimientos.filter((m) => m.refTipo === 'pago' && m.refId === pagoId);
 
+// EL REGISTRO VIVE FUERA DEL DOM. Estaba dentro del contenedor que render()
+// reescribe entero, así que cada acción BORRABA SU PROPIO REGISTRO justo
+// después de escribirlo: las acciones terminan con 'await cargar(); render()'.
+// Resultado: el aviso decía "terminó con errores" y no había forma de saber
+// cuáles. Un registro que se borra solo es peor que no tener registro.
+let registro = [];
 function log(txt) {
+  registro.push(txt);
   const el = $('log');
-  if (el) { el.textContent += txt + '\n'; el.scrollTop = el.scrollHeight; }
+  if (el) { el.textContent = registro.join('\n'); el.scrollTop = el.scrollHeight; }
 }
 
 // ═══ 1 · Acuerdos ═════════════════════════════════════════
@@ -506,7 +520,13 @@ async function borrarHuellas(hs) {
     catch (e) { err++; log('  ERROR ' + col + '/' + id + ': ' + (e.code ?? e.message)); }
   };
   for (const h of hs) {
-    for (const c of h.chequeos) await paso('chequeos', c, 'chequeo borrado');
+    for (const c of h.chequeos) {
+      if (!puedeChequeos) {
+        log('  chequeo ' + c + ' NO borrado: hace falta ser administrador (entrá como CasaVerde)');
+        continue;   // no cuenta como error: es una regla, no una falla
+      }
+      await paso('chequeos', c, 'chequeo borrado');
+    }
     for (const a of h.actividades) await paso('actividades', a, 'actividad ' + a + ' borrada');
     for (const m of h.movimientos) await paso('movimientos', m.id, 'movimiento ' + fmt(m.monto, m.moneda) + ' borrado');
     for (const p of h.pagos) await paso('pagos', p.id, 'pago ' + fmt(p.monto, p.moneda) + ' borrado');
@@ -550,6 +570,11 @@ function pintarPruebas() {
       + '<small>' + esc(r.checkIn || '?') + ' → ' + esc(r.checkOut || '?')
       + ' · arrastra <b>' + n + '</b> documento(s) más</small>'
       + (hu.actividades.length ? '<small>actividades: ' + esc(hu.actividades.join(', ')) + '</small>' : '')
+      + (hu.chequeos.length && !puedeChequeos
+        ? '<small style="color:var(--rojo);">Tiene ' + hu.chequeos.length + ' chequeo(s) de '
+          + 'inventario y <b>solo el administrador puede borrarlos</b>. El resto se va a '
+          + 'borrar igual; los chequeos quedan huérfanos hasta que entres como CasaVerde.</small>'
+        : '')
       + (trabado ? '<small style="color:var(--rojo);">Tiene un movimiento en un balance cerrado: no se puede borrar.</small>' : '')
       + '<code>' + esc(r.id) + '</code></div></div>';
   });
@@ -573,7 +598,84 @@ async function borrarPruebas() {
   log('── Datos de prueba');
   const r = await borrarHuellas(hs);
   log('  listo: ' + r.ok + ' borrado(s)' + (r.err ? ', ' + r.err + ' error(es)' : ''));
-  CV2.toast(r.err ? 'Terminó con errores' : 'Limpio', r.err ? 'error' : 'success');
+  CV2.toast(r.err ? 'Terminó con errores — mirá el registro abajo' : 'Limpio', r.err ? 'error' : 'success');
+  await cargar();
+  render();
+}
+
+// ═══ 1e · Huérfanos ═══════════════════════════════════════
+// Documentos que apuntan a una reserva que ya no existe. Nacen de un borrado
+// a medias: hasta agosto de 2026 la depuración no tocaba actividades ni
+// chequeos, y borrar un chequeo sigue siendo solo del administrador. Nadie
+// los ve nunca —no aparecen en ninguna pantalla— y no hay forma de saber de
+// dónde salieron.
+function huerfanos() {
+  const vivas = new Set(reservas.map((r) => r.id));
+  return {
+    actividades: actividades.filter((a) => a.reservaId && !vivas.has(a.reservaId)),
+    chequeos: chequeos.filter((c) => c.reservaId && !vivas.has(c.reservaId)),
+    grupos: Object.values(grupos).filter((g) =>
+      !reservas.some((r) => r.grupoId === g.id))
+  };
+}
+
+function pintarHuerfanos() {
+  const h = huerfanos();
+  const total = h.actividades.length + h.chequeos.length + h.grupos.length;
+  if (!total) {
+    return '<div class="tarj"><h2>1e · Huérfanos</h2>'
+      + '<p class="sub">Nada apunta a una reserva que no existe. Limpio.</p></div>';
+  }
+  let out = '<div class="tarj"><h2>1e · Huérfanos</h2>'
+    + '<p class="sub">Apuntan a una reserva que ya no está. Son restos de un borrado a '
+    + 'medias: no aparecen en ninguna pantalla y nadie sabría de dónde salieron.</p>';
+
+  h.actividades.forEach((a) => {
+    out += '<div class="fila"><input type="checkbox" data-huerfano="actividades" value="' + esc(a.id) + '">'
+      + '<div class="txt"><b>' + esc(a.titulo || a.id) + '</b>'
+      + '<small>actividad · apunta a la reserva ' + esc(a.reservaId) + ', que no existe</small>'
+      + '<code>' + esc(a.id) + '</code></div></div>';
+  });
+  h.chequeos.forEach((c) => {
+    out += '<div class="fila' + (puedeChequeos ? '' : ' sellado') + '">'
+      + '<input type="checkbox" data-huerfano="chequeos" value="' + esc(c.id) + '"'
+      + (puedeChequeos ? '' : ' disabled') + '>'
+      + '<div class="txt"><b>Chequeo de inventario</b>'
+      + '<small>apunta a la reserva ' + esc(c.reservaId) + ', que no existe</small>'
+      + (puedeChequeos ? '' : '<small style="color:var(--rojo);">Solo el administrador puede borrarlo. Entrá como CasaVerde.</small>')
+      + '<code>' + esc(c.id) + '</code></div></div>';
+  });
+  h.grupos.forEach((g) => {
+    out += '<div class="fila"><input type="checkbox" data-huerfano="grupos" value="' + esc(g.id) + '">'
+      + '<div class="txt"><b>Acuerdo sin reservas</b>'
+      + '<small>' + esc(g.clienteNombre || '(sin cliente)') + ' · '
+      + esc(fmt(g.total, g.moneda)) + ' — ninguna reserva lo usa</small>'
+      + '<code>' + esc(g.id) + '</code></div></div>';
+  });
+
+  return out + '<div class="acciones">'
+    + '<button class="btn" id="marcarHuerfanos">Marcar los que se pueden</button>'
+    + '<button class="btn btn-primario" id="borrarHuerfanos" '
+    + 'style="background:var(--rojo);border-color:var(--rojo);">'
+    + '<span class="material-icons">delete_sweep</span> Borrar huérfanos</button>'
+    + '</div></div>';
+}
+
+async function borrarHuerfanos() {
+  const marcados = [...document.querySelectorAll('[data-huerfano]:checked')]
+    .map((c) => ({ col: c.dataset.huerfano, id: c.value }));
+  if (!marcados.length) { CV2.toast('No hay nada marcado', 'error'); return; }
+  if (!confirm('Se borran ' + marcados.length + ' huérfano(s):\n\n'
+    + marcados.map((m) => '  · ' + m.col + '/' + m.id).join('\n')
+    + '\n\nNo hay deshacer. ¿Seguimos?')) return;
+  log('── Huérfanos');
+  let ok = 0, err = 0;
+  for (const m of marcados) {
+    try { await deleteDoc(doc(db, m.col, m.id)); ok++; log('  ' + m.col + '/' + m.id + ' borrado'); }
+    catch (e) { err++; log('  ERROR ' + m.col + '/' + m.id + ': ' + (e.code ?? e.message)); }
+  }
+  log('  listo: ' + ok + ' borrado(s)' + (err ? ', ' + err + ' error(es)' : ''));
+  CV2.toast(err ? 'Terminó con errores — mirá el registro' : 'Limpio', err ? 'error' : 'success');
   await cargar();
   render();
 }
@@ -648,7 +750,7 @@ async function borrarMarcadas() {
   log('── Depuración');
   const r = await borrarHuellas(hs);
   log('  listo: ' + r.ok + ' borrado(s)' + (r.err ? ', ' + r.err + ' error(es)' : ''));
-  CV2.toast(r.err ? 'Terminó con errores' : 'Depurado', r.err ? 'error' : 'success');
+  CV2.toast(r.err ? 'Terminó con errores — mirá el registro abajo' : 'Depurado', r.err ? 'error' : 'success');
   await cargar();
   render();
 }
@@ -656,10 +758,10 @@ async function borrarMarcadas() {
 // ═══ Render ═══════════════════════════════════════════════
 function render() {
   $('cuerpo').innerHTML = pintarAcuerdos() + pintarNotas() + pintarLimpieza()
-    + pintarPruebas() + pintarDepurar()
+    + pintarPruebas() + pintarHuerfanos() + pintarDepurar()
     + '<div class="tarj"><h2>Registro</h2>'
     + '<p class="sub">Lo que se fue haciendo, para copiar y guardar.</p>'
-    + '<div class="log" id="log">(nada todavía)</div>'
+    + '<div class="log" id="log">' + esc(registro.length ? registro.join('\n') : '(nada todavía)') + '</div>'
     + '<div class="acciones"><a class="btn" href="./revisar-reservas.html">'
     + '<span class="material-icons">fact_check</span> Revisar cómo quedó</a></div></div>';
 
@@ -681,6 +783,12 @@ function render() {
   });
   const bp = $('borrarPruebas');
   if (bp) bp.addEventListener('click', borrarPruebas);
+  const mh = $('marcarHuerfanos');
+  if (mh) mh.addEventListener('click', () => {
+    document.querySelectorAll('[data-huerfano]:not([disabled])').forEach((c) => { c.checked = true; });
+  });
+  const bh = $('borrarHuerfanos');
+  if (bh) bh.addEventListener('click', borrarHuerfanos);
   const mt = $('marcarTodo');
   if (mt) mt.addEventListener('click', () => {
     document.querySelectorAll('[data-borrar]:not([disabled])').forEach((c) => { c.checked = true; });
