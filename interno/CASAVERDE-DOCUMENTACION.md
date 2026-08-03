@@ -1502,9 +1502,27 @@ Cancelar registra las horas y deja la tarea pendiente.
 - El acuerdo no interviene: cada cabaña genera su limpieza y su control por separado,
   aunque se cobren juntas.
 
+**Las limpiezas tienen prioridad estructural, no estética**
+Una limpieza lleva detrás la fecha de llegada de un huésped y **no se puede correr un
+día**. Por eso:
+- en **Actividades**, `proj-limpiezas` va siempre primero entre los proyectos, y **sus
+  hijos se ordenan por FECHA** — el orden general (por `orden`, después alfabético) las
+  dejaba ordenadas por nombre de cabaña, así que la de dentro de una semana podía
+  aparecer arriba de la de mañana;
+- llevan **marca propia** antes del título —🧹 entrada, 📤 salida, 🛒 faltantes— para
+  reconocerlas sin leer;
+- en el **Inicio** tienen bloque propio, arriba de todo, desde que existen y con los
+  días que faltan. *(Antes aparecían recién el día del check-in: su
+  `fechaVencimiento` es ese día, así que el bloque de vencidas no las mostraba durante
+  los siete días en que justamente se pueden organizar.)*
+
+**Todo enlace lleva a SU actividad**, no a la lista: `actividades.html?a=<id>` despliega
+la rama, abre el detalle y la trae a la vista. Vale para el Inicio y para el aviso de
+cronómetro andando — ese era el último que caía en la lista, y el más urgente.
+
 **Dónde se muestra** — `actividades.html` (la lista y el botón de terminar),
-`calendario.html` (entradas y salidas), `reservas.html` (el botón 🧹 del admin),
-`reservas-core.js` (el motor).
+`index.html` (el bloque de limpiezas), `calendario.html` (entradas y salidas),
+`reservas.html` (el botón 🧹 del admin), `reservas-core.js` (el motor).
 
 > **Fósil, para no repetirlo.** Hasta julio de 2026 el calendario ponía un chip
 > `🧹 limpieza` en cada salida. Era texto fijo: no leía ninguna actividad. Nació
@@ -1815,6 +1833,28 @@ sigue: se perdería el mail y de qué QR vino.
 
 ---
 
+### La huella de una reserva
+
+Borrar una reserva **no es borrar un documento**: deja rastro en siete lados, y
+olvidarse de uno deja basura que después nadie sabe de dónde salió.
+
+| | Se borra |
+|---|---|
+| `grupos/{id}` | **solo si queda huérfano** — si otra reserva comparte el acuerdo, se conserva |
+| `pagos` | todos los de esa reserva |
+| `movimientos` | los que generaron esos pagos · **nunca uno sellado en un cierre** |
+| `disponibilidad/{reservaId}` | o el sitio público muestra ocupado algo libre |
+| `actividades` | `limp-`, `checkout-`, `falta-` y todo lo que cuelgue de ellas |
+| `chequeos` | los de inventario de esa reserva |
+| `reservas/{id}` | al final |
+
+El orden importa: **primero lo que cuelga**, después lo que lo sostiene. Si algo falla a
+mitad de camino, lo que queda es un huérfano visible y no una referencia rota.
+
+Vive en `huellaDe()` y `borrarHuellas()` de `migrar-reservas.html`, y lo usan las dos
+secciones que borran. *(Hasta agosto de 2026 la depuración borraba solo cuatro de los
+siete: el acuerdo, las actividades y los chequeos quedaban dando vueltas.)*
+
 ### Cómo se prueba un flujo
 
 `interno/pruebas.html` acompaña un flujo entero paso a paso mientras se hace **en las
@@ -1844,7 +1884,7 @@ para saltar entre ellas:
 |---|---|
 | `diagnostico.html` | navegador, archivos en el servidor, sesión, permisos, conexión con Google |
 | `revisar-reservas.html` | foto del estado de acuerdos, reservas y pagos · **solo lee** |
-| `migrar-reservas.html` | agrupar, limpiar notas, limpiar plata vieja, depurar pruebas · **escribe y borra** |
+| `migrar-reservas.html` | agrupar, limpiar notas, limpiar plata vieja, **borrar datos de prueba**, depurar · **escribe y borra** |
 | `pruebas.html` | probar un flujo de punta a punta, guiado |
 
 Ninguna se declara en el `SHELL` de `sw.js`: son temporales por naturaleza y no tienen
@@ -2012,6 +2052,29 @@ falta el archivo, se pide — no se reconstruye.
 >   cronómetro, **el control de salida no aparecía nunca** — en el flujo más trabajado
 >   del sistema. La misma regla escrita en un lugar de dos; ahora en uno solo, llamado
 >   por ambos. `sw.js` → v66.
+>
+> **T11.30 · Las limpiezas primero, y de un vistazo.** Dentro de `proj-limpiezas` los
+> hijos se ordenan **por fecha** —antes quedaban alfabéticos por cabaña, así que la
+> limpieza de dentro de una semana podía aparecer arriba de la de mañana— y llevan
+> marca propia antes del título: 🧹 entrada, 📤 salida, 🛒 faltantes. El aviso de
+> **cronómetro andando** en el Inicio era el último enlace que caía en la lista en vez
+> de abrir su actividad, y justo el más urgente: es el único lugar donde se puede
+> frenar. `sw.js` → v67.
+>
+> **T11.31 · Borrar de verdad.** La depuración borraba **cuatro de los siete lugares**
+> donde una reserva deja rastro: el acuerdo, las actividades de limpieza y los chequeos
+> se quedaban sin nada que los explicara. Ahora hay una sola función —`huellaDe()` y
+> `borrarHuellas()`— que la levanta completa, en orden de hija a madre, y que el
+> acuerdo lo borra **solo si queda huérfano**.
+>
+> **Y una sección nueva, `1d · Datos de prueba`**: la reserva que dejan las pruebas
+> guiadas está confirmada y con fechas futuras, así que la sección 2 no la alcanzaba
+> —pide anulada o finalizada y ya pasada— y había que anularla a mano y esperar tres
+> días. Ahora se borran por el nombre del cliente, con toda su huella.
+>
+> *(De paso: la revisión mostraba «parte R$ 0,00» en cada cabaña. Un cero inventado y
+> en la moneda equivocada, porque sin campo `moneda` se asume reales. Otro resto de la
+> migración.)*
 >
 > **Sigue sin verificarse:** el ciclo de limpieza completo —la prueba quedó a mitad— y
 > la sincronización con Airbnb.

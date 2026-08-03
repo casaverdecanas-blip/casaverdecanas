@@ -110,6 +110,7 @@ if (!CV2.puede('reservas') || !CV2.puede('finanzas')) {
 
 let reservas = [], pagos = [], movimientos = [];
 let grupos = {};   // los ACUERDOS: {grupoId: {total, moneda, ...}}
+let actividades = [], chequeos = [];   // la huella operativa de cada reserva
 
 const monedaDe = (r) => (r && r.moneda) || 'BRL';
 const totalDe = (r) => Number((r && (r.total ?? r.totalBRL)) || 0);
@@ -444,6 +445,138 @@ async function limpiarMarcadas() {
   render();
 }
 
+// ═══ La huella de una reserva ═════════════════════════════
+// Borrar una reserva no es borrar UN documento. Deja rastro en siete lados, y
+// olvidarse de uno deja basura que después nadie sabe de dónde salió:
+//   · su acuerdo en grupos/ — pero SOLO si ninguna otra reserva lo usa
+//   · sus pagos, y los movimientos de Dinero que esos pagos generaron
+//   · su disponibilidad, o el sitio público muestra ocupado algo libre
+//   · sus actividades: limp-, checkout-, falta- y cualquier hija
+//   · sus chequeos de inventario
+// Hasta agosto de 2026 la depuración borraba solo cuatro de esos siete: el
+// acuerdo, las actividades y los chequeos quedaban dando vueltas.
+function huellaDe(r) {
+  const h = { reserva: r, grupo: null, pagos: [], movimientos: [],
+    actividades: [], chequeos: [], disponibilidad: r.id };
+
+  h.pagos = pagosDe(r.id);
+  h.movimientos = h.pagos.flatMap((p) => movsDePago(p.id));
+
+  // El acuerdo se va solo si queda huérfano.
+  if (r.grupoId && grupos[r.grupoId]) {
+    const otras = reservas.filter((x) => x.id !== r.id && x.grupoId === r.grupoId);
+    if (!otras.length) h.grupo = r.grupoId;
+  }
+
+  // Las actividades de esta reserva, y las que cuelgan de ellas.
+  const mias = actividades.filter((a) => a.reservaId === r.id);
+  const ids = new Set(mias.map((a) => a.id));
+  actividades.forEach((a) => { if (a.parentId && ids.has(a.parentId)) ids.add(a.id); });
+  // Se ordenan de hija a madre: primero lo que cuelga.
+  h.actividades = [...ids].sort((a, b) => {
+    const pa = (actividades.find((x) => x.id === a) || {}).parentId;
+    return ids.has(pa) ? -1 : 1;
+  });
+
+  h.chequeos = chequeos.filter((c) => c.reservaId === r.id).map((c) => c.id);
+  return h;
+}
+
+function resumirHuella(hs) {
+  const l = [];
+  hs.forEach((h) => {
+    l.push('· ' + (h.reserva.clienteNombre || '?') + '  ' + (h.reserva.cabanaId || '?')
+      + '  ' + h.reserva.checkIn);
+    if (h.grupo) l.push('    acuerdo ' + h.grupo);
+    h.pagos.forEach((p) => l.push('    pago ' + fmt(p.monto, p.moneda)));
+    h.movimientos.forEach((m) => l.push('    movimiento ' + fmt(m.monto, m.moneda)));
+    h.actividades.forEach((a) => l.push('    actividad ' + a));
+    h.chequeos.forEach((c) => l.push('    chequeo ' + c));
+  });
+  return l.join('\n');
+}
+
+// Borra en orden seguro: lo que cuelga antes que lo que lo sostiene. Si algo
+// falla a mitad, lo que queda es un huérfano visible y no una referencia rota.
+async function borrarHuellas(hs) {
+  let ok = 0, err = 0;
+  const paso = async (col, id, que) => {
+    try { await deleteDoc(doc(db, col, id)); ok++; log('  ' + que); }
+    catch (e) { err++; log('  ERROR ' + col + '/' + id + ': ' + (e.code ?? e.message)); }
+  };
+  for (const h of hs) {
+    for (const c of h.chequeos) await paso('chequeos', c, 'chequeo borrado');
+    for (const a of h.actividades) await paso('actividades', a, 'actividad ' + a + ' borrada');
+    for (const m of h.movimientos) await paso('movimientos', m.id, 'movimiento ' + fmt(m.monto, m.moneda) + ' borrado');
+    for (const p of h.pagos) await paso('pagos', p.id, 'pago ' + fmt(p.monto, p.moneda) + ' borrado');
+    // La disponibilidad puede no existir: no cuenta como error.
+    try { await deleteDoc(doc(db, 'disponibilidad', h.disponibilidad)); log('  disponibilidad limpiada'); }
+    catch (e) { /* lo normal es que no exista */ }
+    await paso('reservas', h.reserva.id, 'reserva ' + (h.reserva.clienteNombre || h.reserva.id) + ' borrada');
+    if (h.grupo) await paso('grupos', h.grupo, 'acuerdo ' + h.grupo + ' borrado');
+  }
+  return { ok, err };
+}
+
+// ═══ 1d · Datos de prueba ═════════════════════════════════
+// Las pruebas guiadas crean una reserva con un nombre inconfundible. La
+// sección 2 no la alcanza —pide anulada o finalizada Y con la salida pasada—
+// y una reserva de prueba está confirmada y con fechas futuras. Sin esta
+// sección había que anularla a mano y esperar tres días.
+const MARCA_PRUEBA = /prueba/i;
+
+function pintarPruebas() {
+  const cand = reservas.filter((r) => MARCA_PRUEBA.test(String(r.clienteNombre || '')));
+  if (!cand.length) {
+    return '<div class="tarj"><h2>1d · Datos de prueba</h2>'
+      + '<p class="sub">No hay ninguna reserva con «prueba» en el nombre del cliente.</p></div>';
+  }
+  let h = '<div class="tarj"><h2>1d · Datos de prueba</h2>'
+    + '<p class="sub">Reservas con <b>«prueba»</b> en el nombre del cliente — las que dejan '
+    + 'las pruebas guiadas. Se borran <b>con toda su huella</b>: acuerdo, pagos, '
+    + 'movimientos, actividades de limpieza, chequeos y disponibilidad. '
+    + 'Sin importar su estado ni sus fechas.</p>';
+
+  cand.forEach((r) => {
+    const hu = huellaDe(r);
+    const trabado = hu.movimientos.some(selladoEnBalance);
+    const n = hu.pagos.length + hu.movimientos.length + hu.actividades.length
+      + hu.chequeos.length + (hu.grupo ? 1 : 0);
+    h += '<div class="fila' + (trabado ? ' sellado' : '') + '">'
+      + '<input type="checkbox" data-prueba value="' + esc(r.id) + '"' + (trabado ? ' disabled' : '') + '>'
+      + '<div class="txt"><b>' + esc(r.clienteNombre) + ' · ' + esc(r.cabanaId || '?')
+      + ' <span class="et">' + esc(r.estado) + '</span></b>'
+      + '<small>' + esc(r.checkIn || '?') + ' → ' + esc(r.checkOut || '?')
+      + ' · arrastra <b>' + n + '</b> documento(s) más</small>'
+      + (hu.actividades.length ? '<small>actividades: ' + esc(hu.actividades.join(', ')) + '</small>' : '')
+      + (trabado ? '<small style="color:var(--rojo);">Tiene un movimiento en un balance cerrado: no se puede borrar.</small>' : '')
+      + '<code>' + esc(r.id) + '</code></div></div>';
+  });
+
+  return h + '<div class="acciones">'
+    + '<button class="btn" id="marcarPruebas">Marcar todas</button>'
+    + '<button class="btn btn-primario" id="borrarPruebas" '
+    + 'style="background:var(--rojo);border-color:var(--rojo);">'
+    + '<span class="material-icons">delete_forever</span> Borrar los datos de prueba</button>'
+    + '</div></div>';
+}
+
+async function borrarPruebas() {
+  const ids = [...document.querySelectorAll('[data-prueba]:checked')].map((c) => c.value);
+  if (!ids.length) { CV2.toast('No hay nada marcado', 'error'); return; }
+  const hs = ids.map((id) => huellaDe(reservas.find((r) => r.id === id)));
+  if (hs.some((h) => h.movimientos.some(selladoEnBalance))) {
+    CV2.toast('Hay un movimiento sellado en un balance: no se puede', 'error'); return;
+  }
+  if (!confirm('SE VA A BORRAR, sin deshacer:\n\n' + resumirHuella(hs) + '\n\n¿Borrar?')) return;
+  log('── Datos de prueba');
+  const r = await borrarHuellas(hs);
+  log('  listo: ' + r.ok + ' borrado(s)' + (r.err ? ', ' + r.err + ' error(es)' : ''));
+  CV2.toast(r.err ? 'Terminó con errores' : 'Limpio', r.err ? 'error' : 'success');
+  await cargar();
+  render();
+}
+
 // ═══ 2 · Depurar pruebas ══════════════════════════════════
 function pintarDepurar() {
   const hoy = CV2.hoyISO();
@@ -465,8 +598,9 @@ function pintarDepurar() {
     + 'esa reserva no se puede borrar: aparece atenuada.</p>';
 
   cand.forEach((r) => {
-    const ps = pagosDe(r.id);
-    const movs = ps.flatMap((p) => movsDePago(p.id));
+    const hu = huellaDe(r);
+    const ps = hu.pagos;
+    const movs = hu.movimientos;
     const trabado = movs.some(selladoEnBalance);
     h += '<div class="fila' + (trabado ? ' sellado' : '') + '">'
       + '<input type="checkbox" data-borrar value="' + esc(r.id) + '"'
@@ -478,6 +612,9 @@ function pintarDepurar() {
       + (ps.length ? ' · <b style="color:var(--rojo);">' + ps.length + ' pago(s) por '
           + esc(ps.map((p) => fmt(p.monto, p.moneda)).join(', ')) + '</b>' : '')
       + (movs.length ? ' · ' + movs.length + ' movimiento(s) en Dinero' : '')
+      + (hu.grupo ? ' · su acuerdo' : '')
+      + (hu.actividades.length ? ' · ' + hu.actividades.length + ' actividad(es)' : '')
+      + (hu.chequeos.length ? ' · ' + hu.chequeos.length + ' chequeo(s)' : '')
       + (trabado ? '<br><b style="color:var(--rojo);">Tiene un movimiento contado en un '
           + 'balance cerrado. No se puede borrar sin descuadrar ese balance.</b>' : '')
       + '</small><code>' + esc(r.id) + '</code></div></div>';
@@ -494,58 +631,31 @@ async function borrarMarcadas() {
   const ids = [...document.querySelectorAll('[data-borrar]:checked')].map((c) => c.value);
   if (!ids.length) { CV2.toast('No hay nada marcado', 'error'); return; }
 
-  const rs = ids.map((id) => reservas.find((r) => r.id === id));
-  const ps = ids.flatMap((id) => pagosDe(id));
-  const ms = ps.flatMap((p) => movsDePago(p.id));
-  if (ms.some(selladoEnBalance)) {
+  // Misma función que la sección de datos de prueba: la huella COMPLETA.
+  // Antes esta sección borraba solo la reserva, sus pagos, sus movimientos y
+  // su disponibilidad — el acuerdo, las actividades de limpieza y los
+  // chequeos quedaban dando vueltas sin nada que los explicara.
+  const hs = ids.map((id) => huellaDe(reservas.find((r) => r.id === id)));
+  if (hs.some((h) => h.movimientos.some(selladoEnBalance))) {
     CV2.toast('Hay un movimiento sellado en un balance: no se puede', 'error');
     return;
   }
 
-  const resumen = 'SE VA A BORRAR, sin deshacer:\n\n'
-    + rs.length + ' reserva(s):\n'
-    + rs.map((r) => '  · ' + (r.clienteNombre || '?') + '  ' + (r.cabanaId || '?')
-        + '  ' + r.checkIn).join('\n')
-    + '\n\n' + ps.length + ' pago(s):\n'
-    + (ps.length ? ps.map((p) => '  · ' + fmt(p.monto, p.moneda) + '  ' + p.fecha).join('\n') : '  (ninguno)')
-    + '\n\n' + ms.length + ' movimiento(s) de Dinero:\n'
-    + (ms.length ? ms.map((m) => '  · ' + fmt(m.monto, m.moneda) + '  ' + m.fecha
-        + '  ' + (m.cuenta || 'sin cuenta')).join('\n') : '  (ninguno)');
-  if (!confirm(resumen + '\n\n¿Borrar?')) return;
+  if (!confirm('SE VA A BORRAR, sin deshacer:\n\n' + resumirHuella(hs) + '\n\n¿Borrar?')) return;
   if (!confirm('Última confirmación. No hay deshacer.\n\n¿Seguro?')) return;
 
   log('── Depuración');
-  let ok = 0, err = 0;
-  // Orden: primero los movimientos, después los pagos, al final las reservas.
-  // Si algo falla a mitad de camino, lo que queda es un pago sin movimiento
-  // (visible y arreglable) y no un movimiento apuntando a un pago fantasma.
-  for (const m of ms) {
-    try { await deleteDoc(doc(db, 'movimientos', m.id)); ok++; log('  movimiento ' + fmt(m.monto, m.moneda) + ' borrado'); }
-    catch (e) { err++; log('  ERROR movimiento ' + m.id + ': ' + (e.code ?? e.message)); }
-  }
-  for (const p of ps) {
-    try { await deleteDoc(doc(db, 'pagos', p.id)); ok++; log('  pago ' + fmt(p.monto, p.moneda) + ' borrado'); }
-    catch (e) { err++; log('  ERROR pago ' + p.id + ': ' + (e.code ?? e.message)); }
-  }
-  for (const r of rs) {
-    try { await deleteDoc(doc(db, 'reservas', r.id)); ok++; log('  reserva ' + (r.clienteNombre || r.id) + ' borrada'); }
-    catch (e) { err++; log('  ERROR reserva ' + r.id + ': ' + (e.code ?? e.message)); }
-  }
-  // La disponibilidad pública se espeja por reserva: si quedó algún registro
-  // de una reserva borrada, el sitio mostraría ocupado algo que está libre.
-  for (const r of rs) {
-    try { await deleteDoc(doc(db, 'disponibilidad', r.id)); log('  disponibilidad ' + r.id + ' limpiada'); }
-    catch (e) { /* lo normal es que no exista */ }
-  }
-  log('  listo: ' + ok + ' borrado(s)' + (err ? ', ' + err + ' error(es)' : ''));
-  CV2.toast(err ? 'Terminó con errores' : 'Depurado', err ? 'error' : 'success');
+  const r = await borrarHuellas(hs);
+  log('  listo: ' + r.ok + ' borrado(s)' + (r.err ? ', ' + r.err + ' error(es)' : ''));
+  CV2.toast(r.err ? 'Terminó con errores' : 'Depurado', r.err ? 'error' : 'success');
   await cargar();
   render();
 }
 
 // ═══ Render ═══════════════════════════════════════════════
 function render() {
-  $('cuerpo').innerHTML = pintarAcuerdos() + pintarNotas() + pintarLimpieza() + pintarDepurar()
+  $('cuerpo').innerHTML = pintarAcuerdos() + pintarNotas() + pintarLimpieza()
+    + pintarPruebas() + pintarDepurar()
     + '<div class="tarj"><h2>Registro</h2>'
     + '<p class="sub">Lo que se fue haciendo, para copiar y guardar.</p>'
     + '<div class="log" id="log">(nada todavía)</div>'
@@ -564,6 +674,12 @@ function render() {
   });
   const bl = $('limpiar');
   if (bl) bl.addEventListener('click', limpiarMarcadas);
+  const mp = $('marcarPruebas');
+  if (mp) mp.addEventListener('click', () => {
+    document.querySelectorAll('[data-prueba]:not([disabled])').forEach((c) => { c.checked = true; });
+  });
+  const bp = $('borrarPruebas');
+  if (bp) bp.addEventListener('click', borrarPruebas);
   const mt = $('marcarTodo');
   if (mt) mt.addEventListener('click', () => {
     document.querySelectorAll('[data-borrar]:not([disabled])').forEach((c) => { c.checked = true; });
@@ -574,13 +690,21 @@ function render() {
 
 // ═══ Cargas — AL FINAL ════════════════════════════════════
 async function cargar() {
-  const [sr, sp, sm, sg] = await Promise.all([
+  // 'actividades' va CON FILTRO: su regla exige la consulta acotada y pedir
+  // la colección entera da permission-denied. Las de limpieza son de alcance
+  // 'equipo', así que este filtro las alcanza a todas.
+  const [sr, sp, sm, sg, sa, sc] = await Promise.all([
     getDocs(collection(db, 'reservas')),
     getDocs(collection(db, 'pagos')),
     getDocs(collection(db, 'movimientos')),
-    getDocs(collection(db, 'grupos'))
+    getDocs(collection(db, 'grupos')),
+    getDocs(query(collection(db, 'actividades'), where('alcance', '==', 'equipo'))),
+    getDocs(collection(db, 'chequeos'))
   ]);
   reservas = []; pagos = []; movimientos = []; grupos = {};
+  actividades = []; chequeos = [];
+  sa.forEach((d) => actividades.push({ id: d.id, ...d.data() }));
+  sc.forEach((d) => chequeos.push({ id: d.id, ...d.data() }));
   sg.forEach((d) => { grupos[d.id] = { id: d.id, ...d.data() }; });
   sr.forEach((d) => reservas.push({ id: d.id, ...d.data() }));
   sp.forEach((d) => pagos.push({ id: d.id, ...d.data() }));

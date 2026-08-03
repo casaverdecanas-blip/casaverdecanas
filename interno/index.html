@@ -187,6 +187,53 @@ acts.forEach((a) => {
 atrasadas.sort((x, y) => y.atraso - x.atraso);
 tocanAhora.sort((x, y) => y.atraso - x.atraso);
 
+// ── 1a · LIMPIEZAS — arriba de todo ──────────────────────────
+// Van primero y aparte, y no es una preferencia estética: una limpieza tiene
+// la fecha de entrada de un huésped y no se puede correr.
+//
+// POR QUÉ NO APARECÍAN ANTES: su 'fechaVencimiento' es el día del check-in,
+// así que el bloque de "vencidas" recién las mostraba ESE MISMO DÍA. Nacen
+// siete días antes y quedaban invisibles justo en el tiempo en que se pueden
+// organizar. Ahora se muestran desde que existen, con los días que faltan.
+const aActividad = (a) => './actividades.html?a=' + encodeURIComponent(a.id);
+
+const limpiezas = acts
+  .filter((a) => !a.hecho && a.reservaId && (a.fase === 'entrada' || a.fase === 'salida'))
+  .sort((x, y) => String(x.fechaVencimiento ?? x.fechaInicio ?? '')
+    .localeCompare(String(y.fechaVencimiento ?? y.fechaInicio ?? '')));
+
+// Los faltantes de un check-out son otra cosa: no es limpiar, es reponer.
+const faltantes = acts.filter((a) => !a.hecho && a.faltantesData);
+
+agregar('actividades', 'Limpiezas y controles', 'cleaning_services', './actividades.html',
+  limpiezas.map((a) => {
+    const cuando = a.fechaVencimiento || a.fechaInicio || '';
+    const faltan = cuando ? diasEntre(hoy, cuando) : null;
+    return {
+      icono: a.fase === 'salida' ? 'logout' : 'cleaning_services',
+      titulo: a.titulo || '(sin título)',
+      detalle: a.fase === 'salida'
+        ? 'Control de salida — inventario y faltantes'
+        : (faltan === null ? 'Sin fecha'
+          : faltan > 1 ? 'Entra el ' + CV2.fmtFecha(cuando) + ' · faltan ' + faltan + ' días'
+          : faltan === 1 ? 'Entra MAÑANA · ' + CV2.fmtFecha(cuando)
+          : faltan === 0 ? 'ENTRA HOY' : 'Entró el ' + CV2.fmtFecha(cuando)),
+      // Urgente desde el día anterior. Antes, con dos o tres días por delante,
+      // todavía se puede repartir el trabajo con calma.
+      tono: (faltan !== null && faltan <= 1) ? 'urgente' : 'aviso',
+      href: aActividad(a),
+      atraso: (faltan !== null && faltan < 0) ? '+' + (-faltan) + ' d' : '',
+      nuevo: esNuevo(a.creadoEn), cuando: haceCuanto(a.creadoEn)
+    };
+  }));
+
+agregar('actividades', 'Faltantes por reponer', 'shopping_cart', './actividades.html',
+  faltantes.map((a) => ({
+    icono: 'shopping_cart', titulo: a.titulo || '(sin título)',
+    detalle: a.gastoMovimientoId ? 'Gasto ya registrado en Dinero' : 'Falta registrar el gasto',
+    tono: a.gastoMovimientoId ? 'neutro' : 'aviso', href: aActividad(a)
+  })));
+
 agregar('actividades', 'Atrasadas hace rato', 'history', './actividades.html',
   recortar(atrasadas.map((x) => ({
     icono: 'history',
@@ -196,32 +243,63 @@ agregar('actividades', 'Atrasadas hace rato', 'history', './actividades.html',
         ? 'última vez ' + CV2.fmtFecha(x.a.ultimaRealizacion) +
           (x.a.ultimaRealizacionNombre ? ' (' + x.a.ultimaRealizacionNombre + ')' : '')
         : 'nunca se hizo'),
-    tono: 'urgente', href: './actividades.html',
+    tono: 'urgente', href: aActividad(x.a),
     atraso: '+' + x.atraso + ' d'
   })), 6, './actividades.html'));
 
 // Únicas vencidas o que vencen hoy. Se excluyen las recurrentes: ya se
 // contaron arriba por su ciclo, y contarlas dos veces confunde.
+// Se excluyen las limpiezas y los faltantes: ya tienen su propio bloque
+// arriba, y repetirlas acá sería contar dos veces la misma tarea.
 const vencidas = acts.filter((a) =>
   !a.hecho && !(Number(a.recurrenciaDias) > 0) &&
+  !a.reservaId && !a.faltantesData &&
   a.fechaVencimiento && a.fechaVencimiento <= hoy);
 
 const hoyItems = vencidas.map((a) => ({
   icono: a.reservaId ? 'cleaning_services' : 'priority_high',
   titulo: a.titulo || '(sin título)',
   detalle: a.fechaVencimiento < hoy ? 'Vencida el ' + CV2.fmtFecha(a.fechaVencimiento) : 'Vence hoy',
-  tono: 'urgente', href: './actividades.html',
+  tono: 'urgente', href: aActividad(a),
   nuevo: esNuevo(a.creadoEn), cuando: ''
 })).concat(tocanAhora.map((x) => ({
   icono: 'autorenew',
   titulo: x.a.titulo || '(sin título)',
   detalle: (x.atraso === 0 ? 'Toca hacerla hoy' : 'Atrasada ' + x.atraso + ' día(s)') +
     ' · cada ' + x.ciclo + ' días',
-  tono: x.atraso === 0 ? 'aviso' : 'urgente', href: './actividades.html'
+  tono: x.atraso === 0 ? 'aviso' : 'urgente', href: aActividad(x.a)
 })));
 
 agregar('actividades', 'Necesitan atención hoy', 'checklist', './actividades.html',
   recortar(hoyItems, 8, './actividades.html'));
+
+// ── 1b · Tus destacadas ──────────────────────────────────────
+// Lo que cada uno marcó con estrella. Es la única lista del Inicio que arma
+// la persona a mano: el resto lo decide el sistema por fechas y estados.
+// Va DESPUÉS de lo urgente a propósito — destacar algo no lo vuelve urgente,
+// y si empujara a las limpiezas hacia abajo dejaría de servir.
+// Las que ya salen en otro bloque no se repiten.
+try {
+  const eu = await getDoc(doc(db, 'estado_usuario', u.uid));
+  const estrellas = new Set(eu.exists() ? (eu.data().destacados ?? []) : []);
+  const yaMostradas = new Set(
+    limpiezas.map((a) => a.id)
+      .concat(faltantes.map((a) => a.id))
+      .concat(atrasadas.map((x) => x.a.id))
+      .concat(vencidas.map((a) => a.id))
+      .concat(tocanAhora.map((x) => x.a.id)));
+
+  const mias = acts.filter((a) => estrellas.has(a.id) && !a.hecho && !yaMostradas.has(a.id));
+  agregar('actividades', 'Tus destacadas', 'star', './actividades.html',
+    recortar(mias.map((a) => ({
+      icono: 'star',
+      titulo: a.titulo || '(sin título)',
+      detalle: (Number(a.recurrenciaDias) > 0
+        ? 'Cada ' + a.recurrenciaDias + ' días'
+        : (a.fechaVencimiento ? 'Vence el ' + CV2.fmtFecha(a.fechaVencimiento) : 'Sin fecha')),
+      tono: 'neutro', href: aActividad(a)
+    })), 6, './actividades.html'));
+} catch (e) { console.warn('destacadas', e); }
 
 // ── 2 · Reservas (solo con permiso) ──────────────────────────
 if (CV2.puede('reservas')) {
@@ -318,7 +396,12 @@ try {
     agregar('sesiones', 'Tenés trabajo en curso', 'schedule', './gestion-sesiones.html', [{
       icono: 'timer', titulo: s.actividadTitulo || 'Cronómetro andando',
       detalle: 'Arrancó ' + haceCuanto(s.inicio) + ' — acordate de pararlo',
-      tono: 'urgente', href: './actividades.html'
+      // Va DIRECTO a la actividad que se está cronometrando: es el único
+      // lugar donde se puede frenar. Este enlace era el último que caía en
+      // la lista, y justo el más urgente de todos.
+      tono: 'urgente',
+      href: s.actividadId ? './actividades.html?a=' + encodeURIComponent(s.actividadId)
+                          : './actividades.html'
     }]);
   }
 } catch (e) { console.warn('sesion activa', e); }

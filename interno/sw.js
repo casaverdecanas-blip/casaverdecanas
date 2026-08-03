@@ -7,7 +7,10 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
-// v66 (3-ago-2026) — actividades.html: el Stop del cronómetro pregunta
+// v67 (3-ago-2026) — las limpiezas se ordenan por FECHA dentro de su
+//       proyecto y llevan marca propia (🧹 📤 🛒); el enlace del cronómetro
+//       andando lleva a SU actividad. actividades.html + index.html.
+// v66 — actividades.html: el Stop del cronómetro pregunta
 //       siempre si la tarea quedó terminada, y cerrar una limpieza con el
 //       reloj abre el control de check-out igual que con el botón ✓.
 // v65 — index.html: una línea por ACUERDO, no por cabaña.
@@ -22,7 +25,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v66';
+const VERSION = 'cv2-shell-v67';
 
 const SHELL = [
   './',

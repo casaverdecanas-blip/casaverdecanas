@@ -293,7 +293,13 @@ function pintar(reservas, porReserva, huerfanos, limpiezas) {
         + ' · 👤' + (r.adultos ?? 0) + (r.ninos ? '+' + r.ninos : '')
         + (limpiezas.has('limp-' + r.id) ? ' · 🧹' : '')
         + '</span>'
-        + '<span class="m">' + (a.esGrupo ? 'parte ' : '') + esc(fmt(totalDe(r), monedaDe(r))) + '</span>'
+        // La PARTE de cada cabaña solo se muestra si de verdad existe. Después
+        // de la migración de agosto de 2026 ninguna reserva guarda precio, así
+        // que esto daba "parte R$ 0,00" en cada fila: un cero inventado y en la
+        // moneda equivocada, porque sin campo 'moneda' se asume reales.
+        + '<span class="m">' + (totalDe(r) > 0
+            ? (a.esGrupo ? 'parte ' : '') + esc(fmt(totalDe(r), monedaDe(r)))
+            : '') + '</span>'
         + '</div>').join('') + '</div>'
 
       + (ps.length

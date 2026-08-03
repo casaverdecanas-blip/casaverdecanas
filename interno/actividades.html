@@ -52,6 +52,14 @@
     display: inline-flex; align-items: center; gap: 6px;
   }
   .estrella { color: #c9a227; }
+  /* La actividad a la que se llegó desde el Inicio: un destello que dice
+     "es esta". Se apaga solo — un resaltado permanente se vuelve ruido. */
+  @keyframes cv-llegada {
+    0%   { box-shadow: 0 0 0 0 rgba(45, 90, 39, .55); }
+    100% { box-shadow: 0 0 0 14px rgba(45, 90, 39, 0); }
+  }
+  .recien-llegada > .cv-nodo-fila { animation: cv-llegada 1.3s ease-out 2; }
+
   .cv-nodo-fila.hecha .cv-nodo-tit { text-decoration: line-through; color: var(--gris); font-weight: 500; }
   .cv-nodo-fila.hecha { opacity: .75; }
   .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
@@ -285,6 +293,15 @@ const esc = CV2.esc;
 let byId = {};
 let childrenOf = {};
 let roots = [];
+// ?a=<idActividad> — de dónde viene alguien que tocó una fila del Inicio.
+// Se aplica UNA sola vez: el onSnapshot vuelve a correr con cada cambio, y
+// reabrir la actividad en cada uno pelearía con lo que esté haciendo la
+// persona.
+const pedida = new URLSearchParams(location.search).get('a');
+let pedidaHecha = false;
+
+const PROJ_LIMPIEZAS = 'proj-limpiezas';
+
 let abiertos = {};
 let detalleAbierto = null;
 let destacados = new Set();
@@ -400,6 +417,18 @@ function render() {
   cont.innerHTML = html || `<div class="vacio">Nada para mostrar con este filtro.</div>`;
 }
 
+// La marca que va antes del título. Una limpieza o un control de salida se
+// tiene que reconocer SIN leer: son las únicas tareas del sistema con la
+// fecha de llegada de un huésped detrás, y no se pueden correr un día.
+// Los faltantes llevan su propia marca porque no son limpiar, son reponer.
+function marcaDe(it, esRaiz) {
+  if (esRaiz) return '📁 ';
+  if (it.faltantesData) return '🛒 ';
+  if (it.reservaId && it.fase === 'salida') return '📤 ';
+  if (it.reservaId && it.fase === 'entrada') return '🧹 ';
+  return '';
+}
+
 function nodoHTML(id) {
   const it = byId[id];
   const hijos = (childrenOf[id] ?? []).filter(visible);
@@ -427,7 +456,7 @@ function nodoHTML(id) {
          onclick="${alTocar}">
       <span class="cv-caret">${tieneHijos ? (ab ? '▾' : '▸') : ''}</span>
       ${star ? '<span class="material-icons estrella" style="font-size:17px;flex:none;">star</span>' : ''}
-      <span class="cv-nodo-tit">${esRaiz ? '📁 ' : ''}${esc(it.titulo)}
+      <span class="cv-nodo-tit">${marcaDe(it, esRaiz)}${esc(it.titulo)}
         ${it.detalle ? `<small>${esc(it.detalle)}</small>` : ''}</span>
       ${miCrono ? `<span class="crono">⏱ <span class="crono-t" data-ini="${crono.inicioMs}">0:00:00</span></span>` : ''}
       <span class="cv-sem" style="background:${s.c}" title="${esc(s.t)}"></span>
@@ -1197,8 +1226,49 @@ onSnapshot(consulta, (snap) => {
     arr.sort((a, b) => (byId[a].orden ?? 0) - (byId[b].orden ?? 0)
       || String(byId[a].titulo ?? '').localeCompare(String(byId[b].titulo ?? '')));
   }
+  // DENTRO DE LIMPIEZAS, el orden es por FECHA. El orden general —por 'orden'
+  // y después alfabético— las dejaba ordenadas por nombre de cabaña, así que
+  // la limpieza de dentro de una semana podía aparecer arriba de la de mañana.
+  // En una lista de tareas que no se pueden correr, eso es lo peor posible.
+  if (childrenOf[PROJ_LIMPIEZAS]) {
+    childrenOf[PROJ_LIMPIEZAS].sort((a, b) => {
+      const fa = String(byId[a].fechaVencimiento || byId[a].fechaInicio || '9999');
+      const fb = String(byId[b].fechaVencimiento || byId[b].fechaInicio || '9999');
+      return fa.localeCompare(fb);
+    });
+  }
+  // LAS LIMPIEZAS VAN PRIMERO, siempre. No es una preferencia estética: una
+  // limpieza tiene fecha de entrada de un huésped y no se puede correr. El
+  // resto de los proyectos van alfabéticos, como antes.
   roots = (childrenOf[''] ?? []).slice()
-    .sort((a, b) => String(byId[a].titulo ?? '').localeCompare(String(byId[b].titulo ?? '')));
+    .sort((a, b) => {
+      const la = a === PROJ_LIMPIEZAS ? 0 : 1;
+      const lb = b === PROJ_LIMPIEZAS ? 0 : 1;
+      if (la !== lb) return la - lb;
+      return String(byId[a].titulo ?? '').localeCompare(String(byId[b].titulo ?? ''));
+    });
+
+  // Al llegar desde el Inicio con ?a=<id>, se abre ESA actividad: se despliega
+  // toda su rama, se abre su detalle y se la trae a la vista. Antes el enlace
+  // caía en la lista y había que buscarla a mano entre los proyectos.
+  if (pedida && byId[pedida] && !pedidaHecha) {
+    pedidaHecha = true;
+    let p = byId[pedida].parentId;
+    while (p && byId[p]) { abiertos[p] = true; p = byId[p].parentId; }
+    detalleAbierto = pedida;
+    render();
+    setTimeout(() => {
+      const el = document.getElementById('nodo-' + pedida);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('recien-llegada');
+        setTimeout(() => el.classList.remove('recien-llegada'), 2600);
+      }
+    }, 80);
+    verificarCrono();
+    return;
+  }
+
   render();
   verificarCrono();
 }, (e) => { console.error(e); CV2.toast('No se pudieron cargar las actividades (' + (e.code ?? e.message) + ')', 'error'); });
