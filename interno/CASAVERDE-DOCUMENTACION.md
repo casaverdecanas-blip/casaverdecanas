@@ -2103,8 +2103,35 @@ falta el archivo, se pide — no se reconstruye.
 > gestión de sesiones—: todas traen su propio relleno y desplazamiento. El problema
 > era solo de estas dos.)*
 >
-> **Sigue sin verificarse:** el ciclo de limpieza completo —la prueba quedó a mitad— y
-> la sincronización con Airbnb.
+> **T11.34 · El ciclo de limpieza, verificado.** La prueba guiada corrió entera:
+> se creó la reserva con su acuerdo, su `limp-` y su disponibilidad; el control de
+> entrada marcó `controlEntradaHecho`; cerrar la limpieza hizo nacer el `checkout-`
+> —lo que fallaba antes—; el control de salida generó `falta-`; y anular borró la
+> disponibilidad conservando la limpieza hecha. **El flujo F1 pasó de punta a punta.**
+>
+> *(Un paso dio «falló» y era una falsa alarma de la herramienta: el chequeo es UNO
+> por reserva —`chequeo-<reservaId>` con `entrada` y `salida` adentro— y el control de
+> salida lo ACTUALIZA en vez de crear otro. Corregida la expectativa, y sumados esos
+> dos campos a los que el diff observa: sin ellos el cambio era invisible.)*
+>
+> **T11.35 · Nace la Agenda** (`interno/agenda.html`). Actividades muestra el árbol
+> —correcto para organizar, equivocado para arrancar el día: hay que abrir cada rama
+> para descubrir qué toca—. La Agenda toma las mismas actividades y las ordena por su
+> fecha real, en tramos por cercanía: vencidas · hoy · mañana · próximos 7 días · más
+> adelante · sin fecha. Tres filtros: **las mías** (creadas, asignadas, **y todas las
+> limpiezas** — una limpieza no se le asigna a nadie y la tiene que ver quien la haga),
+> todo lo que veo, y solo limpiezas.
+>
+> **Calendario pasa a llamarse «Ocupación» en la barra.** Se parecen en la forma y no
+> tienen nada que ver: el Calendario muestra la ocupación de las cabañas y sale de las
+> reservas; la Agenda muestra el trabajo y sale de las actividades. Dos cosas con el
+> mismo nombre no se distinguen. `sw.js` → v69, `CV2.VERSION` → `nucleo-agenda-5`.
+>
+> **A revisar en el teléfono:** la barra de abajo queda con **cinco pestañas + Más**,
+> una más de las cuatro que fija §6.0. Si resulta apretada, mover `calendario` al
+> grupo `alojamiento` de `CV2.NAV` es una línea.
+>
+> **Sigue sin verificarse:** la sincronización con Airbnb.
 
 ---
 

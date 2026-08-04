@@ -152,7 +152,11 @@ async function foto() {
 // qué pasó: volcar el documento entero llenaría el informe de timestamps.
 const INTERESAN = ['estado', 'hecho', 'fase', 'parentId', 'cabanaId', 'reservaId',
   'grupoId', 'total', 'monto', 'horas', 'fechaInicio', 'controlEntradaHecho',
-  'sesionActualId', 'tipo', 'titulo', 'ultimaRealizacion', 'cierreId', 'desde', 'hasta'];
+  'sesionActualId', 'tipo', 'titulo', 'ultimaRealizacion', 'cierreId', 'desde', 'hasta',
+  // 'entrada' y 'salida' de un chequeo: sin ellos, el control de salida no se
+  // veía en el diff —el chequeo es UNO por reserva y la salida lo ACTUALIZA—
+  // y el paso 5 daba por fallado un flujo que había funcionado.
+  'entrada', 'salida'];
 
 function resumirDoc(x) {
   const o = {};
@@ -335,12 +339,17 @@ const PRUEBAS = [{
       hacer: 'Abrí el <b>control de salida</b> (cuelga de la limpieza, con el ícono <b>📤</b>). '
         + 'Hacé el conteo de salida y <b>marcá menos cantidad en algún ítem</b>, para que '
         + 'detecte un faltante. Guardalo.',
-      espera: 'Otro <b>chequeo</b>, y la actividad de <b>faltantes</b> '
+      espera: 'El <b>chequeo</b> de la reserva completado con su parte de <b>salida</b> '
+        + '—es uno solo por reserva, con entrada y salida adentro— y la actividad de <b>faltantes</b> '
         + '<code>falta-&lt;idReserva&gt;</code> colgando del control de salida, con el detalle de '
         + 'qué faltó. Esa actividad es la que después permite registrar el gasto de reponer.',
       chequear: (d, desp) => {
         const fallas = [];
-        if (!d.nuevos.chequeos.length) fallas.push('No se creó ningún <b>chequeo</b> de salida.');
+        // El chequeo es UNO por reserva ('chequeo-<reservaId>') con 'entrada' y
+        // 'salida' adentro: el control de salida lo ACTUALIZA, no crea otro.
+        const ch = desp.chequeos['chequeo-' + ctx.reservaId];
+        if (!ch) fallas.push('No existe el <b>chequeo</b> de esta reserva.');
+        else if (!ch.salida) fallas.push('El chequeo existe pero <b>no tiene la parte de salida</b>: el control no se guardó.');
         const fa = 'falta-' + ctx.reservaId;
         if (!desp.actividades[fa]) {
           fallas.push('No nació la actividad de <b>faltantes</b> <code>' + fa + '</code>. '

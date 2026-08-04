@@ -332,7 +332,13 @@ CV2._listonAdmin = function () {
 CV2.NAV = [
   { id: 'inicio', label: 'Inicio', corto: 'Inicio', href: './index.html', icono: 'home', permiso: null, grupo: 'directo' },
   { id: 'actividades', label: 'Actividades', corto: 'Tareas', href: './actividades.html', icono: 'checklist', permiso: null, grupo: 'directo' },
-  { id: 'calendario', label: 'Calendario', corto: 'Calendario', href: './calendario.html', icono: 'calendar_month', permiso: null, grupo: 'directo' },
+  { id: 'calendario', label: 'Calendario', corto: 'Ocupación', href: './calendario.html', icono: 'calendar_month', permiso: null, grupo: 'directo' },
+  // Agenda y Calendario se parecen en la forma y no tienen nada que ver en el
+  // contenido: el Calendario muestra la OCUPACIÓN de las cabañas —quién entra,
+  // quién sale— y sale de las reservas; la Agenda muestra el TRABAJO de cada
+  // uno y sale de las actividades. Por eso el Calendario pasa a decir
+  // "Ocupación" en la barra: dos cosas con el mismo nombre no se distinguen.
+  { id: 'agenda', label: 'Agenda', corto: 'Agenda', href: './agenda.html', icono: 'event_note', permiso: null, grupo: 'directo' },
   { id: 'comunicacion', label: 'Chat', corto: 'Chat', href: './comunicacion.html', icono: 'forum', permiso: null, grupo: 'directo' },
 
   { id: 'reservas', label: 'Reservas', href: './reservas.html', icono: 'king_bed', permiso: 'reservas', grupo: 'alojamiento' },
@@ -682,7 +688,7 @@ CV2.toast = function (msj, tipo = 'info') {
 // (el WhatsApp iba al número por defecto) era idéntico a un problema de
 // configuración, y no había forma de saber qué código estaba corriendo.
 // Se sube a mano cada vez que se toca el bloque de avisos.
-CV2.VERSION = 'nucleo-avisos-4';
+CV2.VERSION = 'nucleo-agenda-5';
 
 CV2.NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
 

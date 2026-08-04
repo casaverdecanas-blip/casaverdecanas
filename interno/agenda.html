@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Agenda</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .filtros { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 10px;
+    -webkit-overflow-scrolling: touch; }
+  .fchip { flex: 0 0 auto; min-height: 40px; padding: 8px 14px; border-radius: 999px;
+    border: 1px solid var(--linea); background: #fff; font-size: .84rem;
+    color: var(--tinta); cursor: pointer; font-family: inherit; }
+  .fchip.activo { background: var(--verde); border-color: var(--verde); color: #fff; font-weight: 600; }
+
+  .tramo { margin: 18px 0 0; }
+  .tramo > h2 { font-size: .82rem; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--gris); margin: 0 0 7px; display: flex; align-items: baseline; gap: 8px; }
+  .tramo > h2 .cuenta { font-weight: 400; text-transform: none; letter-spacing: 0; }
+  .tramo.vencido > h2 { color: var(--rojo); }
+  .tramo.hoy > h2 { color: var(--verde-osc); }
+
+  .ag { display: flex; align-items: center; gap: 9px; background: #fff;
+    border: 1px solid var(--linea); border-radius: var(--radio); padding: 9px 8px 9px 12px;
+    margin-bottom: 6px; min-height: 56px; box-shadow: var(--sombra);
+    text-decoration: none; color: var(--tinta); }
+  .ag:active { filter: brightness(.97); }
+  .ag .sem { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+  .ag .txt { flex: 1; min-width: 0; }
+  .ag .txt b { display: block; font-size: .91rem; font-weight: 600; overflow-wrap: anywhere; }
+  .ag .txt small { display: block; color: var(--gris); font-size: .77rem; line-height: 1.5;
+    overflow-wrap: anywhere; }
+  .ag .material-icons.ir { color: var(--gris); font-size: 19px; flex: none; }
+  .ag .cuando { flex: none; text-align: right; font-size: .74rem; color: var(--gris);
+    white-space: nowrap; }
+  .ag .cuando b { display: block; font-size: .95rem; color: var(--tinta); }
+
+  .vacio { text-align: center; color: var(--gris); padding: 34px 14px; line-height: 1.6; }
+  .resumen { display: flex; gap: 14px; flex-wrap: wrap; font-size: .84rem;
+    background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 11px 13px; box-shadow: var(--sombra); }
+  .resumen span b { display: block; font-size: 1.25rem; }
+  .resumen .rojo b { color: var(--rojo); }
+  .resumen .verde b { color: var(--verde-osc); }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <h1>Agenda</h1>
+  <p style="color:var(--gris);font-size:.85rem;margin:-4px 0 10px;">
+    Tus actividades ordenadas por <b>cuándo tocan</b>, no por dónde están guardadas.
+  </p>
+
+  <div class="filtros" id="filtros">
+    <button class="fchip activo" data-f="mias">Las mías</button>
+    <button class="fchip" data-f="todas">Todo lo que veo</button>
+    <button class="fchip" data-f="limpiezas">🧹 Limpiezas</button>
+  </div>
+
+  <div id="cuerpo"><div class="vacio">Cargando…</div></div>
+</div>
+
+<script type="module">
+// ═══════════════════════════════════════════════════════════
+// AGENDA — las actividades por CUÁNDO, no por dónde.
+//
+// Actividades muestra el árbol: proyectos, ítems, sub-ítems. Es la vista
+// correcta para organizar, y la equivocada para arrancar el día — hay que
+// abrir cada rama para descubrir qué toca hoy.
+//
+// Esta pantalla toma las mismas actividades y las ordena por su FECHA REAL,
+// que no siempre es un campo: en una recurrente es 'fechaInicio' (que el
+// cierre de ciclo reprograma), en una única es 'fechaVencimiento' si lo
+// tiene, y si no, 'fechaInicio'. Esa resolución vive en 'cuandoToca()'.
+//
+// NO es el Calendario: ese muestra la OCUPACIÓN de las cabañas —quién entra,
+// quién sale— y es de las reservas. Este es del trabajo. Se parecen en la
+// forma y no tienen nada que ver en el contenido.
+// ═══════════════════════════════════════════════════════════
+import { db, collection, onSnapshot } from './firebase-init.js';
+import { Core } from './actividades-core.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('agenda');
+
+const SELLO = 'agenda-1';
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+let todas = [];
+let filtro = 'mias';
+
+const hoy = CV2.hoyISO();
+const sumar = (iso, n) => {
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+const dias = (a, b) => Math.round(
+  (new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000);
+
+// ── Cuándo toca ──────────────────────────────────────────
+// Un proyecto no "toca" nunca: es un contenedor. Una actividad hecha tampoco.
+function cuandoToca(it) {
+  if (it.hecho) return null;
+  const ciclo = it.recurrenciaDias ?? 0;
+  if (ciclo > 0) return it.fechaInicio || hoy;
+  return it.fechaVencimiento || it.fechaInicio || null;
+}
+
+// El mismo semáforo que Actividades, copiado tal cual: si acá el estado se
+// calculara distinto, las dos pantallas dirían cosas diferentes de la misma
+// actividad y no habría forma de saber cuál miente.
+function semaforo(it) {
+  if (it.hecho) return { c: '#9aa69a', t: 'Terminada' };
+  if (it.prioridad === 'rojo') return { c: '#c0271f', t: 'Urgente' };
+  const ciclo = it.recurrenciaDias ?? 0;
+  if (ciclo > 0 && it.fechaInicio) {
+    if (it.fechaInicio > hoy) return { c: '#cdd6cb', t: 'Vuelve el ' + CV2.fmtFecha(it.fechaInicio) };
+    const atraso = dias(it.fechaInicio, hoy);
+    if (atraso <= Math.max(1, Math.round(ciclo * 0.25))) return { c: '#1f7a32', t: 'Toca hacerla' };
+    if (atraso <= ciclo) return { c: '#b8860b', t: 'Atrasada ' + atraso + 'd' };
+    return { c: '#c0271f', t: 'Muy atrasada (' + atraso + 'd)' };
+  }
+  if (it.fechaVencimiento && it.fechaVencimiento < hoy) return { c: '#c0271f', t: 'Vencida' };
+  if (it.fechaVencimiento) {
+    const d = dias(hoy, it.fechaVencimiento);
+    if (d <= 3) return { c: '#b8860b', t: 'Vence en ' + d + ' día(s)' };
+  }
+  if (it.prioridad === 'amarillo') return { c: '#b8860b', t: 'Importante' };
+  if (it.fechaInicio && it.fechaInicio > hoy) return { c: '#cdd6cb', t: 'Programada ' + CV2.fmtFecha(it.fechaInicio) };
+  return { c: '#1f7a32', t: 'Al día' };
+}
+
+const esLimpieza = (it) => !!(it.reservaId && it.fase);
+function marca(it) {
+  if (it.faltantesData) return '🛒 ';
+  if (it.reservaId && it.fase === 'salida') return '📤 ';
+  if (it.reservaId && it.fase === 'entrada') return '🧹 ';
+  return '';
+}
+
+// ── Qué es "mío" ─────────────────────────────────────────
+// Con alcance 'equipo' participa todo el mundo, así que "las mías" tiene que
+// significar algo más estrecho o el filtro no filtra nada: son las que yo
+// creé, las que me asignaron, y TODAS las limpiezas — porque una limpieza no
+// se le asigna a nadie y sin embargo la tiene que ver quien vaya a hacerla.
+function esMia(it) {
+  if (esLimpieza(it)) return true;
+  if (it.creadoPor === u.uid) return true;
+  return Array.isArray(it.competencias) && it.competencias.indexOf(u.uid) !== -1;
+}
+
+// ── Los tramos ───────────────────────────────────────────
+// El corte es por cercanía, no por semana del calendario: "esta semana" en
+// domingo no significa nada. Son días desde hoy.
+const TRAMOS = [
+  { id: 'vencido', label: 'Vencidas', clase: 'vencido', hasta: -1 },
+  { id: 'hoy', label: 'Hoy', clase: 'hoy', hasta: 0 },
+  { id: 'manana', label: 'Mañana', clase: '', hasta: 1 },
+  { id: 'semana', label: 'Los próximos 7 días', clase: '', hasta: 7 },
+  { id: 'mes', label: 'Más adelante', clase: '', hasta: 60 },
+  { id: 'lejos', label: 'Sin fecha cercana', clase: '', hasta: Infinity }
+];
+
+function tramoDe(fecha) {
+  const d = dias(hoy, fecha);
+  return TRAMOS.find((t) => d <= t.hasta) || TRAMOS[TRAMOS.length - 1];
+}
+
+function cuandoTexto(fecha) {
+  const d = dias(hoy, fecha);
+  if (d === 0) return { chico: 'hoy', grande: '' };
+  if (d === 1) return { chico: 'mañana', grande: '' };
+  if (d === -1) return { chico: 'ayer', grande: '' };
+  if (d < 0) return { chico: 'hace', grande: (-d) + ' d' };
+  if (d <= 30) return { chico: 'en', grande: d + ' d' };
+  return { chico: '', grande: CV2.fmtFecha(fecha).slice(0, 5) };
+}
+
+function render() {
+  const visibles = todas
+    .filter((it) => !it.hecho)
+    .filter((it) => cuandoToca(it) !== null)
+    // Los proyectos raíz no van: son contenedores, no trabajo.
+    .filter((it) => !!it.parentId)
+    .filter((it) => {
+      if (filtro === 'limpiezas') return esLimpieza(it);
+      if (filtro === 'mias') return esMia(it);
+      return true;
+    })
+    .map((it) => ({ it, fecha: cuandoToca(it), s: semaforo(it) }))
+    .sort((a, b) => a.fecha.localeCompare(b.fecha)
+      || String(a.it.titulo ?? '').localeCompare(String(b.it.titulo ?? '')));
+
+  const vencidas = visibles.filter((x) => x.fecha < hoy).length;
+  const deHoy = visibles.filter((x) => x.fecha === hoy).length;
+
+  let h = '<div class="resumen">'
+    + '<span class="' + (vencidas ? 'rojo' : '') + '">vencidas<b>' + vencidas + '</b></span>'
+    + '<span class="verde">hoy<b>' + deHoy + '</b></span>'
+    + '<span>en total<b>' + visibles.length + '</b></span>'
+    + '</div>';
+
+  if (!visibles.length) {
+    h += '<div class="vacio">' + (filtro === 'mias'
+      ? 'No tenés nada pendiente con fecha.<br>Probá <b>Todo lo que veo</b>.'
+      : 'No hay actividades pendientes con fecha.') + '</div>';
+    $('cuerpo').innerHTML = h;
+    return;
+  }
+
+  TRAMOS.forEach((t) => {
+    const items = visibles.filter((x) => tramoDe(x.fecha).id === t.id);
+    if (!items.length) return;
+    h += '<div class="tramo ' + t.clase + '"><h2>' + esc(t.label)
+      + '<span class="cuenta">' + items.length + '</span></h2>';
+    items.forEach(({ it, fecha, s }) => {
+      const c = cuandoTexto(fecha);
+      h += '<a class="ag" href="./actividades.html?a=' + encodeURIComponent(it.id) + '">'
+        + '<span class="sem" style="background:' + s.c + '" title="' + esc(s.t) + '"></span>'
+        + '<span class="txt"><b>' + marca(it) + esc(it.titulo || '(sin título)') + '</b>'
+        + '<small>' + esc(s.t)
+        + (it.detalle ? ' · ' + esc(it.detalle) : '')
+        + ((it.monto ?? 0) > 0 ? ' · ' + esc(CV2.fmtMonto(it.monto)) : '')
+        + '</small></span>'
+        + '<span class="cuando">' + esc(c.chico)
+        + (c.grande ? '<b>' + esc(c.grande) + '</b>' : '') + '</span>'
+        + '<span class="material-icons ir">chevron_right</span></a>';
+    });
+    h += '</div>';
+  });
+
+  h += '<p style="color:var(--gris);font-size:.72rem;text-align:center;margin:22px 0 0;">'
+    + esc(SELLO) + ' · motor ' + esc(CV2.VERSION ?? '?') + '</p>';
+  $('cuerpo').innerHTML = h;
+}
+
+$('filtros').addEventListener('click', (ev) => {
+  const b = ev.target.closest('.fchip');
+  if (!b) return;
+  filtro = b.dataset.f;
+  $('filtros').querySelectorAll('.fchip').forEach((x) =>
+    x.classList.toggle('activo', x === b));
+  render();
+});
+
+// ═══ Suscripción — AL FINAL ═══════════════════════════════
+// La MISMA consulta que Actividades (Core.consultaActividades): si acá se
+// pidiera distinto, la agenda mostraría cosas que la otra pantalla no, o al
+// revés. Y su regla de Firestore espeja exactamente esas cuatro ramas — una
+// consulta sin filtrar se rechaza entera.
+onSnapshot(Core.consultaActividades(u, CV2.esAdmin()), (snap) => {
+  todas = [];
+  snap.forEach((d) => todas.push({ id: d.id, ...d.data() }));
+  render();
+}, (e) => {
+  console.error(e);
+  $('cuerpo').innerHTML = '<div class="vacio">No se pudo cargar la agenda ('
+    + esc(e.code ?? e.message) + ').</div>';
+});
+</script>
+</body>
+</html>

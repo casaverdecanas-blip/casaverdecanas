@@ -7,7 +7,9 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
-// v68 (3-ago-2026) — los modales de inventario de actividades.html tenían
+// v69 (3-ago-2026) — nace agenda.html: las actividades de cada uno por
+//       CUÁNDO tocan. Entra al SHELL y a la barra de navegación.
+// v68 — los modales de inventario de actividades.html tenían
 //       'padding: 0' heredado y NINGÚN desplazamiento: con un inventario
 //       largo el botón de confirmar quedaba fuera de la pantalla.
 // v67 — las limpiezas se ordenan por FECHA dentro de su
@@ -28,7 +30,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v68';
+const VERSION = 'cv2-shell-v69';
 
 const SHELL = [
   './',
@@ -46,6 +48,7 @@ const SHELL = [
   './cabanas.html',
   './espacios.html',
   './calendario.html',
+  './agenda.html',
   './clientes.html',
   './dinero.html',
   './balance.html',
