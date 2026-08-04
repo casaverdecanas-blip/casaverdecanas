@@ -194,6 +194,33 @@
       </div>
     </div>
 
+    <!-- La HORA es opcional a propósito. La enorme mayoría de las tareas de
+         la casa no tienen hora: se hacen ese día. Solo la piden las que sí
+         —una entrega, una visita, un turno—, y ahí la agenda las ordena.
+         Sin hora, una tarea va al final del día en la agenda: lo que tiene
+         hora manda sobre lo que se puede hacer en cualquier momento. -->
+    <div class="fila2">
+      <div>
+        <label>Hora (opcional)</label>
+        <input id="fHora" type="time">
+      </div>
+      <div>
+        <label>Dura (opcional)</label>
+        <select id="fDuracion">
+          <option value="">—</option>
+          <option value="0.5">media hora</option>
+          <option value="1">1 hora</option>
+          <option value="2">2 horas</option>
+          <option value="4">media jornada</option>
+          <option value="8">jornada entera</option>
+        </select>
+      </div>
+    </div>
+    <p class="texto-gris" style="font-size:.76rem;margin:4px 0 0;">
+      Si ponés <b>vencimiento</b> más adelante que el inicio, la actividad aparece en
+      la agenda <b>todos los días del tramo</b>.
+    </p>
+
     <div id="grupoCompetencias" class="oculto">
       <label>Quiénes (además del creador)</label>
       <div id="fCompetencias" style="display:flex;flex-direction:column;gap:6px;border:1px solid var(--linea);border-radius:8px;padding:10px;"></div>
@@ -310,7 +337,13 @@ let roots = [];
 // Se aplica UNA sola vez: el onSnapshot vuelve a correr con cada cambio, y
 // reabrir la actividad en cada uno pelearía con lo que esté haciendo la
 // persona.
-const pedida = new URLSearchParams(location.search).get('a');
+const _q = new URLSearchParams(location.search);
+const pedida = _q.get('a');
+// ?editar=1 abre la ventana de EDICIÓN, no solo el detalle. Lo usa la Agenda:
+// desde ahí lo que se quiere hacer casi siempre es mover la fecha o la hora,
+// y obligar a abrir el detalle y después buscar el lápiz son dos toques que
+// no aportan nada.
+const pedidaEditar = _q.get('editar') === '1';
 let pedidaHecha = false;
 
 const PROJ_LIMPIEZAS = 'proj-limpiezas';
@@ -318,6 +351,11 @@ const PROJ_LIMPIEZAS = 'proj-limpiezas';
 let abiertos = {};
 let detalleAbierto = null;
 let destacados = new Set();
+// Lo que CADA UNO eligió ver en su agenda. Vive en estado_usuario/{uid}, que
+// solo lee y escribe su dueño: la agenda de Flor no es asunto de Esteban.
+// Es distinto de la estrella: destacar es "esto me importa", agendar es
+// "esto ocupa un lugar en mi semana". Se pueden querer por separado.
+let enAgenda = new Set();
 let filtro = 'todas';
 let editandoId = null;
 let altaPadreId = null;
@@ -514,6 +552,9 @@ function nodoHTML(id) {
           <span class="material-icons">history</span></button>
         <button class="btn-ico" onclick="toggleEstrella('${id}')" title="Destacar">
           <span class="material-icons ${star ? 'estrella' : ''}">${star ? 'star' : 'star_outline'}</span></button>
+        <button class="btn-ico" onclick="toggleAgenda('${id}')"
+                title="${enAgenda.has(id) ? 'Sacar de mi agenda' : 'Poner en mi agenda'}">
+          <span class="material-icons" style="${enAgenda.has(id) ? 'color:var(--verde-osc);' : ''}">${enAgenda.has(id) ? 'event_available' : 'event_note'}</span></button>
         ${!it.hecho ? `<button class="btn-ico" onclick="abrirEdicion('${id}')" title="Editar"><span class="material-icons">edit</span></button>` : ''}
         ${(!it.hecho || CV2.esAdmin()) ? `<button class="btn-ico" onclick="borrar('${id}')" title="Eliminar"><span class="material-icons" style="color:var(--rojo)">delete</span></button>` : ''}
       </div>
@@ -757,6 +798,19 @@ window.verRealizaciones = async (id) => {
 
 window.cerrarRealiz = () => $('mRealiz').close();
 
+window.toggleAgenda = async (id) => {
+  const tiene = enAgenda.has(id);
+  tiene ? enAgenda.delete(id) : enAgenda.add(id);
+  render();
+  try {
+    await setDoc(doc(db, 'estado_usuario', u.uid), {
+      agenda: tiene ? arrayRemove(id) : arrayUnion(id),
+      actualizadoEn: serverTimestamp()
+    }, { merge: true });
+    CV2.toast(tiene ? 'Sacada de tu agenda' : 'Agregada a tu agenda', 'success');
+  } catch { CV2.toast('No se pudo guardar', 'error'); }
+};
+
 window.toggleEstrella = async (id) => {
   const tiene = destacados.has(id);
   tiene ? destacados.delete(id) : destacados.add(id);
@@ -826,6 +880,8 @@ function prepararModal({ titulo, esProyecto, padreId, it }) {
   $('fRecurrencia').value = it?.recurrenciaDias ?? 0;
   $('fMonto').value = it?.monto ?? 0;
   $('fFechaInicio').value = it?.fechaInicio ?? '';
+  $('fHora').value = it?.hora ?? '';
+  $('fDuracion').value = it?.duracionHoras ? String(it.duracionHoras) : '';
   $('fFechaVenc').value = it?.fechaVencimiento ?? '';
   $('fEsCompra').checked = it?.esCompra ?? false;
   $('fProveedor').value = it?.proveedor ?? '';
@@ -879,6 +935,8 @@ $('mGuardar').addEventListener('click', async () => {
     monto: Math.max(0, parseFloat($('fMonto').value) || 0),
     fechaInicio: $('fFechaInicio').value || null,
     fechaVencimiento: $('fFechaVenc').value || null,
+    hora: $('fHora').value || null,
+    duracionHoras: parseFloat($('fDuracion').value) || null,
     esCompra: $('fEsCompra').checked,
     proveedor: $('fEsCompra').checked ? ($('fProveedor').value.trim() || null) : null,
     competencias: $('fAlcance').value === 'asignados'
@@ -934,6 +992,7 @@ try {
 try {
   const eu = await getDoc(doc(db, 'estado_usuario', u.uid));
   destacados = new Set(eu.exists() ? (eu.data().destacados ?? []) : []);
+  enAgenda = new Set(eu.exists() ? (eu.data().agenda ?? []) : []);
 } catch { /* primera vez */ }
 
 // Restaurar mi cronómetro si quedó corriendo (sobrevive recargas)
@@ -1277,6 +1336,10 @@ onSnapshot(consulta, (snap) => {
         el.classList.add('recien-llegada');
         setTimeout(() => el.classList.remove('recien-llegada'), 2600);
       }
+      // La edición se abre DESPUÉS de dibujar y de traer a la vista: si el
+      // modal apareciera primero, al cerrarlo la persona quedaría mirando
+      // una lista que nunca se movió y sin saber dónde está la actividad.
+      if (pedidaEditar) abrirEdicion(pedida);
     }, 80);
     verificarCrono();
     return;

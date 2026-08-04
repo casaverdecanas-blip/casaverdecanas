@@ -821,6 +821,23 @@ ultimoAutorNombre, ultimaActividad, creadoPor, creadoNombre, creadoEn`
 · **Formato viejo** (claves `comId` al ras del documento) se sigue leyendo como respaldo:
   no hubo migración ni día cero.
 
+### `actividades/{id}` — campos de agenda
+· **`hora`** (`'HH:MM'`, opcional) y **`duracionHoras`** (número, opcional). Las dos
+  son opcionales a propósito: la enorme mayoría de las tareas de la casa no tienen
+  hora, se hacen ese día. En la agenda, **lo que tiene hora va primero**.
+· Una actividad **ocupa un tramo de días** cuando `fechaVencimiento > fechaInicio`:
+  aparece en cada día del tramo. No hace falta ningún campo nuevo para eso.
+
+### `estado_usuario/{uid}` — la agenda de cada uno
+· **`agenda`** — array de ids de actividad. Lo que **esa persona** eligió ver en su
+  agenda semanal, con el botón 📅 del detalle. Es distinto de `destacados`: destacar es
+  *"esto me importa"*, agendar es *"esto ocupa un lugar en mi semana"*.
+· Vive acá y no en la actividad porque **es de la persona, no de la tarea**: la agenda
+  de Flor no es asunto de Esteban. La regla ya lo garantiza —solo su dueño lee y
+  escribe— sin tocar nada.
+· **Las limpiezas no se agendan: aparecen siempre.** Tienen detrás la fecha de llegada
+  de un huésped y no se eligen.
+
 ### `avisos_contacto/{uid}`
 `telefono ('+55...'), apikey (CallMeBot), nombre, actualizadoEn`
 · El teléfono y la clave de CallMeBot de cada persona. **Colección aparte de
@@ -2130,6 +2147,25 @@ falta el archivo, se pide — no se reconstruye.
 > **A revisar en el teléfono:** la barra de abajo queda con **cinco pestañas + Más**,
 > una más de las cuatro que fija §6.0. Si resulta apretada, mover `calendario` al
 > grupo `alojamiento` de `CV2.NAV` es una línea.
+>
+> **T11.36 · La Agenda pasa a ser semanal.** Reescrita: lunes a domingo, cada día con
+> sus actividades **ordenadas por hora**, navegación entre semanas y vuelta a la
+> actual. Cuatro cambios de fondo:
+>
+> · **Las actividades aceptan `hora` y `duracionHoras`**, las dos opcionales — la
+>   mayoría de las tareas de la casa no tienen hora. Sin hora, van al final del día.
+> · **Una actividad puede ocupar varios días**: si su vencimiento es posterior a su
+>   inicio, aparece en cada día del tramo con una etiqueta *día 2/5*. No hizo falta
+>   ningún campo nuevo.
+> · **Cada uno elige qué ve**: botón 📅 en el detalle de cualquier actividad, guardado
+>   en `estado_usuario/{uid}.agenda`. Es de la persona, no de la tarea. Las limpiezas
+>   aparecen siempre, sin que nadie las agende.
+> · **Tocar abre la EDICIÓN**, no el detalle (`?a=<id>&editar=1`): desde la agenda lo
+>   que se quiere hacer casi siempre es mover la fecha o la hora.
+>
+> Las **vencidas** van arriba de todo y fuera de la semana: en su día real
+> desaparecerían al pasar de semana, y son las que no hay que perder de vista.
+> `sw.js` → v70, `CV2.VERSION` → `nucleo-agenda-6`.
 >
 > **Sigue sin verificarse:** la sincronización con Airbnb.
 

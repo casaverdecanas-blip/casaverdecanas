@@ -10,42 +10,59 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#2d5a27">
 <style>
-  .filtros { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 10px;
+  .semana { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+  .semana .rango { flex: 1; text-align: center; font-size: .9rem; font-weight: 600; }
+  .semana button { min-width: 44px; min-height: 44px; border: 1px solid var(--linea);
+    background: #fff; border-radius: 10px; cursor: pointer; display: inline-flex;
+    align-items: center; justify-content: center; font-family: inherit; }
+
+  .filtros { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 12px;
     -webkit-overflow-scrolling: touch; }
   .fchip { flex: 0 0 auto; min-height: 40px; padding: 8px 14px; border-radius: 999px;
     border: 1px solid var(--linea); background: #fff; font-size: .84rem;
     color: var(--tinta); cursor: pointer; font-family: inherit; }
   .fchip.activo { background: var(--verde); border-color: var(--verde); color: #fff; font-weight: 600; }
 
-  .tramo { margin: 18px 0 0; }
-  .tramo > h2 { font-size: .82rem; text-transform: uppercase; letter-spacing: .04em;
-    color: var(--gris); margin: 0 0 7px; display: flex; align-items: baseline; gap: 8px; }
-  .tramo > h2 .cuenta { font-weight: 400; text-transform: none; letter-spacing: 0; }
-  .tramo.vencido > h2 { color: var(--rojo); }
-  .tramo.hoy > h2 { color: var(--verde-osc); }
+  .dia { margin-bottom: 10px; }
+  .dia > h2 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 5px;
+    font-size: .86rem; text-transform: capitalize; }
+  .dia > h2 .num { font-size: 1.1rem; font-weight: 700; }
+  .dia > h2 .cuenta { margin-left: auto; font-size: .74rem; color: var(--gris);
+    font-weight: 400; text-transform: none; }
+  .dia.es-hoy > h2 { color: var(--verde-osc); }
+  .dia.es-hoy > h2 .num { background: var(--verde); color: #fff; border-radius: 9px;
+    padding: 1px 8px; }
+  .dia.finde > h2 { color: var(--gris); }
+
+  .franja { border-left: 3px solid var(--linea); padding-left: 10px; }
+  .dia.es-hoy .franja { border-left-color: var(--verde); }
 
   .ag { display: flex; align-items: center; gap: 9px; background: #fff;
-    border: 1px solid var(--linea); border-radius: var(--radio); padding: 9px 8px 9px 12px;
-    margin-bottom: 6px; min-height: 56px; box-shadow: var(--sombra);
-    text-decoration: none; color: var(--tinta); }
+    border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 8px 6px 8px 10px; margin-bottom: 5px; min-height: 52px;
+    box-shadow: var(--sombra); text-decoration: none; color: var(--tinta); }
   .ag:active { filter: brightness(.97); }
-  .ag .sem { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+  .ag .hora { flex: 0 0 46px; text-align: right; font-size: .82rem; font-weight: 700;
+    color: var(--tinta); line-height: 1.25; }
+  .ag .hora small { display: block; font-weight: 400; font-size: .68rem; color: var(--gris); }
+  .ag .hora.sin { color: var(--gris); font-weight: 400; font-size: .72rem; }
+  .ag .sem { width: 10px; height: 10px; border-radius: 50%; flex: none; }
   .ag .txt { flex: 1; min-width: 0; }
-  .ag .txt b { display: block; font-size: .91rem; font-weight: 600; overflow-wrap: anywhere; }
-  .ag .txt small { display: block; color: var(--gris); font-size: .77rem; line-height: 1.5;
-    overflow-wrap: anywhere; }
-  .ag .material-icons.ir { color: var(--gris); font-size: 19px; flex: none; }
-  .ag .cuando { flex: none; text-align: right; font-size: .74rem; color: var(--gris);
-    white-space: nowrap; }
-  .ag .cuando b { display: block; font-size: .95rem; color: var(--tinta); }
+  .ag .txt b { display: block; font-size: .89rem; font-weight: 600; overflow-wrap: anywhere; }
+  .ag .txt small { display: block; color: var(--gris); font-size: .75rem;
+    line-height: 1.45; overflow-wrap: anywhere; }
+  .ag .material-icons.ir { color: var(--gris); font-size: 18px; flex: none; }
+  .tramo-chip { font-size: .66rem; padding: 1px 6px; border-radius: 999px;
+    background: var(--crema); color: var(--gris); white-space: nowrap; }
 
-  .vacio { text-align: center; color: var(--gris); padding: 34px 14px; line-height: 1.6; }
-  .resumen { display: flex; gap: 14px; flex-wrap: wrap; font-size: .84rem;
-    background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
-    padding: 11px 13px; box-shadow: var(--sombra); }
-  .resumen span b { display: block; font-size: 1.25rem; }
-  .resumen .rojo b { color: var(--rojo); }
-  .resumen .verde b { color: var(--verde-osc); }
+  .dia-vacio { color: var(--gris); font-size: .78rem; padding: 4px 0 8px; }
+  .vencidas { background: #fdeceb; border: 1px solid #f0b8b4; border-radius: var(--radio);
+    padding: 11px 13px; margin-bottom: 14px; }
+  .vencidas h2 { margin: 0 0 6px; font-size: .84rem; color: #8e2b2b;
+    text-transform: uppercase; letter-spacing: .04em; }
+  .aviso { background: var(--crema); border-radius: 10px; padding: 11px 13px;
+    font-size: .83rem; line-height: 1.55; margin: 0 0 12px; color: var(--gris); }
+  .cargando { text-align: center; color: var(--gris); padding: 30px; }
 </style>
 </head>
 <body>
@@ -54,37 +71,46 @@
 
 <div class="contenedor">
   <h1>Agenda</h1>
-  <p style="color:var(--gris);font-size:.85rem;margin:-4px 0 10px;">
-    Tus actividades ordenadas por <b>cuándo tocan</b>, no por dónde están guardadas.
-  </p>
 
-  <div class="filtros" id="filtros">
-    <button class="fchip activo" data-f="mias">Las mías</button>
-    <button class="fchip" data-f="todas">Todo lo que veo</button>
-    <button class="fchip" data-f="limpiezas">🧹 Limpiezas</button>
+  <div class="semana">
+    <button id="ant" title="Semana anterior"><span class="material-icons">chevron_left</span></button>
+    <span class="rango" id="rango">—</span>
+    <button id="sig" title="Semana siguiente"><span class="material-icons">chevron_right</span></button>
+    <button id="ahora" title="Volver a esta semana"><span class="material-icons">today</span></button>
   </div>
 
-  <div id="cuerpo"><div class="vacio">Cargando…</div></div>
+  <div class="filtros" id="filtros">
+    <button class="fchip activo" data-f="agenda">En mi agenda</button>
+    <button class="fchip" data-f="mias">Las mías</button>
+    <button class="fchip" data-f="todas">Todo lo que veo</button>
+  </div>
+
+  <div id="cuerpo"><div class="cargando">Cargando…</div></div>
 </div>
 
 <script type="module">
 // ═══════════════════════════════════════════════════════════
-// AGENDA — las actividades por CUÁNDO, no por dónde.
+// AGENDA — la semana, día por día, por hora.
 //
-// Actividades muestra el árbol: proyectos, ítems, sub-ítems. Es la vista
-// correcta para organizar, y la equivocada para arrancar el día — hay que
-// abrir cada rama para descubrir qué toca hoy.
+// Actividades muestra el ÁRBOL: proyectos, ítems, sub-ítems. Es la vista
+// correcta para organizar y la equivocada para arrancar el día — hay que
+// abrir cada rama para descubrir qué toca.
 //
-// Esta pantalla toma las mismas actividades y las ordena por su FECHA REAL,
-// que no siempre es un campo: en una recurrente es 'fechaInicio' (que el
-// cierre de ciclo reprograma), en una única es 'fechaVencimiento' si lo
-// tiene, y si no, 'fechaInicio'. Esa resolución vive en 'cuandoToca()'.
+// Cuatro decisiones que la definen:
+//  · SEMANA COMPLETA, de lunes a domingo. Una lista de "próximos 7 días" no
+//    deja ver que el jueves está cargado y el viernes vacío.
+//  · UNA ACTIVIDAD PUEDE OCUPAR VARIOS DÍAS. Si su vencimiento es posterior
+//    a su inicio, aparece en CADA día del tramo, diciendo cuál de todos es.
+//  · CADA UNO ELIGE QUÉ VE. El filtro por defecto es "En mi agenda": solo lo
+//    que la persona marcó con el botón 📅 en Actividades. Es la diferencia
+//    entre una agenda y un listado de todo lo que existe.
+//  · TOCAR ABRE LA EDICIÓN, no el detalle. Desde acá lo que se quiere hacer
+//    casi siempre es mover la fecha o la hora.
 //
-// NO es el Calendario: ese muestra la OCUPACIÓN de las cabañas —quién entra,
-// quién sale— y es de las reservas. Este es del trabajo. Se parecen en la
-// forma y no tienen nada que ver en el contenido.
+// NO es el Calendario: ese muestra la OCUPACIÓN de las cabañas y sale de las
+// reservas. Este es el trabajo, y sale de las actividades.
 // ═══════════════════════════════════════════════════════════
-import { db, collection, onSnapshot } from './firebase-init.js';
+import { db, doc, getDoc, onSnapshot } from './firebase-init.js';
 import { Core } from './actividades-core.js';
 import { CV2 } from './nucleo.js';
 
@@ -92,12 +118,14 @@ CV2.registrarSW();
 const u = await CV2.verificarAuth();
 CV2.renderNav('agenda');
 
-const SELLO = 'agenda-1';
+const SELLO = 'agenda-2';
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
 
 let todas = [];
-let filtro = 'mias';
+let enAgenda = new Set();
+let filtro = 'agenda';
+let lunes = null;          // lunes de la semana que se está mirando
 
 const hoy = CV2.hoyISO();
 const sumar = (iso, n) => {
@@ -108,18 +136,42 @@ const sumar = (iso, n) => {
 const dias = (a, b) => Math.round(
   (new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000);
 
-// ── Cuándo toca ──────────────────────────────────────────
-// Un proyecto no "toca" nunca: es un contenedor. Una actividad hecha tampoco.
-function cuandoToca(it) {
-  if (it.hecho) return null;
-  const ciclo = it.recurrenciaDias ?? 0;
-  if (ciclo > 0) return it.fechaInicio || hoy;
-  return it.fechaVencimiento || it.fechaInicio || null;
+// El lunes de la semana de una fecha. getDay() devuelve 0 para domingo, así
+// que el domingo pertenece a la semana que ARRANCÓ seis días antes — si no,
+// aparecería solo, al principio de una semana que ya terminó.
+function lunesDe(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  const dow = d.getDay();
+  return sumar(iso, dow === 0 ? -6 : 1 - dow);
 }
 
-// El mismo semáforo que Actividades, copiado tal cual: si acá el estado se
-// calculara distinto, las dos pantallas dirían cosas diferentes de la misma
-// actividad y no habría forma de saber cuál miente.
+const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const nombreDia = (iso) => DIAS[new Date(iso + 'T12:00:00').getDay()];
+const numeroDia = (iso) => Number(iso.slice(8, 10));
+const mesDe = (iso) => MESES[Number(iso.slice(5, 7)) - 1];
+
+// ── Qué días ocupa una actividad ─────────────────────────
+// Ocupa un TRAMO cuando su vencimiento es posterior a su inicio: ahí aparece
+// en cada día del tramo. Si no, ocupa un solo día.
+// Una recurrente ocupa el día en que vuelve — su 'fechaInicio', que el cierre
+// de ciclo reprograma solo.
+function tramoDe(it) {
+  if (it.hecho) return null;
+  const ciclo = it.recurrenciaDias ?? 0;
+  if (ciclo > 0) {
+    const f = it.fechaInicio;
+    return f ? { desde: f, hasta: f } : null;
+  }
+  const ini = it.fechaInicio || it.fechaVencimiento;
+  const fin = it.fechaVencimiento || it.fechaInicio;
+  if (!ini) return null;
+  return (fin && fin > ini) ? { desde: ini, hasta: fin } : { desde: ini, hasta: ini };
+}
+
+// El mismo semáforo que Actividades, copiado tal cual: si acá se calculara
+// distinto, las dos pantallas dirían cosas diferentes de la misma actividad
+// y no habría forma de saber cuál miente.
 function semaforo(it) {
   if (it.hecho) return { c: '#9aa69a', t: 'Terminada' };
   if (it.prioridad === 'rojo') return { c: '#c0271f', t: 'Urgente' };
@@ -149,123 +201,140 @@ function marca(it) {
   return '';
 }
 
-// ── Qué es "mío" ─────────────────────────────────────────
-// Con alcance 'equipo' participa todo el mundo, así que "las mías" tiene que
-// significar algo más estrecho o el filtro no filtra nada: son las que yo
-// creé, las que me asignaron, y TODAS las limpiezas — porque una limpieza no
-// se le asigna a nadie y sin embargo la tiene que ver quien vaya a hacerla.
+// "Las mías": creadas, asignadas, y TODAS las limpiezas — una limpieza no se
+// le asigna a nadie y la tiene que ver quien vaya a hacerla.
 function esMia(it) {
   if (esLimpieza(it)) return true;
   if (it.creadoPor === u.uid) return true;
   return Array.isArray(it.competencias) && it.competencias.indexOf(u.uid) !== -1;
 }
 
-// ── Los tramos ───────────────────────────────────────────
-// El corte es por cercanía, no por semana del calendario: "esta semana" en
-// domingo no significa nada. Son días desde hoy.
-const TRAMOS = [
-  { id: 'vencido', label: 'Vencidas', clase: 'vencido', hasta: -1 },
-  { id: 'hoy', label: 'Hoy', clase: 'hoy', hasta: 0 },
-  { id: 'manana', label: 'Mañana', clase: '', hasta: 1 },
-  { id: 'semana', label: 'Los próximos 7 días', clase: '', hasta: 7 },
-  { id: 'mes', label: 'Más adelante', clase: '', hasta: 60 },
-  { id: 'lejos', label: 'Sin fecha cercana', clase: '', hasta: Infinity }
-];
-
-function tramoDe(fecha) {
-  const d = dias(hoy, fecha);
-  return TRAMOS.find((t) => d <= t.hasta) || TRAMOS[TRAMOS.length - 1];
+// En "mi agenda" entran las que la persona marcó Y las limpiezas: una
+// limpieza tiene detrás la fecha de llegada de un huésped y no se elige.
+function pasaFiltro(it) {
+  if (filtro === 'agenda') return enAgenda.has(it.id) || esLimpieza(it);
+  if (filtro === 'mias') return esMia(it);
+  return true;
 }
 
-function cuandoTexto(fecha) {
-  const d = dias(hoy, fecha);
-  if (d === 0) return { chico: 'hoy', grande: '' };
-  if (d === 1) return { chico: 'mañana', grande: '' };
-  if (d === -1) return { chico: 'ayer', grande: '' };
-  if (d < 0) return { chico: 'hace', grande: (-d) + ' d' };
-  if (d <= 30) return { chico: 'en', grande: d + ' d' };
-  return { chico: '', grande: CV2.fmtFecha(fecha).slice(0, 5) };
+// ── Render ───────────────────────────────────────────────
+function filaHTML(it, dia, tramo) {
+  const s = semaforo(it);
+  const largo = tramo.hasta > tramo.desde;
+  const cual = largo ? (dias(tramo.desde, dia) + 1) : 0;
+  const total = largo ? (dias(tramo.desde, tramo.hasta) + 1) : 0;
+
+  const hora = it.hora
+    ? '<span class="hora">' + esc(it.hora)
+      + (it.duracionHoras ? '<small>' + esc(CV2.fmtHM(it.duracionHoras)) + '</small>' : '')
+      + '</span>'
+    : '<span class="hora sin">sin hora</span>';
+
+  // Va derecho a la EDICIÓN: desde la agenda lo que se quiere hacer casi
+  // siempre es mover la fecha o la hora.
+  return '<a class="ag" href="./actividades.html?a=' + encodeURIComponent(it.id) + '&editar=1">'
+    + hora
+    + '<span class="sem" style="background:' + s.c + '" title="' + esc(s.t) + '"></span>'
+    + '<span class="txt"><b>' + marca(it) + esc(it.titulo || '(sin título)') + '</b>'
+    + '<small>' + esc(s.t)
+    + (it.detalle ? ' · ' + esc(it.detalle) : '')
+    + '</small></span>'
+    + (largo ? '<span class="tramo-chip">día ' + cual + '/' + total + '</span>' : '')
+    + '<span class="material-icons ir">edit</span></a>';
 }
 
 function render() {
-  const visibles = todas
-    .filter((it) => !it.hecho)
-    .filter((it) => cuandoToca(it) !== null)
-    // Los proyectos raíz no van: son contenedores, no trabajo.
-    .filter((it) => !!it.parentId)
-    .filter((it) => {
-      if (filtro === 'limpiezas') return esLimpieza(it);
-      if (filtro === 'mias') return esMia(it);
-      return true;
-    })
-    .map((it) => ({ it, fecha: cuandoToca(it), s: semaforo(it) }))
-    .sort((a, b) => a.fecha.localeCompare(b.fecha)
-      || String(a.it.titulo ?? '').localeCompare(String(b.it.titulo ?? '')));
+  const domingo = sumar(lunes, 6);
+  $('rango').textContent = numeroDia(lunes) + ' ' + mesDe(lunes)
+    + ' — ' + numeroDia(domingo) + ' ' + mesDe(domingo);
 
-  const vencidas = visibles.filter((x) => x.fecha < hoy).length;
-  const deHoy = visibles.filter((x) => x.fecha === hoy).length;
+  const candidatas = todas.filter((it) => !it.hecho && it.parentId && pasaFiltro(it))
+    .map((it) => ({ it, tr: tramoDe(it) }))
+    .filter((x) => x.tr);
 
-  let h = '<div class="resumen">'
-    + '<span class="' + (vencidas ? 'rojo' : '') + '">vencidas<b>' + vencidas + '</b></span>'
-    + '<span class="verde">hoy<b>' + deHoy + '</b></span>'
-    + '<span>en total<b>' + visibles.length + '</b></span>'
-    + '</div>';
+  let h = '';
 
-  if (!visibles.length) {
-    h += '<div class="vacio">' + (filtro === 'mias'
-      ? 'No tenés nada pendiente con fecha.<br>Probá <b>Todo lo que veo</b>.'
-      : 'No hay actividades pendientes con fecha.') + '</div>';
-    $('cuerpo').innerHTML = h;
-    return;
+  // Las vencidas van ARRIBA y fuera de la semana. Si quedaran en su día real,
+  // al pasar de semana desaparecerían de la vista — y son justamente las que
+  // no hay que perder de vista. Solo se muestran en la semana de hoy.
+  if (lunes <= hoy && hoy <= domingo) {
+    const vencidas = candidatas.filter((x) => x.tr.hasta < hoy);
+    if (vencidas.length) {
+      h += '<div class="vencidas"><h2>Vencidas · ' + vencidas.length + '</h2>'
+        + vencidas
+          .sort((a, b) => a.tr.hasta.localeCompare(b.tr.hasta))
+          .map((x) => filaHTML(x.it, x.tr.hasta, x.tr)).join('')
+        + '</div>';
+    }
   }
 
-  TRAMOS.forEach((t) => {
-    const items = visibles.filter((x) => tramoDe(x.fecha).id === t.id);
-    if (!items.length) return;
-    h += '<div class="tramo ' + t.clase + '"><h2>' + esc(t.label)
-      + '<span class="cuenta">' + items.length + '</span></h2>';
-    items.forEach(({ it, fecha, s }) => {
-      const c = cuandoTexto(fecha);
-      h += '<a class="ag" href="./actividades.html?a=' + encodeURIComponent(it.id) + '">'
-        + '<span class="sem" style="background:' + s.c + '" title="' + esc(s.t) + '"></span>'
-        + '<span class="txt"><b>' + marca(it) + esc(it.titulo || '(sin título)') + '</b>'
-        + '<small>' + esc(s.t)
-        + (it.detalle ? ' · ' + esc(it.detalle) : '')
-        + ((it.monto ?? 0) > 0 ? ' · ' + esc(CV2.fmtMonto(it.monto)) : '')
-        + '</small></span>'
-        + '<span class="cuando">' + esc(c.chico)
-        + (c.grande ? '<b>' + esc(c.grande) + '</b>' : '') + '</span>'
-        + '<span class="material-icons ir">chevron_right</span></a>';
-    });
-    h += '</div>';
-  });
+  let totalSemana = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = sumar(lunes, i);
+    const delDia = candidatas
+      .filter((x) => x.tr.desde <= d && d <= x.tr.hasta && x.tr.hasta >= hoy)
+      // Lo que tiene hora manda sobre lo que se puede hacer en cualquier
+      // momento del día: sin hora va al final.
+      .sort((a, b) => (a.it.hora || '99:99').localeCompare(b.it.hora || '99:99')
+        || String(a.it.titulo ?? '').localeCompare(String(b.it.titulo ?? '')));
+    totalSemana += delDia.length;
+    const finde = i >= 5;
 
-  h += '<p style="color:var(--gris);font-size:.72rem;text-align:center;margin:22px 0 0;">'
+    h += '<div class="dia' + (d === hoy ? ' es-hoy' : '') + (finde ? ' finde' : '') + '">'
+      + '<h2><span class="num">' + numeroDia(d) + '</span>' + esc(nombreDia(d))
+      + (d === hoy ? ' · hoy' : '')
+      + '<span class="cuenta">' + (delDia.length || '') + '</span></h2>';
+    h += delDia.length
+      ? '<div class="franja">' + delDia.map((x) => filaHTML(x.it, d, x.tr)).join('') + '</div>'
+      : '<div class="dia-vacio">—</div>';
+    h += '</div>';
+  }
+
+  if (!totalSemana) {
+    h += '<div class="aviso">' + (filtro === 'agenda'
+      ? 'No tenés nada en tu agenda esta semana. Poné actividades con el botón '
+        + '<b>📅</b> del detalle, en <b>Tareas</b>. Las limpiezas aparecen solas.'
+      : 'Nada con fecha en esta semana.') + '</div>';
+  }
+
+  h += '<p style="color:var(--gris);font-size:.72rem;text-align:center;margin:20px 0 0;">'
     + esc(SELLO) + ' · motor ' + esc(CV2.VERSION ?? '?') + '</p>';
   $('cuerpo').innerHTML = h;
 }
 
+// ── Gestos ───────────────────────────────────────────────
+$('ant').addEventListener('click', () => { lunes = sumar(lunes, -7); render(); });
+$('sig').addEventListener('click', () => { lunes = sumar(lunes, 7); render(); });
+$('ahora').addEventListener('click', () => { lunes = lunesDe(hoy); render(); });
 $('filtros').addEventListener('click', (ev) => {
   const b = ev.target.closest('.fchip');
   if (!b) return;
   filtro = b.dataset.f;
-  $('filtros').querySelectorAll('.fchip').forEach((x) =>
-    x.classList.toggle('activo', x === b));
+  $('filtros').querySelectorAll('.fchip').forEach((x) => x.classList.toggle('activo', x === b));
   render();
 });
 
-// ═══ Suscripción — AL FINAL ═══════════════════════════════
-// La MISMA consulta que Actividades (Core.consultaActividades): si acá se
-// pidiera distinto, la agenda mostraría cosas que la otra pantalla no, o al
-// revés. Y su regla de Firestore espeja exactamente esas cuatro ramas — una
-// consulta sin filtrar se rechaza entera.
+// ═══ Cargas — AL FINAL ════════════════════════════════════
+lunes = lunesDe(hoy);
+
+// Lo que esta persona eligió ver. Si falla, se sigue con el conjunto vacío:
+// una agenda que igual muestra las limpiezas es mejor que una pantalla de
+// error (§3.9 — nada decorativo en el camino crítico).
+try {
+  const eu = await getDoc(doc(db, 'estado_usuario', u.uid));
+  enAgenda = new Set(eu.exists() ? (eu.data().agenda ?? []) : []);
+} catch (e) { console.warn('estado_usuario', e); }
+
+// La MISMA consulta que Actividades: si acá se pidiera distinto, la agenda
+// mostraría cosas que la otra pantalla no, o al revés. Su regla de Firestore
+// espeja exactamente esas cuatro ramas — sin filtrar se rechaza entera.
 onSnapshot(Core.consultaActividades(u, CV2.esAdmin()), (snap) => {
   todas = [];
   snap.forEach((d) => todas.push({ id: d.id, ...d.data() }));
   render();
 }, (e) => {
   console.error(e);
-  $('cuerpo').innerHTML = '<div class="vacio">No se pudo cargar la agenda ('
+  $('cuerpo').innerHTML = '<div class="cargando">No se pudo cargar la agenda ('
     + esc(e.code ?? e.message) + ').</div>';
 });
 </script>
