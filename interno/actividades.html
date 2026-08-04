@@ -351,11 +351,12 @@ const PROJ_LIMPIEZAS = 'proj-limpiezas';
 let abiertos = {};
 let detalleAbierto = null;
 let destacados = new Set();
-// Lo que CADA UNO eligió ver en su agenda. Vive en estado_usuario/{uid}, que
-// solo lee y escribe su dueño: la agenda de Flor no es asunto de Esteban.
-// Es distinto de la estrella: destacar es "esto me importa", agendar es
-// "esto ocupa un lugar en mi semana". Se pueden querer por separado.
-let enAgenda = new Set();
+// (Acá vivía 'enAgenda' y un botón 📅 para meter una actividad en la agenda
+//  propia. Se retiró: una actividad SIN FECHA agregada así no aparecía en
+//  ningún lado —se guardaba y quedaba invisible— porque la agenda no sabía en
+//  qué día ponerla. Ahora la agenda se arma DENTRO de la agenda, arrastrando
+//  desde su pestaña de Actividades hasta el día y la franja que uno quiera:
+//  el lugar se elige al ponerla, que es cuando se sabe.)
 let filtro = 'todas';
 let editandoId = null;
 let altaPadreId = null;
@@ -552,9 +553,6 @@ function nodoHTML(id) {
           <span class="material-icons">history</span></button>
         <button class="btn-ico" onclick="toggleEstrella('${id}')" title="Destacar">
           <span class="material-icons ${star ? 'estrella' : ''}">${star ? 'star' : 'star_outline'}</span></button>
-        <button class="btn-ico" onclick="toggleAgenda('${id}')"
-                title="${enAgenda.has(id) ? 'Sacar de mi agenda' : 'Poner en mi agenda'}">
-          <span class="material-icons" style="${enAgenda.has(id) ? 'color:var(--verde-osc);' : ''}">${enAgenda.has(id) ? 'event_available' : 'event_note'}</span></button>
         ${!it.hecho ? `<button class="btn-ico" onclick="abrirEdicion('${id}')" title="Editar"><span class="material-icons">edit</span></button>` : ''}
         ${(!it.hecho || CV2.esAdmin()) ? `<button class="btn-ico" onclick="borrar('${id}')" title="Eliminar"><span class="material-icons" style="color:var(--rojo)">delete</span></button>` : ''}
       </div>
@@ -798,19 +796,6 @@ window.verRealizaciones = async (id) => {
 
 window.cerrarRealiz = () => $('mRealiz').close();
 
-window.toggleAgenda = async (id) => {
-  const tiene = enAgenda.has(id);
-  tiene ? enAgenda.delete(id) : enAgenda.add(id);
-  render();
-  try {
-    await setDoc(doc(db, 'estado_usuario', u.uid), {
-      agenda: tiene ? arrayRemove(id) : arrayUnion(id),
-      actualizadoEn: serverTimestamp()
-    }, { merge: true });
-    CV2.toast(tiene ? 'Sacada de tu agenda' : 'Agregada a tu agenda', 'success');
-  } catch { CV2.toast('No se pudo guardar', 'error'); }
-};
-
 window.toggleEstrella = async (id) => {
   const tiene = destacados.has(id);
   tiene ? destacados.delete(id) : destacados.add(id);
@@ -992,7 +977,6 @@ try {
 try {
   const eu = await getDoc(doc(db, 'estado_usuario', u.uid));
   destacados = new Set(eu.exists() ? (eu.data().destacados ?? []) : []);
-  enAgenda = new Set(eu.exists() ? (eu.data().agenda ?? []) : []);
 } catch { /* primera vez */ }
 
 // Restaurar mi cronómetro si quedó corriendo (sobrevive recargas)

@@ -7,7 +7,10 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
-// v71 (3-ago-2026) — la agenda se arma ARRASTRANDO: franjas mañana/tarde,
+// v72 (3-ago-2026) — la agenda tiene DOS vistas: Mi semana y el árbol de
+//       Actividades. Se arrastra de una a la otra. El botón 📅 sale de
+//       actividades.html: agregaba sin fecha y quedaba invisible.
+// v71 — la agenda se arma ARRASTRANDO: franjas mañana/tarde,
 //       pestañas fijas que son destino, y nota personal por actividad.
 // v70 — la agenda pasa a ser SEMANAL, con hora por actividad,
 //       tramos de varios días y un botón por persona para elegir qué ver.
@@ -35,7 +38,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v71';
+const VERSION = 'cv2-shell-v72';
 
 const SHELL = [
   './',

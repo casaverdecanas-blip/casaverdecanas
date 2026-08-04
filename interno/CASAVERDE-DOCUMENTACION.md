@@ -2196,6 +2196,17 @@ falta el archivo, se pide — no se reconstruye.
 > dice en qué mitad del día va. Poner "13:00" porque alguien soltó en la tarde sería
 > escribir un dato que nadie puso. `sw.js` → v71, `CV2.VERSION` → `nucleo-agenda-7`.
 >
+> **T11.38 · La agenda se arma desde la agenda.** El botón 📅 de `actividades.html`
+> **agregaba a la agenda una actividad sin fecha y quedaba invisible**: se guardaba y no
+> aparecía en ninguna semana, porque nada sabía en qué día ponerla. Se retiró.
+>
+> Ahora la agenda tiene **dos vistas**, que son también los dos destinos del arrastre:
+> **Mi semana** y **Actividades** —el árbol entero, en cascada y ya desplegado, sin
+> nada que abrir: es un depósito y esconder ramas obligaría a buscar—. Se arrastra de
+> una a la otra para sumar y para sacar, y **el lugar se elige al ponerla**, que es
+> cuando se sabe. Una actividad sin fecha propia cae en el día que se está mirando.
+> Las que ya están en la semana se ven en verde. `sw.js` → v72.
+>
 > **Sigue sin verificarse:** la sincronización con Airbnb.
 
 ---

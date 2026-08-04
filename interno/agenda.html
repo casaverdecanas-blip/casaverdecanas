@@ -105,16 +105,27 @@
     gap: 1px; border-top: 3px solid transparent; padding: 2px; }
   .tab.activo { color: var(--verde-osc); border-top-color: var(--verde); font-weight: 700; }
   .tab small { font-size: .62rem; }
-  /* Mientras se arrastra, las pestañas dejan de ser filtros y pasan a ser
-     destinos: se dice con todas las letras qué hace soltar en cada una. */
+  /* Las pestañas son las dos vistas Y los dos destinos: se arrastra de una a
+     la otra para sumar o sacar. Mientras se arrastra cambian de aspecto para
+     decir qué hace soltar en cada una. */
   body.arrastrando .tab { border-top-color: var(--linea); color: var(--tinta); }
   body.arrastrando .tab.encima { background: var(--verde-claro); border-top-color: var(--verde); }
   body.arrastrando .tab.encima.saca { background: #fdeceb; border-top-color: var(--rojo); }
+  /* Mientras se arrastra, la pestaña de destino se lee de un vistazo. */
+  body.arrastrando .tab small { visibility: hidden; }
 
   /* El fantasma que sigue al dedo. */
   .fantasma { position: fixed; z-index: 200; pointer-events: none; opacity: .95;
     box-shadow: 0 8px 24px rgba(0,0,0,.28); border-radius: var(--radio);
     background: #fff; border: 1px solid var(--verde); overflow: hidden; }
+
+  /* El árbol de origen: todo desplegado, para agarrar y llevar. Usa la
+     sangría del sistema de diseño (.cv-nodo-hijos) para que se lea igual que
+     Actividades — es el mismo árbol, visto desde otro lado. */
+  .arb-proy { font-size: .8rem; font-weight: 700; color: var(--verde-osc);
+    margin: 12px 0 4px; text-transform: uppercase; letter-spacing: .03em; }
+  .arb-vacio { color: var(--gris); font-size: .8rem; padding: 6px 0 10px; }
+  .pas.ya { border-color: var(--verde); background: var(--verde-claro); }
 
   .vencidas { background: #fdeceb; border: 1px solid #f0b8b4; border-radius: var(--radio);
     padding: 10px 12px; margin-bottom: 14px; }
@@ -143,13 +154,12 @@
 </div>
 
 <!-- Fijas justo arriba de la barra de navegación (.cv-pegado-abajo del
-     sistema de diseño). Son filtro Y destino: se puede arrastrar una
-     actividad hasta acá para meterla en la agenda propia o sacarla. -->
+     sistema de diseño). Son las DOS VISTAS y los DOS DESTINOS: se arrastra de
+     Actividades a Mi semana para sumar, y al revés para sacar. -->
 <div class="cv-pegado-abajo tabs" id="tabs">
   <div class="tabs-in">
-    <button class="tab activo" data-tab="agenda">En mi agenda<small id="hAgenda">tocá o soltá acá</small></button>
-    <button class="tab" data-tab="mias">Las mías<small id="hMias">creadas y asignadas</small></button>
-    <button class="tab" data-tab="todas">Todo lo que veo<small id="hTodas">el equipo</small></button>
+    <button class="tab activo" data-tab="semana">Mi semana<small id="hAgenda">—</small></button>
+    <button class="tab" data-tab="arbol">Actividades<small>soltá acá para sacar</small></button>
   </div>
 </div>
 
@@ -186,13 +196,13 @@ CV2.registrarSW();
 const u = await CV2.verificarAuth();
 CV2.renderNav('agenda');
 
-const SELLO = 'agenda-3';
+const SELLO = 'agenda-4';
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
 
 let todas = [];
 let mia = {};              // { actId: {dia, franja, hora, nota} }
-let filtro = 'agenda';
+let vista = 'semana';   // 'semana' | 'arbol'
 let lunes = null;
 let editando = null;       // actId con el editor de pastilla abierto
 
@@ -279,11 +289,9 @@ function franjaDe(it) {
   return (h && h >= '13:00') ? 'tarde' : 'manana';
 }
 
-function pasaFiltro(it) {
-  if (filtro === 'agenda') return (it.id in mia) || esLimpieza(it);
-  if (filtro === 'mias') return esMia(it);
-  return true;
-}
+// En la semana solo entra lo que la persona puso, más las limpiezas: una
+// limpieza tiene detrás la llegada de un huésped y no se elige.
+const enMiSemana = (it) => (it.id in mia) || esLimpieza(it);
 
 // ── Guardar lo mío ───────────────────────────────────────
 // setDoc con merge NO borra claves ausentes de un mapa: para sacar algo hay
@@ -368,14 +376,14 @@ function editorHTML(it, m) {
     + '</div></div>';
 }
 
-function render() {
+function renderSemana() {
   const domingo = sumar(lunes, 6);
   $('rango').textContent = numDia(lunes) + ' ' + mesDe(lunes)
     + ' — ' + numDia(domingo) + ' ' + mesDe(domingo);
   $('hAgenda').textContent = Object.keys(mia).length + ' marcada(s)';
 
   const cand = todas
-    .filter((it) => (!it.hecho || mia[it.id]) && it.parentId && pasaFiltro(it))
+    .filter((it) => (!it.hecho || mia[it.id]) && it.parentId && enMiSemana(it))
     .map((it) => ({ it, tr: tramoDe(it) }))
     .filter((x) => x.tr);
 
@@ -419,16 +427,86 @@ function render() {
   }
 
   if (!total) {
-    h += '<div class="aviso">' + (filtro === 'agenda'
-      ? 'Tu agenda está vacía esta semana. Cambiá a <b>Las mías</b> o <b>Todo lo que veo</b>, '
-        + 'agarrá una actividad del <span class="material-icons" style="font-size:15px;vertical-align:-3px;">drag_indicator</span> '
-        + 'y soltala en <b>En mi agenda</b> — o en el día y la franja donde la quieras hacer.'
-      : 'Nada con fecha en esta semana.') + '</div>';
+    h += '<div class="aviso">Tu semana está vacía. Tocá <b>Actividades</b> acá abajo, '
+      + 'agarrá una del <span class="material-icons" style="font-size:15px;vertical-align:-3px;">drag_indicator</span> '
+      + 'y soltala en <b>Mi semana</b>.</div>';
   }
 
   h += '<p style="color:var(--gris);font-size:.72rem;text-align:center;margin:18px 0 0;">'
     + esc(SELLO) + ' · motor ' + esc(CV2.VERSION ?? '?') + '</p>';
   $('cuerpo').innerHTML = h;
+}
+
+// ── El árbol de origen ───────────────────────────────────
+// TODAS las actividades, en cascada y ya desplegadas. No hay nada que abrir:
+// es un depósito del que se agarra, y esconder ramas obligaría a buscar.
+// Las que ya están en la semana se ven en verde, para no ponerlas dos veces.
+function pastillaArbolHTML(it, nivel) {
+  const ya = enMiSemana(it);
+  const s = semaforo(it);
+  const f = it.fechaInicio || it.fechaVencimiento;
+  return '<div class="pas' + (ya ? ' ya' : '') + '" data-pas="' + esc(it.id) + '">'
+    + '<div class="pas-fila">'
+    + '<span class="pas-agarre" data-agarre="' + esc(it.id) + '" title="Arrastrar">'
+    + '<span class="material-icons">drag_indicator</span></span>'
+    + '<span class="pas-sem" style="background:' + s.c + '" title="' + esc(s.t) + '"></span>'
+    + '<a class="pas-txt" href="./actividades.html?a=' + encodeURIComponent(it.id) + '&editar=1">'
+    + '<b>' + marca(it) + esc(it.titulo || '(sin título)') + '</b>'
+    + '<small>' + (f ? CV2.fmtFecha(f) : 'sin fecha')
+    + (it.hora ? ' · ' + esc(it.hora) : '')
+    + (esMia(it) ? ' · <span class="chip mio">tuya</span>' : '')
+    + (ya ? ' · <span class="chip mio">en tu semana</span>' : '')
+    + '</small></a></div></div>';
+}
+
+function ramaHTML(id, hijosDe, nivel) {
+  const hijos = hijosDe[id] || [];
+  if (!hijos.length) return '';
+  return '<div class="cv-nodo-hijos">' + hijos.map((it) =>
+    pastillaArbolHTML(it, nivel) + ramaHTML(it.id, hijosDe, nivel + 1)).join('') + '</div>';
+}
+
+function renderArbol() {
+  const hijosDe = {};
+  const raices = [];
+  todas.filter((it) => !it.hecho).forEach((it) => {
+    if (!it.parentId) raices.push(it);
+    else (hijosDe[it.parentId] = hijosDe[it.parentId] || []).push(it);
+  });
+  Object.values(hijosDe).forEach((a) => a.sort((x, y) =>
+    (x.orden ?? 0) - (y.orden ?? 0)
+    || String(x.titulo ?? '').localeCompare(String(y.titulo ?? ''))));
+  // Las limpiezas primero, igual que en Actividades (§10 · F1).
+  raices.sort((a, b) => (a.id === 'proj-limpiezas' ? 0 : 1) - (b.id === 'proj-limpiezas' ? 0 : 1)
+    || String(a.titulo ?? '').localeCompare(String(b.titulo ?? '')));
+
+  let h = '<div class="aviso">Agarrá cualquiera del '
+    + '<span class="material-icons" style="font-size:15px;vertical-align:-3px;">drag_indicator</span> '
+    + 'y soltala en <b>Mi semana</b>, acá abajo. Después, dentro de la semana, la movés '
+    + 'al día y la franja que quieras.<br>'
+    + 'Las que ya están van en <b>verde</b>. Para sacar una, arrastrala desde la semana '
+    + 'y soltala en <b>Actividades</b>.</div>';
+
+  if (!raices.length) return h + '<div class="arb-vacio">No hay actividades.</div>';
+
+  raices.forEach((r) => {
+    const rama = ramaHTML(r.id, hijosDe, 1);
+    h += '<div class="arb-proy">📁 ' + esc(r.titulo || r.id) + '</div>'
+      + (rama || '<div class="arb-vacio">— sin nada adentro</div>');
+  });
+  return h;
+}
+
+function render() {
+  $('hAgenda').textContent = Object.keys(mia).length + ' en tu semana';
+  document.querySelector('.semana').style.display = vista === 'semana' ? '' : 'none';
+  if (vista === 'arbol') {
+    $('cuerpo').innerHTML = renderArbol()
+      + '<p style="color:var(--gris);font-size:.72rem;text-align:center;margin:18px 0 0;">'
+      + esc(SELLO) + ' · motor ' + esc(CV2.VERSION ?? '?') + '</p>';
+    return;
+  }
+  renderSemana();
 }
 
 // ═══ ARRASTRAR ════════════════════════════════════════════
@@ -512,20 +590,33 @@ document.addEventListener('pointerup', async (ev) => {
   if (!it) return;
 
   if (tab) {
-    if (tab.dataset.tab === 'agenda') {
-      if (id in mia) CV2.toast('Ya estaba en tu agenda');
-      else await guardarMio(id, {});
+    if (tab.dataset.tab === 'semana') {
+      if (id in mia) { CV2.toast('Ya estaba en tu semana'); return; }
+      // UNA ACTIVIDAD SIN FECHA TIENE QUE CAER EN ALGÚN LADO VISIBLE.
+      // Antes se guardaba sin día y quedaba invisible: la agenda no sabía
+      // dónde ponerla y no aparecía en ninguna semana. Ahora se le da un día
+      // de la semana que se está mirando —hoy si es la actual, si no el
+      // lunes— y desde ahí se mueve arrastrando.
+      const yaTieneFecha = !!(it.fechaInicio || it.fechaVencimiento);
+      const domingo = sumar(lunes, 6);
+      const destino = (lunes <= hoy && hoy <= domingo) ? hoy : lunes;
+      await guardarMio(id, yaTieneFecha ? {} : { dia: destino, franja: 'manana' });
+      CV2.toast(yaTieneFecha ? 'Puesta en tu semana' : 'Puesta el ' + CV2.fmtFecha(destino));
+      vista = 'semana';
+      $('tabs').querySelectorAll('.tab').forEach((x) =>
+        x.classList.toggle('activo', x.dataset.tab === 'semana'));
+      render();
       return;
     }
-    // Soltar fuera de "mi agenda" la saca. Las limpiezas no: tienen detrás la
-    // llegada de un huésped y no se eligen (§10 · F1).
+    // Soltar en Actividades la saca de la semana. Las limpiezas no: tienen
+    // detrás la llegada de un huésped y no se eligen (§10 · F1).
     if (esLimpieza(it)) {
-      CV2.toast('Las limpiezas no se sacan de la agenda: tienen una llegada detrás', 'error');
+      CV2.toast('Las limpiezas no se sacan: tienen una llegada detrás', 'error');
       return;
     }
     if (!(id in mia)) return;
     await guardarMio(id, null);
-    CV2.toast('Sacada de tu agenda');
+    CV2.toast('Sacada de tu semana');
     return;
   }
 
@@ -586,9 +677,11 @@ $('cuerpo').addEventListener('click', async (ev) => {
 $('tabs').addEventListener('click', (ev) => {
   const b = ev.target.closest('[data-tab]');
   if (!b || arr) return;
-  filtro = b.dataset.tab;
+  vista = b.dataset.tab;
+  editando = null;
   $('tabs').querySelectorAll('.tab').forEach((x) => x.classList.toggle('activo', x === b));
   render();
+  window.scrollTo(0, 0);
 });
 
 $('ant').addEventListener('click', () => { lunes = sumar(lunes, -7); render(); });
