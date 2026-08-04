@@ -10,55 +10,115 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#2d5a27">
 <style>
-  .semana { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+  /* La barra de semana viaja con la cabecera: cambiar de semana es el gesto
+     más repetido y no puede obligar a subir hasta arriba. */
+  /* La barra de pestañas de abajo tapa 46px que 'cv-conbarra' no contempla:
+     sin esto, el domingo queda escondido detrás y no hay forma de soltar
+     nada ahí. */
+  .contenedor { padding-bottom: 54px; }
+
+  .semana { position: sticky; top: var(--cv-techo); z-index: 80;
+    display: flex; align-items: center; gap: 8px; padding: 8px 0;
+    background: var(--crema); }
   .semana .rango { flex: 1; text-align: center; font-size: .9rem; font-weight: 600; }
   .semana button { min-width: 44px; min-height: 44px; border: 1px solid var(--linea);
     background: #fff; border-radius: 10px; cursor: pointer; display: inline-flex;
     align-items: center; justify-content: center; font-family: inherit; }
 
-  .filtros { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 12px;
-    -webkit-overflow-scrolling: touch; }
-  .fchip { flex: 0 0 auto; min-height: 40px; padding: 8px 14px; border-radius: 999px;
-    border: 1px solid var(--linea); background: #fff; font-size: .84rem;
-    color: var(--tinta); cursor: pointer; font-family: inherit; }
-  .fchip.activo { background: var(--verde); border-color: var(--verde); color: #fff; font-weight: 600; }
-
-  .dia { margin-bottom: 10px; }
-  .dia > h2 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 5px;
-    font-size: .86rem; text-transform: capitalize; }
-  .dia > h2 .num { font-size: 1.1rem; font-weight: 700; }
-  .dia > h2 .cuenta { margin-left: auto; font-size: .74rem; color: var(--gris);
+  /* ── Los días ── */
+  .dia { margin-bottom: 12px; }
+  .dia > h2 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 4px;
+    font-size: .85rem; text-transform: capitalize; }
+  .dia > h2 .num { font-size: 1.05rem; font-weight: 700; }
+  .dia > h2 .cuenta { margin-left: auto; font-size: .73rem; color: var(--gris);
     font-weight: 400; text-transform: none; }
   .dia.es-hoy > h2 { color: var(--verde-osc); }
   .dia.es-hoy > h2 .num { background: var(--verde); color: #fff; border-radius: 9px;
     padding: 1px 8px; }
   .dia.finde > h2 { color: var(--gris); }
 
-  .franja { border-left: 3px solid var(--linea); padding-left: 10px; }
+  /* ── Franjas: mañana y tarde ── */
+  .franja { border-left: 3px solid var(--linea); padding: 3px 0 3px 9px;
+    margin-bottom: 4px; min-height: 46px; border-radius: 0 8px 8px 0;
+    transition: background .12s, border-color .12s; }
   .dia.es-hoy .franja { border-left-color: var(--verde); }
+  .franja > .rot { font-size: .68rem; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--gris); margin-bottom: 3px; }
+  .franja.encima { background: var(--verde-claro); border-left-color: var(--verde); }
+  .franja .nada { color: var(--linea); font-size: .74rem; padding: 5px 0; }
 
-  .ag { display: flex; align-items: center; gap: 9px; background: #fff;
-    border: 1px solid var(--linea); border-radius: var(--radio);
-    padding: 8px 6px 8px 10px; margin-bottom: 5px; min-height: 52px;
-    box-shadow: var(--sombra); text-decoration: none; color: var(--tinta); }
-  .ag:active { filter: brightness(.97); }
-  .ag .hora { flex: 0 0 46px; text-align: right; font-size: .82rem; font-weight: 700;
-    color: var(--tinta); line-height: 1.25; }
-  .ag .hora small { display: block; font-weight: 400; font-size: .68rem; color: var(--gris); }
-  .ag .hora.sin { color: var(--gris); font-weight: 400; font-size: .72rem; }
-  .ag .sem { width: 10px; height: 10px; border-radius: 50%; flex: none; }
-  .ag .txt { flex: 1; min-width: 0; }
-  .ag .txt b { display: block; font-size: .89rem; font-weight: 600; overflow-wrap: anywhere; }
-  .ag .txt small { display: block; color: var(--gris); font-size: .75rem;
-    line-height: 1.45; overflow-wrap: anywhere; }
-  .ag .material-icons.ir { color: var(--gris); font-size: 18px; flex: none; }
-  .tramo-chip { font-size: .66rem; padding: 1px 6px; border-radius: 999px;
+  /* ── La pastilla ── */
+  .pas { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    margin-bottom: 5px; box-shadow: var(--sombra); overflow: hidden; }
+  .pas.arrastrando { opacity: .35; }
+  .pas-fila { display: flex; align-items: center; gap: 8px; padding: 7px 6px 7px 4px;
+    min-height: 52px; }
+  .pas-agarre { flex: 0 0 auto; width: 34px; height: 44px; display: flex;
+    align-items: center; justify-content: center; color: var(--gris);
+    cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .pas-agarre:active { cursor: grabbing; }
+  .pas-hora { flex: 0 0 42px; text-align: right; font-size: .8rem; font-weight: 700;
+    line-height: 1.2; }
+  .pas-hora.sin { color: var(--gris); font-weight: 400; font-size: .7rem; }
+  .pas-sem { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .pas-txt { flex: 1; min-width: 0; text-decoration: none; color: var(--tinta); }
+  .pas-txt b { display: block; font-size: .88rem; font-weight: 600; overflow-wrap: anywhere; }
+  .pas-txt small { display: block; color: var(--gris); font-size: .74rem;
+    line-height: 1.4; overflow-wrap: anywhere; }
+  .pas-mas { flex: 0 0 auto; width: 40px; height: 44px; border: 0; background: none;
+    color: var(--gris); border-radius: 9px; display: inline-flex; align-items: center;
+    justify-content: center; cursor: pointer; font-family: inherit; }
+  .pas-mas:active { background: rgba(34,48,31,.08); }
+  .chip { font-size: .65rem; padding: 1px 6px; border-radius: 999px;
     background: var(--crema); color: var(--gris); white-space: nowrap; }
+  .chip.mio { background: var(--verde-claro); color: var(--verde-osc); }
 
-  .dia-vacio { color: var(--gris); font-size: .78rem; padding: 4px 0 8px; }
+  /* La nota personal, PEGADA a su pastilla: es de esa actividad y de nadie
+     más. Sin margen entre las dos, y con el mismo borde. */
+  .pas-nota { border-top: 1px dashed var(--linea); padding: 6px 10px 7px;
+    font-size: .78rem; color: var(--verde-osc); background: #fbfcfa;
+    display: flex; gap: 6px; align-items: flex-start; }
+  .pas-nota .material-icons { font-size: 15px; margin-top: 1px; flex: none; }
+
+  /* El editor de la pastilla, también pegado. */
+  .pas-ed { border-top: 1px solid var(--linea); padding: 10px; background: var(--crema); }
+  .pas-ed .l { display: flex; gap: 7px; margin-bottom: 7px; }
+  .pas-ed label { font-size: .72rem; font-weight: 600; color: var(--gris);
+    display: block; margin-bottom: 2px; }
+  .pas-ed input, .pas-ed select { width: 100%; box-sizing: border-box; font-size: 16px;
+    padding: 8px; border: 1px solid var(--linea); border-radius: 8px; background: #fff;
+    font-family: inherit; }
+  .pas-ed .acciones { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pas-ed .acciones button { min-height: 40px; padding: 8px 12px; border-radius: 9px;
+    border: 1px solid var(--linea); background: #fff; font-size: .82rem; cursor: pointer;
+    font-family: inherit; }
+  .pas-ed .acciones .ok { background: var(--verde); border-color: var(--verde); color: #fff; }
+  .pas-ed .ayuda { font-size: .72rem; color: var(--gris); margin: 0 0 8px; line-height: 1.5; }
+
+  /* ── Las tres pestañas, fijas arriba de la barra ── */
+  .tabs { background: #fff; border-top: 1px solid var(--linea);
+    box-shadow: 0 -2px 12px rgba(34,48,31,.07); }
+  .tabs-in { display: flex; max-width: 560px; margin: 0 auto; }
+  .tab { flex: 1; min-height: 46px; border: 0; background: none; cursor: pointer;
+    font-family: inherit; font-size: .78rem; color: var(--gris);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 1px; border-top: 3px solid transparent; padding: 2px; }
+  .tab.activo { color: var(--verde-osc); border-top-color: var(--verde); font-weight: 700; }
+  .tab small { font-size: .62rem; }
+  /* Mientras se arrastra, las pestañas dejan de ser filtros y pasan a ser
+     destinos: se dice con todas las letras qué hace soltar en cada una. */
+  body.arrastrando .tab { border-top-color: var(--linea); color: var(--tinta); }
+  body.arrastrando .tab.encima { background: var(--verde-claro); border-top-color: var(--verde); }
+  body.arrastrando .tab.encima.saca { background: #fdeceb; border-top-color: var(--rojo); }
+
+  /* El fantasma que sigue al dedo. */
+  .fantasma { position: fixed; z-index: 200; pointer-events: none; opacity: .95;
+    box-shadow: 0 8px 24px rgba(0,0,0,.28); border-radius: var(--radio);
+    background: #fff; border: 1px solid var(--verde); overflow: hidden; }
+
   .vencidas { background: #fdeceb; border: 1px solid #f0b8b4; border-radius: var(--radio);
-    padding: 11px 13px; margin-bottom: 14px; }
-  .vencidas h2 { margin: 0 0 6px; font-size: .84rem; color: #8e2b2b;
+    padding: 10px 12px; margin-bottom: 14px; }
+  .vencidas h2 { margin: 0 0 6px; font-size: .82rem; color: #8e2b2b;
     text-transform: uppercase; letter-spacing: .04em; }
   .aviso { background: var(--crema); border-radius: 10px; padding: 11px 13px;
     font-size: .83rem; line-height: 1.55; margin: 0 0 12px; color: var(--gris); }
@@ -70,47 +130,55 @@
 <div id="nav"></div>
 
 <div class="contenedor">
-  <h1>Agenda</h1>
+  <h1 style="margin-bottom:2px;">Agenda</h1>
 
   <div class="semana">
     <button id="ant" title="Semana anterior"><span class="material-icons">chevron_left</span></button>
     <span class="rango" id="rango">—</span>
     <button id="sig" title="Semana siguiente"><span class="material-icons">chevron_right</span></button>
-    <button id="ahora" title="Volver a esta semana"><span class="material-icons">today</span></button>
-  </div>
-
-  <div class="filtros" id="filtros">
-    <button class="fchip activo" data-f="agenda">En mi agenda</button>
-    <button class="fchip" data-f="mias">Las mías</button>
-    <button class="fchip" data-f="todas">Todo lo que veo</button>
+    <button id="ahora" title="Esta semana"><span class="material-icons">today</span></button>
   </div>
 
   <div id="cuerpo"><div class="cargando">Cargando…</div></div>
 </div>
 
+<!-- Fijas justo arriba de la barra de navegación (.cv-pegado-abajo del
+     sistema de diseño). Son filtro Y destino: se puede arrastrar una
+     actividad hasta acá para meterla en la agenda propia o sacarla. -->
+<div class="cv-pegado-abajo tabs" id="tabs">
+  <div class="tabs-in">
+    <button class="tab activo" data-tab="agenda">En mi agenda<small id="hAgenda">tocá o soltá acá</small></button>
+    <button class="tab" data-tab="mias">Las mías<small id="hMias">creadas y asignadas</small></button>
+    <button class="tab" data-tab="todas">Todo lo que veo<small id="hTodas">el equipo</small></button>
+  </div>
+</div>
+
 <script type="module">
 // ═══════════════════════════════════════════════════════════
-// AGENDA — la semana, día por día, por hora.
+// AGENDA — la semana de CADA UNO, armada a mano.
 //
-// Actividades muestra el ÁRBOL: proyectos, ítems, sub-ítems. Es la vista
-// correcta para organizar y la equivocada para arrancar el día — hay que
-// abrir cada rama para descubrir qué toca.
+// Actividades es el árbol del trabajo: qué existe y de qué cuelga. La Agenda
+// es otra cosa: CUÁNDO lo va a hacer esta persona. Son dos preguntas
+// distintas sobre los mismos datos, y por eso la agenda guarda sus propias
+// respuestas SIN tocar la actividad.
 //
-// Cuatro decisiones que la definen:
-//  · SEMANA COMPLETA, de lunes a domingo. Una lista de "próximos 7 días" no
-//    deja ver que el jueves está cargado y el viernes vacío.
-//  · UNA ACTIVIDAD PUEDE OCUPAR VARIOS DÍAS. Si su vencimiento es posterior
-//    a su inicio, aparece en CADA día del tramo, diciendo cuál de todos es.
-//  · CADA UNO ELIGE QUÉ VE. El filtro por defecto es "En mi agenda": solo lo
-//    que la persona marcó con el botón 📅 en Actividades. Es la diferencia
-//    entre una agenda y un listado de todo lo que existe.
-//  · TOCAR ABRE LA EDICIÓN, no el detalle. Desde acá lo que se quiere hacer
-//    casi siempre es mover la fecha o la hora.
+// LO QUE SE GUARDA POR PERSONA, en estado_usuario/{uid}.agenda:
+//   { <actId>: { dia, franja, hora, nota } }
+// Que la clave exista significa "está en mi agenda". Los cuatro campos son
+// opcionales y son SOLO MÍOS: mover una actividad al martes a la tarde no le
+// cambia la fecha a nadie más, y la nota que escribo no la lee el equipo.
+// Es la diferencia entre una agenda y una lista compartida.
 //
-// NO es el Calendario: ese muestra la OCUPACIÓN de las cabañas y sale de las
-// reservas. Este es el trabajo, y sale de las actividades.
+// POR QUÉ ARRASTRAR CON UN AGARRE Y NO CON PULSACIÓN LARGA: la pastilla
+// entera tiene que seguir abriendo la actividad de un toque. Dos gestos
+// compitiendo en la misma zona es lo que arreglamos en Actividades (§3.16b).
+// El agarre ⠿ es una zona propia, de 44px, y nada más pasa por ahí.
+//
+// EL ARRASTRE ES A MANO, con eventos de puntero. La API de arrastrar del
+// navegador no existe en el teléfono, que es el aparato para el que está
+// hecho esto.
 // ═══════════════════════════════════════════════════════════
-import { db, doc, getDoc, onSnapshot } from './firebase-init.js';
+import { db, doc, getDoc, setDoc, deleteField, serverTimestamp, onSnapshot } from './firebase-init.js';
 import { Core } from './actividades-core.js';
 import { CV2 } from './nucleo.js';
 
@@ -118,14 +186,15 @@ CV2.registrarSW();
 const u = await CV2.verificarAuth();
 CV2.renderNav('agenda');
 
-const SELLO = 'agenda-2';
+const SELLO = 'agenda-3';
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
 
 let todas = [];
-let enAgenda = new Set();
+let mia = {};              // { actId: {dia, franja, hora, nota} }
 let filtro = 'agenda';
-let lunes = null;          // lunes de la semana que se está mirando
+let lunes = null;
+let editando = null;       // actId con el editor de pastilla abierto
 
 const hoy = CV2.hoyISO();
 const sumar = (iso, n) => {
@@ -136,52 +205,44 @@ const sumar = (iso, n) => {
 const dias = (a, b) => Math.round(
   (new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000);
 
-// El lunes de la semana de una fecha. getDay() devuelve 0 para domingo, así
-// que el domingo pertenece a la semana que ARRANCÓ seis días antes — si no,
+// El domingo pertenece a la semana que ARRANCÓ seis días antes: si no,
 // aparecería solo, al principio de una semana que ya terminó.
 function lunesDe(iso) {
   const d = new Date(iso + 'T12:00:00');
-  const dow = d.getDay();
-  return sumar(iso, dow === 0 ? -6 : 1 - dow);
+  const w = d.getDay();
+  return sumar(iso, w === 0 ? -6 : 1 - w);
 }
-
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const nombreDia = (iso) => DIAS[new Date(iso + 'T12:00:00').getDay()];
-const numeroDia = (iso) => Number(iso.slice(8, 10));
+const numDia = (iso) => Number(iso.slice(8, 10));
 const mesDe = (iso) => MESES[Number(iso.slice(5, 7)) - 1];
 
-// ── Qué días ocupa una actividad ─────────────────────────
-// Ocupa un TRAMO cuando su vencimiento es posterior a su inicio: ahí aparece
-// en cada día del tramo. Si no, ocupa un solo día.
-// Una recurrente ocupa el día en que vuelve — su 'fechaInicio', que el cierre
-// de ciclo reprograma solo.
-function tramoDe(it) {
-  if (it.hecho) return null;
-  const ciclo = it.recurrenciaDias ?? 0;
-  if (ciclo > 0) {
-    const f = it.fechaInicio;
-    return f ? { desde: f, hasta: f } : null;
-  }
-  const ini = it.fechaInicio || it.fechaVencimiento;
-  const fin = it.fechaVencimiento || it.fechaInicio;
-  if (!ini) return null;
-  return (fin && fin > ini) ? { desde: ini, hasta: fin } : { desde: ini, hasta: ini };
+const esLimpieza = (it) => !!(it.reservaId && it.fase);
+function marca(it) {
+  if (it.faltantesData) return '🛒 ';
+  if (it.reservaId && it.fase === 'salida') return '📤 ';
+  if (it.reservaId && it.fase === 'entrada') return '🧹 ';
+  return '';
+}
+function esMia(it) {
+  if (esLimpieza(it)) return true;
+  if (it.creadoPor === u.uid) return true;
+  return Array.isArray(it.competencias) && it.competencias.indexOf(u.uid) !== -1;
 }
 
 // El mismo semáforo que Actividades, copiado tal cual: si acá se calculara
-// distinto, las dos pantallas dirían cosas diferentes de la misma actividad
-// y no habría forma de saber cuál miente.
+// distinto, las dos pantallas dirían cosas diferentes de la misma actividad.
 function semaforo(it) {
   if (it.hecho) return { c: '#9aa69a', t: 'Terminada' };
   if (it.prioridad === 'rojo') return { c: '#c0271f', t: 'Urgente' };
   const ciclo = it.recurrenciaDias ?? 0;
   if (ciclo > 0 && it.fechaInicio) {
     if (it.fechaInicio > hoy) return { c: '#cdd6cb', t: 'Vuelve el ' + CV2.fmtFecha(it.fechaInicio) };
-    const atraso = dias(it.fechaInicio, hoy);
-    if (atraso <= Math.max(1, Math.round(ciclo * 0.25))) return { c: '#1f7a32', t: 'Toca hacerla' };
-    if (atraso <= ciclo) return { c: '#b8860b', t: 'Atrasada ' + atraso + 'd' };
-    return { c: '#c0271f', t: 'Muy atrasada (' + atraso + 'd)' };
+    const a = dias(it.fechaInicio, hoy);
+    if (a <= Math.max(1, Math.round(ciclo * 0.25))) return { c: '#1f7a32', t: 'Toca hacerla' };
+    if (a <= ciclo) return { c: '#b8860b', t: 'Atrasada ' + a + 'd' };
+    return { c: '#c0271f', t: 'Muy atrasada (' + a + 'd)' };
   }
   if (it.fechaVencimiento && it.fechaVencimiento < hoy) return { c: '#c0271f', t: 'Vencida' };
   if (it.fechaVencimiento) {
@@ -193,141 +254,361 @@ function semaforo(it) {
   return { c: '#1f7a32', t: 'Al día' };
 }
 
-const esLimpieza = (it) => !!(it.reservaId && it.fase);
-function marca(it) {
-  if (it.faltantesData) return '🛒 ';
-  if (it.reservaId && it.fase === 'salida') return '📤 ';
-  if (it.reservaId && it.fase === 'entrada') return '🧹 ';
-  return '';
+// ── Dónde va cada actividad ──────────────────────────────
+// Lo MÍO manda sobre lo de la actividad. Si moví algo al jueves a la tarde,
+// va ahí aunque su fecha diga otra cosa: la actividad es del equipo, la
+// agenda es mía.
+function tramoDe(it) {
+  const m = mia[it.id] || {};
+  if (m.dia) return { desde: m.dia, hasta: m.dia, movida: true };
+  if (it.hecho) return null;
+  const ciclo = it.recurrenciaDias ?? 0;
+  if (ciclo > 0) return it.fechaInicio ? { desde: it.fechaInicio, hasta: it.fechaInicio } : null;
+  const ini = it.fechaInicio || it.fechaVencimiento;
+  const fin = it.fechaVencimiento || it.fechaInicio;
+  if (!ini) return null;
+  return (fin && fin > ini) ? { desde: ini, hasta: fin } : { desde: ini, hasta: ini };
+}
+const horaDe = (it) => (mia[it.id] && mia[it.id].hora) || it.hora || '';
+// Sin franja elegida se deduce de la hora; sin hora, mañana. Las tareas de
+// la casa se hacen temprano salvo que alguien diga lo contrario.
+function franjaDe(it) {
+  const m = mia[it.id] || {};
+  if (m.franja) return m.franja;
+  const h = horaDe(it);
+  return (h && h >= '13:00') ? 'tarde' : 'manana';
 }
 
-// "Las mías": creadas, asignadas, y TODAS las limpiezas — una limpieza no se
-// le asigna a nadie y la tiene que ver quien vaya a hacerla.
-function esMia(it) {
-  if (esLimpieza(it)) return true;
-  if (it.creadoPor === u.uid) return true;
-  return Array.isArray(it.competencias) && it.competencias.indexOf(u.uid) !== -1;
-}
-
-// En "mi agenda" entran las que la persona marcó Y las limpiezas: una
-// limpieza tiene detrás la fecha de llegada de un huésped y no se elige.
 function pasaFiltro(it) {
-  if (filtro === 'agenda') return enAgenda.has(it.id) || esLimpieza(it);
+  if (filtro === 'agenda') return (it.id in mia) || esLimpieza(it);
   if (filtro === 'mias') return esMia(it);
   return true;
 }
 
-// ── Render ───────────────────────────────────────────────
-function filaHTML(it, dia, tramo) {
+// ── Guardar lo mío ───────────────────────────────────────
+// setDoc con merge NO borra claves ausentes de un mapa: para sacar algo hay
+// que pedir deleteField() de esa clave (§4). Escribir el mapa entero sería
+// pisar lo que se haya guardado desde otra pestaña.
+async function guardarMio(actId, campos) {
+  const antes = mia[actId] ? { ...mia[actId] } : null;
+  if (campos === null) delete mia[actId];
+  else mia[actId] = { ...(mia[actId] || {}), ...campos };
+  render();
+  try {
+    await setDoc(doc(db, 'estado_usuario', u.uid), {
+      agenda: { [actId]: campos === null ? deleteField() : mia[actId] },
+      actualizadoEn: serverTimestamp()
+    }, { merge: true });
+  } catch (e) {
+    // Se deshace en pantalla: dejar el cambio a la vista cuando no se guardó
+    // es prometer algo que no pasó.
+    if (antes) mia[actId] = antes; else delete mia[actId];
+    render();
+    CV2.toast('No se pudo guardar: ' + (e.code ?? e.message), 'error');
+  }
+}
+
+// ── Pintar ───────────────────────────────────────────────
+function pastillaHTML(it, dia, tr) {
+  const m = mia[it.id] || {};
   const s = semaforo(it);
-  const largo = tramo.hasta > tramo.desde;
-  const cual = largo ? (dias(tramo.desde, dia) + 1) : 0;
-  const total = largo ? (dias(tramo.desde, tramo.hasta) + 1) : 0;
+  const h = horaDe(it);
+  const largo = tr.hasta > tr.desde;
+  const cual = largo ? dias(tr.desde, dia) + 1 : 0;
+  const total = largo ? dias(tr.desde, tr.hasta) + 1 : 0;
+  const abierto = editando === it.id;
 
-  const hora = it.hora
-    ? '<span class="hora">' + esc(it.hora)
-      + (it.duracionHoras ? '<small>' + esc(CV2.fmtHM(it.duracionHoras)) + '</small>' : '')
-      + '</span>'
-    : '<span class="hora sin">sin hora</span>';
-
-  // Va derecho a la EDICIÓN: desde la agenda lo que se quiere hacer casi
-  // siempre es mover la fecha o la hora.
-  return '<a class="ag" href="./actividades.html?a=' + encodeURIComponent(it.id) + '&editar=1">'
-    + hora
-    + '<span class="sem" style="background:' + s.c + '" title="' + esc(s.t) + '"></span>'
-    + '<span class="txt"><b>' + marca(it) + esc(it.titulo || '(sin título)') + '</b>'
+  return '<div class="pas' + '" data-pas="' + esc(it.id) + '" data-dia="' + esc(dia) + '">'
+    + '<div class="pas-fila">'
+    + '<span class="pas-agarre" data-agarre="' + esc(it.id) + '" title="Arrastrar">'
+    + '<span class="material-icons">drag_indicator</span></span>'
+    + (h ? '<span class="pas-hora">' + esc(h) + '</span>'
+         : '<span class="pas-hora sin">—</span>')
+    + '<span class="pas-sem" style="background:' + s.c + '" title="' + esc(s.t) + '"></span>'
+    + '<a class="pas-txt" href="./actividades.html?a=' + encodeURIComponent(it.id) + '&editar=1">'
+    + '<b>' + marca(it) + esc(it.titulo || '(sin título)') + '</b>'
     + '<small>' + esc(s.t)
-    + (it.detalle ? ' · ' + esc(it.detalle) : '')
-    + '</small></span>'
-    + (largo ? '<span class="tramo-chip">día ' + cual + '/' + total + '</span>' : '')
-    + '<span class="material-icons ir">edit</span></a>';
+    + (largo ? ' · <span class="chip">día ' + cual + '/' + total + '</span>' : '')
+    + (tr.movida ? ' · <span class="chip mio">movida por vos</span>' : '')
+    + '</small></a>'
+    + '<button class="pas-mas" data-editar="' + esc(it.id) + '" title="Ajustar en mi agenda">'
+    + '<span class="material-icons">' + (abierto ? 'expand_less' : 'tune') + '</span></button>'
+    + '</div>'
+    + (m.nota && !abierto
+      ? '<div class="pas-nota"><span class="material-icons">sticky_note_2</span>'
+        + esc(m.nota) + '</div>'
+      : '')
+    + (abierto ? editorHTML(it, m) : '')
+    + '</div>';
+}
+
+function editorHTML(it, m) {
+  return '<div class="pas-ed">'
+    + '<p class="ayuda">Esto cambia <b>solo tu agenda</b>. La actividad no se toca: '
+    + 'nadie más ve estos cambios.</p>'
+    + '<div class="l">'
+    + '<div style="flex:1;"><label>Día</label>'
+    + '<input type="date" data-ed="dia" value="' + esc(m.dia || '') + '"></div>'
+    + '<div style="flex:0 0 100px;"><label>Hora</label>'
+    + '<input type="time" data-ed="hora" value="' + esc(m.hora || '') + '"></div>'
+    + '</div>'
+    + '<div class="l"><div style="flex:1;"><label>Franja</label>'
+    + '<select data-ed="franja">'
+    + '<option value="">según la hora</option>'
+    + '<option value="manana"' + (m.franja === 'manana' ? ' selected' : '') + '>Mañana</option>'
+    + '<option value="tarde"' + (m.franja === 'tarde' ? ' selected' : '') + '>Tarde</option>'
+    + '</select></div></div>'
+    + '<div class="l"><div style="flex:1;"><label>Tu nota</label>'
+    + '<input type="text" data-ed="nota" maxlength="140" placeholder="para vos: traer la escalera…" '
+    + 'value="' + esc(m.nota || '') + '"></div></div>'
+    + '<div class="acciones">'
+    + '<button class="ok" data-guardar="' + esc(it.id) + '">Guardar</button>'
+    + '<button data-limpiar="' + esc(it.id) + '">Volver a su fecha</button>'
+    + (esLimpieza(it) ? '' : '<button data-sacar="' + esc(it.id) + '">Sacar de mi agenda</button>')
+    + '</div></div>';
 }
 
 function render() {
   const domingo = sumar(lunes, 6);
-  $('rango').textContent = numeroDia(lunes) + ' ' + mesDe(lunes)
-    + ' — ' + numeroDia(domingo) + ' ' + mesDe(domingo);
+  $('rango').textContent = numDia(lunes) + ' ' + mesDe(lunes)
+    + ' — ' + numDia(domingo) + ' ' + mesDe(domingo);
+  $('hAgenda').textContent = Object.keys(mia).length + ' marcada(s)';
 
-  const candidatas = todas.filter((it) => !it.hecho && it.parentId && pasaFiltro(it))
+  const cand = todas
+    .filter((it) => (!it.hecho || mia[it.id]) && it.parentId && pasaFiltro(it))
     .map((it) => ({ it, tr: tramoDe(it) }))
     .filter((x) => x.tr);
 
   let h = '';
 
-  // Las vencidas van ARRIBA y fuera de la semana. Si quedaran en su día real,
-  // al pasar de semana desaparecerían de la vista — y son justamente las que
-  // no hay que perder de vista. Solo se muestran en la semana de hoy.
+  // Las vencidas van arriba y fuera de la semana: en su día real
+  // desaparecerían al pasar de semana, y son las que no hay que perder.
   if (lunes <= hoy && hoy <= domingo) {
-    const vencidas = candidatas.filter((x) => x.tr.hasta < hoy);
-    if (vencidas.length) {
-      h += '<div class="vencidas"><h2>Vencidas · ' + vencidas.length + '</h2>'
-        + vencidas
-          .sort((a, b) => a.tr.hasta.localeCompare(b.tr.hasta))
-          .map((x) => filaHTML(x.it, x.tr.hasta, x.tr)).join('')
+    const v = cand.filter((x) => x.tr.hasta < hoy && !x.it.hecho);
+    if (v.length) {
+      h += '<div class="vencidas"><h2>Vencidas · ' + v.length + '</h2>'
+        + v.sort((a, b) => a.tr.hasta.localeCompare(b.tr.hasta))
+           .map((x) => pastillaHTML(x.it, x.tr.hasta, x.tr)).join('')
         + '</div>';
     }
   }
 
-  let totalSemana = 0;
+  let total = 0;
   for (let i = 0; i < 7; i++) {
     const d = sumar(lunes, i);
-    const delDia = candidatas
-      .filter((x) => x.tr.desde <= d && d <= x.tr.hasta && x.tr.hasta >= hoy)
-      // Lo que tiene hora manda sobre lo que se puede hacer en cualquier
-      // momento del día: sin hora va al final.
-      .sort((a, b) => (a.it.hora || '99:99').localeCompare(b.it.hora || '99:99')
-        || String(a.it.titulo ?? '').localeCompare(String(b.it.titulo ?? '')));
-    totalSemana += delDia.length;
-    const finde = i >= 5;
+    const delDia = cand.filter((x) =>
+      x.tr.desde <= d && d <= x.tr.hasta && (x.tr.hasta >= hoy || x.tr.movida));
+    total += delDia.length;
 
-    h += '<div class="dia' + (d === hoy ? ' es-hoy' : '') + (finde ? ' finde' : '') + '">'
-      + '<h2><span class="num">' + numeroDia(d) + '</span>' + esc(nombreDia(d))
+    h += '<div class="dia' + (d === hoy ? ' es-hoy' : '') + (i >= 5 ? ' finde' : '') + '">'
+      + '<h2><span class="num">' + numDia(d) + '</span>' + esc(nombreDia(d))
       + (d === hoy ? ' · hoy' : '')
       + '<span class="cuenta">' + (delDia.length || '') + '</span></h2>';
-    h += delDia.length
-      ? '<div class="franja">' + delDia.map((x) => filaHTML(x.it, d, x.tr)).join('') + '</div>'
-      : '<div class="dia-vacio">—</div>';
+
+    ['manana', 'tarde'].forEach((fr) => {
+      const items = delDia.filter((x) => franjaDe(x.it) === fr)
+        .sort((a, b) => (horaDe(a.it) || '99:99').localeCompare(horaDe(b.it) || '99:99')
+          || String(a.it.titulo ?? '').localeCompare(String(b.it.titulo ?? '')));
+      h += '<div class="franja" data-zona="' + d + '|' + fr + '">'
+        + '<div class="rot">' + (fr === 'manana' ? 'mañana' : 'tarde') + '</div>'
+        + (items.length ? items.map((x) => pastillaHTML(x.it, d, x.tr)).join('')
+                        : '<div class="nada">—</div>')
+        + '</div>';
+    });
     h += '</div>';
   }
 
-  if (!totalSemana) {
+  if (!total) {
     h += '<div class="aviso">' + (filtro === 'agenda'
-      ? 'No tenés nada en tu agenda esta semana. Poné actividades con el botón '
-        + '<b>📅</b> del detalle, en <b>Tareas</b>. Las limpiezas aparecen solas.'
+      ? 'Tu agenda está vacía esta semana. Cambiá a <b>Las mías</b> o <b>Todo lo que veo</b>, '
+        + 'agarrá una actividad del <span class="material-icons" style="font-size:15px;vertical-align:-3px;">drag_indicator</span> '
+        + 'y soltala en <b>En mi agenda</b> — o en el día y la franja donde la quieras hacer.'
       : 'Nada con fecha en esta semana.') + '</div>';
   }
 
-  h += '<p style="color:var(--gris);font-size:.72rem;text-align:center;margin:20px 0 0;">'
+  h += '<p style="color:var(--gris);font-size:.72rem;text-align:center;margin:18px 0 0;">'
     + esc(SELLO) + ' · motor ' + esc(CV2.VERSION ?? '?') + '</p>';
   $('cuerpo').innerHTML = h;
 }
 
-// ── Gestos ───────────────────────────────────────────────
+// ═══ ARRASTRAR ════════════════════════════════════════════
+// A mano con eventos de puntero: la API de arrastrar del navegador no existe
+// en el teléfono. Un solo puntero por vez; el 'touch-action: none' del agarre
+// impide que el dedo desplace la página mientras se mueve una pastilla.
+let arr = null;   // { id, fantasma, zona, tab }
+
+function zonaBajo(x, y) {
+  const el = document.elementFromPoint(x, y);
+  if (!el) return { zona: null, tab: null };
+  const z = el.closest('[data-zona]');
+  const t = el.closest('[data-tab]');
+  return { zona: z, tab: t };
+}
+
+function limpiarResaltes() {
+  document.querySelectorAll('.franja.encima').forEach((e) => e.classList.remove('encima'));
+  document.querySelectorAll('.tab.encima').forEach((e) => {
+    e.classList.remove('encima'); e.classList.remove('saca');
+  });
+}
+
+document.addEventListener('pointerdown', (ev) => {
+  const ag = ev.target.closest('[data-agarre]');
+  if (!ag) return;
+  const id = ag.dataset.agarre;
+  const pas = ag.closest('.pas');
+  if (!pas) return;
+
+  ev.preventDefault();
+  const r = pas.getBoundingClientRect();
+  const f = pas.cloneNode(true);
+  f.className = 'fantasma';
+  f.style.width = r.width + 'px';
+  f.style.left = r.left + 'px';
+  f.style.top = r.top + 'px';
+  document.body.appendChild(f);
+  pas.classList.add('arrastrando');
+  document.body.classList.add('arrastrando');
+
+  arr = { id, fantasma: f, pas, dx: ev.clientX - r.left, dy: ev.clientY - r.top,
+    zona: null, tab: null };
+  ag.setPointerCapture(ev.pointerId);
+});
+
+document.addEventListener('pointermove', (ev) => {
+  if (!arr) return;
+  ev.preventDefault();
+  arr.fantasma.style.left = (ev.clientX - arr.dx) + 'px';
+  arr.fantasma.style.top = (ev.clientY - arr.dy) + 'px';
+
+  // Desplazamiento automático cerca de los bordes: una semana no entra en
+  // una pantalla de teléfono, y sin esto no se puede soltar en el viernes.
+  const alto = window.innerHeight;
+  if (ev.clientY < 110) window.scrollBy(0, -14);
+  else if (ev.clientY > alto - 150) window.scrollBy(0, 14);
+
+  limpiarResaltes();
+  arr.fantasma.style.display = 'none';
+  const { zona, tab } = zonaBajo(ev.clientX, ev.clientY);
+  arr.fantasma.style.display = '';
+  arr.zona = zona; arr.tab = tab;
+  if (zona) zona.classList.add('encima');
+  if (tab) {
+    tab.classList.add('encima');
+    if (tab.dataset.tab !== 'agenda') tab.classList.add('saca');
+  }
+});
+
+document.addEventListener('pointerup', async (ev) => {
+  if (!arr) return;
+  const { id, zona, tab, fantasma, pas } = arr;
+  fantasma.remove();
+  pas.classList.remove('arrastrando');
+  document.body.classList.remove('arrastrando');
+  limpiarResaltes();
+  arr = null;
+
+  const it = todas.find((x) => x.id === id);
+  if (!it) return;
+
+  if (tab) {
+    if (tab.dataset.tab === 'agenda') {
+      if (id in mia) CV2.toast('Ya estaba en tu agenda');
+      else await guardarMio(id, {});
+      return;
+    }
+    // Soltar fuera de "mi agenda" la saca. Las limpiezas no: tienen detrás la
+    // llegada de un huésped y no se eligen (§10 · F1).
+    if (esLimpieza(it)) {
+      CV2.toast('Las limpiezas no se sacan de la agenda: tienen una llegada detrás', 'error');
+      return;
+    }
+    if (!(id in mia)) return;
+    await guardarMio(id, null);
+    CV2.toast('Sacada de tu agenda');
+    return;
+  }
+
+  if (zona) {
+    const [dia, franja] = zona.dataset.zona.split('|');
+    // Mover a una franja sin hora propia NO inventa una hora: solo dice en
+    // qué mitad del día va. Poner "13:00" porque alguien soltó en la tarde
+    // sería inventar un dato que nadie escribió.
+    await guardarMio(id, { dia, franja });
+  }
+});
+
+document.addEventListener('pointercancel', () => {
+  if (!arr) return;
+  arr.fantasma.remove();
+  arr.pas.classList.remove('arrastrando');
+  document.body.classList.remove('arrastrando');
+  limpiarResaltes();
+  arr = null;
+});
+
+// ═══ Toques ═══════════════════════════════════════════════
+$('cuerpo').addEventListener('click', async (ev) => {
+  const ed = ev.target.closest('[data-editar]');
+  if (ed) { editando = editando === ed.dataset.editar ? null : ed.dataset.editar; render(); return; }
+
+  const g = ev.target.closest('[data-guardar]');
+  if (g) {
+    const id = g.dataset.guardar;
+    const caja = g.closest('.pas-ed');
+    const v = (k) => (caja.querySelector('[data-ed="' + k + '"]') || {}).value || '';
+    editando = null;
+    await guardarMio(id, {
+      dia: v('dia') || null, hora: v('hora') || null,
+      franja: v('franja') || null, nota: v('nota').trim() || null
+    });
+    return;
+  }
+
+  const l = ev.target.closest('[data-limpiar]');
+  if (l) {
+    const id = l.dataset.limpiar;
+    editando = null;
+    // Vuelve a su fecha real pero SIGUE en la agenda: sacar es otra cosa.
+    await guardarMio(id, { dia: null, hora: null, franja: null });
+    CV2.toast('Vuelve a su fecha propia');
+    return;
+  }
+
+  const sa = ev.target.closest('[data-sacar]');
+  if (sa) {
+    editando = null;
+    await guardarMio(sa.dataset.sacar, null);
+    CV2.toast('Sacada de tu agenda');
+  }
+});
+
+$('tabs').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-tab]');
+  if (!b || arr) return;
+  filtro = b.dataset.tab;
+  $('tabs').querySelectorAll('.tab').forEach((x) => x.classList.toggle('activo', x === b));
+  render();
+});
+
 $('ant').addEventListener('click', () => { lunes = sumar(lunes, -7); render(); });
 $('sig').addEventListener('click', () => { lunes = sumar(lunes, 7); render(); });
 $('ahora').addEventListener('click', () => { lunes = lunesDe(hoy); render(); });
-$('filtros').addEventListener('click', (ev) => {
-  const b = ev.target.closest('.fchip');
-  if (!b) return;
-  filtro = b.dataset.f;
-  $('filtros').querySelectorAll('.fchip').forEach((x) => x.classList.toggle('activo', x === b));
-  render();
-});
 
 // ═══ Cargas — AL FINAL ════════════════════════════════════
 lunes = lunesDe(hoy);
 
-// Lo que esta persona eligió ver. Si falla, se sigue con el conjunto vacío:
-// una agenda que igual muestra las limpiezas es mejor que una pantalla de
-// error (§3.9 — nada decorativo en el camino crítico).
 try {
   const eu = await getDoc(doc(db, 'estado_usuario', u.uid));
-  enAgenda = new Set(eu.exists() ? (eu.data().agenda ?? []) : []);
+  const g = eu.exists() ? eu.data().agenda : null;
+  // Compatibilidad: la primera versión guardaba un ARRAY de ids. Se convierte
+  // a mapa al vuelo, sin migración: un array viejo se lee igual de bien.
+  if (Array.isArray(g)) g.forEach((id) => { mia[id] = {}; });
+  else if (g && typeof g === 'object') mia = g;
 } catch (e) { console.warn('estado_usuario', e); }
 
-// La MISMA consulta que Actividades: si acá se pidiera distinto, la agenda
-// mostraría cosas que la otra pantalla no, o al revés. Su regla de Firestore
-// espeja exactamente esas cuatro ramas — sin filtrar se rechaza entera.
+// La MISMA consulta que Actividades: su regla espeja exactamente esas cuatro
+// ramas y una consulta sin filtrar se rechaza entera.
 onSnapshot(Core.consultaActividades(u, CV2.esAdmin()), (snap) => {
   todas = [];
   snap.forEach((d) => todas.push({ id: d.id, ...d.data() }));

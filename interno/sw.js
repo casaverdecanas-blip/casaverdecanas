@@ -7,7 +7,9 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
-// v70 (3-ago-2026) — la agenda pasa a ser SEMANAL, con hora por actividad,
+// v71 (3-ago-2026) — la agenda se arma ARRASTRANDO: franjas mañana/tarde,
+//       pestañas fijas que son destino, y nota personal por actividad.
+// v70 — la agenda pasa a ser SEMANAL, con hora por actividad,
 //       tramos de varios días y un botón por persona para elegir qué ver.
 //       agenda.html + actividades.html + nucleo.js.
 // v69 — nace agenda.html: las actividades de cada uno por
@@ -33,7 +35,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v70';
+const VERSION = 'cv2-shell-v71';
 
 const SHELL = [
   './',

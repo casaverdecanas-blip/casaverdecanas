@@ -829,14 +829,24 @@ ultimoAutorNombre, ultimaActividad, creadoPor, creadoNombre, creadoEn`
   aparece en cada día del tramo. No hace falta ningún campo nuevo para eso.
 
 ### `estado_usuario/{uid}` — la agenda de cada uno
-· **`agenda`** — array de ids de actividad. Lo que **esa persona** eligió ver en su
-  agenda semanal, con el botón 📅 del detalle. Es distinto de `destacados`: destacar es
-  *"esto me importa"*, agendar es *"esto ocupa un lugar en mi semana"*.
-· Vive acá y no en la actividad porque **es de la persona, no de la tarea**: la agenda
-  de Flor no es asunto de Esteban. La regla ya lo garantiza —solo su dueño lee y
-  escribe— sin tocar nada.
-· **Las limpiezas no se agendan: aparecen siempre.** Tienen detrás la fecha de llegada
-  de un huésped y no se eligen.
+`agenda: { <actId>: { dia, franja, hora, nota } }`
+· Que la clave **exista** significa *"está en mi agenda"*. Los cuatro campos son
+  opcionales.
+· **`dia`, `franja` ('manana'|'tarde') y `hora` son SOBRESCRITURAS personales**: mandan
+  sobre la fecha y la hora de la actividad, **solo para esta persona**. Mover algo al
+  jueves a la tarde no le cambia la fecha a nadie más.
+· **`nota`** — una línea que escribe su dueño y **el equipo no ve**. Es para lo que no
+  es parte de la tarea: *"traer la escalera"*, *"avisar a Flor antes"*. Si fuera parte
+  de la tarea, iría en el `detalle` de la actividad.
+· Vive acá y no en la actividad porque **es de la persona, no de la tarea**. La regla
+  ya lo garantiza —solo su dueño lee y escribe— sin tocar nada.
+· **Se escribe con `deleteField()` sobre la clave**, nunca reescribiendo el mapa
+  entero: `merge: true` no borra claves ausentes (§4), y pisar el mapa borraría lo que
+  se haya guardado desde otra pestaña.
+· **Compatibilidad:** la primera versión guardaba un **array** de ids. Se convierte a
+  mapa al leer, sin migración.
+· **Las limpiezas están siempre y no se pueden sacar.** Tienen detrás la fecha de
+  llegada de un huésped. Moverlas de día sí; sacarlas, no.
 
 ### `avisos_contacto/{uid}`
 `telefono ('+55...'), apikey (CallMeBot), nombre, actualizadoEn`
@@ -2166,6 +2176,25 @@ falta el archivo, se pide — no se reconstruye.
 > Las **vencidas** van arriba de todo y fuera de la semana: en su día real
 > desaparecerían al pasar de semana, y son las que no hay que perder de vista.
 > `sw.js` → v70, `CV2.VERSION` → `nucleo-agenda-6`.
+>
+> **T11.37 · La agenda se arma arrastrando.** Rediseño completo:
+>
+> · **Mañana y tarde en cada día.** Se cambia de franja con un gesto. Sin hora se cae
+>   en la mañana; desde las 13:00, en la tarde — salvo que la persona diga otra cosa.
+> · **Las tres pestañas quedan fijas arriba del menú** (`.cv-pegado-abajo`) y son
+>   filtro **y destino**: soltar en *En mi agenda* la suma, soltar en las otras la saca.
+>   Mientras se arrastra cambian de aspecto para decir qué hace cada una.
+> · **Arrastre a mano con eventos de puntero**: la API del navegador no existe en el
+>   teléfono. Con **agarre propio** de 44px y no con pulsación larga, para que tocar la
+>   pastilla siga abriendo la actividad — dos gestos en la misma zona es lo que se
+>   arregló en Actividades (§3.16b). Con desplazamiento automático cerca de los bordes:
+>   una semana no entra en una pantalla y sin eso no se puede soltar en el viernes.
+> · **Cada pastilla tiene su ajuste propio**, pegado debajo: día, hora, franja y **una
+>   nota personal que el equipo no ve**. Nada de eso toca la actividad.
+>
+> Una decisión que puede discutirse: **soltar en una franja no inventa una hora.** Solo
+> dice en qué mitad del día va. Poner "13:00" porque alguien soltó en la tarde sería
+> escribir un dato que nadie puso. `sw.js` → v71, `CV2.VERSION` → `nucleo-agenda-7`.
 >
 > **Sigue sin verificarse:** la sincronización con Airbnb.
 
