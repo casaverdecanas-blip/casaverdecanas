@@ -57,6 +57,12 @@
     align-items: center; justify-content: center; color: var(--gris);
     cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
   .pas-agarre:active { cursor: grabbing; }
+  /* Objetivo táctil de 44px alrededor de una casilla de 22: la casilla sola
+     es la mitad del mínimo (§6.0). */
+  .pas-check { flex: 0 0 auto; width: 44px; height: 44px; display: flex;
+    align-items: center; justify-content: center; cursor: pointer; }
+  .pas-check input { width: 22px; height: 22px; margin: 0; cursor: pointer; }
+  .pas-check input:disabled { opacity: .45; cursor: default; }
   .pas-hora { flex: 0 0 42px; text-align: right; font-size: .8rem; font-weight: 700;
     line-height: 1.2; }
   .pas-hora.sin { color: var(--gris); font-weight: 400; font-size: .7rem; }
@@ -196,7 +202,7 @@ CV2.registrarSW();
 const u = await CV2.verificarAuth();
 CV2.renderNav('agenda');
 
-const SELLO = 'agenda-4';
+const SELLO = 'agenda-5';
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
 
@@ -276,7 +282,16 @@ function tramoDe(it) {
   if (ciclo > 0) return it.fechaInicio ? { desde: it.fechaInicio, hasta: it.fechaInicio } : null;
   const ini = it.fechaInicio || it.fechaVencimiento;
   const fin = it.fechaVencimiento || it.fechaInicio;
-  if (!ini) return null;
+
+  // SIN FECHA Y EN MI AGENDA: FLOTA EN HOY. No se le guarda un día — flota,
+  // y por eso sigue apareciendo hoy mañana también, hasta que pase una de
+  // cuatro cosas: le doy un día, la destildo, alguien la borra, o alguien la
+  // da por hecha. Es una bandeja de entrada, no un olvido.
+  // Guardarle 'dia: hoy' al agregarla la habría dejado clavada en una fecha
+  // que nadie eligió, y en tres días estaría "atrasada" sin que nadie la
+  // hubiera atrasado.
+  if (!ini) return (it.id in mia) ? { desde: hoy, hasta: hoy, flotante: true } : null;
+
   return (fin && fin > ini) ? { desde: ini, hasta: fin } : { desde: ini, hasta: ini };
 }
 const horaDe = (it) => (mia[it.id] && mia[it.id].hora) || it.hora || '';
@@ -338,6 +353,7 @@ function pastillaHTML(it, dia, tr) {
     + '<small>' + esc(s.t)
     + (largo ? ' · <span class="chip">día ' + cual + '/' + total + '</span>' : '')
     + (tr.movida ? ' · <span class="chip mio">movida por vos</span>' : '')
+    + (tr.flotante ? ' · <span class="chip">sin fecha · queda en hoy</span>' : '')
     + '</small></a>'
     + '<button class="pas-mas" data-editar="' + esc(it.id) + '" title="Ajustar en mi agenda">'
     + '<span class="material-icons">' + (abierto ? 'expand_less' : 'tune') + '</span></button>'
@@ -382,8 +398,10 @@ function renderSemana() {
     + ' — ' + numDia(domingo) + ' ' + mesDe(domingo);
   $('hAgenda').textContent = Object.keys(mia).length + ' marcada(s)';
 
+  // Lo hecho se va de la semana, lo haya cerrado quien lo haya cerrado. La
+  // marca en 'mia' se queda: si es recurrente y vuelve, vuelve agendada.
   const cand = todas
-    .filter((it) => (!it.hecho || mia[it.id]) && it.parentId && enMiSemana(it))
+    .filter((it) => !it.hecho && it.parentId && enMiSemana(it))
     .map((it) => ({ it, tr: tramoDe(it) }))
     .filter((x) => x.tr);
 
@@ -443,19 +461,29 @@ function renderSemana() {
 // Las que ya están en la semana se ven en verde, para no ponerlas dos veces.
 function pastillaArbolHTML(it, nivel) {
   const ya = enMiSemana(it);
+  // Las limpiezas están siempre y no se destildan: tienen detrás la llegada
+  // de un huésped (§10 · F1). Se ven marcadas y en gris.
+  const fija = esLimpieza(it);
   const s = semaforo(it);
   const f = it.fechaInicio || it.fechaVencimiento;
+  // CASILLA, no agarre. Agregar es una decisión de sí o no, y una casilla la
+  // dice en un toque; arrastrar desde una lista larga hasta una pestaña de
+  // abajo obliga a recorrer media pantalla con el dedo apretado. El arrastre
+  // se queda donde sirve: mover algo DENTRO de la semana.
   return '<div class="pas' + (ya ? ' ya' : '') + '" data-pas="' + esc(it.id) + '">'
     + '<div class="pas-fila">'
-    + '<span class="pas-agarre" data-agarre="' + esc(it.id) + '" title="Arrastrar">'
-    + '<span class="material-icons">drag_indicator</span></span>'
+    + '<label class="pas-check" title="' + (ya ? 'Sacar de mi semana' : 'Poner en mi semana') + '">'
+    + '<input type="checkbox" data-check="' + esc(it.id) + '"' + (ya ? ' checked' : '')
+    + (fija ? ' disabled' : '') + '></label>'
     + '<span class="pas-sem" style="background:' + s.c + '" title="' + esc(s.t) + '"></span>'
     + '<a class="pas-txt" href="./actividades.html?a=' + encodeURIComponent(it.id) + '&editar=1">'
     + '<b>' + marca(it) + esc(it.titulo || '(sin título)') + '</b>'
     + '<small>' + (f ? CV2.fmtFecha(f) : 'sin fecha')
     + (it.hora ? ' · ' + esc(it.hora) : '')
     + (esMia(it) ? ' · <span class="chip mio">tuya</span>' : '')
-    + (ya ? ' · <span class="chip mio">en tu semana</span>' : '')
+    + (fija ? ' · <span class="chip mio">siempre en tu semana</span>'
+            : (ya ? ' · <span class="chip mio">en tu semana</span>' : ''))
+    + (!f && ya && !fija ? ' · <span class="chip">queda en hoy</span>' : '')
     + '</small></a></div></div>';
 }
 
@@ -480,12 +508,11 @@ function renderArbol() {
   raices.sort((a, b) => (a.id === 'proj-limpiezas' ? 0 : 1) - (b.id === 'proj-limpiezas' ? 0 : 1)
     || String(a.titulo ?? '').localeCompare(String(b.titulo ?? '')));
 
-  let h = '<div class="aviso">Agarrá cualquiera del '
-    + '<span class="material-icons" style="font-size:15px;vertical-align:-3px;">drag_indicator</span> '
-    + 'y soltala en <b>Mi semana</b>, acá abajo. Después, dentro de la semana, la movés '
-    + 'al día y la franja que quieras.<br>'
-    + 'Las que ya están van en <b>verde</b>. Para sacar una, arrastrala desde la semana '
-    + 'y soltala en <b>Actividades</b>.</div>';
+  let h = '<div class="aviso"><b>Tildá</b> lo que quieras tener en tu semana. '
+    + 'Destildá para sacarlo.<br>'
+    + 'Lo que <b>no tiene fecha</b> te va a aparecer <b>hoy</b>, todos los días, hasta '
+    + 'que le des un día en tu semana, lo destildes, o alguien lo dé por hecho.<br>'
+    + 'Las <b>limpiezas</b> están siempre y no se destildan.</div>';
 
   if (!raices.length) return h + '<div class="arb-vacio">No hay actividades.</div>';
 
@@ -498,15 +525,20 @@ function renderArbol() {
 }
 
 function render() {
+  // Se conserva el desplazamiento: tildar en una lista larga y volver arriba
+  // de golpe obliga a buscar dónde se estaba después de cada toque.
+  const y = window.scrollY;
   $('hAgenda').textContent = Object.keys(mia).length + ' en tu semana';
   document.querySelector('.semana').style.display = vista === 'semana' ? '' : 'none';
   if (vista === 'arbol') {
     $('cuerpo').innerHTML = renderArbol()
       + '<p style="color:var(--gris);font-size:.72rem;text-align:center;margin:18px 0 0;">'
       + esc(SELLO) + ' · motor ' + esc(CV2.VERSION ?? '?') + '</p>';
+    window.scrollTo(0, y);
     return;
   }
   renderSemana();
+  window.scrollTo(0, y);
 }
 
 // ═══ ARRASTRAR ════════════════════════════════════════════
@@ -590,26 +622,10 @@ document.addEventListener('pointerup', async (ev) => {
   if (!it) return;
 
   if (tab) {
-    if (tab.dataset.tab === 'semana') {
-      if (id in mia) { CV2.toast('Ya estaba en tu semana'); return; }
-      // UNA ACTIVIDAD SIN FECHA TIENE QUE CAER EN ALGÚN LADO VISIBLE.
-      // Antes se guardaba sin día y quedaba invisible: la agenda no sabía
-      // dónde ponerla y no aparecía en ninguna semana. Ahora se le da un día
-      // de la semana que se está mirando —hoy si es la actual, si no el
-      // lunes— y desde ahí se mueve arrastrando.
-      const yaTieneFecha = !!(it.fechaInicio || it.fechaVencimiento);
-      const domingo = sumar(lunes, 6);
-      const destino = (lunes <= hoy && hoy <= domingo) ? hoy : lunes;
-      await guardarMio(id, yaTieneFecha ? {} : { dia: destino, franja: 'manana' });
-      CV2.toast(yaTieneFecha ? 'Puesta en tu semana' : 'Puesta el ' + CV2.fmtFecha(destino));
-      vista = 'semana';
-      $('tabs').querySelectorAll('.tab').forEach((x) =>
-        x.classList.toggle('activo', x.dataset.tab === 'semana'));
-      render();
-      return;
-    }
-    // Soltar en Actividades la saca de la semana. Las limpiezas no: tienen
-    // detrás la llegada de un huésped y no se eligen (§10 · F1).
+    // Desde el árbol ya no se arrastra —ahí se tilda—, así que soltar en
+    // 'Mi semana' no tiene nada que hacer: lo que se arrastra ya está en la
+    // semana. Soltar en 'Actividades' la saca.
+    if (tab.dataset.tab === 'semana') return;
     if (esLimpieza(it)) {
       CV2.toast('Las limpiezas no se sacan: tienen una llegada detrás', 'error');
       return;
@@ -639,6 +655,26 @@ document.addEventListener('pointercancel', () => {
 });
 
 // ═══ Toques ═══════════════════════════════════════════════
+// La casilla va por 'change' y no por 'click': así responde igual al toque,
+// al teclado y a los lectores de pantalla.
+$('cuerpo').addEventListener('change', async (ev) => {
+  const c = ev.target.closest('[data-check]');
+  if (!c) return;
+  const id = c.dataset.check;
+  const it = todas.find((x) => x.id === id);
+  if (!it) return;
+  if (c.checked) {
+    // No se le guarda ningún día: si no tiene fecha propia, flota en hoy.
+    await guardarMio(id, {});
+    const sinFecha = !(it.fechaInicio || it.fechaVencimiento);
+    CV2.toast(sinFecha ? 'En tu semana · te aparece hoy hasta que le des un día'
+                       : 'En tu semana');
+  } else {
+    await guardarMio(id, null);
+    CV2.toast('Sacada de tu semana');
+  }
+});
+
 $('cuerpo').addEventListener('click', async (ev) => {
   const ed = ev.target.closest('[data-editar]');
   if (ed) { editando = editando === ed.dataset.editar ? null : ed.dataset.editar; render(); return; }

@@ -209,7 +209,7 @@
 // Regla del 2.0: definiciones primero, suscripción AL FINAL.
 import {
   db, collection, query, where, onSnapshot, getDocs,
-  doc, addDoc, updateDoc, setDoc, deleteDoc, serverTimestamp, arrayUnion, Timestamp
+  doc, getDoc, addDoc, updateDoc, setDoc, deleteDoc, serverTimestamp, arrayUnion, Timestamp
 } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
 import { RCore } from './reservas-core.js';
@@ -221,7 +221,7 @@ CV2.renderNav('reservas');
 // §3.18 · sello de versión. Sin esto, "subí el archivo nuevo" es una creencia:
 // el 31-jul-2026 se buscó el acuerdo en un formulario que era del archivo
 // anterior, y el síntoma parecía un problema de diseño.
-const SELLO = 'reservas-acuerdos-2';
+const SELLO = 'reservas-acuerdos-4';
 
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
@@ -1008,11 +1008,32 @@ window.borrarPago = async (pid) => {
     await deleteDoc(doc(db, 'pagos', pid));
     // El ingreso vinculado se va con él: si no, Dinero mostraría plata que
     // ya no está respaldada por ningún cobro.
+    //
+    // SALVO que ese ingreso ya haya entrado en un balance cerrado. Ahí la
+    // regla lo protege y el borrado falla — y está bien que falle: un cierre
+    // es historia y no se retoca. Pero NO puede fallar en silencio: quedaría
+    // un ingreso en Dinero sin cobro que lo explique, y nadie sabría por qué.
+    let sellados = 0, otrosErrores = 0;
     try {
       const q = await getDocs(query(collection(db, 'movimientos'), where('refId', '==', pid)));
-      for (const d of q.docs) await deleteDoc(doc(db, 'movimientos', d.id));
-    } catch (e2) { console.warn('mov vinculado:', e2); }
-    CV2.toast('Pago eliminado', 'success');
+      for (const d of q.docs) {
+        try { await deleteDoc(doc(db, 'movimientos', d.id)); }
+        catch (e3) {
+          if (e3.code === 'permission-denied') sellados++; else otrosErrores++;
+          console.warn('mov vinculado:', d.id, e3);
+        }
+      }
+    } catch (e2) { otrosErrores++; console.warn('mov vinculado:', e2); }
+
+    if (sellados) {
+      CV2.toast('Pago eliminado, pero su ingreso YA ESTÁ EN UN BALANCE CERRADO y queda '
+        + 'en Dinero. Un cierre no se retoca: si hace falta, corregilo con un '
+        + 'movimiento nuevo.', 'error');
+    } else if (otrosErrores) {
+      CV2.toast('Pago eliminado, pero no se pudo borrar su ingreso en Dinero. Revisalo.', 'error');
+    } else {
+      CV2.toast('Pago eliminado', 'success');
+    }
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
 };
 
