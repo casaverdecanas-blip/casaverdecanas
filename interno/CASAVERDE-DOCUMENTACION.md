@@ -2307,6 +2307,28 @@ falta el archivo, se pide — no se reconstruye.
 >
 > `sw.js` → v74.
 >
+> **T11.42 · La prueba guiada pasó 6/6 — y destapó otra falta.** El ciclo de limpieza
+> funciona de punta a punta. Pero la corrida dejó a la vista algo que ninguna
+> comprobación automática podía marcar: **la limpieza no decía nada de su reserva.**
+> Quien la va a hacer no sabía cuántas personas entran, a qué hora, ni qué pidieron —
+> había que ir a buscarlo a Reservas.
+>
+> · **El detalle de una actividad pasa a ventana emergente.** Con los chips, el resumen,
+>   la lista de compra y hasta trece botones, desplegado dentro de la fila empujaba
+>   media pantalla hacia abajo y en un árbol profundo uno perdía de vista dónde estaba.
+>   Y no había lugar para los datos de la reserva. Como `<dialog>`, el botón Atrás de
+>   Android la cierra sin salir de la app (`CV2.dialogosConAtras()` ya lo adopta).
+> · **Una actividad con `reservaId` muestra su reserva**: huésped, estado, entrada y
+>   salida con hora, personas, las otras cabañas del acuerdo si las hay, y las notas.
+>   Se carga **a pedido** al abrir el detalle: traerlo con el árbol serían cinco
+>   lecturas más en cada arranque para algo que se mira de a uno.
+> · **La ruta del proyecto va arriba**: en un modal, sin el árbol a la vista, es lo
+>   único que ubica.
+>
+> Dos huecos encontrados y tapados en el camino: tildar un ítem de compra **dentro del
+> modal** no guardaba nada —el oyente estaba solo en el árbol—, y el modal no se
+> refrescaba cuando otro tildaba algo. `sw.js` → v76.
+>
 > **Sigue sin verificarse:** la sincronización con Airbnb.
 
 ---

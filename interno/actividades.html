@@ -60,6 +60,29 @@
   }
   .recien-llegada > .cv-nodo-fila { animation: cv-llegada 1.3s ease-out 2; }
 
+  .d-ruta { font-size: .74rem; color: var(--gris); line-height: 1.5;
+    margin-bottom: 7px; overflow-wrap: anywhere; }
+  .d-ruta .proy { color: var(--verde-osc); font-weight: 600; }
+  .d-ruta .sep { margin: 0 4px; opacity: .55; }
+
+  /* Los datos de la reserva que generó una limpieza. Quien la va a hacer
+     necesita saber cuánta gente entra, a qué hora y qué pidieron: hasta
+     agosto de 2026 la limpieza no decía NADA de su reserva. */
+  .d-res { margin-top: 12px; border: 1px solid var(--linea); border-radius: 10px;
+    overflow: hidden; }
+  .d-res h4 { margin: 0; padding: 8px 11px; font-size: .8rem; background: var(--verde-claro);
+    color: var(--verde-osc); display: flex; align-items: center; gap: 6px; }
+  .d-res h4 .material-icons { font-size: 16px; }
+  .d-res dl { margin: 0; padding: 9px 11px; display: grid;
+    grid-template-columns: auto 1fr; gap: 4px 10px; font-size: .84rem; }
+  .d-res dt { color: var(--gris); white-space: nowrap; }
+  .d-res dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+  .d-res .notas { padding: 0 11px 10px; font-size: .84rem; line-height: 1.5; }
+  .d-res .notas b { display: block; color: var(--gris); font-weight: 400;
+    font-size: .76rem; margin-bottom: 2px; }
+  .d-res .otras { padding: 0 11px 10px; font-size: .78rem; color: var(--gris); }
+  .d-cargando { padding: 10px 11px; font-size: .82rem; color: var(--gris); }
+
   .cmp-lugar { margin: 14px 0 0; }
   .cmp-lugar h3 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 6px;
     font-size: .86rem; color: var(--verde-osc); }
@@ -277,6 +300,30 @@
     <button class="btn btn-primario" id="mGuardar">
       <span class="material-icons">save</span> Guardar
     </button>
+  </div>
+</dialog>
+
+<!-- ═══ Detalle de una actividad ══════════════════════════════
+     Antes el detalle se desplegaba DENTRO de la fila. Con los chips, el
+     resumen, la lista de compra y hasta trece botones, empujaba media
+     pantalla hacia abajo y, en un árbol profundo, uno perdía de vista dónde
+     estaba. Y no había lugar para los datos de la reserva, que es lo que
+     necesita quien va a hacer una limpieza.
+     Como <dialog>, se cierra con el botón Atrás de Android sin salir de la
+     app: CV2.dialogosConAtras() ya lo adopta. -->
+<dialog id="mDetalle" style="width:min(560px,96vw);">
+  <div class="m-head">
+    <b id="dTitulo">—</b>
+    <button class="btn-ico" id="dCerrar" title="Cerrar">
+      <span class="material-icons">close</span></button>
+  </div>
+  <div class="m-body">
+    <div id="dRuta" class="d-ruta"></div>
+    <div id="dResumen" class="texto-gris" style="font-size:.84rem;line-height:1.55;"></div>
+    <div id="dChips" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;"></div>
+    <div id="dReserva"></div>
+    <div id="dCompra"></div>
+    <div id="dAcciones" class="acciones" style="margin-top:12px;"></div>
   </div>
 </dialog>
 
@@ -597,6 +644,12 @@ function renderCompras(cont) {
 
 function render() {
   renderBanner();
+  // Si el detalle está abierto, se repinta con los datos nuevos: el chip
+  // "🛒 1/3" y la lista tienen que reflejar lo que acaba de tildar otro. Sin
+  // esto, el modal mostraba una foto del momento en que se abrió.
+  if ($('mDetalle').open && detalleAbierto && byId[detalleAbierto]) {
+    refrescarDetalle(detalleAbierto);
+  }
   const cont = $('arbol');
   if (filtro === 'compras') { renderCompras(cont); return; }
   if (roots.length === 0) {
@@ -690,7 +743,6 @@ function nodoHTML(id) {
   const star = destacados.has(id);
   const miCrono = crono?.actId === id;
   const tieneHijos = hijos.length > 0;
-  const detOpen = detalleAbierto === id;
 
   // UN SOLO GESTO POR ZONA. Tocar la fila hace lo MÁS PROBABLE: si el ítem
   // tiene hijos los abre —que es lo que se quiere en un proyecto—, y si no
@@ -700,7 +752,7 @@ function nodoHTML(id) {
   // los hijos y el resto de la fila para el detalle. Ese caret era menos de
   // la mitad del mínimo táctil de 44px (§6.0): se apuntaba a uno y salía el
   // otro. Ahora el caret es solo una flecha que indica, no un botón.
-  const alTocar = tieneHijos ? "toggleAbierto('" + id + "')" : "toggleDetalle('" + id + "')";
+  const alTocar = tieneHijos ? "toggleAbierto('" + id + "')" : "abrirDetalle('" + id + "')";
 
   let h = `<div class="cv-nodo" id="nodo-${id}">
     <div class="cv-nodo-fila${it.hecho ? ' hecha' : ''}" style="background:${col.p};${esRaiz ? `border-left:5px solid ${col.a};` : ''}"
@@ -712,57 +764,11 @@ function nodoHTML(id) {
       ${miCrono ? `<span class="crono">⏱ <span class="crono-t" data-ini="${crono.inicioMs}">0:00:00</span></span>` : ''}
       <span class="cv-sem" style="background:${s.c}" title="${esc(s.t)}"></span>
       <button class="cv-nodo-mas" title="Ver y hacer" aria-label="Ver y hacer"
-              onclick="event.stopPropagation();toggleDetalle('${id}')">
-        <span class="material-icons">${detOpen ? 'expand_less' : 'more_horiz'}</span></button>
+              onclick="event.stopPropagation();abrirDetalle('${id}')">
+        <span class="material-icons">more_horiz</span></button>
     </div>`;
 
-  if (detOpen) {
-    const partes = [s.t];
-    if (it.ultimaRealizacion) partes.push(`última vez ${CV2.fmtFecha(it.ultimaRealizacion)}${it.ultimaRealizacionNombre ? ' (' + esc(it.ultimaRealizacionNombre) + ')' : ''}`);
-    if (!(it.recurrenciaDias > 0) && it.fechaVencimiento && !s.t.startsWith('Vence') && s.t !== 'Vencida') partes.push('vence ' + CV2.fmtFecha(it.fechaVencimiento));
-    partes.push(`<span id="hrs-${id}">${horasCache[id] != null ? CV2.fmtHM(horasCache[id]) + ' registradas' : '…'}</span>`);
-
-    // Los chips bajaron de la fila al detalle. Acá hay lugar para escribirlos
-    // enteros: "↻ cada 7 días" dice lo mismo que "↻7d" y no hay que
-    // adivinarlo. En la fila cerrada eran hasta cinco etiquetas compitiendo
-    // con el título por un ancho de teléfono.
-    const chips = [];
-    if ((it.recurrenciaDias ?? 0) > 0) chips.push(`<span class="cv-mini">↻ cada ${it.recurrenciaDias} días</span>`);
-    if ((it.monto ?? 0) > 0) chips.push(`<span class="cv-mini">${CV2.fmtMonto(it.monto)}</span>`);
-    if (it.esCompra) {
-      const its = itemsDe(it), cp = compradosDe(it);
-      chips.push('<span class="cv-mini">🛒 ' + its.filter((x) => cp.has(x)).length
-        + '/' + its.length + '</span>');
-      if (it.proveedor) chips.push('<span class="cv-mini">📍 ' + esc(it.proveedor) + '</span>');
-    }
-    if (it.alcance === 'personal') chips.push('<span class="cv-mini">🔒 solo yo</span>');
-    if (it.alcance === 'asignados') chips.push(`<span class="cv-mini">👥 ${(it.competencias ?? []).length} asignado(s)</span>`);
-    if (tieneHijos) chips.push(`<span class="cv-mini">${hijos.length} sub-ítem(s)</span>`);
-
-    h += `<div class="cv-nodo-detalle" style="background:${col.p}">
-      <span class="texto-gris">${partes.join(' · ')}</span>
-      ${it.esCompra ? listaCompraHTML(it) : ''}
-      ${chips.length ? `<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;">${chips.join('')}</div>` : ''}
-      <div class="acciones">
-        ${!it.hecho ? (miCrono
-          ? `<button class="btn-ico stop" onclick="cronoStop('${id}')" title="Frenar y registrar"><span class="material-icons">stop</span></button>`
-          : `<button class="btn-ico play" onclick="cronoPlay('${id}')" title="Iniciar cronómetro"><span class="material-icons">play_arrow</span></button>`) : ''}
-        ${!it.hecho && !miCrono ? `<button class="btn-ico" onclick="realizada('${id}')" title="${it.reservaId && it.fase === 'entrada' ? 'Limpieza terminada' : 'Realizada sin cronómetro'}"><span class="material-icons" style="color:var(--ok)">task_alt</span></button>` : ''}
-        ${(it.reservaId && it.cabanaId && it.fase === 'entrada') ? `<button class="btn-ico" onclick="abrirChequeo('${id}')" title="Control de inventario (entrada)"><span class="material-icons" style="color:${it.controlEntradaHecho ? 'var(--ok)' : '#33506e'}">inventory</span></button>` : ''}
-        ${(it.reservaId && it.cabanaId && it.fase === 'salida') ? `<button class="btn-ico" onclick="abrirChequeo('${id}')" title="Control de salida (check-out)"><span class="material-icons" style="color:#8a6206">logout</span></button>` : ''}
-        ${(it.faltantesData && !it.gastoMovimientoId && CV2.puede('dinero')) ? `<button class="btn-ico" onclick="gastoDeFaltante('${id}')" title="Registrar el gasto de reponer en Dinero"><span class="material-icons" style="color:#2d5a27">savings</span></button>` : ''}
-        ${it.gastoMovimientoId ? '<span title="Gasto ya registrado en Dinero" style="font-size:.68rem;padding:2px 7px;border-radius:999px;background:#eef4fb;color:#33506e;">→ Dinero</span>' : ''}
-        ${it.hecho && CV2.esAdmin() ? `<button class="btn-ico" onclick="restaurar('${id}')" title="Restaurar"><span class="material-icons">restart_alt</span></button>` : ''}
-        ${!it.hecho ? `<button class="btn-ico" onclick="abrirAlta('${id}')" title="Agregar sub-ítem"><span class="material-icons">add</span></button>` : ''}
-        <button class="btn-ico" onclick="verRealizaciones('${id}')" title="Historial de realizaciones">
-          <span class="material-icons">history</span></button>
-        <button class="btn-ico" onclick="toggleEstrella('${id}')" title="Destacar">
-          <span class="material-icons ${star ? 'estrella' : ''}">${star ? 'star' : 'star_outline'}</span></button>
-        ${!it.hecho ? `<button class="btn-ico" onclick="abrirEdicion('${id}')" title="Editar"><span class="material-icons">edit</span></button>` : ''}
-        ${(!it.hecho || CV2.esAdmin()) ? `<button class="btn-ico" onclick="borrar('${id}')" title="Eliminar"><span class="material-icons" style="color:var(--rojo)">delete</span></button>` : ''}
-      </div>
-    </div>`;
-  }
+  // El detalle ya no se despliega acá: se abre en <dialog id="mDetalle">.
 
   if (ab && tieneHijos) {
     h += `<div class="cv-nodo-hijos" style="border-left-color:${col.a}">${hijos.map(nodoHTML).join('')}</div>`;
@@ -922,19 +928,160 @@ setInterval(() => {
 // ═══ Interacción del árbol ════════════════════════════════
 window.toggleAbierto = (id) => { abiertos[id] = !abiertos[id]; render(); };
 
-window.toggleDetalle = (id) => {
-  detalleAbierto = detalleAbierto === id ? null : id;
-  render();
-  // Siempre fresco: el Gestor de Sesiones puede haber alterado el
-  // registro. La agregación va al servidor, no a la caché.
-  if (detalleAbierto === id) {
-    Core.horasDeActividad(id).then((h) => {
-      horasCache[id] = h;
-      const el = document.getElementById('hrs-' + id);
-      if (el) el.textContent = CV2.fmtHM(h) + ' registradas';
-    }).catch(() => {});
+// ═══ EL DETALLE, EN VENTANA ═══════════════════════════════
+window.abrirDetalle = (id) => {
+  const it = byId[id];
+  if (!it) return;
+  detalleAbierto = id;
+  const s = semaforo(it);
+  const hijos = (childrenOf[id] ?? []).filter(visible);
+  const miCrono = crono?.actId === id;
+  const star = destacados.has(id);
+
+  $('dTitulo').textContent = (marcaDe(it, !it.parentId) + (it.titulo || '(sin título)'));
+
+  // La ruta: de qué proyecto salió. En un modal, sin el árbol a la vista, es
+  // lo único que ubica.
+  const ruta = rutaDe(it);
+  $('dRuta').innerHTML = ruta.length
+    ? ruta.map((a, i) => '<span class="' + (i === 0 ? 'proy' : '') + '">'
+        + (i === 0 ? '📁 ' : '') + esc(a.titulo || a.id) + '</span><span class="sep">›</span>').join('')
+    : '<span class="proy">📁 Proyecto</span>';
+
+  const partes = [s.t];
+  if (it.detalle && !it.esCompra) partes.push(esc(it.detalle));
+  if (it.ultimaRealizacion) partes.push('última vez ' + CV2.fmtFecha(it.ultimaRealizacion)
+    + (it.ultimaRealizacionNombre ? ' (' + esc(it.ultimaRealizacionNombre) + ')' : ''));
+  if (!(it.recurrenciaDias > 0) && it.fechaVencimiento && !s.t.startsWith('Vence') && s.t !== 'Vencida') {
+    partes.push('vence ' + CV2.fmtFecha(it.fechaVencimiento));
   }
+  if (it.hora) partes.push('a las ' + esc(it.hora)
+    + (it.duracionHoras ? ' · ' + CV2.fmtHM(it.duracionHoras) : ''));
+  partes.push('<span id="hrs-' + id + '">'
+    + (horasCache[id] != null ? CV2.fmtHM(horasCache[id]) + ' registradas' : '…') + '</span>');
+  $('dResumen').innerHTML = partes.join(' · ');
+
+  const chips = [];
+  if ((it.recurrenciaDias ?? 0) > 0) chips.push('<span class="cv-mini">↻ cada ' + it.recurrenciaDias + ' días</span>');
+  if ((it.monto ?? 0) > 0) chips.push('<span class="cv-mini">' + CV2.fmtMonto(it.monto) + '</span>');
+  if (it.esCompra) {
+    const its = itemsDe(it), cp = compradosDe(it);
+    chips.push('<span class="cv-mini" data-chip-compra>🛒 '
+      + its.filter((x) => cp.has(x)).length + '/' + its.length + '</span>');
+    if (it.proveedor) chips.push('<span class="cv-mini">📍 ' + esc(it.proveedor) + '</span>');
+  }
+  if (it.alcance === 'personal') chips.push('<span class="cv-mini">🔒 solo yo</span>');
+  if (it.alcance === 'asignados') chips.push('<span class="cv-mini">👥 ' + (it.competencias ?? []).length + ' asignado(s)</span>');
+  if (hijos.length) chips.push('<span class="cv-mini">' + hijos.length + ' sub-ítem(s)</span>');
+  $('dChips').innerHTML = chips.join('');
+
+  $('dCompra').innerHTML = it.esCompra ? listaCompraHTML(it) : '';
+
+  $('dAcciones').innerHTML =
+    (!it.hecho ? (miCrono
+      ? '<button class="btn-ico stop" onclick="cronoStop(\'' + id + '\')" title="Frenar y registrar"><span class="material-icons">stop</span></button>'
+      : '<button class="btn-ico play" onclick="cronoPlay(\'' + id + '\')" title="Iniciar cronómetro"><span class="material-icons">play_arrow</span></button>') : '')
+    + (!it.hecho && !miCrono ? '<button class="btn-ico" onclick="realizada(\'' + id + '\')" title="' + (it.reservaId && it.fase === 'entrada' ? 'Limpieza terminada' : 'Realizada sin cronómetro') + '"><span class="material-icons" style="color:var(--ok)">task_alt</span></button>' : '')
+    + ((it.reservaId && it.cabanaId && it.fase === 'entrada') ? '<button class="btn-ico" onclick="abrirChequeo(\'' + id + '\')" title="Control de inventario (entrada)"><span class="material-icons" style="color:' + (it.controlEntradaHecho ? 'var(--ok)' : '#33506e') + '">inventory</span></button>' : '')
+    + ((it.reservaId && it.cabanaId && it.fase === 'salida') ? '<button class="btn-ico" onclick="abrirChequeo(\'' + id + '\')" title="Control de salida (check-out)"><span class="material-icons" style="color:#8a6206">logout</span></button>' : '')
+    + ((it.faltantesData && !it.gastoMovimientoId && CV2.puede('dinero')) ? '<button class="btn-ico" onclick="gastoDeFaltante(\'' + id + '\')" title="Registrar el gasto de reponer en Dinero"><span class="material-icons" style="color:#2d5a27">savings</span></button>' : '')
+    + (it.gastoMovimientoId ? '<span title="Gasto ya registrado en Dinero" style="font-size:.68rem;padding:2px 7px;border-radius:999px;background:#eef4fb;color:#33506e;">→ Dinero</span>' : '')
+    + (it.hecho && CV2.esAdmin() ? '<button class="btn-ico" onclick="restaurar(\'' + id + '\')" title="Restaurar"><span class="material-icons">restart_alt</span></button>' : '')
+    + (!it.hecho ? '<button class="btn-ico" onclick="abrirAlta(\'' + id + '\')" title="Agregar sub-ítem"><span class="material-icons">add</span></button>' : '')
+    + '<button class="btn-ico" onclick="verRealizaciones(\'' + id + '\')" title="Historial de realizaciones"><span class="material-icons">history</span></button>'
+    + '<button class="btn-ico" onclick="toggleEstrella(\'' + id + '\')" title="Destacar"><span class="material-icons ' + (star ? 'estrella' : '') + '">' + (star ? 'star' : 'star_outline') + '</span></button>'
+    + (!it.hecho ? '<button class="btn-ico" onclick="abrirEdicion(\'' + id + '\')" title="Editar"><span class="material-icons">edit</span></button>' : '')
+    + ((!it.hecho || CV2.esAdmin()) ? '<button class="btn-ico" onclick="borrar(\'' + id + '\')" title="Eliminar"><span class="material-icons" style="color:var(--rojo)">delete</span></button>' : '');
+
+  // La reserva, si esta actividad salió de una. Se carga a pedido: traerla
+  // con el árbol serían cinco lecturas más en cada arranque para algo que se
+  // mira de a una.
+  $('dReserva').innerHTML = it.reservaId
+    ? '<div class="d-res"><h4><span class="material-icons">king_bed</span>La reserva</h4>'
+      + '<div class="d-cargando">Buscando…</div></div>'
+    : '';
+  if (it.reservaId) cargarReserva(it.reservaId);
+
+  $('mDetalle').showModal();
+
+  // Siempre fresco: el Gestor de Sesiones puede haber alterado el registro.
+  // La agregación va al servidor, no a la caché.
+  Core.horasDeActividad(id).then((h) => {
+    horasCache[id] = h;
+    const el = document.getElementById('hrs-' + id);
+    if (el) el.textContent = CV2.fmtHM(h) + ' registradas';
+  }).catch(() => {});
 };
+
+// Repinta SOLO lo que puede haber cambiado: los chips y la lista de compra.
+// No vuelve a leer la reserva —eso es una lectura al servidor y no cambia
+// mientras el modal está abierto— ni rehace las acciones, para no arrancarle
+// un botón de abajo del dedo a quien está por tocarlo.
+function refrescarDetalle(id) {
+  const it = byId[id];
+  if (!it) { $('mDetalle').close(); return; }
+  if (it.esCompra) {
+    const its = itemsDe(it), cp = compradosDe(it);
+    const chip = $('dChips').querySelector('[data-chip-compra]');
+    if (chip) chip.textContent = '🛒 ' + its.filter((x) => cp.has(x)).length + '/' + its.length;
+    $('dCompra').innerHTML = listaCompraHTML(it);
+  }
+}
+
+// Los datos que necesita quien va a hacer la limpieza: cuánta gente entra, a
+// qué hora, qué pidieron. Hasta agosto de 2026 la limpieza no decía NADA de su
+// reserva y había que ir a buscarla a otra pantalla — lo destapó la prueba
+// guiada del flujo F1.
+async function cargarReserva(reservaId) {
+  const caja = $('dReserva').querySelector('.d-res');
+  if (!caja) return;
+  try {
+    const rs = await getDoc(doc(db, 'reservas', reservaId));
+    if (!rs.exists()) {
+      caja.querySelector('.d-cargando').textContent = 'Esa reserva ya no existe.';
+      return;
+    }
+    const r = rs.data();
+    let g = null;
+    if (r.grupoId) {
+      try { const gs = await getDoc(doc(db, 'grupos', r.grupoId)); if (gs.exists()) g = gs.data(); }
+      catch (e) { console.warn('grupo', e); }
+    }
+    // Las otras cabañas del mismo acuerdo: importa saber si el grupo entra
+    // repartido en tres casas o si es una sola.
+    let otras = [];
+    if (r.grupoId) {
+      try {
+        const q = await getDocs(query(collection(db, 'reservas'), where('grupoId', '==', r.grupoId)));
+        q.forEach((d) => { if (d.id !== reservaId) otras.push(d.data()); });
+      } catch (e) { console.warn('otras', e); }
+    }
+
+    const fila = (k, v) => v ? '<dt>' + k + '</dt><dd>' + esc(String(v)) + '</dd>' : '';
+    caja.innerHTML = '<h4><span class="material-icons">king_bed</span>La reserva</h4><dl>'
+      + fila('Huésped', r.clienteNombre)
+      + fila('Estado', r.estado)
+      + fila('Entra', CV2.fmtFecha(r.checkIn) + '  ' + (r.horaEntrada || '14:00'))
+      + fila('Sale', CV2.fmtFecha(r.checkOut) + '  ' + (r.horaSalida || '10:00'))
+      + fila('Personas', (r.adultos ?? 0) + ' adulto(s)'
+          + ((r.ninos ?? 0) ? ' + ' + r.ninos + ' chico(s)' : ''))
+      + fila('Origen', r.origen)
+      + (g && g.total ? '<dt>Acuerdo</dt><dd>' + esc(CV2.fmtMonto(g.total, g.moneda || 'BRL'))
+          + (otras.length ? ' · ' + (otras.length + 1) + ' cabañas' : '') + '</dd>' : '')
+      + '</dl>'
+      + (otras.length
+        ? '<div class="otras">Con esta reserva entran también: '
+          + esc(otras.map((o) => o.cabanaId).join(', ')) + '</div>'
+        : '')
+      + ((g && g.nota) || r.notas
+        ? '<div class="notas"><b>Lo que pidieron / notas</b>'
+          + esc((g && g.nota) || r.notas) + '</div>'
+        : '');
+  } catch (e) {
+    const c = caja.querySelector('.d-cargando');
+    if (c) c.textContent = 'No se pudo leer la reserva (' + (e.code ?? e.message) + ').';
+  }
+}
 
 // ═══ Historial de realizaciones ════════════════════════════
 // Fuente única: /sesiones/. Un solo where de igualdad (sin orderBy),
@@ -1132,10 +1279,15 @@ async function tildarItem(actId, txt, tildado) {
 // Los tres gestos de la lista de compras, en un solo lugar: la vista se
 // repinta con cada cambio del onSnapshot y los oyentes por elemento se
 // perderían.
-$('arbol').addEventListener('change', (ev) => {
-  const c = ev.target.closest('[data-item]');
-  if (!c) return;
-  tildarItem(c.dataset.item, c.dataset.txt, c.checked);
+// El MISMO oyente en los dos lugares donde aparece la lista: la vista de
+// compras y el detalle. Ponerlo solo en el árbol dejaba las casillas del
+// modal sin hacer nada — se tildaban en pantalla y no se guardaba.
+['arbol', 'mDetalle'].forEach((cont) => {
+  $(cont).addEventListener('change', (ev) => {
+    const c = ev.target.closest('[data-item]');
+    if (!c) return;
+    tildarItem(c.dataset.item, c.dataset.txt, c.checked);
+  });
 });
 
 $('arbol').addEventListener('click', async (ev) => {
@@ -1150,7 +1302,6 @@ $('arbol').addEventListener('click', async (ev) => {
     const id = ir.dataset.ir;
     let pp = byId[id] && byId[id].parentId;
     while (pp && byId[pp]) { abiertos[pp] = true; pp = byId[pp].parentId; }
-    detalleAbierto = id;
     render();
     setTimeout(() => {
       const el = document.getElementById('nodo-' + id);
@@ -1179,6 +1330,23 @@ $('arbol').addEventListener('click', async (ev) => {
     await guardarProveedores();
     render();
   }
+});
+
+$('dCerrar').addEventListener('click', () => $('mDetalle').close());
+// Al cerrar se olvida cuál estaba abierto: si no, un render posterior podría
+// creer que sigue abierto.
+$('mDetalle').addEventListener('close', () => { detalleAbierto = null; });
+
+// Las acciones que abren OTRA ventana o navegan tienen que cerrar esta
+// primero: dos <dialog> apilados dejan al de abajo inalcanzable y el botón
+// Atrás de Android cierra los dos de una.
+['abrirChequeo', 'abrirEdicion', 'abrirAlta', 'verRealizaciones'].forEach((fn) => {
+  const orig = window[fn];
+  if (typeof orig !== 'function') return;
+  window[fn] = function (...a) {
+    try { if ($('mDetalle').open) $('mDetalle').close(); } catch { /* ya cerrada */ }
+    return orig.apply(this, a);
+  };
 });
 
 $('fEsCompra').addEventListener('change', pintarModoCompra);
@@ -1617,7 +1785,6 @@ onSnapshot(consulta, (snap) => {
     pedidaHecha = true;
     let p = byId[pedida].parentId;
     while (p && byId[p]) { abiertos[p] = true; p = byId[p].parentId; }
-    detalleAbierto = pedida;
     render();
     setTimeout(() => {
       const el = document.getElementById('nodo-' + pedida);
@@ -1630,6 +1797,7 @@ onSnapshot(consulta, (snap) => {
       // modal apareciera primero, al cerrarlo la persona quedaría mirando
       // una lista que nunca se movió y sin saber dónde está la actividad.
       if (pedidaEditar) abrirEdicion(pedida);
+      else abrirDetalle(pedida);
     }, 80);
     verificarCrono();
     return;

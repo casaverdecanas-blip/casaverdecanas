@@ -7,7 +7,10 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
-// v75 (3-ago-2026) — cada compra muestra su ruta entera: proyecto › … › lista.
+// v76 (6-ago-2026) — el detalle de una actividad pasa a VENTANA EMERGENTE, y
+//       una limpieza muestra los datos de SU RESERVA: quién entra, cuántos,
+//       a qué hora y qué pidieron. actividades.html.
+// v75 — cada compra muestra su ruta entera: proyecto › … › lista.
 // v74 — las COMPRAS pasan a servir para algo: la descripción de
 //       una actividad-compra es la lista (una cosa por línea), y el filtro
 //       🛒 Compras junta todo por lugar. actividades.html.
@@ -45,7 +48,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v75';
+const VERSION = 'cv2-shell-v76';
 
 const SHELL = [
   './',
