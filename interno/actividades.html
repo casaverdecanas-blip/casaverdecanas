@@ -60,6 +60,31 @@
   }
   .recien-llegada > .cv-nodo-fila { animation: cv-llegada 1.3s ease-out 2; }
 
+  .cmp-lugar { margin: 14px 0 0; }
+  .cmp-lugar h3 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 6px;
+    font-size: .86rem; color: var(--verde-osc); }
+  .cmp-lugar h3 span { margin-left: auto; font-size: .74rem; color: var(--gris);
+    font-weight: 400; }
+  .cmp-act { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 8px 11px; margin-bottom: 6px; box-shadow: var(--sombra); }
+  .cmp-de { display: flex; align-items: center; gap: 4px; margin-top: 5px;
+    font-size: .74rem; color: var(--gris); text-decoration: none;
+    border-top: 1px dashed var(--linea); padding-top: 5px; }
+  .cmp-de .material-icons { font-size: 15px; }
+  .cmp-lugares { margin: 22px 0 0; background: var(--crema); border-radius: var(--radio);
+    padding: 12px; }
+  .cmp-lugares h3 { margin: 0 0 4px; font-size: .86rem; }
+  .cmp-lug { display: flex; align-items: center; gap: 8px; min-height: 40px;
+    font-size: .86rem; border-top: 1px solid var(--linea); }
+  .cmp-lug:first-of-type { border-top: 0; }
+  .cmp-lug span { flex: 1; }
+
+  .compra-lista { margin-top: 8px; border-top: 1px dashed var(--linea); padding-top: 6px; }
+  .compra-it { display: flex; align-items: center; gap: 9px; min-height: 40px;
+    font-size: .87rem; cursor: pointer; }
+  .compra-it input { width: 20px; height: 20px; flex: none; margin: 0; }
+  .compra-it.ya span { text-decoration: line-through; color: var(--gris); }
+
   .cv-nodo-fila.hecha .cv-nodo-tit { text-decoration: line-through; color: var(--gris); font-weight: 500; }
   .cv-nodo-fila.hecha { opacity: .75; }
   .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
@@ -126,6 +151,7 @@
     <button class="fchip activo" data-f="todas">Todas</button>
     <button class="fchip" data-f="hoy">Hoy</button>
     <button class="fchip" data-f="destacadas">★ Destacadas</button>
+    <button class="fchip" data-f="compras">🛒 Compras</button>
   </div>
 
   <div id="arbol"><div class="vacio">Cargando…</div></div>
@@ -140,8 +166,11 @@
     <label>Título</label>
     <input id="fTitulo" maxlength="120">
 
-    <label>Detalle (opcional)</label>
+    <label id="lDetalle">Detalle (opcional)</label>
     <textarea id="fDetalle" rows="2"></textarea>
+    <p id="ayudaCompra" class="oculto" style="font-size:.76rem;color:var(--gris);margin:3px 0 0;line-height:1.5;">
+      <b>Una cosa por línea.</b> Cada salto de línea es un ítem de la compra.
+    </p>
 
     <div id="grupoPadre">
       <label>Pertenece a</label>
@@ -229,7 +258,13 @@
     <div class="check-linea">
       <input id="fEsCompra" type="checkbox">
       <span>Es una compra</span>
-      <input id="fProveedor" placeholder="Proveedor (opcional)" class="oculto" style="flex:1;">
+    </div>
+    <!-- El proveedor pasa de texto libre a lista elegible. Escrito a mano,
+         "Ferretería", "ferreteria" y "Ferretería del centro" eran tres
+         proveedores distintos y agrupar por ese campo no servía para nada. -->
+    <div id="grupoProveedor" class="oculto">
+      <label>Dónde se compra (opcional)</label>
+      <select id="fProveedor"></select>
     </div>
   </div>
   <div class="m-pie">
@@ -458,15 +493,149 @@ function renderBanner() {
   </div>`;
 }
 
+// ── La vista de Compras ──────────────────────────────────
+// TODO lo que hay que comprar, de TODAS las actividades, junto y separado por
+// lugar. Es la pantalla que se mira antes de salir: "voy a la ferretería,
+// ¿qué había que comprar ahí?". Incluye lo que anotó otro y yo no sabía.
+function renderCompras(cont) {
+  const compras = Object.values(byId).filter((it) => it.esCompra && !it.hecho);
+  const porLugar = {};
+  compras.forEach((it) => {
+    const lugar = it.proveedor || '__sin';
+    (porLugar[lugar] = porLugar[lugar] || []).push(it);
+  });
+
+  // Los lugares definidos primero y en orden; "sin definir" al final: es lo
+  // que todavía no se sabe dónde comprar, no un lugar.
+  const lugares = Object.keys(porLugar).filter((l) => l !== '__sin').sort((a, b) => a.localeCompare(b));
+  if (porLugar.__sin) lugares.push('__sin');
+
+  let h = '';
+  if (!compras.length) {
+    h += '<div class="vacio">Nada para comprar.<br>'
+      + 'En cualquier actividad, tildá <b>Es una compra</b> y escribí '
+      + '<b>una cosa por línea</b> en la descripción.</div>';
+  }
+
+  lugares.forEach((lugar) => {
+    const acts = porLugar[lugar];
+    let tot = 0, hechos = 0;
+    acts.forEach((it) => {
+      const its = itemsDe(it), cp = compradosDe(it);
+      tot += its.length; hechos += its.filter((x) => cp.has(x)).length;
+    });
+    h += '<div class="cmp-lugar">'
+      + '<h3>' + (lugar === '__sin' ? '📍 Sin definir dónde' : '📍 ' + esc(lugar))
+      + '<span>' + hechos + '/' + tot + '</span></h3>';
+
+    acts.forEach((it) => {
+      const its = itemsDe(it);
+      const cp = compradosDe(it);
+      if (!its.length) return;
+      h += '<div class="cmp-act">'
+        + its.map((t) => '<label class="compra-it' + (cp.has(t) ? ' ya' : '') + '">'
+          + '<input type="checkbox" data-item="' + esc(it.id) + '" data-txt="' + esc(t) + '"'
+          + (cp.has(t) ? ' checked' : '') + '>'
+          + '<span>' + esc(t) + '</span></label>').join('')
+        // De dónde viene: sin esto, una lista consolidada es un montón de
+        // cosas sin contexto y no se sabe a quién preguntarle.
+        + '<a class="cmp-de" href="#" data-ir="' + esc(it.id) + '">'
+        + '<span class="material-icons">subdirectory_arrow_right</span>'
+        + esc(it.titulo || '(sin título)') + '</a>'
+        + '</div>';
+    });
+    h += '</div>';
+  });
+
+  // El editor de lugares vive acá: es donde se usa.
+  h += '<div class="cmp-lugares"><h3>Los lugares</h3>'
+    + '<p class="texto-gris" style="font-size:.8rem;margin:0 0 8px;">'
+    + 'Los que aparecen al cargar una compra. Borrar uno no toca las compras '
+    + 'que ya lo tenían.</p>'
+    + (proveedores.length
+      ? proveedores.map((p) => '<div class="cmp-lug">'
+        + '<span>' + esc(p) + '</span>'
+        + '<button class="btn-ico" data-borrarlug="' + esc(p) + '" title="Borrar">'
+        + '<span class="material-icons" style="color:var(--rojo);font-size:18px;">close</span>'
+        + '</button></div>').join('')
+      : '<div class="texto-gris" style="font-size:.82rem;">Todavía no hay ninguno.</div>')
+    + '<div style="margin-top:8px;"><button class="btn" id="btnNuevoLugar">'
+    + '<span class="material-icons">add</span> Agregar un lugar</button></div></div>';
+
+  cont.innerHTML = h;
+}
+
 function render() {
   renderBanner();
   const cont = $('arbol');
+  if (filtro === 'compras') { renderCompras(cont); return; }
   if (roots.length === 0) {
     cont.innerHTML = `<div class="vacio">Todavía no hay proyectos.<br>Creá el primero con el botón <b>Proyecto</b>.</div>`;
     return;
   }
   const html = roots.filter(visible).map(nodoHTML).join('');
   cont.innerHTML = html || `<div class="vacio">Nada para mostrar con este filtro.</div>`;
+}
+
+// ═══ COMPRAS ══════════════════════════════════════════════
+// El objetivo es UNA LISTA PRÁCTICA, no un control de plata: cuando voy a la
+// ferretería quiero ver de un vistazo todo lo que alguien anotó para la
+// ferretería —incluido lo que yo no había pensado— y comprarlo. El gasto lo
+// registra cada uno como le sirva, en Dinero, y no es asunto de esta lista.
+//
+// LA DESCRIPCIÓN ES LA LISTA. Cada salto de línea es un ítem. Sin formulario
+// de ítems, sin botón de agregar: se escribe y ya. Es lo que hace que valga
+// la pena usarlo — un formulario por cosa para comprar no lo llena nadie.
+let proveedores = [];
+
+// Los ítems salen del texto, sin guardarse aparte: el texto ES el dato.
+const itemsDe = (it) => String(it.detalle || '').split('\n')
+  .map((l) => l.trim()).filter((l) => l !== '');
+
+// Lo comprado se guarda POR TEXTO y no por posición: si alguien edita una
+// línea, se destilda sola —cambió de cosa— y eso es predecible. Por índice,
+// agregar una línea arriba habría corrido todas las marcas una posición.
+const compradosDe = (it) => new Set(Array.isArray(it.comprados) ? it.comprados : []);
+
+function pintarProveedores(sel) {
+  const s = $('fProveedor');
+  s.innerHTML = '<option value="">— sin definir —</option>'
+    + proveedores.map((p) => '<option value="' + esc(p) + '"'
+      + (p === sel ? ' selected' : '') + '>' + esc(p) + '</option>').join('')
+    + '<option value="__nuevo">+ Agregar un lugar…</option>';
+  if (sel && proveedores.indexOf(sel) === -1) {
+    // Un proveedor viejo escrito a mano no se pierde por no estar en la lista.
+    s.insertAdjacentHTML('afterbegin',
+      '<option value="' + esc(sel) + '" selected>' + esc(sel) + ' (suelto)</option>');
+  }
+}
+
+// Al tildar "es una compra", la descripción cambia de nombre y de sentido.
+function pintarModoCompra() {
+  const es = $('fEsCompra').checked;
+  $('lDetalle').textContent = es ? 'Qué comprar' : 'Detalle (opcional)';
+  $('fDetalle').rows = es ? 5 : 2;
+  $('ayudaCompra').classList.toggle('oculto', !es);
+  $('grupoProveedor').classList.toggle('oculto', !es);
+}
+
+// La lista de compra dentro del detalle: se tilda acá o desde la vista de
+// Compras, y es lo mismo — el dato vive en la actividad y lo ve todo el
+// equipo. Si Flor tilda la lavandina, Esteban no la compra de nuevo.
+function listaCompraHTML(it) {
+  const its = itemsDe(it);
+  if (!its.length) {
+    return '<div class="texto-gris" style="margin-top:7px;font-size:.82rem;">'
+      + 'Es una compra pero la lista está vacía: editala y escribí '
+      + '<b>una cosa por línea</b>.</div>';
+  }
+  const cp = compradosDe(it);
+  return '<div class="compra-lista">'
+    + its.map((t) => '<label class="compra-it' + (cp.has(t) ? ' ya' : '') + '">'
+      + '<input type="checkbox" data-item="' + esc(it.id) + '" data-txt="' + esc(t) + '"'
+      + (cp.has(t) ? ' checked' : '') + '>'
+      + '<span>' + esc(t) + '</span></label>').join('')
+    + '</div>';
 }
 
 // La marca que va antes del título. Una limpieza o un control de salida se
@@ -530,13 +699,19 @@ function nodoHTML(id) {
     const chips = [];
     if ((it.recurrenciaDias ?? 0) > 0) chips.push(`<span class="cv-mini">↻ cada ${it.recurrenciaDias} días</span>`);
     if ((it.monto ?? 0) > 0) chips.push(`<span class="cv-mini">${CV2.fmtMonto(it.monto)}</span>`);
-    if (it.esCompra) chips.push('<span class="cv-mini">🛒 compra</span>');
+    if (it.esCompra) {
+      const its = itemsDe(it), cp = compradosDe(it);
+      chips.push('<span class="cv-mini">🛒 ' + its.filter((x) => cp.has(x)).length
+        + '/' + its.length + '</span>');
+      if (it.proveedor) chips.push('<span class="cv-mini">📍 ' + esc(it.proveedor) + '</span>');
+    }
     if (it.alcance === 'personal') chips.push('<span class="cv-mini">🔒 solo yo</span>');
     if (it.alcance === 'asignados') chips.push(`<span class="cv-mini">👥 ${(it.competencias ?? []).length} asignado(s)</span>`);
     if (tieneHijos) chips.push(`<span class="cv-mini">${hijos.length} sub-ítem(s)</span>`);
 
     h += `<div class="cv-nodo-detalle" style="background:${col.p}">
       <span class="texto-gris">${partes.join(' · ')}</span>
+      ${it.esCompra ? listaCompraHTML(it) : ''}
       ${chips.length ? `<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;">${chips.join('')}</div>` : ''}
       <div class="acciones">
         ${!it.hecho ? (miCrono
@@ -869,7 +1044,8 @@ function prepararModal({ titulo, esProyecto, padreId, it }) {
   $('fDuracion').value = it?.duracionHoras ? String(it.duracionHoras) : '';
   $('fFechaVenc').value = it?.fechaVencimiento ?? '';
   $('fEsCompra').checked = it?.esCompra ?? false;
-  $('fProveedor').value = it?.proveedor ?? '';
+  pintarProveedores(it?.proveedor ?? '');
+  pintarModoCompra();
   $('fProveedor').classList.toggle('oculto', !$('fEsCompra').checked);
 
   const sel = new Set(it?.competencias ?? []);
@@ -897,8 +1073,99 @@ window.abrirEdicion = (id) => {
   prepararModal({ titulo: 'Editar', esProyecto: !it.parentId, it });
 };
 
-$('fEsCompra').addEventListener('change', () =>
-  $('fProveedor').classList.toggle('oculto', !$('fEsCompra').checked));
+// ── Guardar ──────────────────────────────────────────────
+// Los lugares viven en config/compras, que ya tiene permiso para el equipo
+// activo — igual que las categorías de Dinero. Cero cambios en las reglas.
+async function guardarProveedores() {
+  try {
+    await setDoc(doc(db, 'config', 'compras'), {
+      proveedores, actualizadoEn: serverTimestamp()
+    }, { merge: true });
+  } catch (e) { CV2.toast('No se pudieron guardar los lugares: ' + (e.code ?? e.message), 'error'); }
+}
+
+// Tildar un ítem. El dato vive en la ACTIVIDAD y lo ve todo el equipo: si
+// Flor tilda la lavandina, Esteban no la compra de nuevo. Por eso va con
+// arrayUnion/arrayRemove y no reescribiendo el array — dos personas tildando
+// cosas distintas al mismo tiempo no se pisan.
+async function tildarItem(actId, txt, tildado) {
+  const it = byId[actId];
+  if (!it) return;
+  try {
+    await updateDoc(doc(db, 'actividades', actId), {
+      comprados: tildado ? arrayUnion(txt) : arrayRemove(txt),
+      actualizadoEn: serverTimestamp()
+    });
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+}
+
+// Los tres gestos de la lista de compras, en un solo lugar: la vista se
+// repinta con cada cambio del onSnapshot y los oyentes por elemento se
+// perderían.
+$('arbol').addEventListener('change', (ev) => {
+  const c = ev.target.closest('[data-item]');
+  if (!c) return;
+  tildarItem(c.dataset.item, c.dataset.txt, c.checked);
+});
+
+$('arbol').addEventListener('click', async (ev) => {
+  const ir = ev.target.closest('[data-ir]');
+  if (ir) {
+    ev.preventDefault();
+    // Se abre esa actividad en el árbol: para cambiar la lista, agregar algo
+    // o ver de qué proyecto salió.
+    filtro = 'todas';
+    $('filtros').querySelectorAll('.fchip').forEach((x) =>
+      x.classList.toggle('activo', x.dataset.f === 'todas'));
+    const id = ir.dataset.ir;
+    let pp = byId[id] && byId[id].parentId;
+    while (pp && byId[pp]) { abiertos[pp] = true; pp = byId[pp].parentId; }
+    detalleAbierto = id;
+    render();
+    setTimeout(() => {
+      const el = document.getElementById('nodo-' + id);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
+    return;
+  }
+
+  const bl = ev.target.closest('[data-borrarlug]');
+  if (bl) {
+    const p = bl.dataset.borrarlug;
+    if (!confirm('¿Borrar «' + p + '» de la lista de lugares?\n\n'
+      + 'Las compras que ya lo tenían no se tocan.')) return;
+    proveedores = proveedores.filter((x) => x !== p);
+    await guardarProveedores();
+    render();
+    return;
+  }
+
+  if (ev.target.closest('#btnNuevoLugar')) {
+    const n = (prompt('Nombre del lugar (ferretería, supermercado…)') || '').trim();
+    if (!n) return;
+    if (proveedores.indexOf(n) !== -1) { CV2.toast('Ya está en la lista'); return; }
+    proveedores.push(n);
+    proveedores.sort((a, b) => a.localeCompare(b));
+    await guardarProveedores();
+    render();
+  }
+});
+
+$('fEsCompra').addEventListener('change', pintarModoCompra);
+
+// Agregar un lugar desde el propio formulario: si hay que salir a otra
+// pantalla para poder terminar de cargar una compra, la compra no se carga.
+$('fProveedor').addEventListener('change', async () => {
+  if ($('fProveedor').value !== '__nuevo') return;
+  const n = (prompt('Nombre del lugar (ferretería, supermercado…)') || '').trim();
+  if (!n) { pintarProveedores(''); return; }
+  if (proveedores.indexOf(n) === -1) {
+    proveedores.push(n);
+    proveedores.sort((a, b) => a.localeCompare(b));
+    await guardarProveedores();
+  }
+  pintarProveedores(n);
+});
 $('fAlcance').addEventListener('change', () =>
   $('grupoCompetencias').classList.toggle('oculto', $('fAlcance').value !== 'asignados'));
 $('mCerrar').addEventListener('click', () => modal.close());
@@ -923,7 +1190,7 @@ $('mGuardar').addEventListener('click', async () => {
     hora: $('fHora').value || null,
     duracionHoras: parseFloat($('fDuracion').value) || null,
     esCompra: $('fEsCompra').checked,
-    proveedor: $('fEsCompra').checked ? ($('fProveedor').value.trim() || null) : null,
+    proveedor: $('fEsCompra').checked ? ($('fProveedor').value || null) : null,
     competencias: $('fAlcance').value === 'asignados'
       ? [...document.querySelectorAll('.chkComp:checked')].map((c) => c.value)
       : [],
@@ -978,6 +1245,15 @@ try {
   const eu = await getDoc(doc(db, 'estado_usuario', u.uid));
   destacados = new Set(eu.exists() ? (eu.data().destacados ?? []) : []);
 } catch { /* primera vez */ }
+
+// Los lugares donde se compra. Si falla, se sigue con la lista vacía: se
+// puede cargar una compra sin lugar, y agregarlo después.
+try {
+  const cc = await getDoc(doc(db, 'config', 'compras'));
+  if (cc.exists() && Array.isArray(cc.data().proveedores)) {
+    proveedores = cc.data().proveedores.slice().sort((a, b) => a.localeCompare(b));
+  }
+} catch (e) { console.warn('config/compras', e); }
 
 // Restaurar mi cronómetro si quedó corriendo (sobrevive recargas)
 try {

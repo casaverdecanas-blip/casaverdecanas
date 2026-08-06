@@ -351,9 +351,27 @@ importaciones, espejos entre colecciones, sincronizaciones con calendarios.
 Sin excepción, incluso en campos "internos". `CV2.esc()` está para eso.
 
 ### 3.8 · Validación antes de entregar
-Todo archivo JS o bloque `<script type="module">` pasa por `node --check`. Además se
-verifica: sin `gstatic` fuera de `firebase-init.js`, y el `<link>` de Material Icons
+Los **cuatro controles**, sobre todo archivo tocado. Ninguno reemplaza a otro:
+
+1. **`node --check`** sobre cada archivo JS y cada bloque `<script type="module">`.
+2. **Cada `id` que busca el JS existe en el HTML.** Un `$('x')` sobre algo que no está
+   devuelve `null`, y la línea siguiente mata el script entero — la página queda en
+   "Cargando…" para siempre sin decir nada (§8).
+3. **Nada usa una función de Firestore sin importarla.** `node --check` valida
+   sintaxis, **no nombres**: un `getDoc` sin importar pasa el control y revienta recién
+   cuando alguien abre esa pantalla. *Encontrado así en agosto de 2026 en
+   `reservas.html`, donde llevaba meses fallando en silencio dentro de un `try` al
+   abrir el modal de un pago.*
+4. **Cada marca de `diagnostico.html` existe en su archivo**, o la herramienta que dice
+   qué versión está subida miente.
+
+Además: sin `gstatic` fuera de `firebase-init.js`, y el `<link>` de Material Icons
 **antes** de `design-system.css` en el `<head>`.
+
+> Y una advertencia sobre el método: **un reemplazo de texto que no encuentra su patrón
+> no avisa**. Si se edita un archivo buscando y sustituyendo, hay que comprobar que la
+> sustitución ocurrió — pasó dos veces en agosto de 2026, una dejando una página en
+> blanco y otra dejando clases huérfanas.
 
 ### 3.9 · Nada decorativo en el camino crítico de autenticación
 `verificarAuth` resuelve **primero**; los adornos van después y aislados en su propio
@@ -821,6 +839,30 @@ ultimoAutorNombre, ultimaActividad, creadoPor, creadoNombre, creadoEn`
 · **Formato viejo** (claves `comId` al ras del documento) se sigue leyendo como respaldo:
   no hubo migración ni día cero.
 
+### `actividades/{id}` — compras
+· **`esCompra`** (bool) y **`proveedor`** (texto, opcional).
+· **`detalle` ES LA LISTA.** Cuando `esCompra` está en `true`, cada salto de línea de
+  `detalle` es un ítem. **No hay array de ítems**: el texto es el dato. Un formulario
+  con un botón "agregar ítem" por cada cosa para comprar no lo llena nadie, y una lista
+  que no se llena no sirve.
+· **`comprados`** — array con el **TEXTO** de los ítems ya comprados. Por texto y no por
+  posición: si alguien edita una línea, se destilda sola —cambió de cosa— y eso es
+  predecible. Por índice, agregar una línea arriba habría corrido todas las marcas.
+· **Se escribe con `arrayUnion`/`arrayRemove`**, nunca reescribiendo el array: dos
+  personas tildando cosas distintas al mismo tiempo no se pisan.
+· **Lo comprado lo ve todo el equipo** y vive en la actividad, no en `estado_usuario`:
+  si Flor tilda la lavandina, Esteban no la compra de nuevo. Es lo contrario de la
+  agenda, que es de cada uno.
+
+### `config/compras` — los lugares
+`proveedores: ['Ferretería del centro', 'Supermercado', …]`
+· La lista que aparece al cargar una compra. Se edita **desde la propia vista de
+  Compras**, que es donde se usa. Borrar un lugar no toca las compras que ya lo tenían.
+· Vive en `config/`, que ya tiene permiso para el equipo activo — igual que las
+  categorías de Dinero. **Cero cambios en las reglas.**
+· El campo era **texto libre** hasta agosto de 2026, y por eso agrupar no servía:
+  *"Ferretería"*, *"ferreteria"* y *"Ferretería del centro"* eran tres lugares distintos.
+
 ### `actividades/{id}` — campos de agenda
 · **`hora`** (`'HH:MM'`, opcional) y **`duracionHoras`** (número, opcional). Las dos
   son opcionales a propósito: la enorme mayoría de las tareas de la casa no tienen
@@ -832,6 +874,17 @@ ultimoAutorNombre, ultimaActividad, creadoPor, creadoNombre, creadoEn`
 `agenda: { <actId>: { dia, franja, hora, nota } }`
 · Que la clave **exista** significa *"está en mi agenda"*. Los cuatro campos son
   opcionales.
+· **Lo agendado SIN FECHA propia flota en HOY.** No se le guarda ningún día: aparece
+  hoy, y mañana también, hasta que pase una de cuatro cosas — se le da un día, se
+  destilda, alguien la borra, o alguien la da por hecha. Es una bandeja de entrada.
+  *Guardarle `dia: hoy` al agregarla la habría clavado en una fecha que nadie eligió, y
+  en tres días figuraría "atrasada" sin que nadie la hubiera atrasado.*
+· **Lo hecho desaparece de la semana**, lo haya cerrado quien lo haya cerrado. La marca
+  en `agenda` se conserva: si la actividad es recurrente y vuelve, vuelve agendada.
+  Las marcas de actividades ya terminadas o borradas quedan en el mapa sin hacer nada
+  —son invisibles y pesan unos bytes—; **no se limpian solas a propósito**, porque
+  distinguir "terminada para siempre" de "recurrente entre ciclos" con una heurística
+  es cómo se borra lo que alguien quería conservar.
 · **`dia`, `franja` ('manana'|'tarde') y `hora` son SOBRESCRITURAS personales**: mandan
   sobre la fecha y la hora de la actividad, **solo para esta persona**. Mover algo al
   jueves a la tarde no le cambia la fecha a nadie más.
@@ -2206,6 +2259,49 @@ falta el archivo, se pide — no se reconstruye.
 > una a la otra para sumar y para sacar, y **el lugar se elige al ponerla**, que es
 > cuando se sabe. Una actividad sin fecha propia cae en el día que se está mirando.
 > Las que ya están en la semana se ven en verde. `sw.js` → v72.
+>
+> **T11.39 · Casillas en vez de arrastre, y lo sin fecha flota en hoy.** Agregar a la
+> agenda pasa a ser una **casilla** en la vista de Actividades: agregar es una decisión
+> de sí o no y una casilla la dice en un toque, mientras que arrastrar desde una lista
+> larga hasta una pestaña de abajo obliga a cruzar media pantalla con el dedo apretado.
+> El arrastre se queda donde sirve: **mover algo dentro de la semana**.
+>
+> Y lo agendado **sin fecha propia no recibe un día: flota en hoy** hasta que se le dé
+> uno, se destilde, se borre o alguien la dé por hecha.
+>
+> **T11.40 · Revisión de punta a punta.** Se pasaron por cuatro controles los quince
+> archivos vivos: sintaxis (`node --check`), que **cada `id` que busca el JS exista en
+> el HTML**, que **nada use una función de Firestore sin importarla**, y que cada marca
+> del diagnóstico exista de verdad en su archivo. Más el `SHELL` contra la navegación.
+>
+> **Apareció un error real: `reservas.html` usaba `getDoc` sin importarlo.** Se ejecuta
+> al abrir el modal de un pago, para traer las cuentas de `config/dinero`: reventaba
+> ahí, en silencio, dentro de un `try`. Estaba desde antes de esta serie de tandas y no
+> lo habría encontrado ninguna prueba manual — solo mirar los imports contra los usos.
+> **Ese control queda como parte del cierre de tanda** (§3.8). `sw.js` → v73.
+>
+> **T11.41 · Las compras pasan a servir para algo.** Diagnóstico previo, dicho sin
+> vueltas: **no funcionaban**. `esCompra` pintaba un chip y nada más; `proveedor` era
+> texto libre que ningún código leía. Dos campos huérfanos de la misma familia que
+> `enBRL` y el chip de limpieza del calendario: puestos pensando en algo que después no
+> se construyó.
+>
+> **El objetivo NO es control económico** (decisión del administrador): es una lista
+> práctica. *"Voy a la ferretería — ¿qué había que comprar ahí?"*, incluido lo que anotó
+> otro y yo no sabía. El gasto lo registra cada uno en Dinero como le sirva, y no es
+> asunto de esta lista.
+>
+> · **La descripción ES la lista**: una cosa por línea, sin formulario de ítems.
+> · **Los ítems se tildan** desde el detalle o desde la vista de Compras, y es lo mismo
+>   — el dato vive en la actividad y lo ve todo el equipo.
+> · **Filtro `🛒 Compras`** en Actividades: junta los ítems de **todas** las
+>   actividades-compra, separados por lugar, con los lugares definidos primero y "sin
+>   definir" al final. Cada ítem dice de qué actividad viene y lleva hasta ella.
+> · **Los lugares se editan ahí mismo** y pasan de texto libre a lista elegible; se
+>   puede agregar uno desde el propio formulario de la actividad, porque si hay que
+>   salir a otra pantalla para terminar de cargar una compra, la compra no se carga.
+>
+> `sw.js` → v74.
 >
 > **Sigue sin verificarse:** la sincronización con Airbnb.
 
