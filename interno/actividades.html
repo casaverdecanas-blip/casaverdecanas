@@ -70,7 +70,12 @@
   .cmp-de { display: flex; align-items: center; gap: 4px; margin-top: 5px;
     font-size: .74rem; color: var(--gris); text-decoration: none;
     border-top: 1px dashed var(--linea); padding-top: 5px; }
-  .cmp-de .material-icons { font-size: 15px; }
+  .cmp-de { align-items: flex-start; }
+  .cmp-de .material-icons { font-size: 15px; margin-top: 1px; flex: none; }
+  .cmp-ruta { display: inline; line-height: 1.55; overflow-wrap: anywhere; }
+  .cmp-ruta .proy { color: var(--verde-osc); font-weight: 600; }
+  .cmp-ruta .sep { margin: 0 4px; opacity: .55; }
+  .cmp-ruta b { color: var(--tinta); font-weight: 600; }
   .cmp-lugares { margin: 22px 0 0; background: var(--crema); border-radius: var(--radio);
     padding: 12px; }
   .cmp-lugares h3 { margin: 0 0 4px; font-size: .86rem; }
@@ -497,6 +502,24 @@ function renderBanner() {
 // TODO lo que hay que comprar, de TODAS las actividades, junto y separado por
 // lugar. Es la pantalla que se mira antes de salir: "voy a la ferretería,
 // ¿qué había que comprar ahí?". Incluye lo que anotó otro y yo no sabía.
+// La ruta desde el proyecto hasta la lista. Sin esto, un ítem en la lista
+// consolidada es una palabra sin contexto: "pincel" puede ser de la pintura
+// de la fachada o del arreglo de una puerta, y saber cuál cambia lo que se
+// compra. Se muestra chica y entera: recortarla al primer nivel dejaría
+// afuera justo el que distingue.
+function rutaDe(it) {
+  const partes = [];
+  let p = it.parentId;
+  let vueltas = 0;
+  // Tope de vueltas: un padre que apunte en círculo colgaría la pantalla, y
+  // el árbol se edita a mano desde varias pantallas.
+  while (p && byId[p] && vueltas++ < 12) {
+    partes.unshift(byId[p]);
+    p = byId[p].parentId;
+  }
+  return partes;
+}
+
 function renderCompras(cont) {
   const compras = Object.values(byId).filter((it) => it.esCompra && !it.hecho);
   const porLugar = {};
@@ -537,11 +560,18 @@ function renderCompras(cont) {
           + '<input type="checkbox" data-item="' + esc(it.id) + '" data-txt="' + esc(t) + '"'
           + (cp.has(t) ? ' checked' : '') + '>'
           + '<span>' + esc(t) + '</span></label>').join('')
-        // De dónde viene: sin esto, una lista consolidada es un montón de
-        // cosas sin contexto y no se sabe a quién preguntarle.
+        // De dónde viene, con la ruta entera: proyecto › … › lista. Sin esto,
+        // una lista consolidada es un montón de palabras sin contexto y no se
+        // sabe a quién preguntarle.
         + '<a class="cmp-de" href="#" data-ir="' + esc(it.id) + '">'
         + '<span class="material-icons">subdirectory_arrow_right</span>'
-        + esc(it.titulo || '(sin título)') + '</a>'
+        + '<span class="cmp-ruta">'
+        + rutaDe(it).map((a, i) =>
+            '<span class="' + (i === 0 ? 'proy' : '') + '">'
+            + (i === 0 ? '📁 ' : '') + esc(a.titulo || a.id) + '</span>'
+            + '<span class="sep">›</span>').join('')
+        + '<b>' + esc(it.titulo || '(sin título)') + '</b>'
+        + '</span></a>'
         + '</div>';
     });
     h += '</div>';

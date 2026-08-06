@@ -2296,7 +2296,11 @@ falta el archivo, se pide — no se reconstruye.
 >   — el dato vive en la actividad y lo ve todo el equipo.
 > · **Filtro `🛒 Compras`** en Actividades: junta los ítems de **todas** las
 >   actividades-compra, separados por lugar, con los lugares definidos primero y "sin
->   definir" al final. Cada ítem dice de qué actividad viene y lleva hasta ella.
+>   definir" al final. Cada grupo muestra **la ruta entera** —📁 proyecto › ítem › …
+>   › lista— y lleva hasta la actividad. La ruta completa y no solo el nombre: *"pincel"*
+>   puede ser de la pintura de la fachada o del arreglo de una puerta, y saber cuál
+>   cambia qué pincel se compra. `rutaDe()` lleva un tope de 12 niveles: un `parentId`
+>   que apunte en círculo colgaría la pantalla, y el árbol se edita a mano desde varias.
 > · **Los lugares se editan ahí mismo** y pasan de texto libre a lista elegible; se
 >   puede agregar uno desde el propio formulario de la actividad, porque si hay que
 >   salir a otra pantalla para terminar de cargar una compra, la compra no se carga.

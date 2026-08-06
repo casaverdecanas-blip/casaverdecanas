@@ -7,7 +7,8 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
-// v74 (3-ago-2026) — las COMPRAS pasan a servir para algo: la descripción de
+// v75 (3-ago-2026) — cada compra muestra su ruta entera: proyecto › … › lista.
+// v74 — las COMPRAS pasan a servir para algo: la descripción de
 //       una actividad-compra es la lista (una cosa por línea), y el filtro
 //       🛒 Compras junta todo por lugar. actividades.html.
 // v73 — la agenda se arma con CASILLAS y lo que no tiene fecha
@@ -44,7 +45,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v74';
+const VERSION = 'cv2-shell-v75';
 
 const SHELL = [
   './',
