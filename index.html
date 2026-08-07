@@ -518,7 +518,13 @@ function pintarSelect() {
 let mesVista = new Date();
 let selIn = null, selOut = null;
 
-const iso = (d) => d.toISOString().slice(0, 10);
+// La fecha LOCAL, no la de UTC. toISOString() da el día en UTC y Brasil está
+// tres horas atrás: desde las 21:00 de cada noche 'hoyIso' devolvía MAÑANA, y
+// el calendario deshabilitaba el día de hoy — un visitante que entraba a la
+// noche no podía elegir hoy para llegar mañana.
+const iso = (d) => d.getFullYear()
+  + '-' + String(d.getMonth() + 1).padStart(2, '0')
+  + '-' + String(d.getDate()).padStart(2, '0');
 const hoyIso = iso(new Date());
 const MESES = {
   pt:['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'],
