@@ -631,7 +631,27 @@ CV2.fmtHM = function (h) {
 CV2.fmtMonto = (n, moneda = 'BRL') =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: moneda }).format(Number(n) || 0);
 
-CV2.hoyISO = () => new Date().toISOString().slice(0, 10);
+// La fecha LOCAL de un Date, en formato 'YYYY-MM-DD'.
+//
+// NO usa toISOString(): eso da la fecha en UTC, y Brasil está tres horas
+// atrás. A las 21:00 del 6 de agosto en Canasvieiras, en UTC ya son las 00:00
+// del 7 — así que desde las 21:00 TODAS LAS NOCHES el sistema creía que ya era
+// mañana. Consecuencias: una tarea de hoy aparecía vencida, la agenda ponía
+// "hoy" en el día siguiente, y el calendario del sitio público deshabilitaba
+// el día de hoy. Encontrado el 7-ago-2026 revisando el sitio público.
+//
+// Cuidado al sumar días: hacerlo sobre medianoche local puede caer del otro
+// lado del cambio de horario. Se hace siempre desde el MEDIODÍA
+// ('YYYY-MM-DDT12:00:00'), que deja doce horas de margen para cualquier zona.
+CV2.fechaLocal = (d) => (d || new Date()).getFullYear()
+  + '-' + String((d || new Date()).getMonth() + 1).padStart(2, '0')
+  + '-' + String((d || new Date()).getDate()).padStart(2, '0');
+
+CV2.hoyISO = () => {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
+    + '-' + String(d.getDate()).padStart(2, '0');
+};
 
 // ── Colores de proyecto (cascada, heredado del diseño viejo) ─
 const _pastelCache = {};
@@ -688,7 +708,7 @@ CV2.toast = function (msj, tipo = 'info') {
 // (el WhatsApp iba al número por defecto) era idéntico a un problema de
 // configuración, y no había forma de saber qué código estaba corriendo.
 // Se sube a mano cada vez que se toca el bloque de avisos.
-CV2.VERSION = 'nucleo-agenda-9';
+CV2.VERSION = 'nucleo-fecha-10';
 
 CV2.NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
 

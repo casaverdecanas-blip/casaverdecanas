@@ -543,6 +543,29 @@ Tres reglas que vienen con el patrón:
   no tiene hijos ni detalle propio, solo muestra y ofrece sus botones. Lo declara la
   clase, así nadie lo descubre tocándola y esperando que pase algo.
 
+### 3.16c · «Hoy» se calcula en hora LOCAL, nunca con `toISOString()`
+
+`new Date().toISOString().slice(0, 10)` da la fecha en **UTC**. Brasil está tres horas
+atrás, así que **a partir de las 21:00 de cada noche devuelve el día siguiente**.
+
+Lo que eso rompía, todas las noches, hasta agosto de 2026:
+
+- una tarea con fecha de hoy aparecía **vencida**;
+- la agenda ponía «hoy» en el día equivocado y lo agendado sin fecha flotaba a mañana;
+- la ventana de siete días de las limpiezas se corría un día entero;
+- el calendario del sitio público **deshabilitaba el día de hoy**: un visitante que
+  entraba de noche no podía elegir hoy.
+
+Se usa **`CV2.hoyISO()`** y **`CV2.fechaLocal(d)`**, que arman la fecha con
+`getFullYear/getMonth/getDate`. En los módulos que no dependen de `CV2`
+—`reservas-core.js`, el `index.html` de la raíz— se repiten las tres líneas antes que
+crear una dependencia por eso.
+
+**Sumar días es distinto y ahí `toISOString()` sí sirve**, siempre que se parta del
+**mediodía**: `new Date(iso + 'T12:00:00')` deja doce horas de margen contra la zona
+horaria y contra el cambio de horario. Sobre medianoche local, sumar un día puede caer
+del otro lado.
+
 ### 3.17 · Nunca confiar en el código HTTP de un servicio de terceros
 
 CallMeBot devuelve **HTTP 200 aunque rechace el pedido**, y mete el error como HTML
@@ -1733,8 +1756,16 @@ anularse, al volver a presupuesto o al perder las fechas.
   herramienta, la consola de Firebase— su documento queda huérfano y el sitio muestra
   ocupado algo que está libre. `migrar-reservas.html` lo limpia a mano por eso.
 
+**Qué hace el sitio público con esto** — el `index.html` de la raíz ya tiene el
+calendario completo: una vista por cabaña, las noches ocupadas deshabilitadas, y la
+elección de entrada y salida con dos toques —un tercero vuelve a empezar—. El pedido
+se manda por WhatsApp. **Respeta el criterio hotelero**: la ocupación va de `desde`
+hasta `hasta` **sin incluir la última**, así el día de salida la cabaña ya queda libre
+para el que entra.
+
 **Dónde se muestra** — `reservas-core.js` (`espejarDisponibilidad`), el sitio público
-(`index.html` de la raíz), `migrar-reservas.html`.
+(`index.html` de la raíz), `netlify/functions/ical-cabana.js` (que la publica como
+`.ics` para Airbnb), `migrar-reservas.html`.
 
 ---
 
@@ -2409,6 +2440,22 @@ falta el archivo, se pide — no se reconstruye.
 > más es el código de reserva y los últimos 4 dígitos del teléfono. El motivo bueno es
 > otro y es de higiene: `cabanas` es contenido del sitio público y lo baja cada
 > visitante.* `sw.js` → v78.
+>
+> **T11.45 · «Hoy» estaba mal desde las 21:00, todas las noches.** Revisando el sitio
+> público apareció el error más extendido de todo el sistema: `toISOString()` da la
+> fecha en **UTC** y Brasil está tres horas atrás, así que a partir de las 21:00 el
+> sistema entero creía que ya era mañana. Una tarea de hoy figuraba **vencida**, la
+> agenda ponía «hoy» en el día equivocado, la ventana de las limpiezas se corría, y el
+> calendario público **deshabilitaba el día de hoy** — un visitante que entraba de
+> noche no podía elegir hoy para llegar mañana.
+>
+> Corregido en `nucleo.js` (`CV2.hoyISO`, y `CV2.fechaLocal` nueva), `reservas-core.js`,
+> `actividades.html` y el `index.html` de la **raíz**. Va a §3.16c. Los `sumarDias` que
+> parten del **mediodía** ya eran seguros y se dejaron: ahí `toISOString()` sí sirve.
+> `sw.js` → v79.
+>
+> *De paso quedó comprobado que el sitio público **ya tenía** el calendario por cabaña
+> con selección de fechas: F4 lo daba por hecho y esta vez era cierto.*
 >
 > **Sigue sin verificarse:** que Airbnb acepte la lectura desde Netlify. Lo que
 > publicamos hacia Airbnb ya se comprobó: `ical-cabana?c=c1` devuelve las dos reservas

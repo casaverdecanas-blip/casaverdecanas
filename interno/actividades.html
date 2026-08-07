@@ -1123,7 +1123,9 @@ window.verRealizaciones = async (id) => {
 
     $('rzLista').innerHTML = filas.map((f) => {
       const d = f.ms ? new Date(f.ms) : null;
-      const fecha = d ? CV2.fmtFecha(d.toISOString().slice(0, 10)) : 'sin fecha';
+      // CV2.fechaLocal y no toISOString: una realización registrada después
+      // de las 21:00 aparecía fechada al día siguiente.
+      const fecha = d ? CV2.fmtFecha(CV2.fechaLocal(d)) : 'sin fecha';
       const hora = d ? d.toLocaleTimeString('es-BR', { hour: '2-digit', minute: '2-digit' }) : '';
       const notas = [
         f.enCurso ? 'corriendo ahora' : null,

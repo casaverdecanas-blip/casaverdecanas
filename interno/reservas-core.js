@@ -49,7 +49,16 @@ RCore.guardarIcsAirbnb = async (cabanaId, url) => {
 RCore.urlIcsPropio = (cabanaId) => RCore.NETLIFY + '/ical-cabana'
   + (cabanaId ? '?c=' + encodeURIComponent(cabanaId) : '');
 
-const hoyISO = () => new Date().toISOString().slice(0, 10);
+// La fecha LOCAL, no la de UTC. toISOString() da el día en UTC y Brasil está
+// tres horas atrás: desde las 21:00 de cada noche devolvía MAÑANA, y con eso
+// la ventana de siete días de las limpiezas se corría un día entero.
+// No se importa de nucleo.js a propósito: este módulo no depende de CV2 y
+// hacerlo depender por una función de tres líneas es peor que repetirla.
+const hoyISO = () => {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
+    + '-' + String(d.getDate()).padStart(2, '0');
+};
 
 const nomCab = (cabanas, id) => {
   const c = cabanas.find((x) => x.id === id);
@@ -244,7 +253,7 @@ RCore.sincronizarAirbnb = async (reservas, cabanas, u) => {
     }
 
     // Cancelaciones: reservas Airbnb de esta cabaña, futuras, sin evento
-    const hoyIso = hoy.toISOString().slice(0, 10);
+    const hoyIso = hoyISO();
     for (const r of reservas) {
       if (r.origen === 'airbnb' && r.cabanaId === cab.id && r.estado === 'confirmada'
           && r.icalUid && !vistos.has(r.icalUid) && r.checkIn >= hoyIso) {
@@ -269,6 +278,9 @@ RCore.sincronizarAirbnb = async (reservas, cabanas, u) => {
 
 // Días de anticipación con que se materializa cada actividad.
 const VENTANA_DIAS = 7;
+// Se parte del MEDIODÍA a propósito: doce horas de margen contra el desfase
+// de zona horaria y contra el cambio de horario. Acá toISOString() sí es
+// seguro — el problema es solo cuando se convierte la hora ACTUAL.
 const sumarDias = (iso, n) => {
   const d = new Date(iso + 'T12:00:00');
   d.setDate(d.getDate() + n);
