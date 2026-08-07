@@ -227,6 +227,8 @@ de Node 24, así que **no hace falta `package.json` ni `node_modules`**):
 |---|---|---|
 | `claude-proxy` | leer facturas con Gemini (lo llama `honorarios.html`) | `GEMINI_API_KEY` |
 | `notify-whatsapp` | avisos por CallMeBot (lo llama `CV2.enviarWhatsApp`) | `CALLMEBOT_PHONE`, `CALLMEBOT_APIKEY` |
+| `ical-cabana` | **publica** nuestra ocupación como `.ics` para que Airbnb la importe | ninguna — lee `disponibilidad`, que es pública |
+| `airbnb-ical` | **lee** el `.ics` de Airbnb (lo llama `RCore.sincronizarAirbnb`) | ninguna |
 
 **Hubo una tercera, `notify-recuerdo`, y se retiró en julio de 2026.** Estaba muerta
 dos veces: le faltaban sus tres variables de entorno y, sobre todo, **la página que
@@ -853,6 +855,22 @@ ultimoAutorNombre, ultimaActividad, creadoPor, creadoNombre, creadoEn`
 · **Lo comprado lo ve todo el equipo** y vive en la actividad, no en `estado_usuario`:
   si Flor tilda la lavandina, Esteban no la compra de nuevo. Es lo contrario de la
   agenda, que es de cada uno.
+
+### `config/airbnb` — las direcciones .ics
+`ics: { c1: 'https://www.airbnb.com/calendar/ical/….ics', … }`
+· La dirección de exportación que da Airbnb, una por cabaña. Se cargan desde el
+  **panel de Airbnb** en `reservas.html`, que muestra las dos direcciones juntas.
+· **NO viven en `/cabanas/`**, por dos motivos y en este orden:
+  1. esa colección es la **fuente del sitio público** y la baja cada visitante — una
+     dirección de integración no tiene nada que hacer ahí, son dos tipos de dato
+     distintos y se descargaría en cada visita para nada;
+  2. se lee **sin sesión**, y el `.ics` de Airbnb trae —además de las fechas, que **no
+     son secretas**: ya se ven en Airbnb y en el sitio— el **código de reserva** y los
+     **últimos 4 dígitos del teléfono** del huésped.
+· Se guarda con `merge` sobre la clave de la cabaña, para que dos personas cargando
+  cabañas distintas no se pisen.
+· *(El campo `calendarId` de `cabanas` queda sin uso. Guardaba el ID de Google
+  Calendar.)*
 
 ### `config/compras` — los lugares
 `proveedores: ['Ferretería del centro', 'Supermercado', …]`
@@ -1526,7 +1544,7 @@ todas las pantallas que lo mencionan** (§7.9).
 | **F2** | El acuerdo: de presupuesto a cobrado | se crea una reserva |
 | **F3** | Los avisos | un hecho concreto en una página |
 | **F4** | El espejo de disponibilidad pública | cualquier cambio de estado de una reserva |
-| **F5** | Sincronización con Airbnb | el botón, a mano · **sin verificar** |
+| **F5** | Airbnb, en las dos direcciones | importar: el botón, a mano · exportar: Airbnb tira del feed |
 | **F6** | Actividades, ciclos y recurrencias | alguien da una actividad por hecha |
 | **F7** | De las horas al cobro | el cierre de ciclo de F6 |
 | **F8** | Dinero, del movimiento al balance | se carga un movimiento |
@@ -1720,44 +1738,69 @@ anularse, al volver a presupuesto o al perder las fechas.
 
 ---
 
-### F5 · Sincronización con Airbnb
+### F5 · Airbnb, en las dos direcciones
 
-> ⚠ **SIN VERIFICAR.** Nunca corrió con reservas reales de Airbnb (julio de 2026).
-> Hoy esas reservas se cargan a mano, porque el calendario tampoco trae los detalles
-> que hacen falta. Este flujo describe lo que el código **dice** que hace, no lo que
-> se comprobó que hace.
+> ⚠ **La lectura desde Airbnb sigue SIN VERIFICAR** con reservas reales. Lo que
+> publicamos hacia Airbnb sí es comprobable abriendo la dirección en el navegador.
 
-**Qué lo dispara** — el botón **Airbnb** de `reservas.html`. **Es manual**: no hay
-ningún reloj y nadie sincroniza solo.
+**iCal no es bidireccional: son dos vías de una mano cada una.**
 
-**Qué crea**
-Por cada cabaña con `calendarId`, lee su calendario de Google (eventos desde 30 días
-atrás) y, por cada evento:
-- si no existe reserva con ese `googleEventId` → crea `grupos/{id}` en cero y
-  `reservas/{id}` con `origen: 'airbnb'`;
-- si existe y cambiaron las fechas → la actualiza;
-- si la reserva existe y el evento **ya no está** → la anula.
-Después llama a `sincronizarLimpiezas` sobre todo lo tocado.
+| | Quién lee a quién |
+|---|---|
+| **Importar** | nosotros leemos el `.ics` de Airbnb, a pedido |
+| **Exportar** | **Airbnb lee un `.ics` que publicamos nosotros**, cada 2 a 4 horas |
 
-**Quién lo ve** — el botón es de quien tiene permiso `reservas`. La clave de Google
-Calendar vive en `config/integraciones`, que solo leen el admin y `reservas`.
+**Qué lo dispara** — importar: el botón **Airbnb** de `reservas.html`, **a mano**.
+Exportar: nada de nuestro lado; Airbnb tira del feed en su horario.
 
-**Cómo termina** — devuelve un recuento: nuevas, actualizadas, anuladas y cabañas sin
-calendario configurado.
+**Lo que publicamos** — `ical-cabana?c=c1` arma un `.ics` desde **`disponibilidad`**,
+que es el espejo público con solo cabaña y fechas. **Sin parámetro devuelve todas
+juntas**, para uso propio. Solo **confirmadas**: un presupuesto no bloquea una fecha
+*(decisión del administrador, ago-2026 — bloquear presupuestos taparía fechas que
+quizás no se concreten)*.
+
+**Lo que leemos** — `airbnb-ical?u=<dirección>` trae el `.ics` y lo devuelve.
+El campo `calendarId` de la cabaña guarda ahora **la dirección `.ics` de Airbnb**, no
+un ID de Google Calendar. El identificador de cada evento pasa de `googleEventId` a
+**`icalUid`**: se cambió el nombre en vez de reusar el viejo porque un campo que
+significa dos cosas según de dónde vino es lo que fabrica errores silenciosos.
+
+**Por qué Google Calendar estaba en el medio, y por qué ya no**
+Airbnb rechazaba durante años las lecturas automáticas que no vinieran de un navegador
+o de un servicio grande —403, 406— y rompía la validación con librerías de red
+antiguas. Google era el único puente que pasaba. Una función de Netlify **no tiene
+ninguno de esos dos problemas**: manda un `User-Agent` de navegador y corre sobre AWS
+con TLS al día. **No está comprobado que hoy alcance**, así que `airbnb-ical` devuelve
+el código, las cabeceras y los primeros bytes de lo que conteste Airbnb: si bloquea,
+vamos a saber cómo. Google sigue disponible como plan B.
 
 **Qué NO hace**
-- **No trae el precio.** El calendario de Airbnb no lo informa: el acuerdo nace en
-  cero, con la nota *"falta el precio"*, y se completa a mano.
-- **No trae huésped, ni teléfono, ni cantidad de personas.** Pone 2 adultos por
-  defecto y el nombre `Airbnb · <código>` si logra extraerlo de la descripción.
-- **No borra reservas**: las anula. Anular conserva los pagos y el historial.
-- **No toca las reservas directas.** Solo mira las que tienen `googleEventId`.
-- **No sincroniza en sentido inverso**: nada de lo que hagas acá vuelve a Airbnb.
+- **Airbnb solo sincroniza disponibilidad.** Ni precio, ni huésped, ni personas. Eso se
+  carga a mano; el acuerdo nace en cero con la nota *"falta el precio"*.
+- **No es instantáneo.** Airbnb tira del feed cada 2 a 4 horas: entre confirmar una
+  reserva y que Airbnb bloquee esa fecha hay una ventana. Con iCal no se puede acortar.
+- **Los bloqueos que puso el anfitrión ("Not available") se ignoran** al importar: si
+  se tomaran, cada fecha bloqueada a mano en Airbnb aparecería acá como reserva
+  fantasma.
+- **No borra**: anula, y solo si la entrada es futura.
+- **El `.ics` que publicamos no dice quién.** Cada evento es `SUMMARY:Ocupado` y nada
+  más — esa dirección es pública.
+
+**Dos trampas del formato, que rompen en silencio**
+- **`DTEND` es EXCLUSIVO** en un evento de día entero: la última noche ocupada es la
+  anterior al check-out, así que va la fecha de salida tal cual. Sumarle un día "para
+  que cierre bien" bloquearía una noche libre.
+- **Una fecha inválida tira el archivo ENTERO** y la plataforma lo descarta sin avisar.
+  Por eso `ical-cabana` saltea el evento en vez de escribir una línea rota. Y las líneas
+  se pliegan a 75 octetos con CRLF, que el formato exige.
+
+**Y una advertencia que no es nuestra:** si alguna vez tocás **Reset URL** en Airbnb, el
+enlace anterior muere en el instante y todo lo que lo importaba se queda viejo **en
+silencio**. iCal no tiene señal de salud.
 
 **Dónde se muestra** — `reservas.html` (el botón y el recuento), `reservas-core.js`
-(`RCore.sincronizarAirbnb`), `cabanas.html` (el `calendarId` de cada cabaña).
-
----
+(`leerICS`, `sincronizarAirbnb`), `cabanas.html` (la dirección `.ics` de cada cabaña),
+`netlify/functions/ical-cabana.js` y `airbnb-ical.js`.
 
 ### F6 · Actividades, ciclos y recurrencias
 
@@ -2329,7 +2372,47 @@ falta el archivo, se pide — no se reconstruye.
 > modal** no guardaba nada —el oyente estaba solo en el árbol—, y el modal no se
 > refrescaba cuando otro tildaba algo. `sw.js` → v76.
 >
-> **Sigue sin verificarse:** la sincronización con Airbnb.
+> **T11.43 · Airbnb, en las dos direcciones.** Se sacó **Google Calendar del medio**.
+> Estaba ahí por un motivo real —Airbnb rechazaba las lecturas automáticas de
+> servidores chicos y rompía con TLS viejo— pero una función de Netlify no tiene
+> ninguno de esos dos problemas. Y de paso el camino por Google estaba **roto**: el
+> `calendarId` tenía la dirección `.ics` de Airbnb y Google devolvía 400.
+>
+> · **`airbnb-ical`** trae el `.ics` con un `User-Agent` de navegador. Si Airbnb
+>   rechaza, devuelve el código, las cabeceras y los primeros bytes: **si bloquea,
+>   vamos a saber cómo**. Solo acepta direcciones de Airbnb — sin ese filtro sería un
+>   proxy abierto.
+> · **`ical-cabana`** publica **nuestra** ocupación como `.ics`, una por cabaña o todas
+>   juntas. Esa dirección se pega en Airbnb y bloquea las fechas solo. Lee
+>   `disponibilidad`, que ya es pública: **cero credenciales nuevas**.
+> · El campo `calendarId` pasa a guardar la dirección `.ics`; `googleEventId` pasa a
+>   ser **`icalUid`**. Se retiró `apiKeyGoogle()` y el pedido de clave: pedir una clave
+>   que ya nadie usa manda a configurar algo para nada, y peor, hace creer que falta
+>   cuando falla otra cosa.
+>
+> `sw.js` → v77. **Requiere desplegar en Netlify** (cuatro funciones en el zip).
+>
+> **T11.44 · El panel de Airbnb.** El botón dejó de sincronizar directo: abre un panel
+> con **las dos direcciones de cada cabaña** —la que se pega en Airbnb y la que se trae
+> de Airbnb— más el calendario unificado. Sincronizar sin haber cargado nada no podía
+> hacer nada, y un botón que no hace nada es el que hace creer que el sistema está roto.
+> El resultado del sync se muestra **en el panel**, no en un aviso que se va en tres
+> segundos: los errores de Airbnb son largos y hay que poder leerlos.
+>
+> **Las direcciones pasan a `config/airbnb`.** Estaban por ir a `cabanas.calendarId`,
+> que se lee sin sesión.
+>
+> *Y una corrección de criterio, planteada por el administrador: había justificado ese
+> cambio diciendo que la dirección `.ics` es "una contraseña" y que expone las reservas.
+> **Es una exageración** —la ocupación ya es pública en Airbnb y en el propio sitio— y
+> venía de una fuente comercial que vende sincronización. Lo que el `.ics` sí lleva de
+> más es el código de reserva y los últimos 4 dígitos del teléfono. El motivo bueno es
+> otro y es de higiene: `cabanas` es contenido del sitio público y lo baja cada
+> visitante.* `sw.js` → v78.
+>
+> **Sigue sin verificarse:** que Airbnb acepte la lectura desde Netlify. Lo que
+> publicamos hacia Airbnb ya se comprobó: `ical-cabana?c=c1` devuelve las dos reservas
+> confirmadas de esa cabaña, con sus fechas correctas.
 
 ---
 

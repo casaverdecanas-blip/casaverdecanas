@@ -13,6 +13,42 @@ import {
 
 export const RCore = {};
 
+// Las funciones de servidor. Misma dirección que usa nucleo.js: si algún día
+// cambia el proyecto de Netlify, se cambia en los dos lados (CONVENCIONES §2.1).
+RCore.NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
+
+// ── Las direcciones .ics de Airbnb ───────────────────────
+// Viven en config/airbnb como { cabanaId: 'https://…ics' } y NO en la cabaña.
+//
+// POR QUÉ NO EN /cabanas/, por dos motivos y en este orden:
+//  1. Esa colección es la FUENTE DEL SITIO PÚBLICO y la baja cada visitante.
+//     Una dirección de integración no tiene nada que hacer ahí: son dos tipos
+//     de dato distintos y se descargaría en cada visita para nada.
+//  2. Se lee sin sesión, y el .ics de Airbnb trae —además de las fechas, que
+//     no son secretas y ya se ven en Airbnb y en el sitio— el CÓDIGO DE
+//     RESERVA y los últimos 4 dígitos del teléfono del huésped. Es poco, pero
+//     no es nada, y guardarlo donde entra solo el equipo no cuesta nada.
+// Detectado en agosto de 2026, antes de que hubiera ninguna cargada.
+RCore.leerIcsAirbnb = async () => {
+  try {
+    const s = await getDoc(doc(db, 'config', 'airbnb'));
+    return s.exists() ? (s.data().ics || {}) : {};
+  } catch (e) { console.warn('config/airbnb', e); return {}; }
+};
+
+// Se guarda de a una, con el ID de la cabaña como clave. Con merge, para que
+// dos personas cargando cabañas distintas no se pisen.
+RCore.guardarIcsAirbnb = async (cabanaId, url) => {
+  await setDoc(doc(db, 'config', 'airbnb'), {
+    ics: { [cabanaId]: url || null }
+  }, { merge: true });
+};
+
+// La dirección que hay que pegar EN AIRBNB para que importe nuestra
+// ocupación. Sin cabaña, devuelve el calendario unificado.
+RCore.urlIcsPropio = (cabanaId) => RCore.NETLIFY + '/ical-cabana'
+  + (cabanaId ? '?c=' + encodeURIComponent(cabanaId) : '');
+
 const hoyISO = () => new Date().toISOString().slice(0, 10);
 
 const nomCab = (cabanas, id) => {
@@ -53,65 +89,119 @@ async function asegurarProyecto(u) {
 // Cada cabaña tiene un Google Calendar (público) que recibe el iCal
 // de Airbnb; se lee con la API de Calendar v3 y una API key guardada
 // en config/integraciones.googleApiKey (solo admin la ve/carga).
-//  · evento nuevo  → reserva confirmada origen 'airbnb' (googleEventId)
+//  · evento nuevo  → reserva confirmada origen 'airbnb' (icalUid)
 //  · fechas cambiadas → se actualizan (+historial)
 //  · evento desaparecido con entrada futura → reserva ANULADA
 //  · "Not available" (bloqueos) se ignoran
 // Después de sincronizar, llamar a sincronizarLimpiezas con las tocadas.
 
-async function apiKeyGoogle() {
-  const s = await getDoc(doc(db, 'config', 'integraciones'));
-  return s.exists() ? (s.data().googleApiKey ?? null) : null;
+// (Acá vivían 'apiKeyGoogle' y 'guardarApiKeyGoogle'. Se retiraron en agosto
+//  de 2026: la sincronización dejó de pasar por Google Calendar y lee el .ics
+//  de Airbnb directo. Pedir una clave que ya nadie usa es mandar a configurar
+//  algo para nada — y peor, deja creer que hace falta cuando falla otra cosa.
+//  El documento config/integraciones queda; si alguna otra pantalla guarda
+//  ahí la clave de Google, no se toca.)
+
+// ── Leer un calendario iCal ──────────────────────────────
+// Un .ics es texto plano con bloques VEVENT. Se parsea a mano porque son
+// treinta líneas y traer una librería para esto sería agregar una dependencia
+// —y un punto de falla— a un sistema que hoy no tiene ninguna.
+//
+// Lo primero es DESPLEGAR las líneas: el formato parte todo lo que pase de 75
+// caracteres y continúa en la siguiente con un espacio adelante. Sin esto, una
+// descripción larga se lee cortada y el código de reserva se pierde.
+function desplegar(texto) {
+  return String(texto || '').replace(/\r\n/g, '\n').replace(/\n[ \t]/g, '');
 }
 
-RCore.guardarApiKeyGoogle = async (clave) => {
-  await setDoc(doc(db, 'config', 'integraciones'), { googleApiKey: clave }, { merge: true });
-};
+function leerICS(texto) {
+  const eventos = [];
+  let ev = null;
+  desplegar(texto).split('\n').forEach((linea) => {
+    if (linea.startsWith('BEGIN:VEVENT')) { ev = {}; return; }
+    if (linea.startsWith('END:VEVENT')) { if (ev) eventos.push(ev); ev = null; return; }
+    if (!ev) return;
+    const i = linea.indexOf(':');
+    if (i < 0) return;
+    // La clave puede traer parámetros: 'DTSTART;VALUE=DATE'
+    const clave = linea.slice(0, i).split(';')[0].toUpperCase();
+    const valor = linea.slice(i + 1);
+    if (clave === 'UID') ev.uid = valor.trim();
+    else if (clave === 'SUMMARY') ev.summary = valor;
+    else if (clave === 'DESCRIPTION') ev.description = valor;
+    // '20260811' o '20260811T140000Z' → '2026-08-11'
+    else if (clave === 'DTSTART') ev.desde = valor.slice(0, 8).replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
+    else if (clave === 'DTEND') ev.hasta = valor.slice(0, 8).replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
+  });
+  return eventos.filter((e) => e.uid && /^\d{4}-\d{2}-\d{2}$/.test(e.desde || ''));
+}
 
 RCore.sincronizarAirbnb = async (reservas, cabanas, u) => {
-  const clave = await apiKeyGoogle();
-  if (!clave) {
-    const err = new Error('Falta la Google API Key.');
-    err.code = 'sin-clave';
-    throw err;
-  }
-
   const hoy = new Date();
   const timeMin = new Date(hoy.getTime() - 30 * 86400000).toISOString();
   const stats = { nuevas: 0, actualizadas: 0, anuladas: 0, cabanasSinCalendario: 0 };
   const tocadas = [];
+  const icsPorCabana = await RCore.leerIcsAirbnb();
 
   for (const cab of cabanas) {
-    if (!cab.calendarId) { stats.cabanasSinCalendario++; continue; }
+    // La dirección sale de config/airbnb, no de la cabaña: ver arriba.
+    const icsUrl = icsPorCabana[cab.id];
+    if (!icsUrl) { stats.cabanasSinCalendario++; continue; }
 
-    const url = 'https://www.googleapis.com/calendar/v3/calendars/'
-      + encodeURIComponent(cab.calendarId)
-      + '/events?singleEvents=true&maxResults=250&timeMin=' + encodeURIComponent(timeMin)
-      + '&key=' + encodeURIComponent(clave);
-    const resp = await fetch(url);
-    if (!resp.ok) {
-      throw new Error(`Calendario de ${cab.id}: HTTP ${resp.status} (¿es público? ¿la key permite Calendar?)`);
+    // AHORA SE LEE EL .ics DE AIRBNB DIRECTO, sin Google Calendar en el medio.
+    // El campo 'calendarId' de la cabaña pasa a guardar la DIRECCIÓN .ics que
+    // da Airbnb, pegada tal cual.
+    // Google estaba ahí porque Airbnb rechazaba las lecturas automáticas de
+    // servidores chicos; la función de Netlify manda un User-Agent de
+    // navegador y corre con TLS al día, que era lo que faltaba. Si aun así
+    // rechaza, la función lo dice con el código y las cabeceras (§10 · F5).
+    if (!/^https?:\/\//i.test(String(icsUrl))) {
+      const e = new Error('La cabaña ' + cab.id + ' tiene algo que no es una dirección '
+        + '.ics. Cargala desde el botón Airbnb del panel.');
+      e.code = 'ics-invalido';
+      throw e;
     }
-    const data = await resp.json();
-    const eventos = (data.items ?? []).filter((e) =>
-      e.status !== 'cancelled'
-      && !/not available/i.test(e.summary ?? '')
-      && (e.start?.date || e.start?.dateTime));
+
+    const resp = await fetch(RCore.NETLIFY + '/airbnb-ical?u='
+      + encodeURIComponent(icsUrl));
+    const data = await resp.json().catch(() => null);
+    if (!data || data.ok !== true) {
+      throw new Error('Calendario de ' + cab.id + ': '
+        + ((data && data.motivo) || 'no se pudo leer'));
+    }
+
+    // 'Not available' son bloqueos que puso el anfitrión, no reservas: si se
+    // importaran, cada fecha bloqueada a mano en Airbnb aparecería acá como
+    // una reserva fantasma.
+    const eventos = leerICS(data.ics).filter((e) =>
+      !/not available|no disponible/i.test(e.summary || '')
+      && e.hasta && e.desde >= timeMin.slice(0, 10));
 
     const vistos = new Set();
 
     for (const e of eventos) {
-      const checkIn = (e.start.date ?? e.start.dateTime).slice(0, 10);
-      const checkOut = (e.end.date ?? e.end.dateTime).slice(0, 10);
-      vistos.add(e.id);
+      const checkIn = e.desde;
+      const checkOut = e.hasta;
+      vistos.add(e.uid);
 
-      const existente = reservas.find((r) => r.googleEventId === e.id);
+      // 'icalUid' y no 'googleEventId': el identificador ahora es el UID del
+      // evento iCal. Se cambió el nombre en vez de reusar el viejo porque un
+      // campo que significa dos cosas según de dónde vino es exactamente lo
+      // que fabrica errores silenciosos (§4).
+      const existente = reservas.find((r) => r.icalUid === e.uid);
       const cambio = (txt) => ({
         fecha: Timestamp.now(), autorUid: u.uid, autorNombre: 'Sync Airbnb', cambio: txt
       });
 
       if (!existente) {
-        const codigo = ((e.description ?? '').match(/([A-Z0-9]{8,12})/) ?? [])[1];
+        // Airbnb pone el enlace a la reserva en la descripción; de ahí sale
+        // el código HM…, que es lo único identificable que manda.
+        // El \\s* tolera un espacio de más si el generador plegó la línea con
+        // dos espacios en vez de uno. El formato pide uno, pero un código de
+        // reserva perdido por un espacio ajeno es un mal negocio.
+        const desc = String(e.description || '');
+        const codigo = (desc.match(/\/details\/\s*([A-Z0-9]{6,14})/)
+          || desc.match(/\b(HM[A-Z0-9]{6,12})\b/) || [])[1];
         // Toda reserva vive dentro de un ACUERDO (grupos/{id}), que es donde
         // está la plata. Airbnb no informa el precio en el calendario, así que
         // el acuerdo nace en cero y se completa a mano.
@@ -134,7 +224,7 @@ RCore.sincronizarAirbnb = async (reservas, cabanas, u) => {
           adultos: 2, ninos: 0,
           estado: 'confirmada',
           origen: 'airbnb',
-          googleEventId: e.id,
+          icalUid: e.uid,
           notas: (e.description ?? '').slice(0, 200),
           historial: [cambio('importada desde Airbnb')],
           creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: 'Sync Airbnb'
@@ -157,7 +247,7 @@ RCore.sincronizarAirbnb = async (reservas, cabanas, u) => {
     const hoyIso = hoy.toISOString().slice(0, 10);
     for (const r of reservas) {
       if (r.origen === 'airbnb' && r.cabanaId === cab.id && r.estado === 'confirmada'
-          && r.googleEventId && !vistos.has(r.googleEventId) && r.checkIn >= hoyIso) {
+          && r.icalUid && !vistos.has(r.icalUid) && r.checkIn >= hoyIso) {
         await updateDoc(doc(db, 'reservas', r.id), {
           estado: 'anulada',
           historial: [...(r.historial ?? []), {

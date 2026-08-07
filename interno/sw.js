@@ -7,7 +7,12 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
-// v76 (6-ago-2026) — el detalle de una actividad pasa a VENTANA EMERGENTE, y
+// v78 (7-ago-2026) — panel de Airbnb: las dos direcciones de cada cabaña en
+//       un solo lugar. Las direcciones .ics pasan a config/airbnb.
+// v77 — Airbnb se lee por iCal DIRECTO, sin Google Calendar en
+//       el medio, y publicamos nuestro propio .ics por cabaña para que Airbnb
+//       bloquee las fechas solo. reservas-core.js + reservas.html.
+// v76 — el detalle de una actividad pasa a VENTANA EMERGENTE, y
 //       una limpieza muestra los datos de SU RESERVA: quién entra, cuántos,
 //       a qué hora y qué pidieron. actividades.html.
 // v75 — cada compra muestra su ruta entera: proyecto › … › lista.
@@ -48,7 +53,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v76';
+const VERSION = 'cv2-shell-v78';
 
 const SHELL = [
   './',

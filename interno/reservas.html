@@ -46,6 +46,32 @@
   .volver .material-icons { font-size: 19px; }
   .res.resaltada { outline: 2px solid var(--verde); }
 
+  .ab-int { font-size: .86rem; color: var(--gris); margin: 0 0 12px; line-height: 1.55; }
+  .ab-cab { border: 1px solid var(--linea); border-radius: 11px; padding: 11px;
+    margin-bottom: 10px; }
+  .ab-cab > b { font-size: .9rem; display: block; margin-bottom: 8px; }
+  .ab-paso { margin-bottom: 10px; }
+  .ab-paso > label { display: block; font-size: .76rem; font-weight: 600;
+    color: var(--verde-osc); margin-bottom: 3px; }
+  .ab-paso > small { display: block; font-size: .74rem; color: var(--gris);
+    line-height: 1.45; margin-bottom: 4px; }
+  .ab-url { display: flex; gap: 5px; align-items: center; }
+  .ab-url input { flex: 1; min-width: 0; box-sizing: border-box; font-size: 15px;
+    padding: 8px; border: 1px solid var(--linea); border-radius: 8px;
+    font-family: ui-monospace, monospace; }
+  .ab-url input[readonly] { background: var(--crema); color: var(--gris); }
+  .ab-uni { background: var(--verde-claro); border-radius: 11px; padding: 11px;
+    margin: 14px 0 0; }
+  .ab-uni > b { font-size: .88rem; }
+  .ab-uni > p { font-size: .78rem; color: var(--verde-osc); margin: 3px 0 7px;
+    line-height: 1.5; }
+  .ab-ojo { background: #fdf1d8; border: 1px solid #e8d5a3; border-radius: 11px;
+    padding: 11px; margin-top: 14px; font-size: .8rem; line-height: 1.55; }
+  .ab-res { margin-top: 12px; padding: 10px 12px; border-radius: 10px;
+    font-size: .84rem; line-height: 1.55; background: var(--crema); }
+  .ab-res.mal { background: #fdeceb; color: #8e2b2b; overflow-wrap: anywhere; }
+  .ab-res.bien { background: var(--verde-claro); }
+
   /* Las cabañas de un acuerdo usan .cv-nodo de design-system.css: el mismo
      lenguaje visual que el árbol de Actividades (§3.16b). Acá no queda nada
      propio de esa presentación.
@@ -155,6 +181,48 @@
   </div>
 </dialog>
 
+<!-- ═══ Airbnb: las dos direcciones, por cabaña ═══════════════
+     Las dos puntas del mismo trámite viven juntas porque así se hace: uno
+     entra a Airbnb una vez por cabaña y ahí pega una dirección y copia la
+     otra. Tenerlas en pantallas distintas obliga a ir y volver. -->
+<dialog id="mAirbnb" style="width:min(620px,96vw);">
+  <div class="m-head">
+    <b>Airbnb</b>
+    <button class="btn-ico" id="abCerrar" title="Cerrar">
+      <span class="material-icons">close</span></button>
+  </div>
+  <div class="m-body">
+    <p class="ab-int">iCal no es de ida y vuelta: son <b>dos direcciones</b>, una por
+    sentido. Cada cabaña necesita las dos.</p>
+    <div id="abCabanas"></div>
+
+    <div class="ab-uni">
+      <b>Tu calendario unificado</b>
+      <p>Las tres cabañas juntas, para suscribirlo a tu teléfono o a tu Google.
+      <b>No</b> se pega en Airbnb.</p>
+      <div class="ab-url"><input id="abUni" readonly>
+        <button class="btn-ico" data-copiar="abUni" title="Copiar">
+          <span class="material-icons">content_copy</span></button></div>
+    </div>
+
+    <div class="ab-ojo">
+      <b>La ocupación no es secreta</b> —ya se ve en Airbnb y en tu sitio—, pero el
+      <code>.ics</code> de Airbnb trae además el <b>código de reserva</b> y los
+      <b>últimos 4 dígitos del teléfono</b> del huésped. Por eso se guarda acá, donde
+      entra solo el equipo, y no en la ficha de la cabaña: esa la baja cada visitante
+      del sitio público.
+      <br>Y si alguna vez tocás <b>Reset URL</b> en Airbnb, la dirección anterior deja
+      de funcionar en el instante: hay que volver a pegar la nueva acá.
+    </div>
+
+    <div class="acciones" style="margin-top:14px;">
+      <button class="btn btn-primario" id="abSync">
+        <span class="material-icons">sync</span> Sincronizar ahora</button>
+    </div>
+    <div id="abResultado" class="ab-res oculto"></div>
+  </div>
+</dialog>
+
 <dialog id="mPago" style="border:0;border-radius:14px;padding:16px;width:min(420px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.25);">
   <h2 style="margin:0 0 4px;">Registrar pago</h2>
   <p class="texto-gris" id="pQuien" style="margin:0;"></p>
@@ -221,7 +289,7 @@ CV2.renderNav('reservas');
 // §3.18 · sello de versión. Sin esto, "subí el archivo nuevo" es una creencia:
 // el 31-jul-2026 se buscó el acuerdo en un formulario que era del archivo
 // anterior, y el síntoma parecía un problema de diseño.
-const SELLO = 'reservas-acuerdos-4';
+const SELLO = 'reservas-ical-6';
 
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
@@ -1038,25 +1106,111 @@ window.borrarPago = async (pid) => {
 };
 
 // ═══ Sync Airbnb (admin) ══════════════════════════════════
+// El botón ya no sincroniza directo: abre el panel con las dos direcciones de
+// cada cabaña. Sincronizar sin haberlas cargado no puede hacer nada, y el
+// botón que "no hace nada" es el que hace creer que el sistema está roto.
+let icsAirbnb = {};
+
+function pintarAirbnb() {
+  $('abUni').value = RCore.urlIcsPropio(null);
+  $('abCabanas').innerHTML = cabanas.map((c) => {
+    const nom = nombreCab(c.id);
+    const puesta = icsAirbnb[c.id] || '';
+    return '<div class="ab-cab"><b>' + esc(nom) + '</b>'
+
+      + '<div class="ab-paso"><label>1 · Pegá ESTO en Airbnb</label>'
+      + '<small>En Airbnb: Calendario → Disponibilidad → Conectar con otro sitio web → '
+      + '<b>Importar</b>. Con esto Airbnb bloquea solo las fechas que ya tenés '
+      + 'reservadas acá.</small>'
+      + '<div class="ab-url"><input readonly id="abProp-' + esc(c.id) + '" value="'
+      + esc(RCore.urlIcsPropio(c.id)) + '">'
+      + '<button class="btn-ico" data-copiar="abProp-' + esc(c.id) + '" title="Copiar">'
+      + '<span class="material-icons">content_copy</span></button></div></div>'
+
+      + '<div class="ab-paso"><label>2 · Traé de Airbnb su dirección</label>'
+      + '<small>En la misma pantalla de Airbnb, <b>Exportar</b>: copiá el enlace que '
+      + 'termina en <code>.ics</code> y pegalo acá.</small>'
+      + '<div class="ab-url"><input id="abIcs-' + esc(c.id) + '" placeholder="https://www.airbnb.com/calendar/ical/….ics" value="'
+      + esc(puesta) + '">'
+      + '<button class="btn-ico" data-guardar-ics="' + esc(c.id) + '" title="Guardar">'
+      + '<span class="material-icons" style="color:var(--verde-osc);">save</span></button></div>'
+      + (puesta ? '<small style="color:var(--verde-osc);margin-top:3px;">Cargada ✓</small>' : '')
+      + '</div></div>';
+  }).join('') || '<div class="ab-int">No hay cabañas cargadas.</div>';
+}
+
 if (CV2.puede('reservas')) {
   $('btnAirbnb').classList.remove('oculto');
   $('btnAirbnb').addEventListener('click', async () => {
-    $('btnAirbnb').disabled = true;
+    icsAirbnb = await RCore.leerIcsAirbnb();
+    pintarAirbnb();
+    $('abResultado').classList.add('oculto');
+    $('mAirbnb').showModal();
+  });
+
+  $('abCerrar').addEventListener('click', () => $('mAirbnb').close());
+
+  $('mAirbnb').addEventListener('click', async (ev) => {
+    const cp = ev.target.closest('[data-copiar]');
+    if (cp) {
+      const inp = $(cp.dataset.copiar);
+      try { await navigator.clipboard.writeText(inp.value); CV2.toast('Copiado', 'success'); }
+      catch {
+        // Sin permiso de portapapeles, el camino viejo todavía anda.
+        inp.removeAttribute('readonly'); inp.select();
+        try { document.execCommand('copy'); CV2.toast('Copiado', 'success'); }
+        catch { CV2.toast('Copialo a mano', 'error'); }
+        inp.setAttribute('readonly', 'readonly');
+      }
+      return;
+    }
+
+    const g = ev.target.closest('[data-guardar-ics]');
+    if (g) {
+      const id = g.dataset.guardarIcs;
+      const url = $('abIcs-' + id).value.trim();
+      // Se valida ANTES de guardar: una dirección que no es de Airbnb va a
+      // fallar recién al sincronizar, y ahí el error parece de otra cosa.
+      if (url && !/^https:\/\/(www\.)?airbnb\.[a-z.]{2,8}\/calendar\/ical\//i.test(url)) {
+        CV2.toast('Eso no parece la dirección .ics de Airbnb. Tiene que empezar con '
+          + 'https://www.airbnb.com/calendar/ical/', 'error');
+        return;
+      }
+      g.disabled = true;
+      try {
+        await RCore.guardarIcsAirbnb(id, url || null);
+        icsAirbnb[id] = url || '';
+        pintarAirbnb();
+        CV2.toast(url ? 'Guardada' : 'Borrada', 'success');
+      } catch (e) {
+        CV2.toast('No se pudo guardar: ' + (e.code ?? e.message), 'error');
+      } finally { g.disabled = false; }
+    }
+  });
+
+  $('abSync').addEventListener('click', async () => {
+    const b = $('abSync');
+    const res = $('abResultado');
+    b.disabled = true;
+    res.className = 'ab-res';
+    res.textContent = 'Leyendo los calendarios de Airbnb…';
     try {
       const s = await RCore.sincronizarAirbnb(reservas, cabanas, u);
-      CV2.toast(`↔ Airbnb: ${s.nuevas} nueva(s), ${s.actualizadas} con cambios, ${s.anuladas} cancelada(s)`
-        + (s.cabanasSinCalendario ? ` · ${s.cabanasSinCalendario} cabaña(s) sin calendario` : ''), 'success');
+      res.className = 'ab-res bien';
+      res.innerHTML = '<b>Listo.</b> ' + s.nuevas + ' nueva(s), ' + s.actualizadas
+        + ' con cambios, ' + s.anuladas + ' cancelada(s).'
+        + (s.cabanasSinCalendario
+          ? '<br>' + s.cabanasSinCalendario + ' cabaña(s) todavía sin dirección de Airbnb.'
+          : '');
     } catch (e) {
-      if (e.code === 'sin-clave') {
-        const clave = (prompt('Pegá la Google API Key (la misma del sistema viejo, en config/integraciones):') ?? '').trim();
-        if (clave) {
-          await RCore.guardarApiKeyGoogle(clave);
-          CV2.toast('Clave guardada — tocá Airbnb de nuevo', 'success');
-        }
-      } else {
-        CV2.toast('Sync falló: ' + (e.code ?? e.message), 'error');
-      }
-    } finally { $('btnAirbnb').disabled = false; }
+      // El mensaje COMPLETO. Los errores de esta sincronización dicen qué pasó
+      // —Airbnb rechazó con tal código, la dirección no existe, la cabaña no
+      // tiene .ics— y recortarlos obliga a adivinar. Y va en el panel, no en
+      // un aviso flotante que se va en tres segundos.
+      res.className = 'ab-res mal';
+      res.textContent = e.message || e.code || 'No se pudo sincronizar.';
+      console.error('sync airbnb', e);
+    } finally { b.disabled = false; }
   });
 }
 
