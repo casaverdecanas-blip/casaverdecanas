@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Editar el sitio</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  /* ═══════════════════════════════════════════════════════════
+     Pantalla de trabajo a pantalla completa: el sitio adentro de
+     un marco, una cabecera mínima arriba y las acciones abajo, al
+     alcance del pulgar. No lleva la barra de navegación del panel
+     a propósito — cada píxel que le saque al marco es sitio que
+     no se ve mientras se edita.
+     ═══════════════════════════════════════════════════════════ */
+  html, body { height: 100%; margin: 0; overflow: hidden; }
+  body { display: flex; flex-direction: column; background: var(--fondo, #f4f6f2); }
+
+  .techo { display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+    padding-top: calc(6px + env(safe-area-inset-top));
+    background: #fff; border-bottom: 1px solid var(--linea); flex: none; }
+  .techo .volver { border: 0; background: none; padding: 8px; cursor: pointer;
+    display: flex; align-items: center; color: var(--tinta); border-radius: 10px; }
+  .techo .titulo { font-weight: 600; font-size: .92rem; flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Los tres idiomas. Editás en el que estás mirando: no hay
+     "campo pt / campo es / campo en" uno debajo del otro. */
+  .langs { display: flex; gap: 3px; flex: none; }
+  .langs button { border: 1px solid var(--linea); background: #fff; border-radius: 999px;
+    min-width: 44px; min-height: 34px; font: inherit; font-size: .8rem; cursor: pointer;
+    color: var(--gris); }
+  .langs button.on { background: var(--verde); border-color: var(--verde); color: #fff;
+    font-weight: 700; }
+
+  #marco { flex: 1; width: 100%; border: 0; display: block; background: #faf4e6; }
+
+  /* Barra de acciones pegada abajo, arriba del área segura del
+     teléfono. Es donde cae el pulgar y donde va lo que importa. */
+  .piso { flex: none; display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    background: #fff; border-top: 1px solid var(--linea); }
+  .piso .cuenta { flex: 1; font-size: .82rem; color: var(--gris); line-height: 1.25; }
+  .piso .cuenta b { color: var(--tinta); }
+  .btn { border: 0; border-radius: 999px; padding: 12px 20px; font: inherit;
+    font-size: .9rem; font-weight: 600; cursor: pointer; min-height: 44px; }
+  .btn.guardar { background: var(--verde); color: #fff; }
+  .btn.guardar:disabled { background: #cdd6cb; color: #fff; cursor: default; }
+  .btn.tirar { background: #fff; border: 1px solid var(--linea); color: var(--gris);
+    padding: 12px 14px; }
+
+  /* ── Hoja de fotos: se desliza desde abajo ──────────────── */
+  dialog.hoja { border: 0; padding: 0; margin: 0 0 0 auto; width: 100%;
+    max-width: 100%; max-height: 92dvh; position: fixed; bottom: 0; left: 0;
+    border-radius: 18px 18px 0 0; box-shadow: 0 -6px 30px rgba(0,0,0,.25);
+    display: flex; flex-direction: column; }
+  dialog.hoja::backdrop { background: rgba(20,30,18,.45); }
+  .hoja .hcab { display: flex; align-items: center; gap: 8px; padding: 12px 14px;
+    border-bottom: 1px solid var(--linea); flex: none; }
+  .hoja .hcab b { flex: 1; font-size: .95rem; }
+  .hoja .hcab button { border: 0; background: none; cursor: pointer; padding: 8px;
+    color: var(--gris); display: flex; }
+  .hoja .cuerpo { overflow-y: auto; padding: 12px 14px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+
+  .solapas { display: flex; gap: 6px; margin-bottom: 10px; }
+  .solapas button { flex: 1; border: 1px solid var(--linea); background: #fff;
+    border-radius: 999px; padding: 9px 8px; font: inherit; font-size: .82rem;
+    cursor: pointer; color: var(--gris); min-height: 40px; }
+  .solapas button.on { background: var(--verde); border-color: var(--verde);
+    color: #fff; font-weight: 600; }
+
+  .grilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 7px; }
+  .grilla img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 9px;
+    border: 2px solid var(--linea); cursor: pointer; display: block; background: #eee; }
+  .grilla img.usada { border-color: var(--verde); }
+  .aviso { color: var(--gris); font-size: .86rem; padding: 14px 2px; line-height: 1.5; }
+  .acciones { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 4px; }
+  .acciones button { border: 1px solid var(--linea); background: #fff; border-radius: 12px;
+    padding: 13px 14px; font: inherit; font-size: .9rem; cursor: pointer;
+    display: flex; align-items: center; gap: 10px; text-align: left; min-height: 48px;
+    color: var(--tinta); }
+  .acciones button .material-icons { color: var(--verde); }
+  .acciones button.peligro { color: #a8503c; }
+  .acciones button.peligro .material-icons { color: #a8503c; }
+  .mas { width: 100%; border: 1px dashed var(--linea); background: #fff;
+    border-radius: 12px; padding: 12px; font: inherit; color: var(--gris);
+    cursor: pointer; margin-top: 10px; min-height: 44px; }
+</style>
+</head>
+<body>
+
+<div class="techo">
+  <button class="volver" id="btnVolver" aria-label="Volver">
+    <span class="material-icons">arrow_back</span>
+  </button>
+  <div class="titulo">Editar el sitio</div>
+  <div class="langs" id="langs">
+    <button data-l="pt">PT</button>
+    <button data-l="es">ES</button>
+    <button data-l="en">EN</button>
+  </div>
+</div>
+
+<iframe id="marco" title="El sitio público, editable"></iframe>
+
+<div class="piso">
+  <div class="cuenta" id="cuenta">Cargando el sitio…</div>
+  <button class="btn tirar" id="btnTirar" hidden aria-label="Descartar cambios">
+    <span class="material-icons" style="font-size:20px;vertical-align:-4px;">undo</span>
+  </button>
+  <button class="btn guardar" id="btnGuardar" disabled>Guardar</button>
+</div>
+
+<dialog class="hoja" id="hojaFotos">
+  <div class="hcab">
+    <b id="hojaTit">Foto</b>
+    <button id="hojaX" aria-label="Cerrar"><span class="material-icons">close</span></button>
+  </div>
+  <div class="cuerpo">
+    <div class="acciones" id="hojaAcciones"></div>
+    <div class="solapas">
+      <button data-f="uso" class="on">Ya en el sitio</button>
+      <button data-f="nube">Cloudinary</button>
+    </div>
+    <div id="hojaLista"></div>
+  </div>
+</dialog>
+
+<script type="module">
+// ═══════════════════════════════════════════════════════════════
+//  EDITAR EL SITIO — edición visual del sitio público
+//
+//  QUÉ ES
+//  El sitio de verdad, dentro de un marco, con los textos abiertos
+//  para escribir encima y las fotos cambiables de un toque. Lo que
+//  se ve mientras se edita ES lo que se publica, porque es la misma
+//  página: no hay copia, no hay previsualización, no hay dos
+//  versiones que se separan con el tiempo.
+//
+//  POR QUÉ NO HAY BORRADOR
+//  El sitio lee TODO de Firestore. Guardar acá cambia el sitio en el
+//  acto, así que un borrador aparte no protegería nada: sería un
+//  segundo estado que hay que sincronizar a mano, y el día que se
+//  desincronice el editor va a mostrar algo que no existe. Un solo
+//  estado —lo publicado— y los cambios sin guardar viviendo en la
+//  memoria de esta pantalla hasta que se toca Guardar.
+//
+//  CÓMO SABE DÓNDE ESCRIBIR
+//  El sitio, abierto con ?edit=1, marca cada cosa editable con el
+//  documento y el campo que la respaldan:
+//     data-edit="config/sitio:textos.es.titulo"
+//     data-edit="cabanas/c1:nombre.es"
+//     data-edit-img="cabanas/c1:fotos.0"
+//     data-edit-add="cabanas/c1:fotos"
+//  Este editor no sabe nada del diseño del sitio: sigue esas marcas.
+//  El día que el sitio cambie de forma, esto sigue funcionando.
+//
+//  LÍMITES CONOCIDOS, escritos para no volver a descubrirlos
+//  · La ilustración de la portada, el logo y el logo del pie son
+//    archivos del repositorio (./ilustracion-hero.jpg y compañía),
+//    no están en Cloudinary y NO se editan desde acá. Se cambian
+//    subiéndolos a GitHub. Es a propósito: son la identidad, no
+//    contenido.
+//  · El WhatsApp, las tarifas, la capacidad y las comodidades no se
+//    editan acá: no son texto visible sino datos. Siguen en Cabañas.
+//  · El calendario y los botones del sitio están apagados mientras se
+//    edita; para probarlos hay que abrir el sitio normal.
+// ═══════════════════════════════════════════════════════════════
+import { CV2 } from './nucleo.js';
+import {
+  db, doc, setDoc, updateDoc, deleteField
+} from './firebase-init.js';
+
+// ── Arranque: sesión y permiso antes que nada ────────────────
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+if (!CV2.puede('contenido')) {
+  location.href = './index.html';
+  throw new Error('sin permiso de contenido');
+}
+CV2.dialogosConAtras();
+
+const $ = (id) => document.getElementById(id);
+const marco = $('marco');
+
+// ── Estado ───────────────────────────────────────────────────
+// Un solo mapa: clave "coleccion/documento:campo" → valor nuevo.
+// La clave es exactamente la que escribió el sitio en el atributo,
+// así que no hay traducción de por medio donde perder algo.
+const pendientes = new Map();
+
+// Lo que ya usa el sitio hoy, para la solapa "Ya en el sitio":
+// reusar una foto que ya está publicada es el caso más común y no
+// necesita ni Cloudinary ni la función de Netlify.
+let enUso = [];
+
+let fotosNube = null;      // caché del listado de Cloudinary
+let cursorNube = null;
+let destinoFoto = null;    // qué foto se está cambiando
+
+// ── El marco ─────────────────────────────────────────────────
+// Ruta RELATIVA a propósito: así el marco hereda el mismo origen que
+// esta página, sea en casaverdecanas.com.br o en github.io. Con una
+// dirección absoluta, el navegador trataría el marco como ajeno y
+// este editor no podría ni leer su contenido.
+marco.src = '../index.html?edit=1';
+
+marco.addEventListener('load', () => {
+  // El sitio avisa cada vez que termina de pintar. Hace falta
+  // escucharlo y no enganchar una sola vez: al cambiar de idioma las
+  // cabañas se rehacen enteras y los elementos de antes dejan de
+  // existir. Sin esto, editar dejaba de funcionar en silencio después
+  // del primer cambio de idioma.
+  try {
+    marco.contentDocument.addEventListener('cv:pintado', enganchar);
+  } catch (e) {
+    CV2.toast('No se pudo abrir el sitio para editar', 'error');
+    return;
+  }
+  enganchar();
+});
+
+function ventana() { return marco.contentWindow; }
+function documento() { return marco.contentDocument; }
+
+/** Cuelga los oyentes de todo lo editable que haya en el marco. */
+function enganchar() {
+  const d = documento();
+  if (!d) return;
+
+  // Freno de mano contra la navegación, una sola vez por documento.
+  // Hace falta ADEMÁS del pointer-events:none del sitio: varios textos
+  // editables viven DENTRO de un enlace (el "Consultar" del WhatsApp, el
+  // del pie), y un toque en el hijo burbujea al <a> y navega igual,
+  // llevándose puesto todo lo escrito sin guardar.
+  if (!d.body.dataset.cvFreno) {
+    d.body.dataset.cvFreno = '1';
+    d.addEventListener('click', (ev) => {
+      if (ev.target.closest('a')) ev.preventDefault();
+    }, true);
+  }
+
+  // Textos
+  d.querySelectorAll('[data-edit]').forEach((el) => {
+    if (el.dataset.cvListo) return;
+    el.dataset.cvListo = '1';
+    // 'plaintext-only' evita que el teclado de Android meta <br> y
+    // <div> al saltar de línea. Si el navegador no lo soporta, cae en
+    // 'true' y al guardar se toma textContent, que ignora ese HTML.
+    el.setAttribute('contenteditable', 'plaintext-only');
+    if (el.contentEditable !== 'plaintext-only') el.setAttribute('contenteditable', 'true');
+    el.setAttribute('spellcheck', 'false');
+    el.addEventListener('input', () => anotar(el));
+    el.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
+    });
+  });
+
+  // Fotos existentes
+  d.querySelectorAll('[data-edit-img]').forEach((el) => {
+    if (el.dataset.cvListo) return;
+    el.dataset.cvListo = '1';
+    el.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      abrirHojaFotos(el.getAttribute('data-edit-img'), el);
+    });
+  });
+
+  // Huecos para agregar
+  d.querySelectorAll('[data-edit-add]').forEach((el) => {
+    if (el.dataset.cvListo) return;
+    el.dataset.cvListo = '1';
+    el.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      abrirHojaFotos(el.getAttribute('data-edit-add') + '.+', el);
+    });
+  });
+
+  recolectarEnUso();
+  reaplicar();
+  contar();
+}
+
+/**
+ * Vuelve a escribir en la pantalla los cambios sin guardar.
+ * Hace falta porque cada cambio de idioma repinta el sitio desde los
+ * datos de la base: sin esto, cambiar de idioma y volver borraba de
+ * la vista lo que todavía no se había guardado. Los cambios seguían
+ * en memoria, pero la persona los veía desaparecer, que es peor.
+ */
+function reaplicar() {
+  const d = documento();
+  if (!d) return;
+  d.querySelectorAll('[data-edit]').forEach((el) => {
+    const k = el.getAttribute('data-edit');
+    if (pendientes.has(k)) {
+      if (el.textContent !== pendientes.get(k)) el.textContent = pendientes.get(k);
+      el.classList.add('cv-tocado');
+    }
+  });
+  d.querySelectorAll('[data-edit-img]').forEach((el) => {
+    const ref = el.getAttribute('data-edit-img');   // col/doc:fotos.N
+    const corte = ref.lastIndexOf('.');
+    const clave = ref.slice(0, corte);              // col/doc:fotos
+    const i = Number(ref.slice(corte + 1));
+    if (pendientes.has(clave)) {
+      const arr = pendientes.get(clave);
+      if (Array.isArray(arr) && arr[i] && el.src !== arr[i]) el.src = arr[i];
+    }
+  });
+}
+
+/** Anota el texto de un elemento como cambio pendiente. */
+function anotar(el) {
+  const k = el.getAttribute('data-edit');
+  // textContent y no innerHTML: lo que se guarda es texto, siempre.
+  // Guardar HTML del navegador es abrir la puerta a que un pegado
+  // desde WhatsApp meta estilos que el sitio no controla.
+  const valor = el.textContent.replace(/\s+/g, ' ').trim();
+  pendientes.set(k, valor);
+  el.classList.add('cv-tocado');
+  contar();
+}
+
+function contar() {
+  const n = pendientes.size;
+  $('btnGuardar').disabled = n === 0;
+  $('btnTirar').hidden = n === 0;
+  $('cuenta').innerHTML = n === 0
+    ? 'Tocá un texto para escribirlo. Tocá una foto para cambiarla.'
+    : '<b>' + n + '</b> cambio' + (n === 1 ? '' : 's') + ' sin guardar';
+}
+
+// ── Idiomas ──────────────────────────────────────────────────
+// El idioma lo maneja el sitio, no este editor: se le pide el cambio
+// y él repinta. Un segundo lugar que decida el idioma es un segundo
+// lugar que se puede desincronizar.
+function marcarLangs() {
+  const w = ventana();
+  const actual = (w && w.CVSITIO) ? w.CVSITIO.lang : 'es';
+  $('langs').querySelectorAll('button').forEach((b) =>
+    b.classList.toggle('on', b.dataset.l === actual));
+}
+$('langs').addEventListener('click', (ev) => {
+  const b = ev.target.closest('button');
+  if (!b) return;
+  const w = ventana();
+  if (!w || !w.CVSITIO) return;
+  w.CVSITIO.setLang(b.dataset.l);
+  marcarLangs();
+  // El repintado dispara 'cv:pintado' y de ahí sale enganchar() +
+  // reaplicar(): los cambios sin guardar del idioma nuevo vuelven a
+  // aparecer solos.
+});
+
+// ── Fotos ────────────────────────────────────────────────────
+function recolectarEnUso() {
+  const d = documento();
+  if (!d) return;
+  const vistas = new Set();
+  d.querySelectorAll('[data-edit-img]').forEach((el) => {
+    if (el.src) vistas.add(el.src);
+  });
+  enUso = [...vistas];
+}
+
+/**
+ * ref = "col/doc:fotos.3"  → cambiar la foto que está en esa posición
+ * ref = "col/doc:fotos.+"  → agregar una foto al final
+ */
+function abrirHojaFotos(ref, el) {
+  destinoFoto = { ref: ref, el: el };
+  const agregar = ref.endsWith('.+');
+  $('hojaTit').textContent = agregar ? 'Agregar una foto' : 'Cambiar esta foto';
+
+  const acc = $('hojaAcciones');
+  acc.innerHTML = '';
+  acc.appendChild(botonAccion('add_a_photo', 'Subir una foto nueva', subirNueva));
+  if (!agregar) {
+    acc.appendChild(botonAccion('delete_outline', 'Quitar esta foto del sitio',
+      quitarFoto, true));
+  }
+
+  solapa('uso');
+  $('hojaFotos').showModal();
+}
+
+function botonAccion(icono, texto, alTocar, peligro) {
+  const b = document.createElement('button');
+  if (peligro) b.className = 'peligro';
+  b.innerHTML = '<span class="material-icons">' + icono + '</span><span>'
+    + CV2.esc(texto) + '</span>';
+  b.addEventListener('click', alTocar);
+  return b;
+}
+
+$('hojaX').addEventListener('click', () => $('hojaFotos').close());
+
+document.querySelector('.solapas').addEventListener('click', (ev) => {
+  const b = ev.target.closest('button');
+  if (b) solapa(b.dataset.f);
+});
+
+function solapa(cual) {
+  document.querySelectorAll('.solapas button').forEach((b) =>
+    b.classList.toggle('on', b.dataset.f === cual));
+  if (cual === 'uso') pintarEnUso();
+  else pintarNube();
+}
+
+function pintarEnUso() {
+  const cont = $('hojaLista');
+  if (!enUso.length) {
+    cont.innerHTML = '<div class="aviso">Todavía no hay ninguna foto en el sitio.</div>';
+    return;
+  }
+  cont.innerHTML = '<div class="grilla">' + enUso.map((url) =>
+    '<img src="' + CV2.esc(url) + '" class="usada" data-u="' + CV2.esc(url) + '" alt="">'
+  ).join('') + '</div>';
+  cont.querySelectorAll('img').forEach((im) =>
+    im.addEventListener('click', () => elegirFoto(im.dataset.u)));
+}
+
+async function pintarNube() {
+  const cont = $('hojaLista');
+  if (fotosNube) { dibujarNube(); return; }
+  cont.innerHTML = '<div class="aviso">Buscando en Cloudinary…</div>';
+  try {
+    const r = await fetch(CV2.NETLIFY + '/cloudinary-listar');
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+    fotosNube = data.fotos || [];
+    cursorNube = data.cursor || null;
+    dibujarNube();
+  } catch (e) {
+    // El motivo completo a la vista: acá los errores son de
+    // configuración (variables, carpetas) y adivinarlos cuesta horas.
+    cont.innerHTML = '<div class="aviso">No se pudo leer Cloudinary.<br>'
+      + CV2.esc(e.message) + '</div>';
+  }
+}
+
+function dibujarNube() {
+  const cont = $('hojaLista');
+  if (!fotosNube.length) {
+    cont.innerHTML = '<div class="aviso">'
+      + 'No hay fotos en las carpetas del sitio (<b>sitio</b>, <b>cabanas</b>, '
+      + '<b>espacios</b>).<br><br>Las fotos que están sueltas en la raíz de '
+      + 'Cloudinary no se muestran acá: en esa raíz también viven los '
+      + 'comprobantes de Dinero, y este listado nunca los toca.<br><br>'
+      + 'Para que aparezcan, movelas a esas carpetas desde Cloudinary '
+      + '— mover no cambia la dirección de la foto, así que no rompe nada.'
+      + '</div>';
+    return;
+  }
+  const usadas = new Set(enUso);
+  cont.innerHTML = '<div class="grilla">' + fotosNube.map((f) =>
+    '<img src="' + CV2.esc(f.mini) + '" data-u="' + CV2.esc(f.url) + '"'
+    + (usadas.has(f.url) ? ' class="usada"' : '')
+    + ' loading="lazy" alt="' + CV2.esc(f.nombre) + '">'
+  ).join('') + '</div>'
+    + (cursorNube ? '<button class="mas" id="masFotos">Ver más fotos</button>' : '');
+  cont.querySelectorAll('.grilla img').forEach((im) =>
+    im.addEventListener('click', () => elegirFoto(im.dataset.u)));
+  const mas = $('masFotos');
+  if (mas) mas.addEventListener('click', traerMas);
+}
+
+async function traerMas() {
+  const b = $('masFotos');
+  b.textContent = 'Buscando…';
+  b.disabled = true;
+  try {
+    const r = await fetch(CV2.NETLIFY + '/cloudinary-listar?cursor='
+      + encodeURIComponent(cursorNube));
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+    fotosNube = fotosNube.concat(data.fotos || []);
+    cursorNube = data.cursor || null;
+    dibujarNube();
+  } catch (e) {
+    CV2.toast('No se pudo traer más: ' + e.message, 'error');
+    b.textContent = 'Ver más fotos';
+    b.disabled = false;
+  }
+}
+
+async function subirNueva() {
+  const url = await CV2.elegirYSubirImagen({ titulo: 'Foto para el sitio' });
+  if (!url) return;
+  // La foto nueva entra a la lista "ya en el sitio" en el acto: acaba
+  // de subirse y todavía no está en ningún listado de Cloudinary.
+  if (enUso.indexOf(url) === -1) enUso.push(url);
+  fotosNube = null;   // el listado quedó viejo
+  elegirFoto(url);
+}
+
+/** La persona eligió una foto: se anota el array completo. */
+function elegirFoto(url) {
+  if (!destinoFoto) return;
+  const ref = destinoFoto.ref;
+  const agregar = ref.endsWith('.+');
+  const corte = ref.lastIndexOf('.');
+  const clave = ref.slice(0, corte);            // col/doc:fotos
+  const arr = arrayActual(clave);
+
+  if (agregar) arr.push(url);
+  else arr[Number(ref.slice(corte + 1))] = url;
+
+  // Se guarda el array ENTERO y no la posición sola: Firestore no sabe
+  // escribir "el elemento 2 de este array", y hacerlo por posición con
+  // dos personas editando dejaría el array a medias.
+  pendientes.set(clave, arr);
+  $('hojaFotos').close();
+  pintarYaMismo(clave, arr);
+  contar();
+}
+
+function quitarFoto() {
+  if (!destinoFoto) return;
+  const ref = destinoFoto.ref;
+  const corte = ref.lastIndexOf('.');
+  const clave = ref.slice(0, corte);
+  const arr = arrayActual(clave);
+  arr.splice(Number(ref.slice(corte + 1)), 1);
+  pendientes.set(clave, arr);
+  $('hojaFotos').close();
+  pintarYaMismo(clave, arr);
+  contar();
+}
+
+/**
+ * El array de fotos tal como está AHORA: el pendiente si ya se tocó,
+ * y si no, lo que muestra el sitio. Se lee de la pantalla y no de la
+ * base para no pedir el documento de nuevo en cada toque.
+ */
+function arrayActual(clave) {
+  if (pendientes.has(clave)) return pendientes.get(clave).slice();
+  const d = documento();
+  const salida = [];
+  if (d) {
+    d.querySelectorAll('[data-edit-img^="' + clave + '."]').forEach((el) => {
+      const i = Number(el.getAttribute('data-edit-img').split('.').pop());
+      salida[i] = el.src;
+    });
+  }
+  return salida.filter((x) => typeof x === 'string');
+}
+
+/** Cambiar una foto reordena el bloque: se repinta ese pedazo entero. */
+function pintarYaMismo(clave, arr) {
+  const d = documento();
+  if (!d) return;
+  const imgs = [...d.querySelectorAll('[data-edit-img^="' + clave + '."]')];
+  imgs.forEach((el, i) => {
+    if (arr[i]) { el.src = arr[i]; el.style.display = ''; }
+    else el.style.display = 'none';
+  });
+  if (arr.length > imgs.length) {
+    // Hay una foto más que huecos en pantalla: se ve al guardar, cuando
+    // el sitio se repinta con los datos nuevos. Se avisa para que no
+    // parezca que no pasó nada.
+    CV2.toast('Foto agregada — se va a ver al guardar');
+  }
+}
+
+// ── Guardar ──────────────────────────────────────────────────
+$('btnGuardar').addEventListener('click', guardar);
+
+async function guardar() {
+  if (!pendientes.size) return;
+  const btn = $('btnGuardar');
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+
+  // Se agrupa por documento: un solo escrito por documento, aunque se
+  // hayan tocado ocho campos suyos.
+  const porDoc = new Map();
+  pendientes.forEach((valor, clave) => {
+    const i = clave.indexOf(':');
+    const ruta = clave.slice(0, i);        // config/sitio · cabanas/c1
+    const campo = clave.slice(i + 1);      // textos.es.titulo · fotos
+    if (!porDoc.has(ruta)) porDoc.set(ruta, {});
+    // Un texto vaciado del todo NO se guarda como cadena vacía: se
+    // BORRA el campo, y así el sitio vuelve a mostrar el texto por
+    // defecto del diccionario. Guardar '' dejaría un hueco en blanco
+    // para siempre, que es lo contrario de lo que quiere alguien que
+    // borra un texto. Ojo: merge no borra claves ausentes, hace falta
+    // deleteField() explícito.
+    const esTextoSitio = ruta === 'config/sitio' && campo.indexOf('textos.') === 0;
+    porDoc.get(ruta)[campo] = (valor === '' && esTextoSitio) ? deleteField() : valor;
+  });
+
+  const fallidos = [];
+  for (const [ruta, campos] of porDoc) {
+    const partes = ruta.split('/');
+    const ref = doc(db, partes[0], partes[1]);
+    try {
+      // updateDoc y no setDoc con merge: updateDoc entiende los campos
+      // con puntos ('textos.es.titulo') como camino dentro del objeto,
+      // que es justo lo que hace falta para no pisar los otros idiomas.
+      await updateDoc(ref, campos);
+    } catch (e) {
+      if (e.code === 'not-found') {
+        // config/sitio puede no existir todavía la primera vez.
+        try {
+          await setDoc(ref, anidar(campos), { merge: true });
+        } catch (e2) { fallidos.push(ruta + ': ' + (e2.code || e2.message)); }
+      } else {
+        fallidos.push(ruta + ': ' + (e.code || e.message));
+      }
+    }
+  }
+
+  btn.textContent = 'Guardar';
+
+  if (fallidos.length) {
+    CV2.toast('No se guardó todo: ' + fallidos.join(' · '), 'error');
+    btn.disabled = false;
+    return;
+  }
+
+  pendientes.clear();
+  // Se recarga del servidor en vez de dar por bueno lo que está en
+  // pantalla: si algo se guardó distinto de lo que se creía, se ve
+  // ahora y no dentro de tres semanas.
+  const w = ventana();
+  if (w && w.CVSITIO) await w.CVSITIO.recargar();
+  CV2.toast('✓ Sitio actualizado', 'success');
+  contar();
+}
+
+/** { 'textos.es.titulo': v } → { textos: { es: { titulo: v } } } */
+function anidar(campos) {
+  const salida = {};
+  Object.keys(campos).forEach((camino) => {
+    const trozos = camino.split('.');
+    let n = salida;
+    for (let i = 0; i < trozos.length - 1; i++) {
+      if (!n[trozos[i]]) n[trozos[i]] = {};
+      n = n[trozos[i]];
+    }
+    n[trozos[trozos.length - 1]] = campos[camino];
+  });
+  return salida;
+}
+
+// ── Descartar ────────────────────────────────────────────────
+$('btnTirar').addEventListener('click', async () => {
+  if (!pendientes.size) return;
+  if (!confirm('¿Descartar los ' + pendientes.size + ' cambios sin guardar?')) return;
+  pendientes.clear();
+  const w = ventana();
+  if (w && w.CVSITIO) await w.CVSITIO.recargar();
+  contar();
+});
+
+// ── Salir ────────────────────────────────────────────────────
+$('btnVolver').addEventListener('click', () => {
+  if (pendientes.size
+    && !confirm('Hay ' + pendientes.size + ' cambio(s) sin guardar. ¿Salir igual?')) return;
+  location.href = './cabanas.html';
+});
+
+// Último aviso si se cierra la pestaña o se va con el gesto de Android.
+window.addEventListener('beforeunload', (ev) => {
+  if (!pendientes.size) return;
+  ev.preventDefault();
+  ev.returnValue = '';
+});
+
+marcarLangs();
+contar();
+</script>
+</body>
+</html>

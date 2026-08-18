@@ -7,6 +7,11 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v80 (18-ago-2026) — EL SITIO SE EDITA ENCIMA DEL SITIO. Nace editar.html:
+//       el sitio público real, dentro de un marco, con los textos abiertos
+//       para escribir y las fotos cambiables de un toque. Entra al SHELL.
+//       El sitio (index.html de la RAÍZ, que NO está en este shell porque
+//       vive fuera del scope de /interno/) suma el modo ?edit=1.
 // v79 (7-ago-2026) — ⚠ EL DÍA DE HOY se calculaba en UTC: desde las 21:00 de
 //       cada noche el sistema entero creía que ya era mañana. nucleo.js,
 //       reservas-core.js, actividades.html y el index.html de la RAÍZ.
@@ -56,7 +61,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v79';
+const VERSION = 'cv2-shell-v80';
 
 const SHELL = [
   './',
@@ -72,6 +77,7 @@ const SHELL = [
   './manual.html',
   './reservas.html',
   './cabanas.html',
+  './editar.html',
   './espacios.html',
   './calendario.html',
   './agenda.html',
