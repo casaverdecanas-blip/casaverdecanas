@@ -3,13 +3,40 @@
 # Este proyecto de Netlify sirve ÚNICAMENTE las funciones de servidor. El
 # panel y el sitio público van por GitHub Pages, en casaverdecanas.com.br.
 #
-# Se despliega a mano, soltando un .zip en Deploys: no hay repositorio
-# enganchado. Y OJO — el proyecto tiene "Auto Publishing Locked": construye
-# el despliegue pero NO lo publica hasta que se destraba desde esa misma
-# pantalla. El registro dice "Site is live" igual. Ver CONVENCIONES §2.1.
+# ── CÓMO SE DESPLIEGA, Y POR QUÉ ASÍ ────────────────────────────────
+# A mano: se suelta un .zip en Deploys. NO hay repositorio enganchado, y es
+# DELIBERADO. Mientras el 2.0 está en desarrollo se suben varios archivos por
+# día al repositorio; con el repositorio conectado, cada uno de esos empujones
+# dispararía una construcción y se comerían los minutos del plan gratuito
+# —minutos que hacen falta para desplegar una función cuando de verdad cambia—.
+# Las funciones cambian una vez cada tantas tandas; el resto del repositorio,
+# todos los días. No tienen por qué compartir el mismo disparador.
+#
+# Y el proyecto tiene además "Auto Publishing Locked", también a propósito:
+# es el freno de mano para que un despliegue no salga a producción sin querer.
+# OJO con el síntoma — construye el despliegue y NO lo publica, mientras el
+# registro dice "Site is live" igual. Después de soltar el zip hay que
+# publicarlo a mano: Deploys → el despliegue nuevo → Publish deploy.
+# (Nota: el candado NO ahorra minutos de construcción, solo evita publicar.
+#  Lo que ahorra los minutos es no tener el repositorio enganchado.)
+#
+# El zip REEMPLAZA todo el proyecto: tiene que llevar SIEMPRE las cinco
+# funciones, no solo la que cambió. Una que falte se apaga en silencio.
 #
 # Las funciones no usan librerías externas —solo fetch, que viene con
 # Node 24—, así que no hace falta package.json ni node_modules.
+#
+# ── LAS CINCO FUNCIONES ─────────────────────────────────────────────
+#   claude-proxy        lee facturas con Gemini            GEMINI_API_KEY
+#   notify-whatsapp     avisos por CallMeBot               CALLMEBOT_PHONE,
+#                                                          CALLMEBOT_APIKEY
+#   ical-cabana         publica NUESTRA ocupación (.ics)   ninguna
+#   airbnb-ical         lee el .ics de Airbnb              ninguna
+#   cloudinary-listar   lista fotos para el editor         CLOUDINARY_API_KEY,
+#                       visual del sitio                   CLOUDINARY_API_SECRET
+#
+# notify-recuerdo se retiró en julio de 2026 (estaba muerta: le faltaban las
+# variables y la página pública nunca la llamó). Este zip ya no la lleva.
 
 [build]
   publish = "."
