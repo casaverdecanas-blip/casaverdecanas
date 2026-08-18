@@ -239,6 +239,52 @@
     padding:8px 15px;border-radius:999px;font-size:.86rem;font-weight:600}
   .redes a:hover{background:rgba(255,255,255,.16)}
   .redes svg{display:block}
+
+  /* ═══════════════════════════════════════════════════════════
+     MODO EDICIÓN — se enciende SOLO con ?edit=1, que es como lo
+     abre interno/editar.html dentro de un marco. En una visita
+     normal la clase .cv-ed no existe en ningún lado y nada de
+     este bloque tiene efecto: el sitio público no cambia en nada.
+
+     Se usa 'outline' y no 'border' a propósito: el outline no
+     ocupa espacio, así que marcar lo editable NO mueve ni un
+     píxel del diseño. Lo que se ve editando es lo que se
+     publica — que es todo el punto de editar acá y no en un
+     formulario aparte.
+     ═══════════════════════════════════════════════════════════ */
+  /* Nada del sitio responde al toque mientras se edita: ni los
+     enlaces, ni el WhatsApp, ni el calendario. Sin esto, tocar un
+     título del pie te saca de la página y perdés lo escrito. */
+  .cv-ed a, .cv-ed button, .cv-ed select, .cv-ed input{
+    pointer-events:none !important}
+  .cv-ed [data-edit], .cv-ed [data-edit-img], .cv-ed [data-edit-add]{
+    pointer-events:auto !important}
+
+  /* Punteado ámbar: el texto viene del diccionario, todavía nadie
+     lo escribió a mano. Verde: ya está guardado en la base.
+     Relleno: hay un cambio sin guardar. */
+  .cv-ed [data-edit]{outline:1px dashed rgba(184,109,76,.5);outline-offset:3px;
+    border-radius:3px;cursor:text}
+  .cv-ed [data-edit].cv-propio{outline-color:rgba(48,94,48,.45)}
+  .cv-ed [data-edit].cv-tocado{outline:2px solid var(--terracota);background:#fdf2d9}
+  .cv-ed [data-edit]:focus{outline:2px solid var(--selva);background:#fff;
+    box-shadow:0 0 0 4px rgba(159,210,176,.35)}
+  /* Un texto vacío no se puede tocar: se le deja un hueco visible. */
+  .cv-ed [data-edit]:empty::before{content:'—— escribir ——';color:#b9a98a;font-size:.8em}
+
+  /* El carrusel SE DESPLIEGA. Editando hay que poder tocar cada foto,
+     y un carrusel obliga a pasarlas de a una: la foto se movería justo
+     abajo del dedo. */
+  .cv-ed .slider{aspect-ratio:auto;display:grid;
+    grid-template-columns:repeat(2,1fr);gap:5px;padding:5px}
+  .cv-ed .slider img{display:block !important;aspect-ratio:4/3;border-radius:8px}
+  .cv-ed .slider .nav, .cv-ed .slider .puntos{display:none !important}
+  .cv-ed [data-edit-img]{cursor:pointer;outline:2px solid transparent;outline-offset:2px}
+  .cv-ed [data-edit-img]:hover{outline-color:var(--terracota)}
+  .cv-ed [data-edit-add]{aspect-ratio:4/3;border:2px dashed var(--terracota);
+    border-radius:8px;display:flex;align-items:center;justify-content:center;
+    color:var(--terracota);font-size:.8rem;font-weight:600;cursor:pointer;
+    background:rgba(184,109,76,.06);text-align:center;padding:6px}
 </style>
 </head>
 <body>
@@ -433,6 +479,39 @@ if (!T[lang]) lang = 'es';
 const t = (k) => (TEXTOS[lang] && TEXTOS[lang][k])
   || (T[lang] && T[lang][k]) || T.pt[k] || k;
 
+// ═══ MODO EDICIÓN ═══════════════════════════════════════════
+// Con ?edit=1 esta misma página se vuelve editable dentro del marco de
+// interno/editar.html. NO se hace una copia del sitio para editar: la
+// copia se desincroniza el primer día y lo que se ve deja de ser lo que
+// se publica. Es el sitio de verdad, con los textos abiertos.
+//
+// Acá NO se guarda nada. Esta página solo MARCA qué documento y qué
+// campo hay detrás de cada cosa (data-edit) y deja el resto al editor,
+// que es el que tiene la sesión y los permisos. Abrir el sitio con
+// ?edit=1 sin sesión no habilita ninguna escritura: las reglas de
+// Firestore piden permiso 'contenido' y no hay forma de saltearlas
+// desde acá.
+const EDITAR = new URLSearchParams(location.search).get('edit') === '1';
+if (EDITAR) document.documentElement.classList.add('cv-ed');
+
+/**
+ * Marca los textos del diccionario con su clave de config/sitio.
+ * Se derivan de los data-t que YA existen: no hay que anotar el HTML a
+ * mano ni mantener dos listas que se desincronizan. La clave que ve el
+ * editor es exactamente la que lee el sitio.
+ */
+function marcarTextos() {
+  if (!EDITAR) return;
+  document.querySelectorAll('[data-t]').forEach((el) => {
+    el.setAttribute('data-edit', 'config/sitio:textos.' + lang + '.' + el.dataset.t);
+    // Verde si alguien ya lo escribió a mano; ámbar si todavía sale del
+    // diccionario. Es la diferencia entre "esto lo decidimos nosotros" y
+    // "esto es lo que vino de fábrica", y se ve de un vistazo.
+    const propio = !!(TEXTOS[lang] && TEXTOS[lang][el.dataset.t]);
+    el.classList.toggle('cv-propio', propio);
+  });
+}
+
 function aplicarIdioma() {
   document.documentElement.lang = lang;
   document.querySelectorAll('[data-t]').forEach((el) => { el.textContent = t(el.dataset.t); });
@@ -441,6 +520,12 @@ function aplicarIdioma() {
   pintarCabanas(); pintarEspacios(); pintarSelect();
   if (document.getElementById('calGrid')) pintarCal();
   revisar();
+  marcarTextos();
+  // El editor vuelve a colgar sus oyentes después de cada pintada: los
+  // elementos de las cabañas se rehacen enteros y los de antes ya no
+  // existen. Sin este aviso, editar quedaba muerto después de cambiar
+  // de idioma — el bug clásico de este tipo de editor.
+  if (EDITAR) document.dispatchEvent(new CustomEvent('cv:pintado'));
 }
 document.querySelectorAll('.idiomas button').forEach((b) =>
   b.addEventListener('click', () => { lang = b.dataset.i; aplicarIdioma(); }));
@@ -458,20 +543,26 @@ function pintarCabanas() {
     const fotos = (c.fotos || []).filter(Boolean);
     const cap = capDe(c);
     const noche = (c.tarifas && Number(c.tarifas.noche)) || 0;
+    // En edición, cada foto y cada texto llevan escrito de dónde salieron:
+    // 'cabanas/c1:fotos.0' es el documento, el campo y la posición.
+    // 'loading="lazy"' se saca editando: una foto que todavía no se cargó
+    // no se puede tocar, y el carrusel desplegado las muestra todas juntas.
+    const ed = (campo) => EDITAR ? ' data-edit="cabanas/' + esc(c.id) + ':' + campo + '"' : '';
     return `
     <article class="cab">
       <div class="slider" data-s="${i}">
         ${fotos.length
-          ? fotos.map((f, j) => `<img src="${esc(f)}" class="${j === 0 ? 'on' : ''}" loading="lazy" alt="">`).join('')
-          : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#a9aea4;">—</div>'}
+          ? fotos.map((f, j) => `<img src="${esc(f)}" class="${j === 0 ? 'on' : ''}"${EDITAR ? ` data-edit-img="cabanas/${esc(c.id)}:fotos.${j}"` : ' loading="lazy"'} alt="">`).join('')
+          : (EDITAR ? '' : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#a9aea4;">—</div>')}
+        ${EDITAR ? `<div data-edit-add="cabanas/${esc(c.id)}:fotos">+ agregar foto</div>` : ''}
         ${fotos.length > 1 ? `
           <button class="nav prev" onclick="mover(${i},-1)"><span class="material-icons">chevron_left</span></button>
           <button class="nav next" onclick="mover(${i},1)"><span class="material-icons">chevron_right</span></button>
           <div class="puntos">${fotos.map((_, j) => `<i class="${j === 0 ? 'on' : ''}"></i>`).join('')}</div>` : ''}
       </div>
       <div class="cuerpo">
-        <h3>${esc(txt(c.nombre))}</h3>
-        <p class="desc">${esc(txt(c.descripcion))}</p>
+        <h3${ed('nombre.' + lang)}>${esc(txt(c.nombre))}</h3>
+        <p class="desc"${ed('descripcion.' + lang)}>${esc(txt(c.descripcion))}</p>
         <div class="datos">
           <span><b>${cap.base}</b>–<b>${cap.max}</b> ${esc(t('pers'))}</span>
           ${noche ? `<span class="precio">${esc(t('desde'))} R$ ${noche} <small>${esc(t('noite'))}</small></span>` : ''}
@@ -497,9 +588,15 @@ window.mover = (i, d) => {
 function pintarEspacios() {
   $('espacios').innerHTML = espacios.map((e) => {
     const f = (e.fotos || [])[0];
+    const id = esc(e.id);
+    // El espacio común muestra UNA foto, la primera. Se edita esa: la
+    // posición 0 del array, aunque el documento tenga más guardadas.
+    const marcaImg = EDITAR ? ` data-edit-img="espacios_comunes/${id}:fotos.0"` : ' loading="lazy"';
     return `<div class="esp">
-      ${f ? `<img src="${esc(f)}" loading="lazy" alt="">` : '<div style="aspect-ratio:4/3;background:#eceae3;"></div>'}
-      <p>${esc(txt(e.nombre))}</p></div>`;
+      ${f ? `<img src="${esc(f)}"${marcaImg} alt="">`
+          : (EDITAR ? `<div data-edit-add="espacios_comunes/${id}:fotos">+ agregar foto</div>`
+                    : '<div style="aspect-ratio:4/3;background:#eceae3;"></div>')}
+      <p${EDITAR ? ` data-edit="espacios_comunes/${id}:nombre.${lang}"` : ''}>${esc(txt(e.nombre))}</p></div>`;
   }).join('');
 }
 
@@ -669,33 +766,58 @@ $('qCabana').addEventListener('change', () => {
 });
 $('qPax').addEventListener('change', revisar);
 
-// ── Carga (lectura pública, una sola vez) ────────────────────
-try {
-  const cs = await getDocs(collection(db, 'cabanas'));
-  cs.forEach((d) => { const x = d.data(); if (x.activa !== false) cabanas.push({ id: d.id, ...x }); });
-  cabanas.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
-} catch (e) { console.warn('cabanas', e); }
+// ── Carga (lectura pública) ──────────────────────────────────
+// En una sola función porque el editor la vuelve a llamar después de
+// guardar: así lo que se ve sale de la base, no de lo que quedó escrito
+// en la pantalla. Si el guardado falló a medias, esto lo destapa en el
+// acto en vez de mostrar un sitio que no existe.
+async function cargarTodo() {
+  cabanas.length = 0; espacios.length = 0; ocupacion.length = 0;
 
-try {
-  const es = await getDocs(collection(db, 'espacios_comunes'));
-  es.forEach((d) => espacios.push({ id: d.id, ...d.data() }));
-  espacios.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
-} catch (e) { console.warn('espacios', e); }
+  try {
+    const cs = await getDocs(collection(db, 'cabanas'));
+    cs.forEach((d) => { const x = d.data(); if (x.activa !== false) cabanas.push({ id: d.id, ...x }); });
+    cabanas.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+  } catch (e) { console.warn('cabanas', e); }
 
-try {
-  const cfg = await getDoc(doc(db, 'config', 'sitio'));
-  if (cfg.exists()) {
-    const x = cfg.data();
-    WHATSAPP = (x.whatsapp || '').replace(/[^0-9]/g, '');
-    TEXTOS = x.textos || {};
-  }
-} catch (e) { console.warn('config sitio', e); }
+  try {
+    const es = await getDocs(collection(db, 'espacios_comunes'));
+    es.forEach((d) => espacios.push({ id: d.id, ...d.data() }));
+    espacios.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+  } catch (e) { console.warn('espacios', e); }
 
-try {
-  const os = await getDocs(collection(db, 'disponibilidad'));
-  os.forEach((d) => ocupacion.push(d.data()));
-} catch (e) { console.warn('disponibilidad', e); }
+  try {
+    const cfg = await getDoc(doc(db, 'config', 'sitio'));
+    if (cfg.exists()) {
+      const x = cfg.data();
+      WHATSAPP = (x.whatsapp || '').replace(/[^0-9]/g, '');
+      TEXTOS = x.textos || {};
+    }
+  } catch (e) { console.warn('config sitio', e); }
 
+  try {
+    const os = await getDocs(collection(db, 'disponibilidad'));
+    os.forEach((d) => ocupacion.push(d.data()));
+  } catch (e) { console.warn('disponibilidad', e); }
+}
+
+// ── Contrato con el editor ───────────────────────────────────
+// Lo único que el sitio le ofrece al editor. Chico a propósito: el
+// editor no toca los internos de esta página, y esta página no sabe
+// nada del editor. Si mañana el editor cambia entero, acá no se toca
+// una línea mientras estas cuatro cosas sigan existiendo.
+if (EDITAR) {
+  window.CVSITIO = {
+    get lang() { return lang; },
+    setLang(l) { if (T[l]) { lang = l; aplicarIdioma(); } },
+    async recargar() { await cargarTodo(); aplicarIdioma(); pintarCal(); },
+    // El diccionario completo: el editor lo usa para saber qué texto
+    // sale de fábrica y cuál escribió alguien.
+    diccionario: T
+  };
+}
+
+await cargarTodo();
 aplicarIdioma();
 pintarCal();
 </script>
