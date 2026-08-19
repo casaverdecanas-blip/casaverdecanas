@@ -708,7 +708,7 @@ CV2.toast = function (msj, tipo = 'info') {
 // (el WhatsApp iba al número por defecto) era idéntico a un problema de
 // configuración, y no había forma de saber qué código estaba corriendo.
 // Se sube a mano cada vez que se toca el bloque de avisos.
-CV2.VERSION = 'nucleo-fecha-10';
+CV2.VERSION = 'nucleo-avisos-11';
 
 CV2.NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
 
@@ -730,6 +730,15 @@ CV2.EVENTOS = [
   {
     id: 'mensaje', label: 'Mensajes del chat', icono: 'forum',
     detalle: 'Cuando alguien escribe en un tema que te toca.'
+  },
+  {
+    id: 'actividad_mia', label: 'Actividades que te asignan', icono: 'assignment_ind',
+    detalle: 'Cuando alguien crea una actividad y te pone en ella, o te suma a una que ya existía.'
+  },
+  {
+    id: 'actividad_nueva', label: 'Actividades nuevas del equipo', icono: 'playlist_add',
+    detalle: 'Cuando alguien crea una actividad para todo el equipo. Las limpiezas '
+      + 'que se generan solas por una reserva NO avisan: aparecen en el Inicio.'
   }
 ];
 
@@ -854,6 +863,11 @@ CV2.enviarWhatsApp = function (texto, contacto) {
   return fetch(CV2.NETLIFY + '/notify-whatsapp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    // keepalive: el aviso sale SIN await y la persona puede cambiar de página
+    // en el mismo segundo —al crear una actividad desde la Agenda se vuelve
+    // allá enseguida—. Sin esto el navegador corta el pedido a la mitad y el
+    // aviso se pierde sin dejar rastro en ningún lado.
+    keepalive: true,
     body: JSON.stringify(cuerpo)
   })
     .then((r) => r.json())
@@ -895,6 +909,7 @@ CV2.enviarMail = function (asunto, cuerpoHtml, paraEmail) {
   return fetch('https://api.emailjs.com/api/v1.0/email/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    keepalive: true,   // por lo mismo que el WhatsApp: sobrevive al cambio de página
     body: JSON.stringify({
       service_id: CV2.EMAILJS.serviceId,
       template_id: CV2.EMAILJS.templateId,
@@ -968,7 +983,13 @@ CV2._leToca = function (uid, para) {
  */
 CV2.avisar = async function (op) {
   const o = op || {};
-  if (!o.evento || !o.texto) return { intentos: 0, enviados: 0 };
+  const informe = [];
+  const anotar = (uid, nombre, canal, estado, detalle) => {
+    informe.push({ uid, nombre: nombre || uid, canal, estado, detalle: detalle || '' });
+  };
+  if (!o.evento || !o.texto) {
+    return { intentos: 0, enviados: 0, informe, error: 'falta el evento o el texto' };
+  }
   try {
     // Las dos colecciones de una: quién es cada uno y por dónde se le llega.
     const [snapU, snapC] = await Promise.all([
@@ -978,39 +999,66 @@ CV2.avisar = async function (op) {
     const contactos = {};
     snapC.forEach((d) => { contactos[d.id] = d.data() || {}; });
 
+    // Cada envío se guarda junto a QUIÉN y POR DÓNDE, no suelto: un
+    // Promise.all de promesas anónimas dice cuántas fallaron y ninguna otra
+    // cosa. Con esto, el simulacro de 'Mis avisos' puede decir "a Flor no le
+    // llega porque tiene la llave de WhatsApp apagada" en vez de "0 de 3".
     const tareas = [];
     snapU.forEach((d) => {
       const x = d.data() || {};
       const uid = d.id;
-      if (x.activo === false) return;
-      if (o.excluir && uid === o.excluir) return;
-      if (!CV2._leToca(uid, o.para)) return;
+      const nombre = x.nombre || uid;
+      if (x.activo === false) { anotar(uid, nombre, '—', 'salteado', 'está desactivado'); return; }
+      if (o.excluir && uid === o.excluir) { anotar(uid, nombre, '—', 'salteado', 'es quien lo produjo'); return; }
+      if (!CV2._leToca(uid, o.para)) { anotar(uid, nombre, '—', 'salteado', 'no es de la audiencia de este aviso'); return; }
       const n = x.notif || {};
       // Cada evento está encendido salvo que la persona lo haya apagado.
-      if (n[o.evento] === false) return;
-      if (n.canalEmail !== false && x.email) {
-        tareas.push(CV2.enviarMail(
-          o.asunto || 'Aviso de Casa Verde',
-          CV2._cuerpoMail(o.texto, o.enlace),
-          x.email
-        ));
+      if (n[o.evento] === false) { anotar(uid, nombre, '—', 'salteado', 'apagó este aviso en Mis avisos'); return; }
+
+      if (n.canalEmail === false) anotar(uid, nombre, 'mail', 'salteado', 'tiene el correo apagado');
+      else if (!x.email) anotar(uid, nombre, 'mail', 'salteado', 'no tiene correo cargado en su perfil');
+      else if (o.simular) anotar(uid, nombre, 'mail', 'iría', x.email);
+      else {
+        tareas.push({
+          uid, nombre, canal: 'mail', a: x.email,
+          promesa: CV2.enviarMail(o.asunto || 'Aviso de Casa Verde',
+            CV2._cuerpoMail(o.texto, o.enlace), x.email)
+        });
       }
-      if (n.canalWhatsapp === true) {
-        const c = contactos[uid];
-        // Sin número cargado no hay a dónde mandar. NO se cae al número por
-        // defecto: le sonaría el teléfono al admin por un aviso ajeno.
-        if (c && c.telefono && c.apikey) {
-          tareas.push(CV2.enviarWhatsApp(o.texto, { telefono: c.telefono, apikey: c.apikey }));
-        }
+
+      const c = contactos[uid];
+      const tieneWa = !!(c && c.telefono && c.apikey);
+      if (n.canalWhatsapp !== true) anotar(uid, nombre, 'whatsapp', 'salteado', 'tiene la llave de WhatsApp apagada');
+      // Sin número cargado no hay a dónde mandar. NO se cae al número por
+      // defecto: le sonaría el teléfono al admin por un aviso ajeno.
+      else if (!tieneWa) anotar(uid, nombre, 'whatsapp', 'salteado', 'encendió la llave pero no cargó su número y su clave');
+      else if (o.simular) anotar(uid, nombre, 'whatsapp', 'iría', c.telefono);
+      else {
+        tareas.push({
+          uid, nombre, canal: 'whatsapp', a: c.telefono,
+          promesa: CV2.enviarWhatsApp(o.texto, { telefono: c.telefono, apikey: c.apikey })
+        });
       }
     });
-    const res = await Promise.all(tareas);
-    return { intentos: res.length, enviados: res.filter((r) => r && r.ok).length };
+
+    const res = await Promise.all(tareas.map((t) => t.promesa));
+    let enviados = 0;
+    tareas.forEach((t, i) => {
+      const r = res[i] || {};
+      // El mail devuelve { ok, error } y el WhatsApp { ok, motivo, detalle }:
+      // los dos se leen igual acá para que el informe no dependa del canal.
+      const det = r.detalle || r.error || '';
+      if (r.ok) { enviados++; anotar(t.uid, t.nombre, t.canal, 'enviado', t.a); }
+      else anotar(t.uid, t.nombre, t.canal, 'falló', (r.motivo ? r.motivo + ' · ' : '') + (det || 'sin detalle'));
+    });
+    return { intentos: tareas.length, enviados, informe, simulado: !!o.simular };
   } catch (e) {
     // Un aviso que falla se anota y se olvida. Lo que importaba ya está
-    // guardado antes de llegar acá.
+    // guardado antes de llegar acá. El motivo más probable de caer acá es que
+    // las reglas no dejen LISTAR /usuarios/ o /avisos_contacto/: sin esas dos
+    // listas no hay a quién avisarle, y el aviso muere entero y en silencio.
     console.warn('avisar:', e);
-    return { intentos: 0, enviados: 0, error: (e && e.code) || e.message };
+    return { intentos: 0, enviados: 0, informe, error: (e && e.code) || e.message };
   }
 };
 

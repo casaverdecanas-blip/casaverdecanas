@@ -212,6 +212,40 @@
     </div>
     <div class="estado" id="estadoDefecto">Sin probar.</div>
   </div>
+
+  <!-- ═══ El simulacro ════════════════════════════════════
+       Las pruebas de arriba prueban UN eslabón cada una: mi teléfono, mi
+       correo, el número del servidor. Ninguna contesta la pregunta que
+       importa cuando algo no llega: "cuando Flor escribe un mensaje, ¿a
+       quién le sale y por dónde?". Esto corre EL MISMO CV2.avisar que usan
+       el chat y las actividades —no una copia, que probaría la copia— y
+       muestra la decisión que tomó para cada persona. -->
+  <div class="tarj">
+    <h2>¿A quién le llega, y por qué?</h2>
+    <p class="aclara">
+      Elegí un aviso y mirá a quién le saldría <b>ahora mismo</b>, persona por
+      persona y canal por canal, con el motivo de cada salteada. No manda nada:
+      es un ensayo. Es lo primero que hay que mirar cuando un aviso no llega.
+    </p>
+    <div class="acciones" style="align-items:center;">
+      <select id="simEvento" style="flex:1;min-width:160px;padding:9px;border:1px solid var(--linea);border-radius:9px;font-family:inherit;font-size:16px;background:#fff;"></select>
+      <button class="btn" id="btnSimular">
+        <span class="material-icons">visibility</span> Ver a quién le llegaría
+      </button>
+    </div>
+    <div id="simResultado"></div>
+    <div class="acciones" id="simRealCaja" style="margin-top:10px;">
+      <button class="btn" id="btnSimularReal">
+        <span class="material-icons">send</span> Mandarlo de verdad
+      </button>
+    </div>
+    <p class="aclara" id="simRealNota">
+      «Mandarlo de verdad» le manda un aviso de prueba a todo el equipo que
+      corresponda, por sus canales encendidos. Úsalo cuando el ensayo diga que
+      todo está bien y aun así no llegue nada: ahí el problema está más abajo
+      —CallMeBot o el correo— y el resultado te lo dice.
+    </p>
+  </div>
 </div>
 
 <script type="module">
@@ -497,10 +531,108 @@ $('btnProbarDefecto').addEventListener('click', async () => {
   b.disabled = false;
 });
 
+// ═══ El simulacro ═════════════════════════════════════════
+// Corre EL MISMO CV2.avisar que el chat y las actividades, con simular:true.
+// Que sea el mismo código no es un detalle: una copia \"igual pero para
+// probar\" prueba la copia, y las dos se separan al primer arreglo.
+//
+// Muestra el DATO y no el veredicto (§3.19): para cada persona y cada canal,
+// qué se decidió y por qué. Un \"0 enviados\" no dice nada; \"a Flor no le sale
+// porque tiene la llave de WhatsApp apagada\" se arregla en diez segundos.
+const ESTADOS = {
+  'iría':      { color: 'var(--verde-osc)', icono: 'check_circle' },
+  'enviado':   { color: 'var(--verde-osc)', icono: 'check_circle' },
+  'salteado':  { color: 'var(--gris)',      icono: 'remove_circle_outline' },
+  'falló':     { color: 'var(--rojo)',      icono: 'error_outline' }
+};
+
+function pintarInforme(r, real) {
+  const cont = $('simResultado');
+  if (r && r.error) {
+    cont.innerHTML = '<div class="estado mal">El aviso murió antes de empezar: '
+      + esc(r.error) + '.<br>Casi siempre es que las reglas no dejan LEER LA LISTA '
+      + 'de <code>usuarios</code> o de <code>avisos_contacto</code>. Sin esas dos '
+      + 'listas no hay a quién avisarle, y falla entero y en silencio.</div>';
+    return;
+  }
+  const inf = (r && r.informe) || [];
+  if (!inf.length) {
+    cont.innerHTML = '<div class="estado mal">No hay nadie a quien avisarle. '
+      + 'Si sos la única persona activa, es normal: a quien produce el hecho '
+      + 'nunca se le avisa.</div>';
+    return;
+  }
+  // Agrupado por persona: la pregunta es \"¿a Flor le llega?\", no \"¿cuántos
+  // mails salieron?\".
+  const porUid = {};
+  inf.forEach((x) => { (porUid[x.uid] = porUid[x.uid] || { nombre: x.nombre, filas: [] }).filas.push(x); });
+
+  let h = '<div style="margin-top:10px;">';
+  Object.keys(porUid).forEach((uid) => {
+    const p = porUid[uid];
+    h += '<div style="border:1px solid var(--linea);border-radius:10px;padding:9px 11px;margin-bottom:7px;background:#fff;">'
+      + '<b style="font-size:.9rem;">' + esc(p.nombre) + '</b>';
+    p.filas.forEach((f) => {
+      const e = ESTADOS[f.estado] || ESTADOS['salteado'];
+      h += '<div style="display:flex;gap:7px;align-items:flex-start;margin-top:5px;font-size:.8rem;color:' + e.color + ';">'
+        + '<span class="material-icons" style="font-size:16px;flex:none;margin-top:1px;">' + e.icono + '</span>'
+        + '<span><b>' + esc(f.canal) + '</b> · ' + esc(f.estado)
+        + (f.detalle ? ' — ' + esc(f.detalle) : '') + '</span></div>';
+    });
+    h += '</div>';
+  });
+  h += '</div>';
+  if (real) {
+    h += '<div class="estado ' + (r.enviados > 0 ? 'bien' : 'mal') + '">'
+      + r.enviados + ' de ' + r.intentos + ' salieron. '
+      + (r.enviados > 0 ? 'Si igual no aparece en el teléfono, el problema ya no es del panel.'
+                        : 'Ninguno salió: el motivo de cada uno está arriba.') + '</div>';
+  }
+  $('simResultado').innerHTML = h;
+}
+
+function textoDePrueba(evId) {
+  const ev = CV2.EVENTOS.filter((x) => x.id === evId)[0];
+  return 'Prueba de avisos de Casa Verde (' + ((ev && ev.label) || evId) + ').\n'
+    + 'La mandó ' + (u.nombre || 'el administrador') + ' desde Mis avisos. '
+    + 'No hay nada que hacer.';
+}
+
+async function correrSimulacro(real) {
+  const evId = $('simEvento').value;
+  const b = real ? $('btnSimularReal') : $('btnSimular');
+  b.disabled = true;
+  $('simResultado').innerHTML = '<div class="estado">' + (real ? 'Mandando…' : 'Mirando…') + '</div>';
+  const r = await CV2.avisar({
+    evento: evId,
+    asunto: 'Prueba de avisos · Casa Verde',
+    texto: textoDePrueba(evId),
+    para: 'todos',
+    // A quien produce el hecho nunca se le avisa: si acá no se excluyera, el
+    // ensayo mostraría una fila que en la vida real no existe.
+    excluir: u.uid,
+    enlace: './avisos.html',
+    simular: !real
+  });
+  pintarInforme(r, real);
+  b.disabled = false;
+}
+
+$('btnSimular').addEventListener('click', () => correrSimulacro(false));
+$('btnSimularReal').addEventListener('click', () => {
+  if (!confirm('Esto le manda un aviso de prueba REAL a todo el equipo que tenga '
+    + 'ese aviso encendido.\n\n¿Seguimos?')) return;
+  correrSimulacro(true);
+});
+
 // ═══ Cargas iniciales — AL FINAL ══════════════════════════
 // El sello dice qué versión de nucleo.js está corriendo de verdad. Si no
 // coincide con la esperada, lo que se probó no es lo que se cree.
-$('sello').textContent = 'pantalla: avisos-4 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
+$('sello').textContent = 'pantalla: avisos-5 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
+// El selector del simulacro sale de la MISMA lista que los interruptores: un
+// evento que no está en CV2.EVENTOS no existe para nadie.
+$('simEvento').innerHTML = CV2.EVENTOS.map((ev) =>
+  '<option value="' + esc(ev.id) + '">' + esc(ev.label) + '</option>').join('');
 $('miMail').textContent = u.email ?? 'sin correo cargado';
 $('kEmail').checked = notif.canalEmail !== false;
 $('kWa').checked = notif.canalWhatsapp === true;

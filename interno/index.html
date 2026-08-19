@@ -163,7 +163,21 @@ const DIAS_ALERTA = 7;
 let acts = [];
 try {
   const snap = await getDocs(Core.consultaActividades(u, CV2.esAdmin()));
-  snap.forEach((d) => acts.push({ id: d.id, ...d.data() }));
+  // LO ELIMINADO NO ENTRA. Eliminar marca 'eliminado' en UN documento y su
+  // rama entera se va con él: el mismo corte que en Actividades y en la
+  // Agenda. Sin esto, algo mandado a la papelera seguiría reclamando atención
+  // desde la portada, que es justo donde más molesta.
+  const crudo = {};
+  snap.forEach((d) => { crudo[d.id] = { id: d.id, ...d.data() }; });
+  const enterrado = (it) => {
+    let cur = it, g = 0;
+    while (cur && g++ < 25) {
+      if (cur.eliminado) return true;
+      cur = cur.parentId ? crudo[cur.parentId] : null;
+    }
+    return false;
+  };
+  acts = Object.values(crudo).filter((it) => !enterrado(it));
 } catch (e) { console.warn('actividades', e); }
 
 // Las recurrentes NO usan fechaVencimiento: al cerrar el ciclo, el core

@@ -7,6 +7,19 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v84 (19-ago-2026) — LOS AVISOS DE ACTIVIDADES NO EXISTÍAN: se construyen.
+//       Dos llaves nuevas en Mis avisos ('te asignaron una actividad' y
+//       'actividad nueva del equipo') y el disparo en actividades.html. Más
+//       un SIMULACRO que corre el mismo CV2.avisar y dice, persona por
+//       persona, a quién le llega y por qué no. 'keepalive' en los dos
+//       envíos: el aviso ya no muere si se cambia de página. Y el Inicio deja
+//       de mostrar lo eliminado. nucleo.js + avisos.html + actividades.html +
+//       index.html.
+// v83 (19-ago-2026) — VOLVER ES VOLVER AL MISMO LUGAR. Salir de la Agenda a
+//       editar una actividad y cerrar el formulario dejaba a la persona en
+//       Actividades. Ahora los dos caminos —editar y crear— devuelven a la
+//       Agenda, a la misma vista, la misma semana y el mismo punto de la
+//       lista. agenda.html + actividades.html.
 // v82 (19-ago-2026) — LA AGENDA SE ARMA SIN SALIR DE LA AGENDA. El árbol de
 //       origen deja de venir todo desplegado: las ramas se pliegan y lo
 //       plegado se recuerda. Y cada proyecto y cada actividad tienen un + que
@@ -71,7 +84,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v82';
+const VERSION = 'cv2-shell-v84';
 
 const SHELL = [
   './',

@@ -235,7 +235,7 @@ CV2.registrarSW();
 const u = await CV2.verificarAuth();
 CV2.renderNav('agenda');
 
-const SELLO = 'agenda-6';
+const SELLO = 'agenda-7';
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
 
@@ -262,15 +262,46 @@ function guardarPlegado() {
 }
 
 // ── La vuelta desde Actividades ──────────────────────────
-// ?vuelta=<id> — se acaba de crear una actividad desde acá. Se abre en la
-// vista del árbol, se busca la nueva y se la señala. La dirección se limpia
-// enseguida: recargar no tiene que volver a destellar algo que ya se vio.
+// Desde acá se sale a Actividades por dos motivos: a EDITAR una actividad
+// (tocando su nombre) o a CREAR una nueva (con el +). En los dos casos, al
+// cerrar el formulario —guardando o cancelando— se vuelve acá. Y volver
+// significa volver AL MISMO LUGAR: la misma vista, la misma semana y el mismo
+// punto de la lista. Aterrizar arriba de todo, en la otra pestaña, obliga a
+// rehacer a mano el camino que uno ya había hecho.
+//
+// El punto se guarda ANTES de irse, en el navegador: la dirección solo lleva
+// 'volver=agenda' y, a la vuelta, '?vuelta=…'. Meter la vista, la semana y el
+// desplazamiento en la dirección la volvería ilegible y encima quedaría en el
+// historial.
+function guardarVuelta() {
+  guardarPlegado();
+  try {
+    sessionStorage.setItem('cv2-agenda-vuelta',
+      JSON.stringify({ vista, lunes, y: window.scrollY }));
+  } catch { /* en navegación privada de iOS puede fallar: se vuelve arriba y ya */ }
+}
+
 const _q = new URLSearchParams(location.search);
 const vuelta = _q.get('vuelta');
+// ?vuelta=<id> — se acaba de crear esa actividad desde acá. ?vuelta=1 — se
+// volvió de editar o de cancelar, sin nada nuevo que señalar.
 let recienId = (vuelta && vuelta !== '1') ? vuelta : null;
 let recienHecha = false;
+let lunesGuardado = null;
+let volverY = 0;
+let scrollRestaurado = false;
 if (vuelta) {
-  vista = 'arbol';
+  let st = null;
+  try { st = JSON.parse(sessionStorage.getItem('cv2-agenda-vuelta') || 'null'); } catch { st = null; }
+  if (st && (st.vista === 'semana' || st.vista === 'arbol')) vista = st.vista;
+  if (st && st.lunes) lunesGuardado = st.lunes;
+  if (st) volverY = Number(st.y) || 0;
+  // La recién creada se muestra en el árbol, que es donde se estaba armando
+  // la semana, y se la trae a la vista: ahí el desplazamiento guardado sobra.
+  if (recienId) { vista = 'arbol'; volverY = 0; }
+  else if (!st) vista = 'arbol';
+  // La dirección se limpia enseguida: recargar no tiene que volver a
+  // destellar algo que ya se vio.
   history.replaceState(null, '', location.pathname);
 }
 
@@ -410,7 +441,7 @@ function pastillaHTML(it, dia, tr) {
     + (h ? '<span class="pas-hora">' + esc(h) + '</span>'
          : '<span class="pas-hora sin">—</span>')
     + '<span class="pas-sem" style="background:' + s.c + '" title="' + esc(s.t) + '"></span>'
-    + '<a class="pas-txt" href="./actividades.html?a=' + encodeURIComponent(it.id) + '&editar=1">'
+    + '<a class="pas-txt" href="./actividades.html?a=' + encodeURIComponent(it.id) + '&editar=1&volver=agenda">'
     + '<b>' + marca(it) + esc(it.titulo || '(sin título)') + '</b>'
     + '<small>' + esc(s.t)
     + (largo ? ' · <span class="chip">día ' + cual + '/' + total + '</span>' : '')
@@ -561,7 +592,7 @@ function pastillaArbolHTML(it, hijos, cuantos) {
     + '<input type="checkbox" data-check="' + esc(it.id) + '"' + (ya ? ' checked' : '')
     + (fija ? ' disabled' : '') + '></label>'
     + '<span class="pas-sem" style="background:' + s.c + '" title="' + esc(s.t) + '"></span>'
-    + '<a class="pas-txt" href="./actividades.html?a=' + encodeURIComponent(it.id) + '&editar=1">'
+    + '<a class="pas-txt" href="./actividades.html?a=' + encodeURIComponent(it.id) + '&editar=1&volver=agenda">'
     + '<b>' + marca(it) + esc(it.titulo || '(sin título)') + '</b>'
     + '<small>' + (f ? CV2.fmtFecha(f) : 'sin fecha')
     + (it.hora ? ' · ' + esc(it.hora) : '')
@@ -646,10 +677,22 @@ function render() {
       + esc(SELLO) + ' · motor ' + esc(CV2.VERSION ?? '?') + '</p>';
     window.scrollTo(0, y);
     mostrarReciente();
+    restaurarPunto();
     return;
   }
   renderSemana();
   window.scrollTo(0, y);
+  restaurarPunto();
+}
+
+// El punto donde se estaba antes de salir a Actividades. Una sola vez y con un
+// respiro: la lista se acaba de pintar y el navegador todavía no fijó su
+// altura, así que un scrollTo inmediato cae corto.
+function restaurarPunto() {
+  if (scrollRestaurado || !volverY) return;
+  scrollRestaurado = true;
+  const destino = volverY;
+  setTimeout(() => window.scrollTo(0, destino), 60);
 }
 
 // La recién creada, a la vista. Se hace UNA vez y después se olvida: repetir
@@ -799,6 +842,10 @@ $('cuerpo').addEventListener('change', async (ev) => {
 });
 
 $('cuerpo').addEventListener('click', async (ev) => {
+  // Tocar el nombre lleva a Actividades a editarla. No se frena la
+  // navegación: solo se anota dónde estábamos, para poder volver acá.
+  if (ev.target.closest('a.pas-txt')) { guardarVuelta(); return; }
+
   // ── Plegar y desplegar ──
   const pl = ev.target.closest('[data-plegar]');
   if (pl) {
@@ -837,9 +884,9 @@ $('cuerpo').addEventListener('click', async (ev) => {
     // La rama donde se crea queda ABIERTA: si estaba plegada, al volver la
     // actividad nueva estaría escondida justo adentro de lo que se cerró.
     delete plegado[nu.dataset.nueva];
-    // Lo que está plegado se guarda ANTES de irse: al volver, la pantalla
-    // tiene que estar como se dejó.
-    guardarPlegado();
+    // Dónde estábamos se anota ANTES de irse: al volver, la pantalla tiene que
+    // estar como se dejó.
+    guardarVuelta();
     location.href = './actividades.html?nueva=' + encodeURIComponent(nu.dataset.nueva)
       + '&volver=agenda';
     return;
@@ -894,7 +941,9 @@ $('sig').addEventListener('click', () => { lunes = sumar(lunes, 7); render(); })
 $('ahora').addEventListener('click', () => { lunes = lunesDe(hoy); render(); });
 
 // ═══ Cargas — AL FINAL ════════════════════════════════════
-lunes = lunesDe(hoy);
+// La semana que se estaba mirando al salir, no la de hoy: si estaba armando
+// la que viene, volver a ésta es perder el hilo.
+lunes = lunesGuardado || lunesDe(hoy);
 
 // Si se vuelve de crear una actividad, la pestaña activa es la del árbol: la
 // vista ya se fijó arriba, pero la barra de abajo no se entera sola.

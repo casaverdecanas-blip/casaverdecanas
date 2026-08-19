@@ -501,9 +501,14 @@ let pedidaHecha = false;
 // formulario se desincronizan a la primera modificación.
 const pedidaNueva = _q.get('nueva');
 let volverAgenda = _q.get('volver') === 'agenda';
+// Se enciende cuando esta página abrió el formulario POR PEDIDO de la Agenda
+// —a crear o a editar—. Solo entonces cerrarlo devuelve allá: si alguien
+// después abre otra actividad por su cuenta, cerrar esa no lo saca de acá.
+let volverAlCerrar = false;
 let nuevaHecha = false;
 const irAlaAgenda = (idNuevo) => {
   volverAgenda = false;
+  volverAlCerrar = false;
   // replace y no href: el Atrás no tiene que traer de vuelta esta página con
   // el mismo ?nueva= y reabrir el formulario (§ el historial no se ensucia).
   location.replace('./agenda.html' + (idNuevo ? '?vuelta=' + encodeURIComponent(idNuevo) : '?vuelta=1'));
@@ -1484,13 +1489,68 @@ window.abrirEdicion = (id) => {
   prepararModal({ titulo: 'Editar', esProyecto: !it.parentId, it });
 };
 
-// Si se llegó desde la Agenda solo a crear una actividad, cerrar el
-// formulario —con Cancelar, con la X, con Escape o con el botón Atrás de
-// Android— también devuelve a la Agenda. Quedarse en Actividades después de
-// arrepentirse es dejar a la persona en otra pantalla sin haber pedido ir.
+// Si se llegó desde la Agenda a crear o a editar una actividad, cerrar el
+// formulario —con Guardar, con Cancelar, con la X, con Escape o con el botón
+// Atrás de Android— devuelve a la Agenda, al mismo lugar donde estaba. Dejar a
+// la persona en Actividades después de terminar es abandonarla en otra
+// pantalla a la que nunca pidió ir.
 modal.addEventListener('close', () => {
-  if (volverAgenda && nuevaHecha) irAlaAgenda(null);
+  if (volverAgenda && volverAlCerrar) irAlaAgenda(null);
 });
+
+// ── El aviso de una actividad ────────────────────────────
+// Dos avisos distintos, y por eso son dos llaves distintas en Mis avisos:
+//   · 'actividad_mia'   — te pusieron A VOS en una actividad. Es un pedido
+//     directo y va a las personas asignadas, y a nadie más.
+//   · 'actividad_nueva' — apareció trabajo nuevo para todo el equipo.
+//
+// LO QUE NO AVISA, a propósito:
+//   · Las de alcance 'personal': son notas de uno para uno mismo.
+//   · Las LIMPIEZAS y todo lo que traiga 'reservaId': no las crea una
+//     persona, se materializan solas al abrir Reservas. Avisarlas sería
+//     mandar un WhatsApp por un hecho que ya era cierto desde antes, y
+//     encima desde el teléfono del primero que abrió la app (§F3: los
+//     avisos no avisan estados).
+//   · Editar una actividad que ya existía. Solo se avisa a quien se SUMA.
+//
+// Sin await y después de guardar: un aviso nunca puede hacer fracasar la
+// acción que lo produjo (regla de oro de §F3).
+function avisarActividad(id, datos, asignados, esNueva) {
+  if (datos.reservaId) return;
+  if (datos.alcance === 'personal') return;
+
+  const donde = datos.parentId && byId[datos.parentId]
+    ? ' (en ' + (byId[datos.parentId].titulo || 'un proyecto') + ')' : '';
+  const cuando = datos.fechaVencimiento
+    ? '\nPara el ' + CV2.fmtFecha(datos.fechaVencimiento)
+    : (datos.fechaInicio ? '\nDesde el ' + CV2.fmtFecha(datos.fechaInicio) : '');
+  const quien = u.nombre || 'Alguien';
+
+  if (datos.alcance === 'asignados' && asignados && asignados.length) {
+    CV2.avisar({
+      evento: 'actividad_mia',
+      asunto: 'Casa Verde · ' + datos.titulo,
+      texto: quien + (esNueva ? ' te asignó una actividad' : ' te sumó a una actividad')
+        + ':\n' + datos.titulo + donde + cuando,
+      para: asignados,
+      excluir: u.uid,
+      enlace: './actividades.html?a=' + encodeURIComponent(id)
+    });
+    return;
+  }
+
+  if (esNueva && datos.alcance === 'equipo') {
+    CV2.avisar({
+      evento: 'actividad_nueva',
+      asunto: 'Casa Verde · ' + datos.titulo,
+      texto: quien + ' creó una actividad para el equipo:\n'
+        + datos.titulo + donde + cuando,
+      para: 'todos',
+      excluir: u.uid,
+      enlace: './actividades.html?a=' + encodeURIComponent(id)
+    });
+  }
+}
 
 // ── Guardar ──────────────────────────────────────────────
 // Los lugares viven en config/compras, que ya tiene permiso para el equipo
@@ -1646,8 +1706,15 @@ $('mGuardar').addEventListener('click', async () => {
   $('mGuardar').disabled = true;
   try {
     if (editandoId) {
+      // Quién estaba asignado ANTES: hay que mirarlo antes de escribir, o el
+      // "quién es nuevo" de abajo compara el dato con sí mismo.
+      const antes = (byId[editandoId] && byId[editandoId].competencias) || [];
       await updateDoc(doc(db, 'actividades', editandoId), datos);
       CV2.toast('Guardada', 'success');
+      // Solo a los que se sumaron ahora. Avisarle de nuevo a quien ya estaba
+      // convierte cada corrección de una coma en un WhatsApp para todos.
+      const nuevos = datos.competencias.filter((x) => antes.indexOf(x) === -1);
+      avisarActividad(editandoId, datos, nuevos, false);
     } else {
       const ref = await addDoc(collection(db, 'actividades'), {
         ...datos,
@@ -1662,6 +1729,7 @@ $('mGuardar').addEventListener('click', async () => {
       });
       if (datos.parentId) abiertos[datos.parentId] = true;
       CV2.toast('Creada', 'success');
+      avisarActividad(ref.id, datos, datos.competencias, true);
       // Vino de la Agenda: se vuelve ahí, a la misma vista y con la actividad
       // recién creada señalada, para seguir armando la semana.
       if (volverAgenda) { irAlaAgenda(ref.id); return; }
@@ -2071,7 +2139,7 @@ onSnapshot(consulta, (snap) => {
       // La edición se abre DESPUÉS de dibujar y de traer a la vista: si el
       // modal apareciera primero, al cerrarlo la persona quedaría mirando
       // una lista que nunca se movió y sin saber dónde está la actividad.
-      if (pedidaEditar) abrirEdicion(pedida);
+      if (pedidaEditar) { volverAlCerrar = volverAgenda; abrirEdicion(pedida); }
       else abrirDetalle(pedida);
     }, 80);
     verificarCrono();
@@ -2085,6 +2153,7 @@ onSnapshot(consulta, (snap) => {
     nuevaHecha = true;
     if (byId[pedidaNueva]) {
       render();
+      volverAlCerrar = volverAgenda;
       abrirAlta(pedidaNueva);
       return;
     }
