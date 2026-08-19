@@ -159,6 +159,24 @@
   .rz-pie { display: flex; justify-content: space-between; gap: 10px; margin-top: 10px;
             padding-top: 8px; border-top: 2px solid var(--linea);
             font-size: .82rem; color: var(--gris); }
+
+  /* La papelera. Eliminar no borra: manda acá, y solo el administrador entra.
+     Por eso la fila tiene que decir TODO lo que hace falta para decidir sin
+     abrir nada: qué era, de qué proyecto salía, cuántas cosas se llevó
+     colgadas, quién la eliminó y cuándo. */
+  .pap-it { border: 1px solid var(--linea); border-radius: var(--radio);
+            background: #fff; padding: 10px 12px; margin-bottom: 8px; }
+  .pap-it .tit { font-weight: 600; overflow-wrap: anywhere; }
+  .pap-it .meta { font-size: .76rem; color: var(--gris); line-height: 1.5;
+                  margin-top: 3px; overflow-wrap: anywhere; }
+  .pap-it .meta .proy { color: var(--verde-osc); font-weight: 600; }
+  .pap-it .meta .sep { margin: 0 4px; opacity: .55; }
+  .pap-it .rama { display: inline-block; margin-top: 5px; font-size: .74rem;
+                  background: var(--crema); color: var(--gris);
+                  border-radius: 999px; padding: 2px 9px; }
+  .pap-acc { display: flex; gap: 8px; justify-content: flex-end; margin-top: 9px; }
+  .pap-acc .btn { font-size: .82rem; }
+  .btn-peligro { background: var(--rojo); border-color: var(--rojo); color: #fff; }
 </style>
 </head>
 <body>
@@ -168,6 +186,13 @@
 <div class="contenedor">
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
     <h1 style="margin-right:auto;">Actividades</h1>
+    <!-- Solo aparece si el administrador tiene algo esperando en la papelera:
+         un botón que casi siempre está vacío es ruido en una pantalla de
+         teléfono. -->
+    <button class="btn oculto" id="btnPapelera" title="Actividades eliminadas">
+      <span class="material-icons" style="color:var(--rojo)">delete_sweep</span>
+      <span id="papCuenta">0</span>
+    </button>
     <button class="btn btn-primario" id="btnNuevoProyecto">
       <span class="material-icons">create_new_folder</span> Proyecto
     </button>
@@ -394,6 +419,29 @@
   </div>
 </dialog>
 
+<!-- ═══ Papelera · SOLO ADMINISTRADOR ═════════════════════════
+     Eliminar una actividad no borra nada: la manda acá con su rama entera
+     colgando. Cualquiera del equipo puede eliminar —tenga o no sub-ítems—
+     porque el error se deshace de un toque; solo el administrador ve esta
+     lista y decide si vuelve o se va del todo. -->
+<dialog id="mPapelera" style="width:min(560px,96vw);">
+  <div class="m-head">
+    <h2 style="font-size:1.05rem;">Actividades eliminadas</h2>
+    <button class="btn-ico" id="papCerrar" title="Cerrar">
+      <span class="material-icons">close</span></button>
+  </div>
+  <div class="m-body">
+    <p class="texto-gris" style="margin:0 0 10px;font-size:.82rem;line-height:1.5;">
+      Lo que se elimina queda acá y no se ve en ningún otro lado. Al restaurar
+      vuelve <b>con todo lo que tenía colgado</b>, al mismo lugar del árbol.
+    </p>
+    <div id="papLista" class="rz-scroll"></div>
+  </div>
+  <div class="m-pie">
+    <button class="btn" id="papCerrar2">Cerrar</button>
+  </div>
+</dialog>
+
 <script type="module">
 // ═══════════════════════════════════════════════════════════
 // ESTRUCTURA (lección T1.2): todo se define PRIMERO; la
@@ -417,9 +465,19 @@ const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
 
 // ═══ Estado ═══════════════════════════════════════════════
+// byId son las actividades VIVAS y es lo único que mira el resto de la
+// página: el árbol, las compras, los filtros, el selector de padre. Lo
+// eliminado nunca entra ahí, así que ninguna pantalla necesita acordarse de
+// esquivarlo (eso es lo que se olvida siempre).
 let byId = {};
 let childrenOf = {};
 let roots = [];
+// El mapa CRUDO, con lo eliminado incluido: lo usa la papelera y nada más.
+let todos = {};
+let hijosTodos = {};
+// Las eliminaciones VISIBLES: las que no cuelgan de otra ya eliminada. Si se
+// borró la rama entera, en la papelera figura la rama, no cada hoja.
+let papelera = [];
 // ?a=<idActividad> — de dónde viene alguien que tocó una fila del Inicio.
 // Se aplica UNA sola vez: el onSnapshot vuelve a correr con cada cambio, y
 // reabrir la actividad en cada uno pelearía con lo que esté haciendo la
@@ -461,6 +519,26 @@ const fmtCrono = (ms) => {
   const hh = Math.floor(s / 3600), mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0'),
         ss = String(s % 60).padStart(2, '0');
   return `${hh}:${mm}:${ss}`;
+};
+
+// Todo lo que cuelga de una actividad, en el mapa CRUDO (incluye lo ya
+// eliminado). Se usa para dos cosas: contar qué se lleva puesto una
+// eliminación, y borrar la rama entera cuando el administrador decide que se
+// va del todo. Tope de profundidad por la misma razón que rutaDe(): un
+// parentId en círculo colgaría la pantalla.
+const ramaDe = (id) => {
+  const salida = [];
+  const bajar = (pid, nivel) => {
+    if (nivel > 12) return;
+    const hs = hijosTodos[pid] || [];
+    for (let i = 0; i < hs.length; i++) {
+      if (salida.indexOf(hs[i]) !== -1) continue;
+      salida.push(hs[i]);
+      bajar(hs[i], nivel + 1);
+    }
+  };
+  bajar(id, 0);
+  return salida;
 };
 
 const raizDe = (id) => {
@@ -644,11 +722,18 @@ function renderCompras(cont) {
 
 function render() {
   renderBanner();
+  // La papelera se repinta con todo lo demás: si otro elimina o habilita algo
+  // mientras la ventana está abierta, la lista lo muestra sin cerrar nada.
+  renderPapelera();
   // Si el detalle está abierto, se repinta con los datos nuevos: el chip
   // "🛒 1/3" y la lista tienen que reflejar lo que acaba de tildar otro. Sin
   // esto, el modal mostraba una foto del momento en que se abrió.
-  if ($('mDetalle').open && detalleAbierto && byId[detalleAbierto]) {
-    refrescarDetalle(detalleAbierto);
+  // Y si desapareció mientras estaba abierta —otro la eliminó— la ventana se
+  // cierra sola: quedaba mostrando una actividad que ya no está, con botones
+  // que fallaban en silencio.
+  if ($('mDetalle').open && detalleAbierto) {
+    if (byId[detalleAbierto]) refrescarDetalle(detalleAbierto);
+    else { detalleAbierto = null; $('mDetalle').close(); }
   }
   const cont = $('arbol');
   if (filtro === 'compras') { renderCompras(cont); return; }
@@ -991,7 +1076,10 @@ window.abrirDetalle = (id) => {
     + '<button class="btn-ico" onclick="verRealizaciones(\'' + id + '\')" title="Historial de realizaciones"><span class="material-icons">history</span></button>'
     + '<button class="btn-ico" onclick="toggleEstrella(\'' + id + '\')" title="Destacar"><span class="material-icons ' + (star ? 'estrella' : '') + '">' + (star ? 'star' : 'star_outline') + '</span></button>'
     + (!it.hecho ? '<button class="btn-ico" onclick="abrirEdicion(\'' + id + '\')" title="Editar"><span class="material-icons">edit</span></button>' : '')
-    + ((!it.hecho || CV2.esAdmin()) ? '<button class="btn-ico" onclick="borrar(\'' + id + '\')" title="Eliminar"><span class="material-icons" style="color:var(--rojo)">delete</span></button>' : '');
+    // Eliminar ya no es definitivo (va a la papelera y el administrador la
+    // vuelve a habilitar), así que no hace falta reservarlo: puede cualquiera,
+    // esté terminada o no, tenga sub-ítems o no.
+    + '<button class="btn-ico" onclick="borrar(\'' + id + '\')" title="Eliminar"><span class="material-icons" style="color:var(--rojo)">delete</span></button>';
 
   // La reserva, si esta actividad salió de una. Se carga a pedido: traerla
   // con el árbol serían cinco lecturas más en cada arranque para algo que se
@@ -1162,23 +1250,149 @@ window.toggleEstrella = async (id) => {
   } catch { CV2.toast('No se pudo guardar la estrella', 'error'); }
 };
 
+// ═══ ELIMINAR = MANDAR A LA PAPELERA ══════════════════════
+// Antes eliminar era definitivo, y por eso estaba lleno de trabas: no se
+// podía si tenía sub-ítems, no se podía si estaba terminada y no era el
+// administrador. El resultado práctico era que nadie limpiaba nada y el árbol
+// crecía con cosas muertas.
+//
+// Ahora se marca UN campo, 'eliminado', en UN documento. La rama entera
+// desaparece sola porque nada que cuelgue de algo eliminado entra en byId, y
+// restaurar es también UNA escritura: vuelve todo junto y al mismo lugar. Los
+// sub-ítems no se tocan, así que no hay forma de que la vuelta quede a medias.
+//
+// Se permite a cualquiera del equipo: un error se deshace de un toque, y la
+// alternativa real no era "que no se equivoque" sino "que no ordene nunca".
 window.borrar = async (id) => {
   const it = byId[id];
-  if (it.hecho && !CV2.esAdmin()) {
-    CV2.toast('Las terminadas solo las elimina un administrador', 'error');
+  if (!it) return;
+
+  const rama = ramaDe(id);
+  // Un cronómetro corriendo en la rama es lo único que frena: al desaparecer
+  // de la vista el banner apunta a una actividad que ya no se ve y no queda
+  // manera de frenarlo. Se frena primero y después se elimina.
+  if (crono && (crono.actId === id || rama.indexOf(crono.actId) !== -1)) {
+    CV2.toast('Hay un cronómetro corriendo acá adentro: frenalo primero', 'error');
     return;
   }
-  if ((childrenOf[id] ?? []).length) {
-    CV2.toast('Tiene sub-ítems: movelos o borralos primero', 'error');
-    return;
-  }
-  if (!confirm(`¿Borrar "${it.titulo}"? No se puede deshacer.`)) return;
+
+  const aviso = '¿Eliminar "' + (it.titulo || 'esta actividad') + '"?'
+    + (rama.length ? '\n\nSe va con sus ' + rama.length + ' sub-ítem(s).' : '')
+    + '\n\nNo se borra: queda en la papelera y el administrador puede volver a '
+    + 'habilitarla con todo lo que tenía adentro.';
+  if (!confirm(aviso)) return;
+
   try {
+    await updateDoc(doc(db, 'actividades', id), {
+      eliminado: true,
+      eliminadoEn: serverTimestamp(),
+      eliminadoPor: u.uid,
+      eliminadoNombre: u.nombre ?? '',
+      actualizadoEn: serverTimestamp()
+    });
+    if (detalleAbierto === id) { detalleAbierto = null; $('mDetalle').close(); }
+    CV2.toast(CV2.esAdmin()
+      ? 'Eliminada · está en la papelera'
+      : 'Eliminada · queda en la papelera del administrador', 'success');
+  } catch (e) { CV2.toast('No se pudo eliminar: ' + (e.code ?? e.message), 'error'); }
+};
+
+// ── Volver a habilitar ───────────────────────────────────
+// Se llama 'revivir' y no 'restaurar' porque 'restaurar' ya existe en esta
+// página y significa otra cosa: destachar una actividad TERMINADA.
+window.revivir = async (id) => {
+  const it = todos[id];
+  if (!it) return;
+  const datos = {
+    eliminado: false,
+    eliminadoEn: null, eliminadoPor: null, eliminadoNombre: null,
+    actualizadoEn: serverTimestamp()
+  };
+  // Si el padre ya no existe (se borró definitivamente antes), volver al
+  // mismo lugar sería volver a la nada: la actividad quedaría en la base sin
+  // aparecer en ninguna pantalla. Sube como proyecto y se avisa.
+  const huerfana = it.parentId && !todos[it.parentId];
+  if (huerfana) datos.parentId = null;
+  try {
+    await updateDoc(doc(db, 'actividades', id), datos);
+    CV2.toast(huerfana
+      ? 'Habilitada · su proyecto ya no existía: quedó arriba de todo'
+      : 'Habilitada de nuevo', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+};
+
+// ── Borrar de verdad (solo administrador, solo desde la papelera) ──
+// Borra la rama entera. Se hace de abajo hacia arriba para no dejar huérfanos
+// si algo falla en el medio. Las sesiones y los honorarios NO se tocan: son
+// el registro de horas trabajadas y de plata, y no dependen de que la
+// actividad exista.
+window.borrarDefinitivo = async (id) => {
+  if (!CV2.esAdmin()) return;
+  const it = todos[id];
+  if (!it) return;
+  const rama = ramaDe(id);
+  const total = rama.length + 1;
+  if (!confirm('BORRAR DEFINITIVAMENTE "' + (it.titulo || 'esta actividad') + '"'
+    + (rama.length ? ' y sus ' + rama.length + ' sub-ítem(s)' : '')
+    + '.\n\nEsto no se puede deshacer.\n\nLas horas registradas y los cobros NO se '
+    + 'borran: quedan en el historial.')) return;
+  if (!confirm('Última confirmación: se van ' + total + ' actividad(es) para siempre.')) return;
+  try {
+    // De la hoja hacia la raíz.
+    for (let i = rama.length - 1; i >= 0; i--) {
+      await deleteDoc(doc(db, 'actividades', rama[i]));
+    }
     await deleteDoc(doc(db, 'actividades', id));
-    if (detalleAbierto === id) detalleAbierto = null;
-    CV2.toast('Borrada', 'success');
+    CV2.toast('Borradas definitivamente', 'success');
   } catch (e) { CV2.toast('No se pudo borrar: ' + (e.code ?? e.message), 'error'); }
 };
+
+// ── La lista de la papelera ──────────────────────────────
+function renderPapelera() {
+  const hay = papelera.length;
+  const btn = $('btnPapelera');
+  btn.classList.toggle('oculto', !CV2.esAdmin() || !hay);
+  $('papCuenta').textContent = String(hay);
+
+  if (!$('mPapelera').open) return;
+  const cont = $('papLista');
+  if (!hay) {
+    cont.innerHTML = '<div class="vacio">No hay actividades eliminadas.</div>';
+    return;
+  }
+  cont.innerHTML = papelera.map((it) => {
+    const rama = ramaDe(it.id);
+    const ruta = rutaDe(it);
+    const cuando = it.eliminadoEn && it.eliminadoEn.toDate
+      ? CV2.fmtFecha(it.eliminadoEn) : '';
+    const meta = [];
+    if (it.eliminadoNombre) meta.push('la eliminó ' + esc(it.eliminadoNombre));
+    if (cuando) meta.push('el ' + cuando);
+    return '<div class="pap-it">'
+      + '<div class="tit">' + esc(it.titulo || '(sin título)') + '</div>'
+      + '<div class="meta">'
+      + (ruta.length
+        ? ruta.map((a, i) => '<span class="' + (i === 0 ? 'proy' : '') + '">'
+            + (i === 0 ? '📁 ' : '') + esc(a.titulo || a.id) + '</span><span class="sep">›</span>').join('')
+        : '<span class="proy">📁 Proyecto</span>')
+      + (meta.length ? '<br>' + meta.join(' · ') : '')
+      + '</div>'
+      + (rama.length ? '<span class="rama">se llevó ' + rama.length + ' sub-ítem(s)</span>' : '')
+      + '<div class="pap-acc">'
+      + '<button class="btn" onclick="revivir(\'' + it.id + '\')">'
+      + '<span class="material-icons">restart_alt</span> Habilitar</button>'
+      + '<button class="btn btn-peligro" onclick="borrarDefinitivo(\'' + it.id + '\')">'
+      + '<span class="material-icons">delete_forever</span> Borrar</button>'
+      + '</div></div>';
+  }).join('');
+}
+
+$('btnPapelera').addEventListener('click', () => {
+  $('mPapelera').showModal();
+  renderPapelera();
+});
+$('papCerrar').addEventListener('click', () => $('mPapelera').close());
+$('papCerrar2').addEventListener('click', () => $('mPapelera').close());
 
 $('filtros').addEventListener('click', (ev) => {
   const b = ev.target.closest('.fchip');
@@ -1749,8 +1963,38 @@ if (typeof Core.consultaActividades !== 'function') {
 const consulta = Core.consultaActividades(u, CV2.esAdmin());
 
 onSnapshot(consulta, (snap) => {
-  byId = {}; childrenOf = {};
-  snap.forEach((d) => { byId[d.id] = { id: d.id, ...d.data() }; });
+  byId = {}; childrenOf = {}; todos = {}; hijosTodos = {}; papelera = [];
+  snap.forEach((d) => { todos[d.id] = { id: d.id, ...d.data() }; });
+  for (const it of Object.values(todos)) {
+    (hijosTodos[it.parentId ?? ''] ??= []).push(it.id);
+  }
+
+  // ── LO ELIMINADO SE APARTA ACÁ Y EN NINGÚN OTRO LADO ──
+  // Una eliminación marca UN documento. Lo que cuelga de él no se toca: queda
+  // afuera porque su ancestro está eliminado, no porque lleve una marca
+  // propia. Por eso restaurar devuelve la rama entera con una sola escritura,
+  // y por eso el resto de la página no necesita saber que la papelera existe.
+  const enterrado = (it) => {
+    let cur = it, g = 0;
+    while (cur && g++ < 25) {
+      if (cur.eliminado) return true;
+      cur = cur.parentId ? todos[cur.parentId] : null;
+    }
+    return false;
+  };
+  for (const it of Object.values(todos)) {
+    const arriba = it.parentId && todos[it.parentId] ? enterrado(todos[it.parentId]) : false;
+    if (arriba) continue;                    // se fue con su rama: ni vive ni figura
+    if (it.eliminado) papelera.push(it);     // eliminación visible: va a la papelera
+    else byId[it.id] = it;                   // viva
+  }
+  // Lo último eliminado, arriba: es lo que con más probabilidad fue un error.
+  papelera.sort((a, b) => {
+    const ma = a.eliminadoEn && a.eliminadoEn.toMillis ? a.eliminadoEn.toMillis() : 0;
+    const mb = b.eliminadoEn && b.eliminadoEn.toMillis ? b.eliminadoEn.toMillis() : 0;
+    return mb - ma;
+  });
+
   for (const it of Object.values(byId)) {
     (childrenOf[it.parentId ?? ''] ??= []).push(it.id);
   }

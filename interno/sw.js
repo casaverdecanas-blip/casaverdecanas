@@ -7,6 +7,11 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v81 (19-ago-2026) — ELIMINAR YA NO BORRA. Una actividad se elimina con o sin
+//       sub-ítems: se marca 'eliminado' y la rama entera desaparece de la
+//       vista. Queda en la PAPELERA, que solo ve el administrador, y desde ahí
+//       se vuelve a habilitar entera con una escritura o se borra de verdad.
+//       actividades.html.
 // v80 (18-ago-2026) — EL SITIO SE EDITA ENCIMA DEL SITIO. Nace editar.html:
 //       el sitio público real, dentro de un marco, con los textos abiertos
 //       para escribir y las fotos cambiables de un toque. Entra al SHELL.
@@ -61,7 +66,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v80';
+const VERSION = 'cv2-shell-v81';
 
 const SHELL = [
   './',
