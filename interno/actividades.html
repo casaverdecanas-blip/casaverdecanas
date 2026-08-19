@@ -491,6 +491,24 @@ const pedida = _q.get('a');
 const pedidaEditar = _q.get('editar') === '1';
 let pedidaHecha = false;
 
+// ── LA VUELTA A LA AGENDA ────────────────────────────────
+// Se llega acá desde la Agenda con ?nueva=<padreId>&volver=agenda: alguien
+// está armando su semana, ve que falta una actividad y la crea sin perder el
+// hilo. Se abre el alta con el padre ya elegido y, al guardar (o al
+// arrepentirse), se vuelve a la Agenda donde estaba.
+// El formulario de alta NO se copia a la Agenda: es el mismo formulario, con
+// alcance, recurrencia, tarifa, fechas y compra. Dos copias del mismo
+// formulario se desincronizan a la primera modificación.
+const pedidaNueva = _q.get('nueva');
+let volverAgenda = _q.get('volver') === 'agenda';
+let nuevaHecha = false;
+const irAlaAgenda = (idNuevo) => {
+  volverAgenda = false;
+  // replace y no href: el Atrás no tiene que traer de vuelta esta página con
+  // el mismo ?nueva= y reabrir el formulario (§ el historial no se ensucia).
+  location.replace('./agenda.html' + (idNuevo ? '?vuelta=' + encodeURIComponent(idNuevo) : '?vuelta=1'));
+};
+
 const PROJ_LIMPIEZAS = 'proj-limpiezas';
 
 let abiertos = {};
@@ -1466,6 +1484,14 @@ window.abrirEdicion = (id) => {
   prepararModal({ titulo: 'Editar', esProyecto: !it.parentId, it });
 };
 
+// Si se llegó desde la Agenda solo a crear una actividad, cerrar el
+// formulario —con Cancelar, con la X, con Escape o con el botón Atrás de
+// Android— también devuelve a la Agenda. Quedarse en Actividades después de
+// arrepentirse es dejar a la persona en otra pantalla sin haber pedido ir.
+modal.addEventListener('close', () => {
+  if (volverAgenda && nuevaHecha) irAlaAgenda(null);
+});
+
 // ── Guardar ──────────────────────────────────────────────
 // Los lugares viven en config/compras, que ya tiene permiso para el equipo
 // activo — igual que las categorías de Dinero. Cero cambios en las reglas.
@@ -1623,7 +1649,7 @@ $('mGuardar').addEventListener('click', async () => {
       await updateDoc(doc(db, 'actividades', editandoId), datos);
       CV2.toast('Guardada', 'success');
     } else {
-      await addDoc(collection(db, 'actividades'), {
+      const ref = await addDoc(collection(db, 'actividades'), {
         ...datos,
         hecho: false,
         estado: 'pendiente',
@@ -1636,6 +1662,9 @@ $('mGuardar').addEventListener('click', async () => {
       });
       if (datos.parentId) abiertos[datos.parentId] = true;
       CV2.toast('Creada', 'success');
+      // Vino de la Agenda: se vuelve ahí, a la misma vista y con la actividad
+      // recién creada señalada, para seguir armando la semana.
+      if (volverAgenda) { irAlaAgenda(ref.id); return; }
     }
     modal.close();
   } catch (e) {
@@ -2047,6 +2076,22 @@ onSnapshot(consulta, (snap) => {
     }, 80);
     verificarCrono();
     return;
+  }
+
+  // Se llegó desde la Agenda a crear una actividad dentro de un proyecto: se
+  // abre el alta directamente. Una sola vez, por lo mismo que ?a=: el
+  // onSnapshot vuelve a correr con cada cambio.
+  if (pedidaNueva && !nuevaHecha) {
+    nuevaHecha = true;
+    if (byId[pedidaNueva]) {
+      render();
+      abrirAlta(pedidaNueva);
+      return;
+    }
+    // El proyecto no está (lo eliminaron, o no lo alcanza el permiso): en vez
+    // de abrir un formulario a la nada, se avisa y se sigue en la lista.
+    CV2.toast('Ese proyecto ya no está disponible', 'error');
+    volverAgenda = false;
   }
 
   render();

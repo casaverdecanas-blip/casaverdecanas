@@ -128,10 +128,43 @@
   /* El árbol de origen: todo desplegado, para agarrar y llevar. Usa la
      sangría del sistema de diseño (.cv-nodo-hijos) para que se lea igual que
      Actividades — es el mismo árbol, visto desde otro lado. */
-  .arb-proy { font-size: .8rem; font-weight: 700; color: var(--verde-osc);
-    margin: 12px 0 4px; text-transform: uppercase; letter-spacing: .03em; }
+  /* El árbol de origen. Hasta ahora venía TODO desplegado, siempre: con un
+     proyecto de treinta actividades eso son treinta filas para llegar al
+     siguiente proyecto, y armar la semana era desplazarse. Ahora las ramas se
+     pliegan y lo plegado se recuerda mientras dure la visita, incluso si se
+     sale a crear una actividad y se vuelve. Abierto sigue siendo lo normal:
+     solo se guarda lo que la persona cerró a propósito. */
+  .arb-proy { display: flex; align-items: center; gap: 4px; margin: 12px 0 4px; }
+  .arb-proy .nom { flex: 1; min-width: 0; font-size: .8rem; font-weight: 700;
+    color: var(--verde-osc); text-transform: uppercase; letter-spacing: .03em;
+    overflow-wrap: anywhere; }
   .arb-vacio { color: var(--gris); font-size: .8rem; padding: 6px 0 10px; }
   .pas.ya { border-color: var(--verde); background: var(--verde-claro); }
+
+  /* El triángulo y el + comparten forma y tamaño en las dos alturas del árbol
+     —encabezado de proyecto y fila— para que la columna se lea derecha. */
+  .arb-btn { flex: 0 0 auto; width: 38px; height: 44px; border: 0; background: none;
+    color: var(--gris); border-radius: 9px; display: inline-flex; align-items: center;
+    justify-content: center; cursor: pointer; font-family: inherit; }
+  .arb-btn:active { background: rgba(34,48,31,.08); }
+  .arb-btn.vacio-hueco { pointer-events: none; opacity: 0; }
+  .arb-btn .material-icons { font-size: 21px; }
+  .arb-cuenta { font-size: .68rem; color: var(--gris); background: var(--crema);
+    border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
+  .arb-acc { display: flex; gap: 6px; align-items: center; margin: 4px 0 10px; }
+  .arb-acc button { min-height: 38px; padding: 6px 12px; border-radius: 9px;
+    border: 1px solid var(--linea); background: #fff; font-size: .78rem;
+    cursor: pointer; font-family: inherit; color: var(--tinta);
+    display: inline-flex; align-items: center; gap: 5px; }
+  .arb-acc .material-icons { font-size: 17px; }
+
+  /* La recién creada: un destello que dice "es esta", igual que en
+     Actividades. Se apaga solo — un resaltado permanente se vuelve ruido. */
+  @keyframes cv-llegada {
+    0%   { box-shadow: 0 0 0 0 rgba(45, 90, 39, .55); }
+    100% { box-shadow: 0 0 0 14px rgba(45, 90, 39, 0); }
+  }
+  .pas.recien { animation: cv-llegada 1.3s ease-out 2; border-color: var(--verde); }
 
   .vencidas { background: #fdeceb; border: 1px solid #f0b8b4; border-radius: var(--radio);
     padding: 10px 12px; margin-bottom: 14px; }
@@ -202,7 +235,7 @@ CV2.registrarSW();
 const u = await CV2.verificarAuth();
 CV2.renderNav('agenda');
 
-const SELLO = 'agenda-5';
+const SELLO = 'agenda-6';
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
 
@@ -211,6 +244,35 @@ let mia = {};              // { actId: {dia, franja, hora, nota} }
 let vista = 'semana';   // 'semana' | 'arbol'
 let lunes = null;
 let editando = null;       // actId con el editor de pastilla abierto
+
+// ── Lo que está PLEGADO en el árbol ──────────────────────
+// Solo se guarda lo cerrado a propósito: abierto es lo normal. Va en el
+// navegador y no en estado_usuario porque es cómo estoy mirando la pantalla
+// ahora, no una preferencia: no tiene por qué viajar al teléfono de al lado
+// ni gastar una escritura por cada triángulo. Sobrevive a la ida y vuelta a
+// Actividades, que es lo único que hace falta.
+let plegado = {};
+try {
+  plegado = JSON.parse(sessionStorage.getItem('cv2-agenda-plegado') || '{}') || {};
+} catch { plegado = {}; }
+function guardarPlegado() {
+  // En navegación privada de iOS escribir acá puede tirar excepción. Que no se
+  // recuerde el plegado es molesto; que reviente la pantalla, no.
+  try { sessionStorage.setItem('cv2-agenda-plegado', JSON.stringify(plegado)); } catch { /* da igual */ }
+}
+
+// ── La vuelta desde Actividades ──────────────────────────
+// ?vuelta=<id> — se acaba de crear una actividad desde acá. Se abre en la
+// vista del árbol, se busca la nueva y se la señala. La dirección se limpia
+// enseguida: recargar no tiene que volver a destellar algo que ya se vio.
+const _q = new URLSearchParams(location.search);
+const vuelta = _q.get('vuelta');
+let recienId = (vuelta && vuelta !== '1') ? vuelta : null;
+let recienHecha = false;
+if (vuelta) {
+  vista = 'arbol';
+  history.replaceState(null, '', location.pathname);
+}
 
 const hoy = CV2.hoyISO();
 const sumar = (iso, n) => {
@@ -456,22 +518,45 @@ function renderSemana() {
 }
 
 // ── El árbol de origen ───────────────────────────────────
-// TODAS las actividades, en cascada y ya desplegadas. No hay nada que abrir:
-// es un depósito del que se agarra, y esconder ramas obligaría a buscar.
-// Las que ya están en la semana se ven en verde, para no ponerlas dos veces.
-function pastillaArbolHTML(it, nivel) {
+// TODAS las actividades en cascada, con las ramas que se pliegan: un depósito
+// del que se agarra, pero que no obliga a pasar por treinta filas para llegar
+// al proyecto siguiente. Las que ya están en la semana se ven en verde, para
+// no ponerlas dos veces.
+const estaAbierto = (id) => plegado[id] !== true;
+
+function contarRama(id, hijosDe) {
+  let n = 0;
+  const bajar = (pid, nivel) => {
+    if (nivel > 12) return;
+    (hijosDe[pid] || []).forEach((h) => { n++; bajar(h.id, nivel + 1); });
+  };
+  bajar(id, 0);
+  return n;
+}
+
+function pastillaArbolHTML(it, hijos, cuantos) {
   const ya = enMiSemana(it);
   // Las limpiezas están siempre y no se destildan: tienen detrás la llegada
   // de un huésped (§10 · F1). Se ven marcadas y en gris.
   const fija = esLimpieza(it);
   const s = semaforo(it);
   const f = it.fechaInicio || it.fechaVencimiento;
+  const abierta = estaAbierto(it.id);
   // CASILLA, no agarre. Agregar es una decisión de sí o no, y una casilla la
   // dice en un toque; arrastrar desde una lista larga hasta una pestaña de
   // abajo obliga a recorrer media pantalla con el dedo apretado. El arrastre
   // se queda donde sirve: mover algo DENTRO de la semana.
-  return '<div class="pas' + (ya ? ' ya' : '') + '" data-pas="' + esc(it.id) + '">'
+  return '<div class="pas' + (ya ? ' ya' : '')
+      + (recienId === it.id ? ' recien' : '') + '" data-pas="' + esc(it.id) + '">'
     + '<div class="pas-fila">'
+    // El hueco vacío cuando no hay hijos mantiene derecha la columna de
+    // casillas: sin él, cada fila sin rama se corría 38px y el árbol se leía
+    // como un zigzag.
+    + (hijos
+      ? '<button class="arb-btn" data-plegar="' + esc(it.id) + '" title="'
+        + (abierta ? 'Plegar' : 'Desplegar') + '"><span class="material-icons">'
+        + (abierta ? 'expand_more' : 'chevron_right') + '</span></button>'
+      : '<span class="arb-btn vacio-hueco"></span>')
     + '<label class="pas-check" title="' + (ya ? 'Sacar de mi semana' : 'Poner en mi semana') + '">'
     + '<input type="checkbox" data-check="' + esc(it.id) + '"' + (ya ? ' checked' : '')
     + (fija ? ' disabled' : '') + '></label>'
@@ -484,14 +569,23 @@ function pastillaArbolHTML(it, nivel) {
     + (fija ? ' · <span class="chip mio">siempre en tu semana</span>'
             : (ya ? ' · <span class="chip mio">en tu semana</span>' : ''))
     + (!f && ya && !fija ? ' · <span class="chip">queda en hoy</span>' : '')
-    + '</small></a></div></div>';
+    + (hijos && !abierta ? ' · <span class="chip">' + cuantos + ' adentro</span>' : '')
+    + '</small></a>'
+    // Agregar un sub-ítem SIN salir del hilo: lleva al mismo formulario de
+    // Actividades con este padre ya elegido y vuelve acá al guardar.
+    + '<button class="arb-btn" data-nueva="' + esc(it.id) + '" title="Agregar una actividad acá adentro">'
+    + '<span class="material-icons">add</span></button>'
+    + '</div></div>';
 }
 
 function ramaHTML(id, hijosDe, nivel) {
   const hijos = hijosDe[id] || [];
-  if (!hijos.length) return '';
-  return '<div class="cv-nodo-hijos">' + hijos.map((it) =>
-    pastillaArbolHTML(it, nivel) + ramaHTML(it.id, hijosDe, nivel + 1)).join('') + '</div>';
+  if (!hijos.length || nivel > 12) return '';
+  return '<div class="cv-nodo-hijos">' + hijos.map((it) => {
+    const misHijos = (hijosDe[it.id] || []).length;
+    return pastillaArbolHTML(it, misHijos > 0, contarRama(it.id, hijosDe))
+      + (estaAbierto(it.id) ? ramaHTML(it.id, hijosDe, nivel + 1) : '');
+  }).join('') + '</div>';
 }
 
 function renderArbol() {
@@ -512,14 +606,30 @@ function renderArbol() {
     + 'Destildá para sacarlo.<br>'
     + 'Lo que <b>no tiene fecha</b> te va a aparecer <b>hoy</b>, todos los días, hasta '
     + 'que le des un día en tu semana, lo destildes, o alguien lo dé por hecho.<br>'
-    + 'Las <b>limpiezas</b> están siempre y no se destildan.</div>';
+    + 'Las <b>limpiezas</b> están siempre y no se destildan.<br>'
+    + 'Con <span class="material-icons" style="font-size:15px;vertical-align:-3px;">add</span> '
+    + 'creás una actividad nueva ahí mismo y volvés acá.</div>'
+    + '<div class="arb-acc">'
+    + '<button data-todo="plegar"><span class="material-icons">unfold_less</span>Plegar todo</button>'
+    + '<button data-todo="desplegar"><span class="material-icons">unfold_more</span>Desplegar todo</button>'
+    + '</div>';
 
   if (!raices.length) return h + '<div class="arb-vacio">No hay actividades.</div>';
 
   raices.forEach((r) => {
-    const rama = ramaHTML(r.id, hijosDe, 1);
-    h += '<div class="arb-proy">📁 ' + esc(r.titulo || r.id) + '</div>'
-      + (rama || '<div class="arb-vacio">— sin nada adentro</div>');
+    const cuantos = contarRama(r.id, hijosDe);
+    const abierta = estaAbierto(r.id);
+    h += '<div class="arb-proy">'
+      + '<button class="arb-btn" data-plegar="' + esc(r.id) + '" title="'
+      + (abierta ? 'Plegar' : 'Desplegar') + '"><span class="material-icons">'
+      + (abierta ? 'expand_more' : 'chevron_right') + '</span></button>'
+      + '<span class="nom">📁 ' + esc(r.titulo || r.id) + '</span>'
+      + '<span class="arb-cuenta">' + cuantos + '</span>'
+      + '<button class="arb-btn" data-nueva="' + esc(r.id) + '" title="Agregar una actividad a este proyecto">'
+      + '<span class="material-icons">add</span></button>'
+      + '</div>';
+    if (!abierta) return;
+    h += ramaHTML(r.id, hijosDe, 1) || '<div class="arb-vacio">— sin nada adentro</div>';
   });
   return h;
 }
@@ -535,10 +645,23 @@ function render() {
       + '<p style="color:var(--gris);font-size:.72rem;text-align:center;margin:18px 0 0;">'
       + esc(SELLO) + ' · motor ' + esc(CV2.VERSION ?? '?') + '</p>';
     window.scrollTo(0, y);
+    mostrarReciente();
     return;
   }
   renderSemana();
   window.scrollTo(0, y);
+}
+
+// La recién creada, a la vista. Se hace UNA vez y después se olvida: repetir
+// el destello en cada repintado sería un parpadeo permanente.
+function mostrarReciente() {
+  if (!recienId || recienHecha || vista !== 'arbol') return;
+  const el = document.querySelector('[data-pas="' + CSS.escape(recienId) + '"]');
+  if (!el) return;   // todavía no llegó por el onSnapshot: se intenta al siguiente
+  recienHecha = true;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  CV2.toast('Creada · tildala si va en tu semana', 'success');
+  setTimeout(() => { recienId = null; render(); }, 2800);
 }
 
 // ═══ ARRASTRAR ════════════════════════════════════════════
@@ -676,6 +799,52 @@ $('cuerpo').addEventListener('change', async (ev) => {
 });
 
 $('cuerpo').addEventListener('click', async (ev) => {
+  // ── Plegar y desplegar ──
+  const pl = ev.target.closest('[data-plegar]');
+  if (pl) {
+    const id = pl.dataset.plegar;
+    if (plegado[id]) delete plegado[id]; else plegado[id] = true;
+    guardarPlegado();
+    render();
+    return;
+  }
+
+  const td = ev.target.closest('[data-todo]');
+  if (td) {
+    if (td.dataset.todo === 'plegar') {
+      // Se pliega TODO lo que tiene algo adentro, no solo los proyectos: si
+      // solo se plegaran las raíces, un proyecto con sub-ramas al desplegarlo
+      // volvería a escupir la lista entera.
+      const conHijos = {};
+      todas.forEach((it) => { if (it.parentId) conHijos[it.parentId] = true; });
+      Object.keys(conHijos).forEach((id) => { plegado[id] = true; });
+    } else {
+      plegado = {};
+    }
+    guardarPlegado();
+    render();
+    window.scrollTo(0, 0);
+    return;
+  }
+
+  // ── Crear una actividad sin perder el hilo ──
+  // Se va al formulario de Actividades con este padre ya elegido y se vuelve
+  // acá al guardar. El formulario NO se copia: es el mismo, con alcance,
+  // recurrencia, tarifa y fechas. Dos copias se desincronizan a la primera
+  // modificación de una de las dos.
+  const nu = ev.target.closest('[data-nueva]');
+  if (nu) {
+    // La rama donde se crea queda ABIERTA: si estaba plegada, al volver la
+    // actividad nueva estaría escondida justo adentro de lo que se cerró.
+    delete plegado[nu.dataset.nueva];
+    // Lo que está plegado se guarda ANTES de irse: al volver, la pantalla
+    // tiene que estar como se dejó.
+    guardarPlegado();
+    location.href = './actividades.html?nueva=' + encodeURIComponent(nu.dataset.nueva)
+      + '&volver=agenda';
+    return;
+  }
+
   const ed = ev.target.closest('[data-editar]');
   if (ed) { editando = editando === ed.dataset.editar ? null : ed.dataset.editar; render(); return; }
 
@@ -727,6 +896,11 @@ $('ahora').addEventListener('click', () => { lunes = lunesDe(hoy); render(); });
 // ═══ Cargas — AL FINAL ════════════════════════════════════
 lunes = lunesDe(hoy);
 
+// Si se vuelve de crear una actividad, la pestaña activa es la del árbol: la
+// vista ya se fijó arriba, pero la barra de abajo no se entera sola.
+$('tabs').querySelectorAll('.tab').forEach((x) =>
+  x.classList.toggle('activo', x.dataset.tab === vista));
+
 try {
   const eu = await getDoc(doc(db, 'estado_usuario', u.uid));
   const g = eu.exists() ? eu.data().agenda : null;
@@ -739,8 +913,21 @@ try {
 // La MISMA consulta que Actividades: su regla espeja exactamente esas cuatro
 // ramas y una consulta sin filtrar se rechaza entera.
 onSnapshot(Core.consultaActividades(u, CV2.esAdmin()), (snap) => {
-  todas = [];
-  snap.forEach((d) => todas.push({ id: d.id, ...d.data() }));
+  // LO ELIMINADO NO ENTRA. Eliminar una actividad marca 'eliminado' en UN
+  // documento y su rama entera se va con él: acá se aplica el mismo corte que
+  // en Actividades, o una actividad mandada a la papelera seguiría apareciendo
+  // en la agenda de todos.
+  const crudo = {};
+  snap.forEach((d) => { crudo[d.id] = { id: d.id, ...d.data() }; });
+  const enterrado = (it) => {
+    let cur = it, g = 0;
+    while (cur && g++ < 25) {
+      if (cur.eliminado) return true;
+      cur = cur.parentId ? crudo[cur.parentId] : null;
+    }
+    return false;
+  };
+  todas = Object.values(crudo).filter((it) => !enterrado(it));
   render();
 }, (e) => {
   console.error(e);

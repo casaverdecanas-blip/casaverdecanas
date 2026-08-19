@@ -7,6 +7,11 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v82 (19-ago-2026) — LA AGENDA SE ARMA SIN SALIR DE LA AGENDA. El árbol de
+//       origen deja de venir todo desplegado: las ramas se pliegan y lo
+//       plegado se recuerda. Y cada proyecto y cada actividad tienen un + que
+//       lleva al formulario de Actividades con el padre ya elegido y vuelve
+//       acá al guardar. agenda.html + actividades.html.
 // v81 (19-ago-2026) — ELIMINAR YA NO BORRA. Una actividad se elimina con o sin
 //       sub-ítems: se marca 'eliminado' y la rama entera desaparece de la
 //       vista. Queda en la PAPELERA, que solo ve el administrador, y desde ahí
@@ -66,7 +71,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v81';
+const VERSION = 'cv2-shell-v82';
 
 const SHELL = [
   './',
