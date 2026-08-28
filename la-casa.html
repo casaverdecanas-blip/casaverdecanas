@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<!-- ═══════════════════════════════════════════════════════════
+     LA CASA — el acuerdo de convivencia y la ficha de la propiedad.
+
+     Por qué es una página propia y no una sección de la portada:
+     la portada tiene que convencer a alguien que todavía no reservó;
+     esta tiene que poder MANDARSE por WhatsApp antes del check-in y
+     leerse entera. Son dos trabajos distintos y meterlos juntos los
+     estropea a los dos. Además, una dirección propia se comparte, se
+     guarda y se cita ("está en casaverdecanas.com.br/la-casa.html").
+
+     Igual que el index de la raíz: NO importa nucleo.js. nucleo arranca
+     verificarAuth y mandaría al login a todo visitante (regla 3.13).
+     Solo se importan firebase-init.js y textos-sitio.js.
+     ═══════════════════════════════════════════════════════════ -->
+<title>Cómo funciona la casa | Casa Verde Canas · Canasvieiras</title>
+<meta name="description" content="Horarios, qué hay en la propiedad y el acuerdo de convivencia de Casa Verde Canas, en Canasvieiras, Florianópolis. Todo lo que conviene saber antes de llegar.">
+<link rel="canonical" href="https://casaverdecanas.com.br/la-casa.html">
+<meta name="robots" content="index, follow">
+<meta name="author" content="Casa Verde Canas">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Casa Verde Canas">
+<meta property="og:url" content="https://casaverdecanas.com.br/la-casa.html">
+<meta property="og:title" content="Cómo funciona la casa | Casa Verde Canas">
+<meta property="og:description" content="Horarios, qué hay y nuestro acuerdo de convivencia. Lo que conviene saber antes de llegar.">
+<!-- Sin width ni height: declarar medidas que no son las reales rompe la
+     previsualización de WhatsApp, que es el canal de contacto principal. -->
+<meta property="og:image" content="https://casaverdecanas.com.br/ilustracion-hero.jpg">
+<meta property="og:locale" content="es_AR">
+<meta property="og:locale:alternate" content="pt_BR">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Cómo funciona la casa | Casa Verde Canas">
+<meta name="twitter:description" content="Horarios, qué hay y nuestro acuerdo de convivencia.">
+<meta name="twitter:image" content="https://casaverdecanas.com.br/ilustracion-hero.jpg">
+
+<!-- Un <link> no tiene onerror: estas rutas tienen que ser las REALES.
+     Las imágenes viven en la raíz, no en ./img/. -->
+<link rel="icon" href="./logo-sitio.png">
+<link rel="apple-touch-icon" href="./logo-sitio.png">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#225b38">
+
+<style>
+  /* La identidad es la misma del index: se repite acá y no se saca a un
+     archivo compartido a propósito. Son dos páginas y media; un CSS común
+     obligaría a bajar un archivo más antes de pintar nada, y el sitio
+     público vive de cargar rápido en 3G desde la playa. */
+  :root{
+    --menta:#9fd2b0; --crema:#f4e8cb; --papel:#faf4e6;
+    --terracota:#b86d4c; --terracota-osc:#9c5738;
+    --selva:#305e30; --selva-osc:#225b38; --selva-clara:#9aba94;
+    --flor:#be402c; --tinta:#2b3327; --gris:#6f7a68;
+    --linea:#e6dcc2; --sombra:0 2px 14px rgba(34,91,56,.08);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Figtree,system-ui,sans-serif;color:var(--tinta);
+    background:var(--papel);line-height:1.6;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:600;line-height:1.14;margin:0;
+    font-variation-settings:'SOFT' 40,'WONK' 1}
+  a{color:inherit}
+  .wrap{max-width:820px;margin:0 auto;padding:0 20px}
+
+  /* ── Barra ─────────────────────────────────────────────── */
+  header{position:sticky;top:0;z-index:50;background:rgba(250,244,230,.94);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--linea)}
+  .barra{display:flex;align-items:center;gap:14px;padding:9px 0;max-width:1060px}
+  .marca{margin-right:auto;display:flex;align-items:center;text-decoration:none;
+    font-family:Fraunces,serif;font-weight:600;color:var(--selva-osc);font-size:1.05rem}
+  .marca img{height:42px;width:auto;display:block}
+  .marca-txt{display:none;font-family:Fraunces,serif;font-weight:600;font-size:1.12rem;
+    color:var(--selva-osc);letter-spacing:-.01em}
+  .idiomas{display:flex;gap:2px}
+  .idiomas button{border:0;background:none;font:inherit;font-size:.8rem;cursor:pointer;
+    padding:5px 9px;border-radius:7px;color:var(--gris)}
+  .idiomas button.on{background:var(--menta);color:var(--selva-osc);font-weight:600}
+  .wa{display:inline-flex;align-items:center;gap:6px;background:var(--terracota);color:#fff;
+    text-decoration:none;padding:8px 15px;border-radius:999px;font-size:.86rem;font-weight:600;
+    box-shadow:0 2px 8px rgba(184,109,76,.28)}
+  .wa:hover{background:var(--terracota-osc)}
+
+  /* ── Encabezado de la página ───────────────────────────── */
+  .cab{padding:30px 0 8px;text-align:center}
+  .cab h1{font-size:clamp(1.75rem,5vw,2.6rem);color:var(--selva-osc);letter-spacing:-.015em}
+  .cab p{font-size:1.02rem;color:var(--gris);max-width:560px;margin:14px auto 0}
+  .volver{display:inline-flex;align-items:center;gap:5px;margin-top:20px;font-size:.86rem;
+    color:var(--gris);text-decoration:none}
+  .volver:hover{color:var(--selva-osc)}
+  .volver .material-icons{font-size:17px}
+
+  /* ── Guirnalda: la firma visual, la misma del index ────── */
+  .guirnalda{display:block;margin:8px auto;max-width:620px;padding:0 20px}
+  .guirnalda svg{width:100%;height:auto;display:block}
+  .guirnalda .cordel{fill:none;stroke:var(--selva-clara);stroke-width:1.6}
+  .guirnalda .luz{fill:var(--crema);stroke:var(--selva-clara);stroke-width:.8}
+  @media (prefers-reduced-motion:no-preference){
+    .guirnalda .luz{animation:parpadeo 4s ease-in-out infinite}
+    .guirnalda .luz:nth-child(even){animation-delay:2s}
+  }
+  @keyframes parpadeo{0%,100%{opacity:.72}50%{opacity:1}}
+
+  /* ── Secciones ─────────────────────────────────────────── */
+  section{padding:26px 0}
+  section h2{font-size:1.5rem;color:var(--selva-osc);margin-bottom:14px}
+  section p{margin:0 0 12px;color:var(--gris)}
+  section p:last-child{margin-bottom:0}
+
+  /* ── Listas de lo que hay ──────────────────────────────── */
+  .grupo{background:#fff;border:1px solid var(--linea);border-radius:16px;
+    padding:20px 22px;box-shadow:var(--sombra);margin-bottom:14px}
+  .grupo h3{font-size:1.06rem;color:var(--selva-osc);margin-bottom:12px}
+  .lista{list-style:none;margin:0;padding:0;display:grid;gap:9px}
+  @media(min-width:620px){ .lista{grid-template-columns:1fr 1fr;column-gap:22px} }
+  .lista li{display:flex;gap:9px;align-items:flex-start;font-size:.93rem}
+  .lista li .material-icons{font-size:18px;color:var(--selva);flex:none;margin-top:2px}
+  /* La lista de lo que NO hay usa el mismo hueco: el ícono cambia, el
+     renglón no. Marcar la falta con otro color sería un aviso de error,
+     y no lo es: es un dato más. */
+  .lista.no li .material-icons{color:var(--gris)}
+
+  /* El aviso de lo que cambia entre apartamentos. Va en terracota porque
+     es lo único de esta página que manda a mirar OTRO lado. */
+  .varia{background:rgba(184,109,76,.07);border:1px solid rgba(184,109,76,.28);
+    border-radius:14px;padding:16px 18px;margin-top:6px}
+  .varia h3{font-size:.98rem;color:var(--terracota-osc);margin-bottom:6px}
+  .varia p{font-size:.9rem;color:var(--tinta);margin:0}
+
+  /* ── Horarios ──────────────────────────────────────────── */
+  .horas{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+  .hora{background:#fff;border:1px solid var(--linea);border-radius:14px;
+    padding:16px 18px;box-shadow:var(--sombra)}
+  .hora span{display:block;font-size:.78rem;font-weight:600;color:var(--gris);
+    text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+  .hora b{display:block;font-family:Fraunces,serif;font-size:1.2rem;color:var(--selva-osc);
+    font-weight:600}
+
+  /* ── El acuerdo ────────────────────────────────────────── */
+  /* Fondo crema y no blanco: es la parte que hay que leer entera, y el
+     cambio de color la separa del resto sin necesidad de un cartel. */
+  .acuerdo{background:var(--crema);border-radius:20px;padding:26px 22px;margin:8px 0}
+  .acuerdo > h2{margin-bottom:8px}
+  .acuerdo > p.intro{color:var(--tinta);opacity:.8;margin-bottom:20px;font-size:.95rem}
+  .regla{border-top:1px solid rgba(34,91,56,.14);padding:15px 0}
+  .regla:first-of-type{border-top:0;padding-top:0}
+  .regla h3{font-size:1rem;color:var(--selva-osc);margin-bottom:4px;
+    display:flex;gap:8px;align-items:flex-start}
+  .regla h3 .material-icons{font-size:19px;color:var(--selva);flex:none;margin-top:1px}
+  .regla p{font-size:.9rem;color:var(--gris);margin:0 0 0 27px}
+
+  /* ── Bloques sueltos ───────────────────────────────────── */
+  .caja{background:#fff;border:1px solid var(--linea);border-radius:16px;
+    padding:20px 22px;box-shadow:var(--sombra)}
+  .caja h2{font-size:1.16rem;margin-bottom:8px}
+  .caja p{font-size:.93rem;margin:0}
+
+  /* ── Cierre ────────────────────────────────────────────── */
+  .cierre{text-align:center;padding:30px 0 10px}
+  .cierre h2{font-size:1.4rem;margin-bottom:8px}
+  .cierre p{max-width:460px;margin:0 auto 18px}
+  .btn-wa{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    background:var(--terracota);color:#fff;border:0;border-radius:999px;padding:14px 28px;
+    font:inherit;font-size:.98rem;font-weight:600;text-decoration:none;
+    box-shadow:0 3px 12px rgba(184,109,76,.3)}
+  .btn-wa:hover{background:var(--terracota-osc)}
+  .version{text-align:center;font-size:.8rem;color:var(--gris);margin-top:26px}
+
+  /* ── Pie ───────────────────────────────────────────────── */
+  footer{background:var(--selva-osc);color:#cfe3d2;padding:40px 0 34px;margin-top:34px;
+    font-size:.9rem;text-align:center}
+  footer img{height:74px;width:auto;margin-bottom:14px;opacity:.95}
+  footer b{color:var(--crema)}
+  footer a{color:var(--menta)}
+  .pie-links{margin-top:14px;font-size:.94rem}
+  .pie-links a{text-decoration:none;border-bottom:1px solid rgba(159,210,176,.4);padding-bottom:1px}
+
+  /* ═══════════════════════════════════════════════════════════
+     MODO EDICIÓN — igual que el index: se enciende SOLO con ?edit=1,
+     que es como lo abre interno/editar.html dentro de un marco. En una
+     visita normal la clase .cv-ed no existe y nada de este bloque tiene
+     efecto.
+
+     'outline' y no 'border': el outline no ocupa espacio, así que marcar
+     lo editable no mueve un píxel. Lo que se ve editando es lo que se
+     publica, que es todo el punto.
+     ═══════════════════════════════════════════════════════════ */
+  .cv-ed a, .cv-ed button{pointer-events:none !important}
+  .cv-ed [data-edit]{pointer-events:auto !important}
+  .cv-ed [data-edit]{outline:1px dashed rgba(184,109,76,.5);outline-offset:3px;
+    border-radius:3px;cursor:text}
+  .cv-ed [data-edit].cv-propio{outline-color:rgba(48,94,48,.45)}
+  .cv-ed [data-edit].cv-tocado{outline:2px solid var(--terracota);background:#fdf2d9}
+  .cv-ed [data-edit]:focus{outline:2px solid var(--selva);background:#fff;
+    box-shadow:0 0 0 4px rgba(159,210,176,.35)}
+  .cv-ed [data-edit]:empty::before{content:'—— escribir ——';color:#b9a98a;font-size:.8em}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap barra">
+    <!-- La raíz PRIMERO y ./img/ como respaldo, no al revés: las imágenes
+         viven en la raíz, y pedirlas antes en una carpeta que no existe
+         costaba un 404 por imagen en cada visita. -->
+    <a class="marca" href="./index.html"><img src="./logo-sitio.png" alt="Casa Verde Canas"
+       onerror="if(!this.dataset.r){this.dataset.r=1;this.src='./img/logo-sitio.png';}else{this.remove();document.getElementById('marcaTxt').style.display='block';}"><span
+       id="marcaTxt" class="marca-txt">Casa Verde Canas</span></a>
+    <div class="idiomas">
+      <button data-i="pt">PT</button>
+      <button data-i="es">ES</button>
+      <button data-i="en">EN</button>
+    </div>
+    <a class="wa" id="waTop" href="./index.html#consulta">
+      <span class="material-icons" style="font-size:17px;">chat</span>
+      <span data-t="consultar">Consultar</span>
+    </a>
+  </div>
+</header>
+
+<div class="wrap cab">
+  <h1 data-t="casa.titulo">Cómo funciona la casa</h1>
+  <p data-t="casa.bajada">Lo que conviene saber antes de llegar.</p>
+  <a class="volver" href="./index.html">
+    <span class="material-icons">arrow_back</span>
+    <span data-t="casa.volver">Volver al inicio</span>
+  </a>
+</div>
+
+<div class="guirnalda" aria-hidden="true">
+  <svg viewBox="0 0 600 46">
+    <path class="cordel" d="M0,8 Q300,44 600,8"/>
+    <g><line class="cordel" x1="60" y1="14.5" x2="60" y2="20"/><circle class="luz" cx="60" cy="23" r="3"/></g>
+    <g><line class="cordel" x1="120" y1="19.5" x2="120" y2="25"/><circle class="luz" cx="120" cy="28" r="3"/></g>
+    <g><line class="cordel" x1="180" y1="23" x2="180" y2="28.5"/><circle class="luz" cx="180" cy="31.5" r="3"/></g>
+    <g><line class="cordel" x1="240" y1="25.3" x2="240" y2="30.8"/><circle class="luz" cx="240" cy="33.8" r="3"/></g>
+    <g><line class="cordel" x1="300" y1="26" x2="300" y2="31.5"/><circle class="luz" cx="300" cy="34.5" r="3"/></g>
+    <g><line class="cordel" x1="360" y1="25.3" x2="360" y2="30.8"/><circle class="luz" cx="360" cy="33.8" r="3"/></g>
+    <g><line class="cordel" x1="420" y1="23" x2="420" y2="28.5"/><circle class="luz" cx="420" cy="31.5" r="3"/></g>
+    <g><line class="cordel" x1="480" y1="19.5" x2="480" y2="25"/><circle class="luz" cx="480" cy="28" r="3"/></g>
+    <g><line class="cordel" x1="540" y1="14.5" x2="540" y2="20"/><circle class="luz" cx="540" cy="23" r="3"/></g>
+  </svg>
+</div>
+
+<!-- ── La propiedad ──────────────────────────────────────── -->
+<section class="wrap">
+  <h2 data-t="casa.prop.t">La propiedad</h2>
+  <p data-t="casa.prop.p1">En el predio hay varios apartamentos.</p>
+  <p data-t="casa.prop.p2">Cada apartamento tiene su privacidad.</p>
+  <p data-t="casa.prop.p3">Estamos a tres cuadras de la playa.</p>
+</section>
+
+<!-- ── Espacios compartidos ──────────────────────────────── -->
+<section class="wrap">
+  <h2 data-t="casa.comunes.t">Los espacios compartidos</h2>
+  <p data-t="casa.comunes.p1">Afuera están la piscina, el asador y la terraza.</p>
+</section>
+
+<!-- ── Qué hay ───────────────────────────────────────────────
+     Cada renglón es su propia clave (casa.lp.1, casa.ld.1…) y no un
+     array. Así el editor visual y el traductor los toman con el
+     mecanismo que ya existe, sin código nuevo y sin codificar nada
+     para Firestore. El precio es que la CANTIDAD de renglones vive
+     acá: para agregar uno hay que tocar esta página. Para un
+     reglamento, que cambia una vez por año, es el precio correcto. -->
+<section class="wrap">
+  <h2 data-t="casa.hay.t">Qué hay</h2>
+
+  <div class="grupo">
+    <h3 data-t="casa.g.propiedad">En la propiedad, para todos</h3>
+    <ul class="lista">
+      <li><span class="material-icons">pool</span><span data-t="casa.lp.1">Piscina</span></li>
+      <li><span class="material-icons">outdoor_grill</span><span data-t="casa.lp.2">Asador</span></li>
+      <li><span class="material-icons">deck</span><span data-t="casa.lp.3">Terraza techada con hamacas</span></li>
+      <li><span class="material-icons">table_restaurant</span><span data-t="casa.lp.4">Comedor al aire libre</span></li>
+      <li><span class="material-icons">shower</span><span data-t="casa.lp.5">Ducha exterior</span></li>
+      <li><span class="material-icons">local_laundry_service</span><span data-t="casa.lp.6">Lavarropas sin cargo</span></li>
+      <li><span class="material-icons">dry_cleaning</span><span data-t="casa.lp.7">Tendedero</span></li>
+      <li><span class="material-icons">local_parking</span><span data-t="casa.lp.8">Estacionamiento cerrado</span></li>
+      <li><span class="material-icons">wifi</span><span data-t="casa.lp.9">Wi-Fi</span></li>
+      <li><span class="material-icons">tv</span><span data-t="casa.lp.10">TV y juegos de mesa</span></li>
+      <li><span class="material-icons">kayaking</span><span data-t="casa.lp.11">Kayak</span></li>
+    </ul>
+  </div>
+
+  <div class="grupo">
+    <h3 data-t="casa.g.depto">En cada apartamento</h3>
+    <ul class="lista">
+      <li><span class="material-icons">kitchen</span><span data-t="casa.ld.1">Cocina equipada</span></li>
+      <li><span class="material-icons">restaurant</span><span data-t="casa.ld.2">Platos y cubiertos</span></li>
+      <li><span class="material-icons">bed</span><span data-t="casa.ld.3">Ropa de cama</span></li>
+      <li><span class="material-icons">checkroom</span><span data-t="casa.ld.4">Placard y perchas</span></li>
+      <li><span class="material-icons">water_drop</span><span data-t="casa.ld.5">Agua caliente</span></li>
+      <li><span class="material-icons">mode_fan</span><span data-t="casa.ld.6">Ventiladores</span></li>
+    </ul>
+  </div>
+
+  <!-- Este bloque es el que evita mentir. El aire acondicionado, la
+       capacidad y la escalera son distintos en cada apartamento:
+       escribirlos como si fueran de todos dejaría mal descritos a dos
+       de tres. Viven en cabanas/{id}.amenities, que el index pinta bajo
+       cada ficha. -->
+  <div class="varia">
+    <h3 data-t="casa.varia.t">Lo que cambia de un apartamento a otro</h3>
+    <p data-t="casa.varia.p">El aire acondicionado, la capacidad y el acceso están en la ficha de cada uno.</p>
+  </div>
+</section>
+
+<!-- ── Lo que no hay ─────────────────────────────────────── -->
+<section class="wrap">
+  <div class="grupo">
+    <h3 data-t="casa.nohay.t">Lo que no hay</h3>
+    <ul class="lista no">
+      <li><span class="material-icons">remove_circle_outline</span><span data-t="casa.nohay.1">Secadora de ropa.</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ── Horarios ──────────────────────────────────────────── -->
+<section class="wrap">
+  <h2 data-t="casa.hor.t">Horarios</h2>
+  <div class="horas">
+    <div class="hora">
+      <span data-t="casa.hor.kin">Llegada</span>
+      <b data-t="casa.hor.in">desde las 14:00</b>
+    </div>
+    <div class="hora">
+      <span data-t="casa.hor.kout">Salida</span>
+      <b data-t="casa.hor.out">hasta las 10:00</b>
+    </div>
+  </div>
+  <p data-t="casa.hor.nota">Si necesitás otro horario, escribinos.</p>
+</section>
+
+<!-- ── Quién recibe ──────────────────────────────────────── -->
+<section class="wrap">
+  <div class="caja">
+    <h2 data-t="casa.recibe.t">Quién te recibe</h2>
+    <p data-t="casa.recibe.p1">En temporada estamos nosotros.</p>
+  </div>
+</section>
+
+<!-- ── EL ACUERDO ────────────────────────────────────────────
+     Cada regla lleva su motivo debajo. Una regla sin porqué se discute;
+     con porqué se entiende. Es la diferencia entre un reglamento y un
+     acuerdo, y acuerdo es lo que queremos. -->
+<section class="wrap">
+  <div class="acuerdo">
+    <h2 data-t="casa.reglas.t">Nuestro acuerdo de convivencia</h2>
+    <p class="intro" data-t="casa.reglas.bajada">Somos varias familias compartiendo un mismo predio.</p>
+
+    <div class="regla">
+      <h3><span class="material-icons">groups</span><span data-t="casa.r.pax.t">La capacidad está en la ficha</span></h3>
+      <p data-t="casa.r.pax.p">Está fijada por el tamaño real del espacio.</p>
+    </div>
+    <div class="regla">
+      <h3><span class="material-icons">lock</span><span data-t="casa.r.puerta.t">Puerta exterior cerrada con llave</span></h3>
+      <p data-t="casa.r.puerta.p">Es una propiedad abierta y viven familias acá todo el año.</p>
+    </div>
+    <div class="regla">
+      <h3><span class="material-icons">person_add_disabled</span><span data-t="casa.r.visitas.t">Solo personas alojadas</span></h3>
+      <p data-t="casa.r.visitas.p">Si querés recibir a alguien, consultanos antes.</p>
+    </div>
+    <div class="regla">
+      <h3><span class="material-icons">bedtime</span><span data-t="casa.r.ruido.t">Silencio entre las 23:00 y las 8:00</span></h3>
+      <p data-t="casa.r.ruido.p">Hay gente durmiendo a pocos metros.</p>
+    </div>
+    <div class="regla">
+      <h3><span class="material-icons">celebration</span><span data-t="casa.r.fiestas.t">Sin fiestas ni eventos</span></h3>
+      <p data-t="casa.r.fiestas.p">El predio es chico.</p>
+    </div>
+    <div class="regla">
+      <h3><span class="material-icons">smoke_free</span><span data-t="casa.r.fumar.t">No se fuma adentro</span></h3>
+      <p data-t="casa.r.fumar.p">El olor queda en cortinas y colchones.</p>
+    </div>
+    <div class="regla">
+      <h3><span class="material-icons">shower</span><span data-t="casa.r.ducha.t">Ducha exterior antes de la piscina</span></h3>
+      <p data-t="casa.r.ducha.p">El protector solar arruina el agua y la arena tapa las cañerías.</p>
+    </div>
+    <div class="regla">
+      <h3><span class="material-icons">pets</span><span data-t="casa.r.mascotas.t">Sin mascotas</span></h3>
+      <p data-t="casa.r.mascotas.p">No podemos garantizar que le venga bien a todos.</p>
+    </div>
+    <div class="regla">
+      <h3><span class="material-icons">lightbulb</span><span data-t="casa.r.luces.t">Luces y ventiladores apagados al salir</span></h3>
+      <p data-t="casa.r.luces.p">En temporada la cuenta se dispara.</p>
+    </div>
+    <div class="regla">
+      <h3><span class="material-icons">photo_camera</span><span data-t="casa.r.fotos.t">Fotografía comercial, solo con permiso</span></h3>
+      <p data-t="casa.r.fotos.p">Uso personal, todo el que quieras.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Cámaras ──────────────────────────────────────────────
+     Dicho en positivo: decir dónde NO hay cámaras tranquiliza mucho más
+     que decir dónde sí. -->
+<section class="wrap">
+  <div class="caja">
+    <h2 data-t="casa.camaras.t">Cámaras</h2>
+    <p data-t="casa.camaras.p">Hay cámaras en el portón y el estacionamiento, en ningún otro lado.</p>
+  </div>
+</section>
+
+<!-- ── Estadías largas ───────────────────────────────────── -->
+<section class="wrap">
+  <div class="caja">
+    <h2 data-t="casa.largas.t">Estadías largas</h2>
+    <p data-t="casa.largas.p">Recibimos estadías de 28 días o más.</p>
+  </div>
+</section>
+
+<!-- ── Cierre ────────────────────────────────────────────── -->
+<section class="wrap cierre">
+  <h2 data-t="casa.dudas.t">¿Alguna duda?</h2>
+  <p data-t="casa.dudas.p">Escribinos por WhatsApp.</p>
+  <a class="btn-wa" id="btnWa" href="#">
+    <span class="material-icons" style="font-size:19px;">chat</span>
+    <span data-t="pedir">Pedir presupuesto por WhatsApp</span>
+  </a>
+  <p class="version" data-t="casa.version">Vigente desde agosto de 2026.</p>
+</section>
+
+<footer>
+  <div class="wrap">
+    <img src="./logo-pie.png" alt="Casa Verde Canas"
+         onerror="if(!this.dataset.r){this.dataset.r=1;this.src='./img/logo-pie.png';}else{this.style.display='none';}">
+    <div><b>Casa Verde Canas</b> · Canasvieiras, Florianópolis — SC, Brasil</div>
+    <span data-t="pie">Reservas y consultas por WhatsApp.</span>
+    <div class="pie-links">
+      <a href="./recuerdos.html">🌿 <span data-t="recuerdos">Recuerdos de nuestros huéspedes</span></a>
+    </div>
+    <div style="margin-top:16px;font-size:.86rem;">
+      <a href="./interno/login.html" data-t="panel">Acceso del equipo</a>
+    </div>
+  </div>
+</footer>
+
+<script type="module">
+// ═══════════════════════════════════════════════════════════
+// LA CASA — sitio público, sin sesión.
+// Lee UN solo documento: config/sitio (lectura pública), del que saca
+// los textos editados y el número de WhatsApp. Nada más: esta página
+// no muestra cabañas ni disponibilidad, así que no pide esas
+// colecciones. Cuanto menos baja, más rápido se lee desde la playa.
+// ═══════════════════════════════════════════════════════════
+import { db, doc, getDoc } from './interno/firebase-init.js';
+import { T } from './interno/textos-sitio.js';
+
+var WHATSAPP = '';
+var TEXTOS = {};
+
+function $(id) { return document.getElementById(id); }
+
+// ── Idiomas ──────────────────────────────────────────────────
+// Arranca en el del navegador; si no es pt, es o en, cae en español.
+// El español es el ORIGINAL del sitio: es el idioma en que se escribe
+// y desde el que se traduce. Por eso es también el último respaldo.
+var lang = (navigator.language || 'es').slice(0, 2);
+if (!T[lang]) lang = 'es';
+
+// Prioridad: lo editado en el panel → el diccionario → la clave.
+// Sin optional chaining ni nullish (§3 del reglamento técnico: Safari
+// viejo de iPad rompe con esa sintaxis y falla en silencio).
+function t(k) {
+  if (TEXTOS[lang] && TEXTOS[lang][k]) return TEXTOS[lang][k];
+  if (T[lang] && T[lang][k]) return T[lang][k];
+  if (T.es && T.es[k]) return T.es[k];
+  return k;
+}
+
+// ═══ MODO EDICIÓN ═══════════════════════════════════════════
+// Con ?edit=1 esta misma página se vuelve editable dentro del marco de
+// interno/editar.html. NO se hace una copia para editar: la copia se
+// desincroniza el primer día y lo que se ve deja de ser lo que se
+// publica.
+//
+// Acá NO se guarda nada. Esta página solo MARCA qué documento y qué
+// campo hay detrás de cada cosa (data-edit) y deja el resto al editor,
+// que es el que tiene la sesión y los permisos. Abrir esto con ?edit=1
+// sin sesión no habilita ninguna escritura: las reglas de Firestore
+// piden permiso 'contenido' y no hay forma de saltearlas desde acá.
+var EDITAR = new URLSearchParams(location.search).get('edit') === '1';
+if (EDITAR) document.documentElement.classList.add('cv-ed');
+
+/**
+ * Marca los textos con su clave de config/sitio.
+ * Se derivan de los data-t que YA existen: no hay que anotar el HTML a
+ * mano ni mantener dos listas que se desincronizan. La clave que ve el
+ * editor es exactamente la que lee la página.
+ */
+function marcarTextos() {
+  if (!EDITAR) return;
+  var els = document.querySelectorAll('[data-t]');
+  for (var i = 0; i < els.length; i++) {
+    var el = els[i];
+    el.setAttribute('data-edit', 'config/sitio:textos.' + lang + '.' + el.dataset.t);
+    // Verde si alguien ya lo escribió a mano; ámbar si todavía sale del
+    // diccionario. Es la diferencia entre "esto lo decidimos nosotros" y
+    // "esto vino de fábrica", y se ve de un vistazo.
+    var propio = !!(TEXTOS[lang] && TEXTOS[lang][el.dataset.t]);
+    el.classList.toggle('cv-propio', propio);
+  }
+}
+
+function aplicarIdioma() {
+  document.documentElement.lang = lang;
+  var els = document.querySelectorAll('[data-t]');
+  for (var i = 0; i < els.length; i++) {
+    els[i].textContent = t(els[i].dataset.t);
+  }
+  var bs = document.querySelectorAll('.idiomas button');
+  for (var j = 0; j < bs.length; j++) {
+    bs[j].classList.toggle('on', bs[j].dataset.i === lang);
+  }
+  armarLink();
+  marcarTextos();
+  // El editor vuelve a colgar sus oyentes después de cada pintada.
+  if (EDITAR) document.dispatchEvent(new CustomEvent('cv:pintado'));
+}
+
+var botonesIdioma = document.querySelectorAll('.idiomas button');
+for (var b = 0; b < botonesIdioma.length; b++) {
+  botonesIdioma[b].addEventListener('click', function (ev) {
+    // 'event' como global no existe en Safari/iOS: se toma del parámetro.
+    lang = ev.currentTarget.dataset.i;
+    aplicarIdioma();
+  });
+}
+
+// ── El botón de WhatsApp ─────────────────────────────────────
+// El mensaje sale distinto del de la portada a propósito: quien escribe
+// desde acá ya leyó las reglas y casi siempre pregunta por una de ellas.
+function armarLink() {
+  if (!WHATSAPP) {
+    // Sin número cargado en el panel, el botón no lleva a ningún lado.
+    // Se deja el enlace muerto en vez de inventar una dirección.
+    $('btnWa').href = '#';
+    $('waTop').href = './index.html#consulta';
+    return;
+  }
+  var msj = lang === 'pt'
+    ? 'Olá! Estou lendo a página de como funciona a casa e tenho uma dúvida.'
+    : lang === 'en'
+      ? 'Hi! I am reading the house page and I have a question.'
+      : 'Hola! Estoy leyendo la página de cómo funciona la casa y tengo una duda.';
+  var url = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(msj);
+  $('btnWa').href = url;
+  $('waTop').href = url;
+}
+
+// ── Carga (lectura pública) ──────────────────────────────────
+// En una función aparte porque el editor la vuelve a llamar después de
+// guardar: así lo que se ve sale de la base, no de lo que quedó escrito
+// en la pantalla. Si el guardado falló a medias, esto lo destapa en el
+// acto en vez de mostrar una página que no existe.
+async function cargarTodo() {
+  try {
+    var cfg = await getDoc(doc(db, 'config', 'sitio'));
+    if (cfg.exists()) {
+      var x = cfg.data();
+      WHATSAPP = (x.whatsapp || '').replace(/[^0-9]/g, '');
+      TEXTOS = x.textos || {};
+    }
+  } catch (e) {
+    // Si Firestore no responde, la página se muestra igual con el
+    // diccionario: un reglamento tiene que poder leerse siempre.
+    console.warn('config sitio', e);
+  }
+}
+
+// ── Contrato con el editor ───────────────────────────────────
+// Lo mismo que expone el index, con los mismos nombres: el editor no
+// tiene que saber qué página está mostrando.
+if (EDITAR) {
+  window.CVSITIO = {
+    get lang() { return lang; },
+    setLang: function (l) { if (T[l]) { lang = l; aplicarIdioma(); } },
+    recargar: async function () { await cargarTodo(); aplicarIdioma(); },
+    diccionario: T
+  };
+}
+
+await cargarTodo();
+aplicarIdioma();
+</script>
+</body>
+</html>

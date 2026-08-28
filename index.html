@@ -225,6 +225,27 @@
     box-shadow:0 3px 12px rgba(184,109,76,.3)}
   .btn-wa:hover{background:var(--terracota-osc)}
 
+  /* ── Cómo funciona la casa (resumen) ───────────────────────
+     Un adelanto, no la información. Lo que va acá son las cuatro cosas
+     que más se preguntan antes de reservar; el resto vive en
+     la-casa.html, que se puede mandar entera por WhatsApp.
+     Va ANTES del calendario a propósito: quien está por consultar
+     fechas ya decidió que le interesa, y es el momento en que conviene
+     que sepa los horarios y las reglas — no después de escribir. */
+  .casa-res{background:#fff;border:1px solid var(--linea);border-radius:18px;
+    padding:26px 24px;box-shadow:var(--sombra)}
+  .casa-res h2{font-size:1.5rem;color:var(--selva-osc);margin-bottom:8px}
+  .casa-res > p{margin:0 0 18px;color:var(--gris);font-size:.96rem}
+  .casa-res .datos-casa{display:grid;gap:10px;margin-bottom:20px}
+  @media(min-width:620px){ .casa-res .datos-casa{grid-template-columns:1fr 1fr;column-gap:20px} }
+  .casa-res .datos-casa div{display:flex;gap:9px;align-items:flex-start;font-size:.93rem}
+  .casa-res .datos-casa .material-icons{font-size:19px;color:var(--selva);flex:none;margin-top:2px}
+  .casa-res .ver{display:inline-flex;align-items:center;gap:7px;background:var(--menta);
+    color:var(--selva-osc);text-decoration:none;padding:12px 22px;border-radius:999px;
+    font-size:.92rem;font-weight:600}
+  .casa-res .ver:hover{background:#8ec7a1}
+  .casa-res .ver .material-icons{font-size:18px}
+
   /* ── Pie ───────────────────────────────────────────────── */
   footer{background:var(--selva-osc);color:#cfe3d2;padding:40px 0 34px;margin-top:34px;
     font-size:.9rem;text-align:center}
@@ -383,6 +404,43 @@
   </svg>
 </div>
 
+<!-- ── Cómo funciona la casa ─────────────────────────────────
+     El resumen. La página completa (la-casa.html) es el acuerdo que se
+     manda antes del check-in; esto es lo que hace falta saber antes de
+     pedir fechas. Los textos son claves como cualquier otra, así que se
+     escriben desde el editor visual encima del sitio. -->
+<section class="wrap">
+  <div class="casa-res">
+    <h2 data-t="casa.res.t">Cómo funciona la casa</h2>
+    <p data-t="casa.res.p">Horarios, qué hay y nuestro acuerdo de convivencia.</p>
+    <div class="datos-casa">
+      <div><span class="material-icons">schedule</span><span data-t="casa.res.c1">Entrada 14:00 · salida 10:00</span></div>
+      <div><span class="material-icons">bedtime</span><span data-t="casa.res.c2">Silencio de 23:00 a 8:00</span></div>
+      <div><span class="material-icons">smoke_free</span><span data-t="casa.res.c3">No se fuma adentro</span></div>
+      <div><span class="material-icons">pets</span><span data-t="casa.res.c4">Sin mascotas</span></div>
+    </div>
+    <a class="ver" href="./la-casa.html">
+      <span data-t="casa.res.link">Ver todo antes de llegar</span>
+      <span class="material-icons">arrow_forward</span>
+    </a>
+  </div>
+</section>
+
+<div class="guirnalda" aria-hidden="true">
+  <svg viewBox="0 0 600 46">
+    <path class="cordel" d="M0,8 Q300,44 600,8"/>
+    <g><line class="cordel" x1="60" y1="14.5" x2="60" y2="20"/><circle class="luz" cx="60" cy="23" r="3"/></g>
+    <g><line class="cordel" x1="120" y1="19.5" x2="120" y2="25"/><circle class="luz" cx="120" cy="28" r="3"/></g>
+    <g><line class="cordel" x1="180" y1="23" x2="180" y2="28.5"/><circle class="luz" cx="180" cy="31.5" r="3"/></g>
+    <g><line class="cordel" x1="240" y1="25.3" x2="240" y2="30.8"/><circle class="luz" cx="240" cy="33.8" r="3"/></g>
+    <g><line class="cordel" x1="300" y1="26" x2="300" y2="31.5"/><circle class="luz" cx="300" cy="34.5" r="3"/></g>
+    <g><line class="cordel" x1="360" y1="25.3" x2="360" y2="30.8"/><circle class="luz" cx="360" cy="33.8" r="3"/></g>
+    <g><line class="cordel" x1="420" y1="23" x2="420" y2="28.5"/><circle class="luz" cx="420" cy="31.5" r="3"/></g>
+    <g><line class="cordel" x1="480" y1="19.5" x2="480" y2="25"/><circle class="luz" cx="480" cy="28" r="3"/></g>
+    <g><line class="cordel" x1="540" y1="14.5" x2="540" y2="20"/><circle class="luz" cx="540" cy="23" r="3"/></g>
+  </svg>
+</div>
+
 <section class="wrap" id="consulta">
   <div class="titulo"><h2 data-t="tConsulta">Consultar disponibilidade</h2></div>
   <div class="consulta">
@@ -425,6 +483,9 @@
     <span data-t="pie">Reservas e consultas pelo WhatsApp.</span>
 
     <div class="pie-links">
+      <a href="./la-casa.html">🏡 <span data-t="casa.res.t">Cómo funciona la casa</span></a>
+    </div>
+    <div class="pie-links" style="margin-top:8px;">
       <a href="./recuerdos.html">🌿 <span data-t="recuerdos">Recuerdos de nuestros huéspedes</span></a>
     </div>
 
