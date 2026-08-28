@@ -48,6 +48,12 @@
      Sin esto, la segunda quedaba escrita y sin forma de corregirla —
      que es peor que no tenerla, porque nadie se entera hasta que hay
      algo mal en un idioma que casi no se mira. */
+  /* Sacar del sitio / traer de vuelta. Aparece sólo cuando hay un texto
+     tocado: fuera de eso no habría sobre qué actuar y un botón que no se
+     sabe a qué apunta es peor que no tenerlo. */
+  .piso .ojo { flex: none; min-width: 44px; padding: 0 10px; }
+  .piso .ojo.esta-oculto { background: var(--terracota, #b86d4c); border-color: var(--terracota, #b86d4c); color: #fff; }
+
   .paginas { display: flex; gap: 3px; flex: none; }
   .paginas button { border: 1px solid var(--linea); background: #fff;
     border-radius: 999px; min-height: 34px; padding: 0 12px; font: inherit;
@@ -157,6 +163,9 @@
   <div class="cuenta" id="cuenta">Cargando el sitio…</div>
   <button class="btn tirar" id="btnTirar" hidden aria-label="Descartar cambios">
     <span class="material-icons" style="font-size:20px;vertical-align:-4px;">undo</span>
+  </button>
+  <button class="btn ojo" id="btnOjo" hidden>
+    <span class="material-icons" id="ojoIcono" style="font-size:20px;vertical-align:-4px;">visibility_off</span>
   </button>
   <button class="btn guardar" id="btnGuardar" disabled>Guardar</button>
 </div>
@@ -318,6 +327,12 @@ marco.addEventListener('load', () => {
     return;
   }
   enganchar();
+  // Página nueva: el ojo no apunta a nada hasta que se toque un texto.
+  // Sin esto seguía apuntando a la clave de la página anterior, y un
+  // botón que dice "sacar del sitio" apuntando a otra cosa es la peor
+  // clase de botón.
+  claveEnfocada = null;
+  marcarOjo();
 });
 
 function ventana() { return marco.contentWindow; }
@@ -353,6 +368,13 @@ function enganchar() {
     el.addEventListener('input', () => anotar(el));
     el.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
+    });
+    // Al tocar un texto, el botón del ojo pasa a apuntarle. Se usa
+    // 'focus' y no 'click' porque un texto también se alcanza con el
+    // tabulador, y el botón tiene que seguir al cursor y no al dedo.
+    el.addEventListener('focus', () => {
+      claveEnfocada = claveDe(el);
+      marcarOjo();
     });
   });
 
@@ -421,6 +443,65 @@ function anotar(el) {
   el.classList.add('cv-tocado');
   contar();
 }
+
+/* ── Sacar del sitio y traer de vuelta ────────────────────────
+   Por qué no alcanza con borrar el texto: un texto vacío vuelve al
+   diccionario, y eso es lo correcto —quien borra sin querer no debería
+   dejar el sitio con un hueco—. Pero entonces no había forma de sacar
+   una regla o un renglón que ya no corresponde. Son dos intenciones
+   distintas y por eso van en dos campos distintos: 'textos' guarda lo
+   que dice, y 'ocultos' guarda lo que no se muestra.
+
+   Agregar un párrafo o una regla NUEVA sigue necesitando tocar el HTML:
+   es la contrapartida de que cada renglón sea su propia clave. Cambiarlo
+   pediría un modelo de bloques dinámicos, que es otra cosa y bastante
+   más grande. */
+let claveEnfocada = null;
+
+function ocultosAhora() {
+  const w = ventana();
+  return (w && w.CVSITIO && w.CVSITIO.ocultos) ? w.CVSITIO.ocultos : [];
+}
+
+/** ¿Qué clave de texto es la que se está tocando? */
+function claveDe(el) {
+  const ref = el && el.getAttribute ? el.getAttribute('data-edit') : '';
+  if (!ref) return null;
+  // "config/sitio:textos.es.casa_r_luces_p" → "casa_r_luces_p".
+  // Sólo los textos del sitio se pueden ocultar: el nombre de una cabaña
+  // se saca despublicando la cabaña, no escondiendo su título.
+  const i = ref.indexOf(':textos.');
+  if (i === -1) return null;
+  const trozos = ref.slice(i + ':textos.'.length).split('.');
+  return trozos.length === 2 ? trozos[1] : null;
+}
+
+function marcarOjo() {
+  const b = $('btnOjo');
+  if (!claveEnfocada) { b.hidden = true; return; }
+  b.hidden = false;
+  const oculto = ocultosAhora().indexOf(claveEnfocada) !== -1;
+  b.classList.toggle('esta-oculto', oculto);
+  $('ojoIcono').textContent = oculto ? 'visibility' : 'visibility_off';
+  b.title = oculto ? 'Traer de vuelta al sitio' : 'Sacar del sitio';
+}
+
+$('btnOjo').addEventListener('click', () => {
+  if (!claveEnfocada) return;
+  const w = ventana();
+  if (!w || !w.CVSITIO || !w.CVSITIO.setOcultos) return;
+  const lista = ocultosAhora();
+  const i = lista.indexOf(claveEnfocada);
+  if (i === -1) lista.push(claveEnfocada);
+  else lista.splice(i, 1);
+  // Se pinta en el acto y se anota como cambio pendiente: no se escribe
+  // en la base hasta que se toque Guardar, igual que los textos. Guardar
+  // al instante haría que el botón sea irreversible de hecho.
+  w.CVSITIO.setOcultos(lista);
+  pendientes.set('config/sitio:ocultos', lista.slice());
+  marcarOjo();
+  contar();
+});
 
 function contar() {
   const n = pendientes.size;
@@ -778,6 +859,9 @@ async function guardar() {
     const i = clave.indexOf(':');
     const ruta = clave.slice(0, i);        // config/sitio · cabanas/c1
     const campo = clave.slice(i + 1);      // textos.es.titulo · fotos
+    // 'ocultos' es un array suelto del documento, no un texto: no lleva
+    // la comprobación de los tres trozos ni se borra al quedar vacío
+    // (una lista vacía significa "no hay nada oculto", que es un dato).
     if (ruta === 'config/sitio' && campo.indexOf('textos.') === 0) {
       // 'textos' + idioma + clave = tres trozos y ni uno más.
       const trozos = campo.split('.');

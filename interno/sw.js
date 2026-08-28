@@ -7,6 +7,26 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v93 (28-ago-2026) — PODER SACAR ALGO DEL SITIO, y el icono del ventilador.
+//       'mode_fan' no existe en Material Icons: es de la fuente Symbols, que
+//       el sitio no carga, asi que salia un simbolo cualquiera. Cambia a
+//       'air'. De paso 'table_restaurant' → 'dining' y 'kayaking' → 'rowing',
+//       que estaban en el mismo riesgo.
+//       LO DE FONDO: vaciar un texto no lo borra, lo devuelve al diccionario
+//       — y eso es correcto, porque quien borra sin querer no deberia dejar
+//       un hueco para siempre. Pero entonces no habia forma de sacar del
+//       sitio una regla o un renglon que ya no corresponde. Nace la lista
+//       config/sitio.ocultos: 'textos' guarda lo que dice, 'ocultos' guarda
+//       lo que no se muestra. Son dos intenciones distintas y por eso van en
+//       dos campos distintos.
+//       En el sitio se esconde el texto Y el contenedor cuyos textos esten
+//       TODOS escondidos, para que no quede un renglon vacio con el icono
+//       suelto. Editando no desaparece: se ve apagado y tachado, con un
+//       boton de ojo en la barra para traerlo de vuelta — sacar algo sin
+//       poder deshacerlo no es una funcion, es una trampa.
+//       Y mas aire entre el final de un parrafo y el titulo siguiente.
+//       ⚠ AGREGAR un parrafo o una regla NUEVA sigue pidiendo tocar el HTML:
+//       es la contrapartida de que cada renglon sea su propia clave (v85).
 // v92 (28-ago-2026) — NACE cloudinary-listar. No existia: en el repo solo
 //       estaban claude-proxy y notify-whatsapp. Se escribe de cero, con el
 //       error de fondo evitado: la cuenta esta en modo Dynamic folders, donde
@@ -185,7 +205,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v92';
+const VERSION = 'cv2-shell-v93';
 
 const SHELL = [
   './',
