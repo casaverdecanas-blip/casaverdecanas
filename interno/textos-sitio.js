@@ -4,7 +4,7 @@
 //
 //  FUENTE ÚNICA. Lo importan TRES lados:
 //   · index.html de la raíz (la portada).
-//   · la-casa_html de la raíz (el acuerdo de convivencia) — desde T11.45.
+//   · la-casa.html de la raíz (el acuerdo de convivencia) — desde T11.45.
 //   · interno/cabanas.html (el panel) — los muestra como texto de fondo
 //     de cada campo, así se ve qué dice el sitio HOY antes de editarlo.
 //

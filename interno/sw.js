@@ -7,6 +7,16 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v87 (28-ago-2026) — EL ENLACE A 'la-casa.html' ESTABA ROTO. Al renombrar
+//       las claves de punto a guión bajo en la v86, el reemplazo también
+//       alcanzó la CADENA 'casa.html' dentro de 'la-casa.html': el guión
+//       cuenta como límite de palabra, así que el patrón la tomó por una
+//       clave. Los dos enlaces de la portada, el canonical y el og:url
+//       quedaron apuntando a '/la-casa_html' — 404. El editor y el traductor
+//       no se vieron afectados porque se escribieron después del reemplazo.
+//       Lección: un reemplazo masivo por patrón se verifica contra las RUTAS
+//       y las URLs del archivo, no solo contra las claves que se querían
+//       tocar. Nada más cambia en esta versión.
 // v86 (27-ago-2026) — REVISAR Y TRADUCIR, y un defecto de la v85 corregido
 //       antes de que se notara. Nace 'traducir.html': saca TODO el español
 //       con su contexto —leyendo las dos páginas del sitio en marcos ocultos,
@@ -109,7 +119,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v86';
+const VERSION = 'cv2-shell-v87';
 
 const SHELL = [
   './',
