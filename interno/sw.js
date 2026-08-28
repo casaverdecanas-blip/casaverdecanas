@@ -7,6 +7,20 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v90 (28-ago-2026) — LAS FOTOS SE SUBÍAN A LA RAÍZ. CV2.subirImagen nunca
+//       mandaba carpeta, así que TODAS las fotos del sistema —las del sitio,
+//       las de los alojamientos, los avatares— caían en la raíz de
+//       Cloudinary, mezcladas con los comprobantes de Dinero. Por eso el
+//       listado del editor no encontraba ninguna: buscaba en 'sitio',
+//       'cabanas' y 'espacios', que estaban vacías.
+//       Ahora subirImagen acepta una carpeta y la manda en 'asset_folder'
+//       (el campo del modo Dynamic folders; 'folder' es del modo clásico y
+//       se ignora sin dar error). El editor la deduce del destino: cada
+//       alojamiento va a cabanas/cabanaN, las áreas comunes a 'Espacios'
+//       —con E mayúscula, como está en Cloudinary— y el resto a 'sitio'.
+//       El mapa de carpetas vive en CV2.CLOUDINARY.carpetas, en un solo
+//       lugar. ⚠ PENDIENTE: la función cloudinary-listar de Netlify sigue
+//       buscando mal y hasta que se corrija el listado seguirá vacío.
 // v89 (28-ago-2026) — LA HOJA DE FOTOS NO SE CERRABA Y TRABABA EL GUARDADO.
 //       Era un <dialog> nativo y su cierre pasaba por el parche de nucleo.js,
 //       que engancha el botón Atrás moviendo el historial. Pero este editor
@@ -140,7 +154,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v89';
+const VERSION = 'cv2-shell-v90';
 
 const SHELL = [
   './',

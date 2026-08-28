@@ -579,12 +579,14 @@ function dibujarNube() {
       + 'comprobantes de Dinero, y este listado nunca los toca.<br><br>'
       + 'Para que aparezcan, movelas a esas carpetas desde Cloudinary '
       + '— mover no cambia la dirección de la foto, así que no rompe nada.'
-      + '<br><br><b>Si las fotos YA están en esas carpetas</b>, entonces el '
-      + 'problema no es la carpeta: la cuenta está en modo Dynamic folders, '
-      + 'donde la carpeta se guarda en <b>asset_folder</b> y no en <b>folder</b>. '
-      + 'Una búsqueda por el campo viejo devuelve cero sin dar error, que es '
-      + 'exactamente lo que se ve acá. Hay que revisar la función '
-      + '<b>cloudinary-listar</b> en Netlify.'
+      + '<br><br><b>Desde la T11.50 las fotos nuevas ya se suben a su carpeta</b> '
+      + '(cada alojamiento a la suya). Si igual no aparece ninguna, el problema '
+      + 'está del lado del listado y no de la subida: la cuenta usa el modo '
+      + 'Dynamic folders, donde la carpeta se guarda en <b>asset_folder</b> y no '
+      + 'en <b>folder</b>, y hay que buscar incluyendo las SUBCARPETAS '
+      + '(cabanas/cabana1…). Una búsqueda por el campo viejo devuelve cero sin '
+      + 'dar error, que es exactamente lo que se ve acá. Se arregla en la '
+      + 'función <b>cloudinary-listar</b> de Netlify.'
       + '</div>';
     return;
   }
@@ -620,8 +622,33 @@ async function traerMas() {
   }
 }
 
+/**
+ * Deduce a qué carpeta de Cloudinary va una foto, mirando el documento al
+ * que se la está poniendo. Antes no se mandaba ninguna y todo caía en la
+ * raíz, junto a los comprobantes de Dinero: por eso el listado de acá
+ * nunca encontraba nada.
+ *
+ * ref = "cabanas/c1:fotos.3"  → cabanas/cabana1
+ * ref = "espacios_comunes/piscina:fotos.+" → Espacios
+ * ref = "config/sitio:heroUrl" → sitio
+ */
+function carpetaSegunDestino(ref) {
+  const r = String(ref || '');
+  if (r.indexOf('cabanas/') === 0) {
+    // El id del documento ('c1') es la clave del mapa de nucleo.js.
+    const id = r.slice('cabanas/'.length).split(':')[0];
+    return CV2.carpetaDe(id);
+  }
+  if (r.indexOf('espacios_comunes/') === 0) return CV2.carpetaDe('espacios');
+  return CV2.carpetaDe('sitio');
+}
+
 async function subirNueva() {
-  const url = await CV2.elegirYSubirImagen({ titulo: 'Foto para el sitio' });
+  const carpeta = carpetaSegunDestino(destinoFoto ? destinoFoto.ref : '');
+  const url = await CV2.elegirYSubirImagen({
+    titulo: 'Foto para el sitio',
+    carpeta: carpeta
+  });
   if (!url) return;
   // La foto nueva entra a la lista "ya en el sitio" en el acto: acaba
   // de subirse y todavía no está en ningún listado de Cloudinary.

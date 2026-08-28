@@ -1083,7 +1083,55 @@ CV2.avisar = async function (op) {
 //  así el día que cambie algo (tamaño, calidad, Cloudinary) se toca
 //  un archivo y no ocho.
 // ═════════════════════════════════════════════════════════════
-CV2.CLOUDINARY = { cloud: 'dnwfu8ffn', preset: 'preset-comprobantes' };
+// ── Cloudinary ───────────────────────────────────────────────
+// CARPETAS: la cuenta está en modo Dynamic folders, donde la carpeta va en
+// 'asset_folder' y NO en 'folder' (el del modo clásico). Mandar el campo
+// viejo no da error: la foto sube igual y aparece en la raíz, que es donde
+// terminaron todas las del sitio hasta la T11.50.
+//
+// Estos nombres son los que EXISTEN hoy en Cloudinary y se escriben tal
+// cual, respetando mayúsculas: Cloudinary distingue 'Espacios' de
+// 'espacios' y una diferencia de una letra crea una carpeta paralela en
+// silencio. Si algún día se renombra una carpeta allá, se cambia acá y en
+// ningún otro lado.
+//
+// Mover una foto entre carpetas NO cambia su dirección de entrega, así que
+// reordenar en Cloudinary nunca rompe el sitio.
+CV2.CLOUDINARY = {
+  cloud: 'dnwfu8ffn',
+  preset: 'preset-comprobantes',
+  carpetas: {
+    sitio: 'sitio',              // portada, La casa, ilustraciones
+    espacios: 'Espacios',        // ⚠ con E mayúscula: así está en Cloudinary
+    recuerdos: 'recuerdos',
+    comprobantes: 'gastos',
+    personas: 'personas',
+    // Cada alojamiento tiene su carpeta. La clave es el id del documento
+    // en 'cabanas'; el valor, la carpeta real. Son distintos (c1 vs
+    // cabana1) porque las carpetas se armaron a mano antes que esto: se
+    // mapea en lugar de renombrar, que obligaría a tocar Cloudinary.
+    c1: 'cabanas/cabana1',
+    c2: 'cabanas/cabana2',
+    c3: 'cabanas/cabana3'
+  },
+  // A dónde va lo que no cae en ninguna de las anteriores.
+  carpetaPorDefecto: 'sitio'
+};
+
+/**
+ * Traduce una clave o un nombre de carpeta al nombre REAL de Cloudinary.
+ *   CV2.carpetaDe('c1')      → 'cabanas/cabana1'
+ *   CV2.carpetaDe('sitio')   → 'sitio'
+ *   CV2.carpetaDe('lo-que-sea') → 'lo-que-sea'  (se respeta tal cual)
+ *   CV2.carpetaDe()          → la carpeta por defecto
+ * Se acepta un nombre suelto a propósito: obliga a que el mapa cubra los
+ * casos conocidos sin bloquear uno nuevo el día que aparezca.
+ */
+CV2.carpetaDe = function (clave) {
+  if (!clave) return CV2.CLOUDINARY.carpetaPorDefecto;
+  const c = CV2.CLOUDINARY.carpetas[clave];
+  return c ? c : String(clave);
+};
 
 // Transformaciones de ENTREGA. No tocan el archivo guardado: Cloudinary
 // las aplica al servir. 'f_auto' manda WebP/AVIF si el navegador los
@@ -1241,12 +1289,26 @@ CV2.comprimirImagen = function (file, maxLado) {
   });
 };
 
-/** file (de CV2.pedirImagen) → URL de entrega en Cloudinary. */
-CV2.subirImagen = async function (file) {
+/**
+ * file (de CV2.pedirImagen) → URL de entrega en Cloudinary.
+ *
+ * 'carpeta' es opcional y va en 'asset_folder', el campo del modo Dynamic
+ * folders. Sin él, la foto cae en la raíz — que es donde vivían TODAS las
+ * fotos del sitio hasta la T11.50, mezcladas con los comprobantes de
+ * Dinero, y por eso el listado del editor no encontraba ninguna: buscaba
+ * en carpetas que estaban vacías.
+ *
+ * Se puede pasar el nombre de una carpeta ('sitio') o una clave del mapa
+ * CV2.CLOUDINARY.carpetas ('c1' → 'cabanas/cabana1'), lo que sea más
+ * cómodo en cada llamada.
+ */
+CV2.subirImagen = async function (file, carpeta) {
   const blob = await CV2.comprimirImagen(file);
   const fd = new FormData();
   fd.append('file', blob);
   fd.append('upload_preset', CV2.CLOUDINARY.preset);
+  const destino = CV2.carpetaDe(carpeta);
+  if (destino) fd.append('asset_folder', destino);
   const r = await fetch(
     'https://api.cloudinary.com/v1_1/' + CV2.CLOUDINARY.cloud + '/image/upload',
     { method: 'POST', body: fd }
@@ -1264,10 +1326,12 @@ CV2.subirImagen = async function (file) {
  * igual gracias a las transformaciones de entrega.
  * Devuelve la URL de entrega de nuestra copia.
  */
-CV2.traerImagenDesdeUrl = async function (url) {
+CV2.traerImagenDesdeUrl = async function (url, carpeta) {
   const fd = new FormData();
   fd.append('file', url);          // Cloudinary acepta una URL remota acá
   fd.append('upload_preset', CV2.CLOUDINARY.preset);
+  const destino = CV2.carpetaDe(carpeta);
+  if (destino) fd.append('asset_folder', destino);
   const r = await fetch(
     'https://api.cloudinary.com/v1_1/' + CV2.CLOUDINARY.cloud + '/image/upload',
     { method: 'POST', body: fd }
@@ -1288,11 +1352,13 @@ CV2.traerImagenDesdeUrl = async function (url) {
  *       if (url) { ...guardar url... }
  */
 CV2.elegirYSubirImagen = async function (opciones) {
-  const file = await CV2.pedirImagen(opciones);
+  const o = opciones || {};
+  const file = await CV2.pedirImagen(o);
   if (!file) return null;
   CV2.toast('Subiendo foto…');
   try {
-    const url = await CV2.subirImagen(file);
+    // o.carpeta: clave del mapa ('c1') o nombre suelto ('sitio').
+    const url = await CV2.subirImagen(file, o.carpeta);
     return url;
   } catch (e) {
     CV2.toast('No se pudo subir la foto: ' + (e.code ?? e.message), 'error');
