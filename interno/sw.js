@@ -7,6 +7,20 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v89 (28-ago-2026) — LA HOJA DE FOTOS NO SE CERRABA Y TRABABA EL GUARDADO.
+//       Era un <dialog> nativo y su cierre pasaba por el parche de nucleo.js,
+//       que engancha el botón Atrás moviendo el historial. Pero este editor
+//       cambia el src de un iframe —al cambiar de página y al recargar el
+//       sitio— y cada cambio de src agrega una entrada al historial de la
+//       ventana: la pila de capas y el historial real dejan de coincidir, y
+//       el history.back() del cierre retrocede una navegación del iframe en
+//       lugar de quitar la entrada de la capa. La hoja quedaba abierta
+//       tapando la barra de abajo, con el botón Guardar adentro: se podía
+//       editar y no se podía guardar.
+//       Pasa a ser un panel propio, el mismo patrón de traducir.html: no
+//       toca el historial, el fondo también cierra y el área de la ✕ sube a
+//       44px. Se agrega además el diagnóstico de Cloudinary en modo Dynamic
+//       folders (asset_folder vs folder) al aviso de "no hay fotos".
 // v88 (28-ago-2026) — DOS BOTONES MUERTOS EN EL EDITOR. 'Descartar' y
 //       'Volver' seguían usando confirm(), que Chrome deja apagar desde
 //       "impedir que esta página cree más diálogos". Apagado, confirm()
@@ -126,7 +140,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v88';
+const VERSION = 'cv2-shell-v89';
 
 const SHELL = [
   './',
