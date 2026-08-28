@@ -12,7 +12,7 @@
      esta tiene que poder MANDARSE por WhatsApp antes del check-in y
      leerse entera. Son dos trabajos distintos y meterlos juntos los
      estropea a los dos. Además, una dirección propia se comparte, se
-     guarda y se cita ("está en casaverdecanas.com.br/la-casa.html").
+     guarda y se cita ("está en casaverdecanas.com.br/la-casa_html").
 
      Igual que el index de la raíz: NO importa nucleo.js. nucleo arranca
      verificarAuth y mandaría al login a todo visitante (regla 3.13).
@@ -20,13 +20,13 @@
      ═══════════════════════════════════════════════════════════ -->
 <title>Cómo funciona la casa | Casa Verde Canas · Canasvieiras</title>
 <meta name="description" content="Horarios, qué hay en la propiedad y el acuerdo de convivencia de Casa Verde Canas, en Canasvieiras, Florianópolis. Todo lo que conviene saber antes de llegar.">
-<link rel="canonical" href="https://casaverdecanas.com.br/la-casa.html">
+<link rel="canonical" href="https://casaverdecanas.com.br/la-casa_html">
 <meta name="robots" content="index, follow">
 <meta name="author" content="Casa Verde Canas">
 
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Casa Verde Canas">
-<meta property="og:url" content="https://casaverdecanas.com.br/la-casa.html">
+<meta property="og:url" content="https://casaverdecanas.com.br/la-casa_html">
 <meta property="og:title" content="Cómo funciona la casa | Casa Verde Canas">
 <meta property="og:description" content="Horarios, qué hay y nuestro acuerdo de convivencia. Lo que conviene saber antes de llegar.">
 <!-- Sin width ni height: declarar medidas que no son las reales rompe la
@@ -224,11 +224,11 @@
 </header>
 
 <div class="wrap cab">
-  <h1 data-t="casa.titulo">Cómo funciona la casa</h1>
-  <p data-t="casa.bajada">Lo que conviene saber antes de llegar.</p>
+  <h1 data-t="casa_titulo">Cómo funciona la casa</h1>
+  <p data-t="casa_bajada">Lo que conviene saber antes de llegar.</p>
   <a class="volver" href="./index.html">
     <span class="material-icons">arrow_back</span>
-    <span data-t="casa.volver">Volver al inicio</span>
+    <span data-t="casa_volver">Volver al inicio</span>
   </a>
 </div>
 
@@ -249,54 +249,54 @@
 
 <!-- ── La propiedad ──────────────────────────────────────── -->
 <section class="wrap">
-  <h2 data-t="casa.prop.t">La propiedad</h2>
-  <p data-t="casa.prop.p1">En el predio hay varios apartamentos.</p>
-  <p data-t="casa.prop.p2">Cada apartamento tiene su privacidad.</p>
-  <p data-t="casa.prop.p3">Estamos a tres cuadras de la playa.</p>
+  <h2 data-t="casa_prop_t">La propiedad</h2>
+  <p data-t="casa_prop_p1">En el predio hay varios apartamentos.</p>
+  <p data-t="casa_prop_p2">Cada apartamento tiene su privacidad.</p>
+  <p data-t="casa_prop_p3">Estamos a tres cuadras de la playa.</p>
 </section>
 
 <!-- ── Espacios compartidos ──────────────────────────────── -->
 <section class="wrap">
-  <h2 data-t="casa.comunes.t">Los espacios compartidos</h2>
-  <p data-t="casa.comunes.p1">Afuera están la piscina, el asador y la terraza.</p>
+  <h2 data-t="casa_comunes_t">Los espacios compartidos</h2>
+  <p data-t="casa_comunes_p1">Afuera están la piscina, el asador y la terraza.</p>
 </section>
 
 <!-- ── Qué hay ───────────────────────────────────────────────
-     Cada renglón es su propia clave (casa.lp.1, casa.ld.1…) y no un
+     Cada renglón es su propia clave (casa_lp_1, casa_ld_1…) y no un
      array. Así el editor visual y el traductor los toman con el
      mecanismo que ya existe, sin código nuevo y sin codificar nada
      para Firestore. El precio es que la CANTIDAD de renglones vive
      acá: para agregar uno hay que tocar esta página. Para un
      reglamento, que cambia una vez por año, es el precio correcto. -->
 <section class="wrap">
-  <h2 data-t="casa.hay.t">Qué hay</h2>
+  <h2 data-t="casa_hay_t">Qué hay</h2>
 
   <div class="grupo">
-    <h3 data-t="casa.g.propiedad">En la propiedad, para todos</h3>
+    <h3 data-t="casa_g_propiedad">En la propiedad, para todos</h3>
     <ul class="lista">
-      <li><span class="material-icons">pool</span><span data-t="casa.lp.1">Piscina</span></li>
-      <li><span class="material-icons">outdoor_grill</span><span data-t="casa.lp.2">Asador</span></li>
-      <li><span class="material-icons">deck</span><span data-t="casa.lp.3">Terraza techada con hamacas</span></li>
-      <li><span class="material-icons">table_restaurant</span><span data-t="casa.lp.4">Comedor al aire libre</span></li>
-      <li><span class="material-icons">shower</span><span data-t="casa.lp.5">Ducha exterior</span></li>
-      <li><span class="material-icons">local_laundry_service</span><span data-t="casa.lp.6">Lavarropas sin cargo</span></li>
-      <li><span class="material-icons">dry_cleaning</span><span data-t="casa.lp.7">Tendedero</span></li>
-      <li><span class="material-icons">local_parking</span><span data-t="casa.lp.8">Estacionamiento cerrado</span></li>
-      <li><span class="material-icons">wifi</span><span data-t="casa.lp.9">Wi-Fi</span></li>
-      <li><span class="material-icons">tv</span><span data-t="casa.lp.10">TV y juegos de mesa</span></li>
-      <li><span class="material-icons">kayaking</span><span data-t="casa.lp.11">Kayak</span></li>
+      <li><span class="material-icons">pool</span><span data-t="casa_lp_1">Piscina</span></li>
+      <li><span class="material-icons">outdoor_grill</span><span data-t="casa_lp_2">Asador</span></li>
+      <li><span class="material-icons">deck</span><span data-t="casa_lp_3">Terraza techada con hamacas</span></li>
+      <li><span class="material-icons">table_restaurant</span><span data-t="casa_lp_4">Comedor al aire libre</span></li>
+      <li><span class="material-icons">shower</span><span data-t="casa_lp_5">Ducha exterior</span></li>
+      <li><span class="material-icons">local_laundry_service</span><span data-t="casa_lp_6">Lavarropas sin cargo</span></li>
+      <li><span class="material-icons">dry_cleaning</span><span data-t="casa_lp_7">Tendedero</span></li>
+      <li><span class="material-icons">local_parking</span><span data-t="casa_lp_8">Estacionamiento cerrado</span></li>
+      <li><span class="material-icons">wifi</span><span data-t="casa_lp_9">Wi-Fi</span></li>
+      <li><span class="material-icons">tv</span><span data-t="casa_lp_10">TV y juegos de mesa</span></li>
+      <li><span class="material-icons">kayaking</span><span data-t="casa_lp_11">Kayak</span></li>
     </ul>
   </div>
 
   <div class="grupo">
-    <h3 data-t="casa.g.depto">En cada apartamento</h3>
+    <h3 data-t="casa_g_depto">En cada apartamento</h3>
     <ul class="lista">
-      <li><span class="material-icons">kitchen</span><span data-t="casa.ld.1">Cocina equipada</span></li>
-      <li><span class="material-icons">restaurant</span><span data-t="casa.ld.2">Platos y cubiertos</span></li>
-      <li><span class="material-icons">bed</span><span data-t="casa.ld.3">Ropa de cama</span></li>
-      <li><span class="material-icons">checkroom</span><span data-t="casa.ld.4">Placard y perchas</span></li>
-      <li><span class="material-icons">water_drop</span><span data-t="casa.ld.5">Agua caliente</span></li>
-      <li><span class="material-icons">mode_fan</span><span data-t="casa.ld.6">Ventiladores</span></li>
+      <li><span class="material-icons">kitchen</span><span data-t="casa_ld_1">Cocina equipada</span></li>
+      <li><span class="material-icons">restaurant</span><span data-t="casa_ld_2">Platos y cubiertos</span></li>
+      <li><span class="material-icons">bed</span><span data-t="casa_ld_3">Ropa de cama</span></li>
+      <li><span class="material-icons">checkroom</span><span data-t="casa_ld_4">Placard y perchas</span></li>
+      <li><span class="material-icons">water_drop</span><span data-t="casa_ld_5">Agua caliente</span></li>
+      <li><span class="material-icons">mode_fan</span><span data-t="casa_ld_6">Ventiladores</span></li>
     </ul>
   </div>
 
@@ -306,42 +306,42 @@
        de tres. Viven en cabanas/{id}.amenities, que el index pinta bajo
        cada ficha. -->
   <div class="varia">
-    <h3 data-t="casa.varia.t">Lo que cambia de un apartamento a otro</h3>
-    <p data-t="casa.varia.p">El aire acondicionado, la capacidad y el acceso están en la ficha de cada uno.</p>
+    <h3 data-t="casa_varia_t">Lo que cambia de un apartamento a otro</h3>
+    <p data-t="casa_varia_p">El aire acondicionado, la capacidad y el acceso están en la ficha de cada uno.</p>
   </div>
 </section>
 
 <!-- ── Lo que no hay ─────────────────────────────────────── -->
 <section class="wrap">
   <div class="grupo">
-    <h3 data-t="casa.nohay.t">Lo que no hay</h3>
+    <h3 data-t="casa_nohay_t">Lo que no hay</h3>
     <ul class="lista no">
-      <li><span class="material-icons">remove_circle_outline</span><span data-t="casa.nohay.1">Secadora de ropa.</span></li>
+      <li><span class="material-icons">remove_circle_outline</span><span data-t="casa_nohay_1">Secadora de ropa.</span></li>
     </ul>
   </div>
 </section>
 
 <!-- ── Horarios ──────────────────────────────────────────── -->
 <section class="wrap">
-  <h2 data-t="casa.hor.t">Horarios</h2>
+  <h2 data-t="casa_hor_t">Horarios</h2>
   <div class="horas">
     <div class="hora">
-      <span data-t="casa.hor.kin">Llegada</span>
-      <b data-t="casa.hor.in">desde las 14:00</b>
+      <span data-t="casa_hor_kin">Llegada</span>
+      <b data-t="casa_hor_in">desde las 14:00</b>
     </div>
     <div class="hora">
-      <span data-t="casa.hor.kout">Salida</span>
-      <b data-t="casa.hor.out">hasta las 10:00</b>
+      <span data-t="casa_hor_kout">Salida</span>
+      <b data-t="casa_hor_out">hasta las 10:00</b>
     </div>
   </div>
-  <p data-t="casa.hor.nota">Si necesitás otro horario, escribinos.</p>
+  <p data-t="casa_hor_nota">Si necesitás otro horario, escribinos.</p>
 </section>
 
 <!-- ── Quién recibe ──────────────────────────────────────── -->
 <section class="wrap">
   <div class="caja">
-    <h2 data-t="casa.recibe.t">Quién te recibe</h2>
-    <p data-t="casa.recibe.p1">En temporada estamos nosotros.</p>
+    <h2 data-t="casa_recibe_t">Quién te recibe</h2>
+    <p data-t="casa_recibe_p1">En temporada estamos nosotros.</p>
   </div>
 </section>
 
@@ -351,48 +351,48 @@
      acuerdo, y acuerdo es lo que queremos. -->
 <section class="wrap">
   <div class="acuerdo">
-    <h2 data-t="casa.reglas.t">Nuestro acuerdo de convivencia</h2>
-    <p class="intro" data-t="casa.reglas.bajada">Somos varias familias compartiendo un mismo predio.</p>
+    <h2 data-t="casa_reglas_t">Nuestro acuerdo de convivencia</h2>
+    <p class="intro" data-t="casa_reglas_bajada">Somos varias familias compartiendo un mismo predio.</p>
 
     <div class="regla">
-      <h3><span class="material-icons">groups</span><span data-t="casa.r.pax.t">La capacidad está en la ficha</span></h3>
-      <p data-t="casa.r.pax.p">Está fijada por el tamaño real del espacio.</p>
+      <h3><span class="material-icons">groups</span><span data-t="casa_r_pax_t">La capacidad está en la ficha</span></h3>
+      <p data-t="casa_r_pax_p">Está fijada por el tamaño real del espacio.</p>
     </div>
     <div class="regla">
-      <h3><span class="material-icons">lock</span><span data-t="casa.r.puerta.t">Puerta exterior cerrada con llave</span></h3>
-      <p data-t="casa.r.puerta.p">Es una propiedad abierta y viven familias acá todo el año.</p>
+      <h3><span class="material-icons">lock</span><span data-t="casa_r_puerta_t">Puerta exterior cerrada con llave</span></h3>
+      <p data-t="casa_r_puerta_p">Es una propiedad abierta y viven familias acá todo el año.</p>
     </div>
     <div class="regla">
-      <h3><span class="material-icons">person_add_disabled</span><span data-t="casa.r.visitas.t">Solo personas alojadas</span></h3>
-      <p data-t="casa.r.visitas.p">Si querés recibir a alguien, consultanos antes.</p>
+      <h3><span class="material-icons">person_add_disabled</span><span data-t="casa_r_visitas_t">Solo personas alojadas</span></h3>
+      <p data-t="casa_r_visitas_p">Si querés recibir a alguien, consultanos antes.</p>
     </div>
     <div class="regla">
-      <h3><span class="material-icons">bedtime</span><span data-t="casa.r.ruido.t">Silencio entre las 23:00 y las 8:00</span></h3>
-      <p data-t="casa.r.ruido.p">Hay gente durmiendo a pocos metros.</p>
+      <h3><span class="material-icons">bedtime</span><span data-t="casa_r_ruido_t">Silencio entre las 0:00 y las 8:00</span></h3>
+      <p data-t="casa_r_ruido_p">Hay gente durmiendo a pocos metros.</p>
     </div>
     <div class="regla">
-      <h3><span class="material-icons">celebration</span><span data-t="casa.r.fiestas.t">Sin fiestas ni eventos</span></h3>
-      <p data-t="casa.r.fiestas.p">El predio es chico.</p>
+      <h3><span class="material-icons">celebration</span><span data-t="casa_r_fiestas_t">Sin fiestas ni eventos</span></h3>
+      <p data-t="casa_r_fiestas_p">El predio es chico.</p>
     </div>
     <div class="regla">
-      <h3><span class="material-icons">smoke_free</span><span data-t="casa.r.fumar.t">No se fuma adentro</span></h3>
-      <p data-t="casa.r.fumar.p">El olor queda en cortinas y colchones.</p>
+      <h3><span class="material-icons">smoke_free</span><span data-t="casa_r_fumar_t">No se fuma adentro</span></h3>
+      <p data-t="casa_r_fumar_p">El olor queda en cortinas y colchones.</p>
     </div>
     <div class="regla">
-      <h3><span class="material-icons">shower</span><span data-t="casa.r.ducha.t">Ducha exterior antes de la piscina</span></h3>
-      <p data-t="casa.r.ducha.p">El protector solar arruina el agua y la arena tapa las cañerías.</p>
+      <h3><span class="material-icons">shower</span><span data-t="casa_r_ducha_t">Ducha exterior antes de la piscina</span></h3>
+      <p data-t="casa_r_ducha_p">El protector solar arruina el agua y la arena tapa las cañerías.</p>
     </div>
     <div class="regla">
-      <h3><span class="material-icons">pets</span><span data-t="casa.r.mascotas.t">Sin mascotas</span></h3>
-      <p data-t="casa.r.mascotas.p">No podemos garantizar que le venga bien a todos.</p>
+      <h3><span class="material-icons">pets</span><span data-t="casa_r_mascotas_t">Sin mascotas</span></h3>
+      <p data-t="casa_r_mascotas_p">No podemos garantizar que le venga bien a todos.</p>
     </div>
     <div class="regla">
-      <h3><span class="material-icons">lightbulb</span><span data-t="casa.r.luces.t">Luces y ventiladores apagados al salir</span></h3>
-      <p data-t="casa.r.luces.p">En temporada la cuenta se dispara.</p>
+      <h3><span class="material-icons">lightbulb</span><span data-t="casa_r_luces_t">Luces y ventiladores apagados al salir</span></h3>
+      <p data-t="casa_r_luces_p">En temporada la cuenta se dispara.</p>
     </div>
     <div class="regla">
-      <h3><span class="material-icons">photo_camera</span><span data-t="casa.r.fotos.t">Fotografía comercial, solo con permiso</span></h3>
-      <p data-t="casa.r.fotos.p">Uso personal, todo el que quieras.</p>
+      <h3><span class="material-icons">photo_camera</span><span data-t="casa_r_fotos_t">Fotografía comercial, solo con permiso</span></h3>
+      <p data-t="casa_r_fotos_p">Uso personal, todo el que quieras.</p>
     </div>
   </div>
 </section>
@@ -402,28 +402,28 @@
      que decir dónde sí. -->
 <section class="wrap">
   <div class="caja">
-    <h2 data-t="casa.camaras.t">Cámaras</h2>
-    <p data-t="casa.camaras.p">Hay cámaras en el portón y el estacionamiento, en ningún otro lado.</p>
+    <h2 data-t="casa_camaras_t">Cámaras</h2>
+    <p data-t="casa_camaras_p">Hay cámaras en el portón y el estacionamiento, en ningún otro lado.</p>
   </div>
 </section>
 
 <!-- ── Estadías largas ───────────────────────────────────── -->
 <section class="wrap">
   <div class="caja">
-    <h2 data-t="casa.largas.t">Estadías largas</h2>
-    <p data-t="casa.largas.p">Recibimos estadías de 28 días o más.</p>
+    <h2 data-t="casa_largas_t">Estadías largas</h2>
+    <p data-t="casa_largas_p">Recibimos estadías de 28 días o más.</p>
   </div>
 </section>
 
 <!-- ── Cierre ────────────────────────────────────────────── -->
 <section class="wrap cierre">
-  <h2 data-t="casa.dudas.t">¿Alguna duda?</h2>
-  <p data-t="casa.dudas.p">Escribinos por WhatsApp.</p>
+  <h2 data-t="casa_dudas_t">¿Alguna duda?</h2>
+  <p data-t="casa_dudas_p">Escribinos por WhatsApp.</p>
   <a class="btn-wa" id="btnWa" href="#">
     <span class="material-icons" style="font-size:19px;">chat</span>
     <span data-t="pedir">Pedir presupuesto por WhatsApp</span>
   </a>
-  <p class="version" data-t="casa.version">Vigente desde agosto de 2026.</p>
+  <p class="version" data-t="casa_version">Vigente desde agosto de 2026.</p>
 </section>
 
 <footer>
