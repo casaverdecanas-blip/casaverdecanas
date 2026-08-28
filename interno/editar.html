@@ -28,6 +28,18 @@
   .techo .titulo { font-weight: 600; font-size: .92rem; flex: 1; min-width: 0;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+  /* Selector de página. Desde la T11.45 el sitio público tiene DOS
+     páginas con textos editables: la portada y "Cómo funciona la casa".
+     Sin esto, la segunda quedaba escrita y sin forma de corregirla —
+     que es peor que no tenerla, porque nadie se entera hasta que hay
+     algo mal en un idioma que casi no se mira. */
+  .paginas { display: flex; gap: 3px; flex: none; }
+  .paginas button { border: 1px solid var(--linea); background: #fff;
+    border-radius: 999px; min-height: 34px; padding: 0 12px; font: inherit;
+    font-size: .78rem; cursor: pointer; color: var(--gris); white-space: nowrap; }
+  .paginas button.on { background: var(--tinta); border-color: var(--tinta);
+    color: #fff; font-weight: 600; }
+
   /* Los tres idiomas. Editás en el que estás mirando: no hay
      "campo pt / campo es / campo en" uno debajo del otro. */
   .langs { display: flex; gap: 3px; flex: none; }
@@ -99,7 +111,11 @@
   <button class="volver" id="btnVolver" aria-label="Volver">
     <span class="material-icons">arrow_back</span>
   </button>
-  <div class="titulo">Editar el sitio</div>
+  <div class="paginas" id="paginas">
+    <button data-p="index.html">Portada</button>
+    <button data-p="la-casa.html">La casa</button>
+  </div>
+  <div style="flex:1"></div>
   <div class="langs" id="langs">
     <button data-l="pt">PT</button>
     <button data-l="es">ES</button>
@@ -209,7 +225,43 @@ let destinoFoto = null;    // qué foto se está cambiando
 // esta página, sea en casaverdecanas.com.br o en github.io. Con una
 // dirección absoluta, el navegador trataría el marco como ajeno y
 // este editor no podría ni leer su contenido.
-marco.src = '../index.html?edit=1';
+let paginaActual = 'index.html';
+marco.src = '../' + paginaActual + '?edit=1';
+
+/**
+ * Cambia la página que se está editando.
+ *
+ * Los cambios sin guardar NO se arrastran de una página a otra: las
+ * claves de 'pendientes' son "config/sitio:textos.es.loQueSea", así que
+ * técnicamente sobrevivirían al cambio — y ahí está el problema. Alguien
+ * escribe tres textos en la portada, se va a La casa, guarda algo de
+ * ahí, y sin saberlo publica también lo de la portada. Guardar tiene que
+ * publicar lo que se está mirando y nada más.
+ */
+function irAPagina(p) {
+  if (p === paginaActual) return;
+  if (pendientes.size) {
+    // No se usa confirm(): Chrome deja apagar los diálogos de la página
+    // ("impedir que esta página cree más diálogos") y desde entonces
+    // devuelve 'no' sin mostrar nada. El botón quedaría muerto sin
+    // explicar por qué.
+    CV2.toast('Guardá o descartá los cambios antes de cambiar de página', 'error');
+    return;
+  }
+  paginaActual = p;
+  const bs = document.querySelectorAll('#paginas button');
+  for (let i = 0; i < bs.length; i++) bs[i].classList.toggle('on', bs[i].dataset.p === p);
+  $('cuenta').textContent = 'Cargando la página…';
+  marco.src = '../' + p + '?edit=1';
+}
+
+const botonesPagina = document.querySelectorAll('#paginas button');
+for (let i = 0; i < botonesPagina.length; i++) {
+  botonesPagina[i].classList.toggle('on', botonesPagina[i].dataset.p === paginaActual);
+  // El evento se pasa como parámetro: 'event' global no existe en
+  // Safari/iOS y el botón no haría nada, sin error a la vista.
+  botonesPagina[i].addEventListener('click', (ev) => irAPagina(ev.currentTarget.dataset.p));
+}
 
 marco.addEventListener('load', () => {
   // El sitio avisa cada vez que termina de pintar. Hace falta

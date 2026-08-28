@@ -7,6 +7,16 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v85 (27-ago-2026) — NACE LA PÁGINA DEL ACUERDO. El sitio público suma
+//       'la-casa.html' en la RAÍZ: horarios, qué hay en la propiedad y el
+//       acuerdo de convivencia, en los tres idiomas y editable encima del
+//       sitio como la portada. La portada suma su resumen y el enlace.
+//       'textos-sitio.js' pasa de 33 a 108 claves por idioma — POR ESO sube
+//       la VERSION: ese archivo SÍ está en este SHELL. 'la-casa.html' NO
+//       entra al SHELL y no puede: vive en la raíz, fuera del scope de
+//       /interno/, igual que index.html de la raíz (ver v80).
+//       Y editar.html suma el selector de página: sin él la página nueva
+//       quedaba escrita y sin forma de corregirla.
 // v84 (19-ago-2026) — LOS AVISOS DE ACTIVIDADES NO EXISTÍAN: se construyen.
 //       Dos llaves nuevas en Mis avisos ('te asignaron una actividad' y
 //       'actividad nueva del equipo') y el disparo en actividades.html. Más
@@ -84,7 +94,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v84';
+const VERSION = 'cv2-shell-v85';
 
 const SHELL = [
   './',
