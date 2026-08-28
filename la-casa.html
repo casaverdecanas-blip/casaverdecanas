@@ -106,9 +106,29 @@
   }
   @keyframes parpadeo{0%,100%{opacity:.72}50%{opacity:1}}
 
+  /* ── Bloques ocultos ───────────────────────────────────────
+     Vaciar un texto NO lo borra: el sitio vuelve a mostrar el del
+     diccionario, que es lo correcto —un texto en blanco por accidente
+     dejaría un hueco para siempre—. Pero entonces no había forma de
+     sacar del sitio una regla o un renglón que ya no corresponde.
+     Para eso está la lista 'ocultos' de config/sitio: es una decisión
+     distinta de "escribí algo", y por eso vive en su propio campo.
+     Se usa [hidden] con !important porque estos elementos tienen
+     display:flex o display:grid por CSS, y el hidden de HTML solo
+     pone display:none con la especificidad más baja que existe: sin
+     esto, marcar un <li> como oculto no lo oculta. */
+  [hidden] { display: none !important; }
+
+  /* Más aire antes de cada título de sección. Con secciones seguidas,
+     el final de un párrafo quedaba pegado al título que venía después
+     y las dos cosas se leían como una sola. */
+  section h2 { font-size:1.5rem; color:var(--selva-osc); margin-bottom:14px }
+  section + section { padding-top:6px }
+  section > h2 { margin-top:8px }
+  .caja + .caja, .grupo + .grupo { margin-top:14px }
+
   /* ── Secciones ─────────────────────────────────────────── */
   section{padding:26px 0}
-  section h2{font-size:1.5rem;color:var(--selva-osc);margin-bottom:14px}
   section p{margin:0 0 12px;color:var(--gris)}
   section p:last-child{margin-bottom:0}
 
@@ -199,6 +219,12 @@
   .cv-ed [data-edit]:focus{outline:2px solid var(--selva);background:#fff;
     box-shadow:0 0 0 4px rgba(159,210,176,.35)}
   .cv-ed [data-edit]:empty::before{content:'—— escribir ——';color:#b9a98a;font-size:.8em}
+  /* Editando, lo oculto NO desaparece: se muestra apagado y tachado. Si
+     desapareciera del todo no habría dónde tocar para traerlo de vuelta,
+     y sacar algo sin poder deshacerlo no es una función, es una trampa. */
+  .cv-ed [hidden]{display:revert !important;opacity:.4}
+  .cv-ed .cv-oculto{text-decoration:line-through;text-decoration-color:var(--terracota)}
+  .cv-ed [data-edit].cv-oculto{outline-style:dotted;outline-color:var(--gris)}
 </style>
 </head>
 <body>
@@ -277,14 +303,14 @@
       <li><span class="material-icons">pool</span><span data-t="casa_lp_1">Piscina</span></li>
       <li><span class="material-icons">outdoor_grill</span><span data-t="casa_lp_2">Asador</span></li>
       <li><span class="material-icons">deck</span><span data-t="casa_lp_3">Terraza techada con hamacas</span></li>
-      <li><span class="material-icons">table_restaurant</span><span data-t="casa_lp_4">Comedor al aire libre</span></li>
+      <li><span class="material-icons">dining</span><span data-t="casa_lp_4">Comedor al aire libre</span></li>
       <li><span class="material-icons">shower</span><span data-t="casa_lp_5">Ducha exterior</span></li>
       <li><span class="material-icons">local_laundry_service</span><span data-t="casa_lp_6">Lavarropas sin cargo</span></li>
       <li><span class="material-icons">dry_cleaning</span><span data-t="casa_lp_7">Tendedero</span></li>
       <li><span class="material-icons">local_parking</span><span data-t="casa_lp_8">Estacionamiento cerrado</span></li>
       <li><span class="material-icons">wifi</span><span data-t="casa_lp_9">Wi-Fi</span></li>
       <li><span class="material-icons">tv</span><span data-t="casa_lp_10">TV y juegos de mesa</span></li>
-      <li><span class="material-icons">kayaking</span><span data-t="casa_lp_11">Kayak</span></li>
+      <li><span class="material-icons">rowing</span><span data-t="casa_lp_11">Kayak</span></li>
     </ul>
   </div>
 
@@ -296,7 +322,7 @@
       <li><span class="material-icons">bed</span><span data-t="casa_ld_3">Ropa de cama</span></li>
       <li><span class="material-icons">checkroom</span><span data-t="casa_ld_4">Placard y perchas</span></li>
       <li><span class="material-icons">water_drop</span><span data-t="casa_ld_5">Agua caliente</span></li>
-      <li><span class="material-icons">mode_fan</span><span data-t="casa_ld_6">Ventiladores</span></li>
+      <li><span class="material-icons">air</span><span data-t="casa_ld_6">Ventiladores</span></li>
     </ul>
   </div>
 
@@ -454,6 +480,11 @@ import { T } from './interno/textos-sitio.js';
 
 var WHATSAPP = '';
 var TEXTOS = {};
+// Claves que NO se muestran en el sitio, decididas desde el editor.
+// Es una lista aparte y no un texto vacío a propósito: vaciar un texto lo
+// devuelve al diccionario, que es lo que corresponde cuando alguien borra
+// sin querer. Sacar algo del sitio es otra intención y merece otro campo.
+var OCULTOS = [];
 
 function $(id) { return document.getElementById(id); }
 
@@ -508,12 +539,44 @@ function marcarTextos() {
   }
 }
 
+/**
+ * Esconde lo que se sacó del sitio.
+ *
+ * Dos pasadas, y la segunda es la que importa: primero se esconde cada
+ * texto marcado, y después CUALQUIER contenedor cuyos textos estén todos
+ * escondidos. Así, esconder el motivo de una regla deja la regla en pie
+ * —el título sigue ahí—, pero esconder el título Y el motivo hace
+ * desaparecer la regla entera, con su ícono, su línea divisoria y su
+ * espacio. Sin la segunda pasada quedaba un renglón vacío con un ícono
+ * suelto, que es peor que dejar el texto.
+ */
+function aplicarOcultos() {
+  var els = document.querySelectorAll('[data-t]');
+  for (var i = 0; i < els.length; i++) {
+    var esconder = OCULTOS.indexOf(els[i].dataset.t) !== -1;
+    els[i].hidden = esconder;
+    els[i].classList.toggle('cv-oculto', esconder);
+  }
+  var cajas = document.querySelectorAll('li, .regla, .grupo, .caja, .varia, .horas > div, section');
+  for (var j = 0; j < cajas.length; j++) {
+    var dentro = cajas[j].querySelectorAll('[data-t]');
+    if (!dentro.length) continue;
+    var todos = true;
+    for (var k = 0; k < dentro.length; k++) {
+      if (!dentro[k].hidden) { todos = false; break; }
+    }
+    cajas[j].hidden = todos;
+    cajas[j].classList.toggle('cv-oculto', todos);
+  }
+}
+
 function aplicarIdioma() {
   document.documentElement.lang = lang;
   var els = document.querySelectorAll('[data-t]');
   for (var i = 0; i < els.length; i++) {
     els[i].textContent = t(els[i].dataset.t);
   }
+  aplicarOcultos();
   var bs = document.querySelectorAll('.idiomas button');
   for (var j = 0; j < bs.length; j++) {
     bs[j].classList.toggle('on', bs[j].dataset.i === lang);
@@ -566,6 +629,7 @@ async function cargarTodo() {
       var x = cfg.data();
       WHATSAPP = (x.whatsapp || '').replace(/[^0-9]/g, '');
       TEXTOS = x.textos || {};
+      OCULTOS = Array.isArray(x.ocultos) ? x.ocultos : [];
     }
   } catch (e) {
     // Si Firestore no responde, la página se muestra igual con el
@@ -582,7 +646,15 @@ if (EDITAR) {
     get lang() { return lang; },
     setLang: function (l) { if (T[l]) { lang = l; aplicarIdioma(); } },
     recargar: async function () { await cargarTodo(); aplicarIdioma(); },
-    diccionario: T
+    diccionario: T,
+    // El editor pregunta qué está oculto y avisa cuando cambia. La lista
+    // la guarda ÉL —es quien tiene la sesión y los permisos—; esta página
+    // solo la refleja.
+    get ocultos() { return OCULTOS.slice(); },
+    setOcultos: function (lista) {
+      OCULTOS = Array.isArray(lista) ? lista.slice() : [];
+      aplicarOcultos();
+    }
   };
 }
 

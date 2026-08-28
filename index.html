@@ -291,6 +291,12 @@
   .cv-ed [data-edit]:focus{outline:2px solid var(--selva);background:#fff;
     box-shadow:0 0 0 4px rgba(159,210,176,.35)}
   /* Un texto vacío no se puede tocar: se le deja un hueco visible. */
+  [hidden] { display: none !important; }
+  /* Editando, lo oculto se ve apagado y tachado en vez de desaparecer:
+     si desapareciera no habría dónde tocar para traerlo de vuelta. */
+  .cv-ed [hidden]{display:revert !important;opacity:.4}
+  .cv-ed .cv-oculto{text-decoration:line-through;text-decoration-color:var(--terracota)}
+  .cv-ed [data-edit].cv-oculto{outline-style:dotted;outline-color:var(--gris)}
   .cv-ed [data-edit]:empty::before{content:'—— escribir ——';color:#b9a98a;font-size:.8em}
 
   /* El carrusel SE DESPLIEGA. Editando hay que poder tocar cada foto,
@@ -525,6 +531,10 @@ import { T } from './interno/textos-sitio.js';
 // queda el respaldo por si ese documento todavía no existe.
 let WHATSAPP = '';
 let TEXTOS = {};
+// Claves que NO se muestran. Ver el comentario largo en la-casa.html:
+// vaciar un texto lo devuelve al diccionario (correcto cuando alguien
+// borra sin querer); sacar algo del sitio es otra intención, otro campo.
+let OCULTOS = [];
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
@@ -573,9 +583,31 @@ function marcarTextos() {
   });
 }
 
+/**
+ * Esconde lo que se sacó del sitio. Dos pasadas: los textos marcados, y
+ * después los contenedores cuyos textos estén TODOS escondidos, para que
+ * no quede un renglón vacío con el ícono suelto. Misma lógica que en
+ * la-casa.html.
+ */
+function aplicarOcultos() {
+  document.querySelectorAll('[data-t]').forEach((el) => {
+    const esconder = OCULTOS.indexOf(el.dataset.t) !== -1;
+    el.hidden = esconder;
+    el.classList.toggle('cv-oculto', esconder);
+  });
+  document.querySelectorAll('.casa-res .datos-casa > div, .tarjeta, section').forEach((c) => {
+    const dentro = c.querySelectorAll('[data-t]');
+    if (!dentro.length) return;
+    const todos = Array.prototype.every.call(dentro, (h) => h.hidden);
+    c.hidden = todos;
+    c.classList.toggle('cv-oculto', todos);
+  });
+}
+
 function aplicarIdioma() {
   document.documentElement.lang = lang;
   document.querySelectorAll('[data-t]').forEach((el) => { el.textContent = t(el.dataset.t); });
+  aplicarOcultos();
   document.querySelectorAll('.idiomas button').forEach((b) =>
     b.classList.toggle('on', b.dataset.i === lang));
   pintarCabanas(); pintarEspacios(); pintarSelect();
@@ -853,6 +885,7 @@ async function cargarTodo() {
       const x = cfg.data();
       WHATSAPP = (x.whatsapp || '').replace(/[^0-9]/g, '');
       TEXTOS = x.textos || {};
+      OCULTOS = Array.isArray(x.ocultos) ? x.ocultos : [];
     }
   } catch (e) { console.warn('config sitio', e); }
 
@@ -874,7 +907,14 @@ if (EDITAR) {
     async recargar() { await cargarTodo(); aplicarIdioma(); pintarCal(); },
     // El diccionario completo: el editor lo usa para saber qué texto
     // sale de fábrica y cuál escribió alguien.
-    diccionario: T
+    diccionario: T,
+    // Qué está sacado del sitio. La lista la GUARDA el editor, que es
+    // quien tiene la sesión; esta página solo la refleja.
+    get ocultos() { return OCULTOS.slice(); },
+    setOcultos(lista) {
+      OCULTOS = Array.isArray(lista) ? lista.slice() : [];
+      aplicarOcultos();
+    }
   };
 }
 
