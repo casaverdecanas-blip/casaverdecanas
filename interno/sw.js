@@ -7,6 +7,13 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v88 (28-ago-2026) — DOS BOTONES MUERTOS EN EL EDITOR. 'Descartar' y
+//       'Volver' seguían usando confirm(), que Chrome deja apagar desde
+//       "impedir que esta página cree más diálogos". Apagado, confirm()
+//       devuelve 'no' sin mostrar nada: Descartar no descartaba y Volver no
+//       dejaba volver, los dos en silencio y sin explicar por qué. Pasan a
+//       la capa propia del panel, la misma de traducir.html, que además
+//       entra en la pila del botón Atrás. Nada más cambia.
 // v87 (28-ago-2026) — EL ENLACE A 'la-casa.html' ESTABA ROTO. Al renombrar
 //       las claves de punto a guión bajo en la v86, el reemplazo también
 //       alcanzó la CADENA 'casa.html' dentro de 'la-casa.html': el guión
@@ -119,7 +126,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v87';
+const VERSION = 'cv2-shell-v88';
 
 const SHELL = [
   './',

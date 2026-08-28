@@ -28,6 +28,21 @@
   .techo .titulo { font-weight: 600; font-size: .92rem; flex: 1; min-width: 0;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+  /* La confirmación es de la pantalla, no del navegador. Chrome deja apagar
+     los diálogos de una página ("impedir que esta página cree más diálogos")
+     y desde ese momento confirm() devuelve 'no' sin mostrar nada: Descartar
+     no descartaría nunca y Volver no dejaría volver nunca, los dos sin decir
+     por qué. Esto no se puede apagar. */
+  #confirmar { position: fixed; inset: 0; z-index: 400; background: rgba(20,30,18,.55);
+    display: flex; align-items: flex-end; justify-content: center;
+    padding: 14px 14px calc(14px + env(safe-area-inset-bottom)); }
+  #confirmar.hide { display: none; }
+  #confirmar .caja { background: #fff; border-radius: 16px; padding: 16px;
+    max-width: 520px; width: 100%; box-shadow: 0 -8px 40px rgba(0,0,0,.3); }
+  #confirmar p { font-size: .92rem; line-height: 1.5; margin: 0 0 12px; }
+  #confirmar .fila-conf { display: flex; gap: 8px; }
+  #confirmar .fila-conf .btn { flex: 1; justify-content: center; }
+
   /* Selector de página. Desde la T11.45 el sitio público tiene DOS
      páginas con textos editables: la portada y "Cómo funciona la casa".
      Sin esto, la segunda quedaba escrita y sin forma de corregirla —
@@ -131,6 +146,16 @@
     <span class="material-icons" style="font-size:20px;vertical-align:-4px;">undo</span>
   </button>
   <button class="btn guardar" id="btnGuardar" disabled>Guardar</button>
+</div>
+
+<div id="confirmar" class="hide">
+  <div class="caja">
+    <p id="conf-txt"></p>
+    <div class="fila-conf">
+      <button class="btn" id="conf-no">Cancelar</button>
+      <button class="btn btn-primario" id="conf-si">Sí</button>
+    </div>
+  </div>
 </div>
 
 <dialog class="hoja" id="hojaFotos">
@@ -725,10 +750,36 @@ function anidar(campos) {
   return salida;
 }
 
+// ── Preguntar sin depender del navegador ─────────────────────
+// Ver el comentario del CSS de #confirmar: confirm() se puede apagar desde
+// Chrome y desde entonces devuelve 'no' en silencio. Con confirm(), estos
+// dos botones quedaban muertos sin explicar nada.
+function preguntar(texto) {
+  return new Promise((resolver) => {
+    const capa = $('confirmar');
+    $('conf-txt').textContent = texto;
+    capa.classList.remove('hide');
+    let resuelto = false;
+    const terminar = (r) => {
+      if (resuelto) return;
+      resuelto = true;
+      capa.classList.add('hide');
+      $('conf-si').onclick = null;
+      $('conf-no').onclick = null;
+      resolver(r);
+    };
+    // Entra en la pila del botón Atrás: Atrás cancela, como en el resto
+    // del panel.
+    const cerrarCapa = CV2.capaAtras(() => terminar(false));
+    $('conf-si').onclick = () => { terminar(true); cerrarCapa(); };
+    $('conf-no').onclick = () => { cerrarCapa(); };
+  });
+}
+
 // ── Descartar ────────────────────────────────────────────────
 $('btnTirar').addEventListener('click', async () => {
   if (!pendientes.size) return;
-  if (!confirm('¿Descartar los ' + pendientes.size + ' cambios sin guardar?')) return;
+  if (!(await preguntar('¿Descartar los ' + pendientes.size + ' cambios sin guardar?'))) return;
   pendientes.clear();
   const w = ventana();
   if (w && w.CVSITIO) await w.CVSITIO.recargar();
@@ -736,9 +787,9 @@ $('btnTirar').addEventListener('click', async () => {
 });
 
 // ── Salir ────────────────────────────────────────────────────
-$('btnVolver').addEventListener('click', () => {
+$('btnVolver').addEventListener('click', async () => {
   if (pendientes.size
-    && !confirm('Hay ' + pendientes.size + ' cambio(s) sin guardar. ¿Salir igual?')) return;
+    && !(await preguntar('Hay ' + pendientes.size + ' cambio(s) sin guardar. ¿Salir igual?'))) return;
   location.href = './cabanas.html';
 });
 
