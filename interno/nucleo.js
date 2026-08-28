@@ -352,6 +352,12 @@ CV2.NAV = [
   { id: 'cabanas', label: 'Cabañas', href: './cabanas.html', icono: 'cottage', permiso: 'contenido', grupo: 'sitio' },
   { id: 'espacios', label: 'Espacios', href: './espacios.html', icono: 'deck', permiso: 'contenido', grupo: 'sitio' },
   { id: 'recuerdos', label: 'Recuerdos', href: './recuerdos.html', icono: 'photo_library', permiso: 'contenido', grupo: 'sitio' },
+  // Editar y Traducir trabajan sobre el MISMO contenido y desde acá se llega
+  // a los dos. Hasta la T11.46 el editor solo se alcanzaba desde Cabañas: una
+  // pantalla a la que no lleva ningún camino visible es una pantalla que no
+  // existe para quien no la escribió.
+  { id: 'editar', label: 'Editar el sitio', href: './editar.html', icono: 'edit_note', permiso: 'contenido', grupo: 'sitio' },
+  { id: 'traducir', label: 'Revisar y traducir', href: './traducir.html', icono: 'translate', permiso: 'contenido', grupo: 'sitio' },
 
   // Grupo 'cuenta' → hoja de la persona (el botón redondo de la cabecera).
   // "Mis avisos" es la PRIMERA pantalla del 2.0 donde alguien configura algo

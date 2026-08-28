@@ -634,10 +634,23 @@ async function guardar() {
   // Se agrupa por documento: un solo escrito por documento, aunque se
   // hayan tocado ocho campos suyos.
   const porDoc = new Map();
+  // ⚠ Claves de texto con punto: updateDoc lee cada punto del camino como
+  // un nivel de anidamiento, así que 'textos.es.casa.r.ruido' se guardaría
+  // como textos→es→casa→r→ruido mientras el sitio lee la clave LITERAL
+  // 'casa.r.ruido'. Se guarda bien, no da error, dice "✓ Sitio actualizado"
+  // y el sitio nunca lo muestra. Antes de la T11.46 ninguna clave tenía
+  // puntos y esto no podía pasar; ahora que hay claves compuestas, tiene
+  // que fallar RUIDOSAMENTE en vez de fallar en silencio.
+  const conPunto = [];
   pendientes.forEach((valor, clave) => {
     const i = clave.indexOf(':');
     const ruta = clave.slice(0, i);        // config/sitio · cabanas/c1
     const campo = clave.slice(i + 1);      // textos.es.titulo · fotos
+    if (ruta === 'config/sitio' && campo.indexOf('textos.') === 0) {
+      // 'textos' + idioma + clave = tres trozos y ni uno más.
+      const trozos = campo.split('.');
+      if (trozos.length !== 3) { conPunto.push(trozos.slice(2).join('.')); return; }
+    }
     if (!porDoc.has(ruta)) porDoc.set(ruta, {});
     // Un texto vaciado del todo NO se guarda como cadena vacía: se
     // BORRA el campo, y así el sitio vuelve a mostrar el texto por
@@ -648,6 +661,15 @@ async function guardar() {
     const esTextoSitio = ruta === 'config/sitio' && campo.indexOf('textos.') === 0;
     porDoc.get(ruta)[campo] = (valor === '' && esTextoSitio) ? deleteField() : valor;
   });
+
+  if (conPunto.length) {
+    btn.textContent = 'Guardar';
+    btn.disabled = false;
+    CV2.toast('No se guardó: la clave "' + conPunto[0] + '" lleva un punto y '
+      + 'Firestore la guardaría en otro lado. Hay que renombrarla con guión bajo '
+      + 'en el HTML y en textos-sitio.js.', 'error');
+    return;
+  }
 
   const fallidos = [];
   for (const [ruta, campos] of porDoc) {

@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Revisar y traducir</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .paso { background:#fff; border:1px solid var(--linea); border-radius:var(--radio);
+    padding:14px; margin:10px 0; box-shadow:var(--sombra); }
+  .paso > h2 { display:flex; align-items:baseline; gap:8px; font-size:1.05rem; margin:0 0 3px; }
+  .paso > h2 .n { font-size:.7rem; color:var(--verde); font-weight:700; flex:none;
+    background:var(--verde-claro); border-radius:999px; width:22px; height:22px;
+    display:flex; align-items:center; justify-content:center; }
+  .ayuda { font-size:.8rem; color:var(--gris); line-height:1.45; margin:6px 0 0; }
+
+  /* El tablero de estado. Números grandes porque es lo primero que se
+     mira al entrar y lo único que hay que entender de un vistazo. */
+  .cuadro { display:grid; grid-template-columns:repeat(auto-fit,minmax(84px,1fr));
+    gap:6px; margin:12px 0; }
+  .cuadro div { background:var(--crema); border-radius:8px; padding:9px 8px; }
+  .cuadro b { display:block; font-size:1.25rem; line-height:1.1; }
+  .cuadro span { display:block; font-size:.68rem; color:var(--gris); margin-top:2px;
+    line-height:1.25; }
+  .cuadro div.ojo b { color:var(--amarillo); }
+  .cuadro div.mal b { color:var(--rojo); }
+  .cuadro div.ok b { color:var(--ok); }
+
+  .seg { display:flex; gap:5px; margin:8px 0; flex-wrap:wrap; }
+  .seg button { flex:1; min-width:110px; min-height:42px; border:1px solid var(--linea);
+    background:#fff; border-radius:999px; font:inherit; font-size:.83rem; cursor:pointer;
+    color:var(--gris); padding:0 12px; }
+  .seg button.on { background:var(--verde); border-color:var(--verde); color:#fff;
+    font-weight:600; }
+
+  .fila-btn { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .fila-btn .btn { flex:1; min-width:120px; justify-content:center; }
+
+  label.campo { display:block; margin-top:12px; }
+  label.campo .k { display:block; font-size:.8rem; font-weight:600; margin-bottom:4px; }
+  textarea { width:100%; border:1px solid var(--linea); border-radius:10px; padding:10px;
+    font:inherit; font-size:.9rem; background:var(--crema); color:var(--tinta);
+    min-height:4.5rem; resize:vertical; }
+  textarea.json { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.7rem;
+    line-height:1.4; min-height:9rem; white-space:pre; overflow-wrap:normal;
+    overflow-x:auto; }
+  select { width:100%; border:1px solid var(--linea); border-radius:10px; padding:10px;
+    font:inherit; font-size:.9rem; background:var(--crema); color:var(--tinta);
+    min-height:44px; }
+
+  /* Lo que la propia pantalla encontró, sin ayuda de nadie */
+  .av { border-top:1px solid var(--linea); padding:9px 0; font-size:.84rem; line-height:1.4; }
+  .av .donde { display:block; font-size:.62rem; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--gris); }
+  .av .que { display:block; color:var(--amarillo); font-size:.8rem; margin-top:2px; }
+  .av .txt { display:block; color:var(--gris); margin-top:2px; }
+
+  /* La revisión, pieza por pieza */
+  .rev { border-top:1px solid var(--linea); padding:11px 0; }
+  .rev:first-child { border-top:0; }
+  .rev .cab { display:flex; gap:9px; align-items:flex-start; }
+  .rev .cab input { flex:none; margin-top:3px; width:20px; height:20px; }
+  .rev .donde { font-size:.66rem; letter-spacing:.07em; color:var(--verde);
+    text-transform:uppercase; line-height:1.35; flex:1; min-width:0; font-weight:600; }
+  .rev .idi { flex:none; font-size:.6rem; letter-spacing:.06em; text-transform:uppercase;
+    padding:2px 7px; border-radius:999px; font-weight:700; }
+  .rev .idi.esp { background:var(--amarillo); color:#fff; }
+  .rev .idi.pt  { background:var(--azul); color:#fff; }
+  .rev .idi.en  { background:var(--verde); color:#fff; }
+  .rev .par { margin:6px 0 0 29px; font-size:.86rem; line-height:1.45; }
+  .rev .par i { display:block; font-size:.6rem; letter-spacing:.07em; text-transform:uppercase;
+    color:var(--gris); font-style:normal; margin-bottom:1px; }
+  .rev .vieja { color:var(--gris); text-decoration:line-through; }
+  .rev .nueva { color:var(--tinta); }
+  .rev .motivo { color:var(--amarillo); }
+  .rev.fuera { opacity:.45; }
+
+  .inf { border-top:1px solid var(--linea); padding:10px 0; font-size:.86rem; line-height:1.45; }
+  .inf .tema { font-size:.62rem; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--azul); font-weight:700; }
+  .inf .donde { font-size:.75rem; color:var(--gris); }
+  .inf .propongo { color:var(--verde-osc); margin-top:4px; display:block; }
+
+  /* La confirmación es de la pantalla, no del navegador. El confirm() del
+     sistema se puede APAGAR desde Chrome ("impedir que esta página cree más
+     diálogos") y desde ese momento devuelve "no" sin mostrar nada: el botón
+     más importante de la pantalla quedaría sin hacer nada y sin explicar por
+     qué. Esto no se puede apagar. */
+  #confirmar { position:fixed; inset:0; z-index:300; background:rgba(20,30,18,.55);
+    display:flex; align-items:flex-end; justify-content:center;
+    padding:14px 14px calc(14px + env(safe-area-inset-bottom)); }
+  #confirmar.hide { display:none; }
+  #confirmar .caja { background:#fff; border-radius:16px; padding:16px; max-width:520px;
+    width:100%; box-shadow:0 -8px 40px rgba(0,0,0,.3); }
+  #confirmar p { font-size:.92rem; line-height:1.5; margin:0 0 12px; white-space:pre-line; }
+
+  /* El horno: los sitios se leen acá adentro para saber dónde vive cada
+     texto. No se ve nunca. */
+  .horno { position:absolute; left:-9999px; top:0; width:1024px; height:900px;
+    border:0; visibility:hidden; }
+
+  .hide { display:none !important; }
+</style>
+</head>
+<body>
+
+<div id="confirmar" class="hide">
+  <div class="caja">
+    <p id="conf-txt"></p>
+    <div class="fila-btn">
+      <button class="btn" id="conf-no">Cancelar</button>
+      <button class="btn btn-primario" id="conf-si">Sí, hacerlo</button>
+    </div>
+  </div>
+</div>
+
+<div id="nav"></div>
+
+<div class="contenedor" id="app">
+
+  <h1 style="margin-bottom:2px;">Revisar y traducir</h1>
+  <p class="ayuda" style="margin-bottom:12px;">El español es el original del sitio.
+    Esta pantalla lo saca con su contexto para revisarlo y traducirlo en el chat, y
+    después mete de vuelta lo que corresponde.</p>
+
+  <!-- ── 1 · REUNIR ──────────────────────────────────────── -->
+  <section class="paso">
+    <h2><span class="n">1</span> Reunir lo que hay en español</h2>
+    <p class="ayuda">Los textos del sitio, los nombres y descripciones de cada
+      alojamiento y los nombres de las áreas comunes.</p>
+
+    <div class="cuadro">
+      <div><b id="c-total">—</b><span>piezas de texto</span></div>
+      <div class="mal"><b id="c-falta">—</b><span>sin traducir</span></div>
+      <div class="ojo"><b id="c-viejo">—</b><span>el español cambió</span></div>
+      <div class="ok"><b id="c-hecho">—</b><span>al día</span></div>
+      <div class="ojo"><b id="c-avisos">—</b><span>con algo que revisar</span></div>
+    </div>
+
+    <div id="avisos" class="hide"></div>
+
+    <div class="fila-btn">
+      <button class="btn" id="releer">Volver a leer</button>
+      <button class="btn" id="basar">Dar por al día</button>
+    </div>
+    <p class="ayuda" id="estado">Leyendo…</p>
+    <p class="ayuda">Cuando se corrige un texto en español, su portugués y su inglés
+      quedan diciendo otra cosa y en la pantalla no se nota: el texto está ahí y
+      parece completo. Acá aparece como <b>el español cambió</b>, con las dos
+      versiones a la vista.</p>
+    <p class="ayuda"><b>Dar por al día</b> no cambia ningún texto: anota que las
+      traducciones que hay hoy corresponden al español de hoy, para poder avisar
+      cuando el español se mueva. Se usa una vez, al principio.</p>
+  </section>
+
+  <!-- ── 2 · EXPORTAR ────────────────────────────────────── -->
+  <section class="paso">
+    <h2><span class="n">2</span> Llevarlo a revisar y traducir</h2>
+    <p class="ayuda">Se arma un archivo con <b>todo el sitio</b>: cada texto con su
+      contexto —en qué página vive, en qué sección, qué papel cumple— y el mapa de
+      las secciones en el orden en que se leen. Con eso se puede auditar la
+      ortografía, la coherencia entre secciones y cómo está presentada la
+      información, además de traducir.</p>
+
+    <div class="seg" id="quePasa">
+      <button data-v="todo" class="on">Todo el sitio</button>
+      <button data-v="pendiente">Solo lo que falta</button>
+    </div>
+    <p class="ayuda">Para auditar hace falta el sitio entero: la coherencia y el orden
+      no se pueden juzgar mirando piezas sueltas. <b>Solo lo que falta</b> sirve
+      cuando ya auditaste y únicamente querés traducir lo nuevo.</p>
+
+    <label class="campo"><span class="k">En partes de</span>
+      <select id="tamParte">
+        <option value="0">una sola parte</option>
+        <option value="40">40 piezas</option>
+        <option value="80" selected>80 piezas</option>
+        <option value="150">150 piezas</option>
+      </select>
+      <span class="ayuda">Un archivo enorme se traduce peor y se pega peor. Cada
+        parte se traduce por separado y se trae de a una. El mapa del sitio viaja
+        entero en todas.</span>
+    </label>
+
+    <label class="campo hide" id="cajaParte"><span class="k">Parte</span>
+      <select id="parte"></select>
+    </label>
+
+    <label class="campo"><span class="k">Notas para quien traduce</span>
+      <textarea id="notas" placeholder="Tratar de vos. No traducir «Canasvieiras» ni los nombres de los alojamientos…"></textarea>
+      <span class="ayuda">Se guardan y viajan dentro del archivo.</span>
+    </label>
+
+    <div class="fila-btn">
+      <button class="btn btn-primario" id="copiar">Copiar</button>
+      <button class="btn" id="bajar">Descargar</button>
+      <button class="btn" id="verJson">Ver</button>
+    </div>
+    <p class="ayuda" id="tam"></p>
+    <textarea id="salida" class="json hide" readonly></textarea>
+  </section>
+
+  <!-- ── 3 · TRAER ───────────────────────────────────────── -->
+  <section class="paso">
+    <h2><span class="n">3</span> Traer las correcciones</h2>
+    <p class="ayuda">Pegá el archivo que te devolvieron: trae el portugués, el inglés
+      y —donde haya algo mal— el español corregido. <b>No se escribe nada
+      todavía</b>: primero se revisa pieza por pieza.</p>
+
+    <label class="campo"><span class="k">Archivo traducido</span>
+      <textarea id="entrada" class="json" placeholder='{ "piezas": [ { "id": "sitio:casa_titulo", "pt": "…", "en": "…" } ] }'></textarea>
+    </label>
+    <div class="fila-btn">
+      <button class="btn" id="archivo">Desde un archivo</button>
+      <button class="btn btn-primario" id="revisar">Revisar</button>
+    </div>
+    <input id="fich" type="file" accept=".json,application/json,text/plain" class="hide">
+    <p class="ayuda" id="leido"></p>
+  </section>
+
+  <!-- ── EL INFORME ──────────────────────────────────────── -->
+  <section class="paso hide" id="pasoInforme">
+    <h2><span class="n">·</span> Lo que hay para decidir</h2>
+    <p class="ayuda">Coherencia, estructura y tono. Esto <b>no se escribe solo</b>:
+      son observaciones para resolver a mano, con el editor. Quedan acá mientras
+      tengas la pantalla abierta.</p>
+    <div id="informe"></div>
+  </section>
+
+  <!-- ── 4 · APLICAR ─────────────────────────────────────── -->
+  <section class="paso hide" id="pasoRev">
+    <h2><span class="n">4</span> Revisar y aplicar</h2>
+    <p class="ayuda" id="resumenRev"></p>
+    <!-- El mismo botón arriba y abajo: después de mirar treinta cambios nadie
+         quiere volver a bajar hasta el final, y si algo tapa uno de los dos, el
+         otro sigue estando. -->
+    <div class="fila-btn">
+      <button class="btn btn-primario aplicar-ya">Aplicar a la base</button>
+    </div>
+    <div class="fila-btn">
+      <button class="btn" id="todas">Marcar todas</button>
+      <button class="btn" id="ninguna">Ninguna</button>
+    </div>
+    <div id="revLista" style="margin-top:8px;"></div>
+    <div class="fila-btn">
+      <button class="btn btn-primario aplicar-ya" style="flex:1 0 100%;">Aplicar a la base</button>
+    </div>
+    <p class="ayuda" id="progreso"></p>
+  </section>
+
+</div>
+
+<!-- Los dos sitios se leen acá adentro, con ?edit=1, para saber dónde vive
+     cada texto. No se ven nunca. -->
+<iframe class="horno" id="hornoIndex" title="lectura de la portada"></iframe>
+<iframe class="horno" id="hornoCasa" title="lectura de la página de la casa"></iframe>
+
+<script type="module">
+import {
+  db, doc, getDoc, setDoc, updateDoc, collection, getDocs, serverTimestamp
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+import { T } from './textos-sitio.js';
+
+/* ═══════════════════════════════════════════════════════════════
+   REVISAR Y TRADUCIR EL SITIO
+
+   Mauro escribe en español. El portugués y el inglés se traducen aparte.
+   Esta pantalla hace las dos puntas de ese camino: saca el español con su
+   contexto, y mete de vuelta lo que llega.
+
+   Lo que se saca NO es una lista de frases sueltas. Una frase sin saber
+   dónde vive se traduce mal: no se sabe si es un título que tiene que
+   entrar en dos renglones, una etiqueta de tres palabras o el cuerpo de un
+   párrafo. Por eso cada pieza viaja con su página, su sección, su papel y
+   el largo del original.
+
+   EL CONTEXTO NO SE ESCRIBE A MANO ACÁ. Se lee de los propios index.html y
+   la-casa.html, abiertos en un marco oculto con ?edit=1, en el orden en que
+   aparecen en la página. Si mañana el sitio cambia, esto lo refleja sin que
+   nadie toque una tabla. Es la misma idea del editor: seguir las marcas del
+   sitio en vez de mantener una copia paralela que se desincroniza.
+
+   EL REGISTRO. Lo que se sabe de cada traducción se guarda en
+   config/traduccion: EL ESPAÑOL CON EL QUE SE TRADUJO, tal cual, por idioma
+   destino. Sin eso no hay forma de distinguir "no está traducido" de "se
+   tradujo, después se corrigió el español, y el portugués quedó diciendo
+   otra cosa" — que es el caso que se cuela sin que nadie lo note, porque en
+   la pantalla el texto está ahí y parece completo.
+
+   Se guarda el texto entero y no una huella. Ocupa más, pero permite
+   mostrar QUÉ cambió: quien traduce ajusta lo que se movió en lugar de
+   rehacer la frase, y el resultado se parece al que ya estaba.
+
+   POR QUÉ config/traduccion Y NO UN CAMPO DE config/sitio: config/sitio lo
+   baja CADA VISITANTE del sitio público, sin sesión. Meter ahí una copia
+   entera del español duplicaría lo que descarga cada persona que entra
+   desde la playa con 3G, para un dato que solo mira el equipo.
+
+   SI NO SE PUEDE GUARDAR EL REGISTRO, LA PANTALLA SIGUE FUNCIONANDO. Las
+   traducciones se aplican igual y avisa que el registro no se guardó. El
+   registro es lo que permite detectar "el español cambió"; es valioso, pero
+   no es lo que la pantalla vino a hacer. Si las reglas de Firestore todavía
+   no cubren config/traduccion, esto se nota acá y no rompe nada.
+   ═══════════════════════════════════════════════════════════════ */
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+if (!CV2.puede('contenido')) {
+  document.querySelector('.contenedor').innerHTML =
+    '<h1>Sin acceso</h1><p>El contenido del sitio lo edita quien tiene ese permiso.</p>';
+  throw new Error('sin contenido');
+}
+CV2.renderNav('traducir');
+CV2.dialogosConAtras();
+
+const $ = (id) => document.getElementById(id);
+
+// Los dos idiomas a los que se traduce. El día que entre un cuarto idioma
+// se agrega acá y en textos-sitio.js, y nada más: todo lo de abajo recorre
+// esta lista.
+// Sello de este archivo, para saber si quedó viejo en la caché (§3.18).
+// Va ARRIBA y no al final: 'const' no se puede usar antes de su línea, y
+// archivoExport() lo lee durante el primer reunir(). Declarado al final,
+// la pantalla arrancaba con un ReferenceError y quedaba en blanco.
+const TRADUCTOR = 'traducir-1';
+
+const DESTINOS = ['pt', 'en'];
+const NOMBRE_IDIOMA = { pt: 'portugués de Brasil', en: 'inglés', es: 'español' };
+
+let TEXTOS = {};       // config/sitio.textos, lo editado
+let ORIGEN = {};       // idioma → { id: el español con el que se tradujo }
+let NOTAS = '';
+let PIEZAS = [];       // todo lo traducible, en orden de lectura
+let MAPA = [];         // las secciones de las dos páginas, en orden
+let CAMBIOS = [];      // lo que trajo el archivo y todavía no se escribió
+let INFORME = [];
+let quePasa = 'todo';
+let registroVivo = true;   // ¿se pudo leer/escribir config/traduccion?
+
+const igual = (a, b) => String(a == null ? '' : a) === String(b == null ? '' : b);
+const tieneAlgo = (v) => String(v == null ? '' : v).trim() !== '';
+const plano = (v) => String(v == null ? '' : v).replace(/<[^>]+>/g, '').trim();
+const palabras = (v) => plano(v).split(/\s+/).filter(Boolean).length;
+
+/* Preguntar antes de algo irreversible, sin depender del navegador.
+   Entra en la pila del botón Atrás (§3.14), así que Atrás cancela. */
+function preguntar(texto) {
+  return new Promise((resolver) => {
+    const capa = $('confirmar');
+    $('conf-txt').textContent = texto;
+    capa.classList.remove('hide');
+    let resuelto = false;
+    const terminar = (r) => {
+      if (resuelto) return;
+      resuelto = true;
+      capa.classList.add('hide');
+      $('conf-si').onclick = null;
+      $('conf-no').onclick = null;
+      resolver(r);
+    };
+    const cerrarCapa = CV2.capaAtras(() => terminar(false));
+    $('conf-si').onclick = () => { terminar(true); cerrarCapa(); };
+    $('conf-no').onclick = () => { cerrarCapa(); };
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   1 · REUNIR
+   ═══════════════════════════════════════════════════════════════ */
+
+const estado = (t) => { $('estado').textContent = t; };
+
+$('releer').addEventListener('click', () => reunir());
+const botonesQue = document.querySelectorAll('#quePasa button');
+for (let i = 0; i < botonesQue.length; i++) {
+  botonesQue[i].addEventListener('click', (ev) => {
+    for (let j = 0; j < botonesQue.length; j++) botonesQue[j].classList.remove('on');
+    ev.currentTarget.classList.add('on');
+    quePasa = ev.currentTarget.dataset.v;
+    armarPartes();
+  });
+}
+
+async function reunir() {
+  try {
+    estado('Leyendo los textos del sitio…');
+    const cfg = await getDoc(doc(db, 'config', 'sitio'));
+    TEXTOS = cfg.exists() ? (cfg.data().textos || {}) : {};
+
+    estado('Leyendo el registro de traducción…');
+    ORIGEN = {};
+    for (let i = 0; i < DESTINOS.length; i++) ORIGEN[DESTINOS[i]] = {};
+    try {
+      const tr = await getDoc(doc(db, 'config', 'traduccion'));
+      if (tr.exists()) {
+        const d = tr.data();
+        for (let i = 0; i < DESTINOS.length; i++) {
+          ORIGEN[DESTINOS[i]] = (d.origen && d.origen[DESTINOS[i]]) || {};
+        }
+        NOTAS = d.notas || '';
+        if (!$('notas').value) $('notas').value = NOTAS;
+      }
+      registroVivo = true;
+    } catch (e) {
+      // Una pantalla no afirma nada que no haya leído (§3.20): si el
+      // registro no se pudo leer, se dice, y no se hace de cuenta que
+      // todo está sin traducir.
+      registroVivo = false;
+      console.warn('config/traduccion', e);
+    }
+
+    estado('Leyendo las páginas para saber dónde vive cada texto…');
+    const mapa = await contextoDelSitio();
+
+    estado('Leyendo alojamientos y áreas comunes…');
+    const deBase = await piezasDeLaBase();
+
+    PIEZAS = piezasDeTextos(mapa).concat(deBase);
+    for (let i = 0; i < PIEZAS.length; i++) {
+      revisarEstado(PIEZAS[i]);
+      PIEZAS[i].avisos = avisosDe(PIEZAS[i]);
+    }
+
+    pintarCuadro();
+    armarPartes();
+    estado(PIEZAS.length + ' piezas leídas.'
+      + (registroVivo ? '' : ' ⚠ El registro de traducción no se pudo leer: el estado'
+        + ' "el español cambió" no se puede calcular hasta que se resuelva.'));
+  } catch (e) {
+    estado('');
+    CV2.toast('No se pudo leer: ' + (e.code || e.message), 'error');
+  }
+}
+
+/* Tres estados por idioma destino, y un solo lugar donde se deciden:
+     falta · no hay traducción
+     viejo · hay traducción, pero se hizo con OTRO español
+     hecho · la traducción corresponde al español de ahora
+
+   Una pieza puede estar al día en portugués y vieja en inglés: por eso el
+   estado es por idioma y el estado general de la pieza es el PEOR de los
+   dos. Con un solo estado, corregir el español y traducir solo el
+   portugués dejaba el inglés roto sin que nada lo dijera. */
+function revisarEstado(p) {
+  p.porIdioma = {};
+  let peor = 'hecho';
+  for (let i = 0; i < DESTINOS.length; i++) {
+    const l = DESTINOS[i];
+    let e;
+    if (!tieneAlgo(p[l])) {
+      e = 'falta';
+    } else if (!registroVivo) {
+      // Sin registro no se puede saber. Se dice "hecho" y la pantalla
+      // avisa arriba que el estado "viejo" no se está calculando: es
+      // preferible a inventar un estado que no se leyó.
+      e = 'hecho';
+    } else {
+      const orig = ORIGEN[l][p.id];
+      if (orig === undefined) e = 'hecho';
+      else if (igual(orig, p.es)) e = 'hecho';
+      else { e = 'viejo'; p.esAnterior = orig; }
+    }
+    p.porIdioma[l] = e;
+    if (e === 'falta') peor = 'falta';
+    else if (e === 'viejo' && peor !== 'falta') peor = 'viejo';
+  }
+  p.estado = peor;
+}
+
+function pintarCuadro() {
+  const c = (e) => PIEZAS.filter((p) => p.estado === e).length;
+  $('c-total').textContent = PIEZAS.length;
+  $('c-falta').textContent = c('falta');
+  $('c-viejo').textContent = registroVivo ? c('viejo') : '?';
+  $('c-hecho').textContent = c('hecho');
+
+  const conAvisos = PIEZAS.filter((p) => p.avisos && p.avisos.length);
+  $('c-avisos').textContent = conAvisos.length;
+  const lista = $('avisos');
+  lista.innerHTML = '';
+  if (!conAvisos.length) { lista.classList.add('hide'); return; }
+  lista.classList.remove('hide');
+  conAvisos.slice(0, 40).forEach((p) => {
+    const d = document.createElement('div');
+    d.className = 'av';
+    d.innerHTML = '<span class="donde"></span><span class="que"></span><span class="txt"></span>';
+    d.querySelector('.donde').textContent = p.donde;
+    d.querySelector('.que').textContent = p.avisos.join(' · ');
+    d.querySelector('.txt').textContent = plano(p.es).slice(0, 160);
+    lista.appendChild(d);
+  });
+  if (conAvisos.length > 40) {
+    const m = document.createElement('p');
+    m.className = 'ayuda';
+    m.textContent = 'y ' + (conAvisos.length - 40) + ' más, dentro del archivo.';
+    lista.appendChild(m);
+  }
+}
+
+/* ---------- el contexto sale de las páginas, no de una tabla ----------
+   Se abren index.html y la-casa.html en marcos ocultos con edit=1 —así
+   marcan cada texto con su clave— y se recorren en orden de lectura. De
+   cada elemento se anota en qué página está, en qué sección y qué papel
+   cumple. */
+function leerUna(idMarco, archivo, etiqueta) {
+  return new Promise((listo) => {
+    const f = $(idMarco);
+    let cerrado = false;
+    const terminar = (m) => { if (!cerrado) { cerrado = true; listo(m); } };
+    // Si la página no carga, se sigue igual: el contexto queda más pobre,
+    // pero no se pierde el trabajo.
+    const reloj = setTimeout(() => terminar({}), 12000);
+    f.onload = () => {
+      clearTimeout(reloj);
+      try { terminar(leerContexto(f, etiqueta, archivo)); }
+      catch (e) { terminar({}); }
+    };
+    f.src = '../' + archivo + '?edit=1&v=' + Date.now();
+  });
+}
+
+async function contextoDelSitio() {
+  MAPA = [];
+  const a = await leerUna('hornoIndex', 'index.html', 'Portada');
+  const b = await leerUna('hornoCasa', 'la-casa.html', 'Cómo funciona la casa');
+  // Object.assign y no {...a,...b}: si una clave aparece en las dos páginas
+  // —como 'pie' o 'recuerdos', que están en los dos pies— gana la primera
+  // aparición, que es la de la portada. Da igual cuál gane mientras sea
+  // siempre la misma: lo que no puede pasar es que cambie entre corridas.
+  const salida = {};
+  Object.keys(b).forEach((k) => { salida[k] = b[k]; });
+  Object.keys(a).forEach((k) => { salida[k] = a[k]; });
+  return salida;
+}
+
+const PAPEL_POR_TAG = {
+  h1: 'título de la página', h2: 'título de sección', h3: 'título de bloque',
+  a: 'botón', button: 'botón', label: 'etiqueta de campo', b: 'dato destacado',
+  li: 'punto de lista', option: 'opción'
+};
+// Las piezas cortas tienen que entrar en el mismo lugar en pantalla: si la
+// traducción del botón mide el triple, el botón se rompe. Se las marca para
+// que quien traduce lo sepa antes y no después.
+const CORTOS = ['título de la página', 'título de sección', 'título de bloque',
+  'botón', 'etiqueta de campo', 'dato destacado', 'opción'];
+
+function papelDe(el) {
+  const t = el.tagName.toLowerCase();
+  if (PAPEL_POR_TAG[t]) return PAPEL_POR_TAG[t];
+  // Un <span> dentro de un <li> es un punto de lista; dentro de un <h3>,
+  // parte del título. Se mira al padre antes de darse por vencido.
+  const p = el.parentElement;
+  if (p) {
+    const tp = p.tagName.toLowerCase();
+    if (PAPEL_POR_TAG[tp]) return PAPEL_POR_TAG[tp];
+  }
+  return 'párrafo';
+}
+
+function leerContexto(f, etiqueta, archivo) {
+  const d = f.contentDocument;
+  const secciones = [];
+  const todas = d.querySelectorAll('section');
+  for (let i = 0; i < todas.length; i++) secciones.push(todas[i]);
+
+  const mapa = {};
+  let n = MAPA.length * 1000;
+  const els = d.querySelectorAll('[data-t]');
+  for (let i = 0; i < els.length; i++) {
+    const el = els[i];
+    const clave = el.dataset.t;
+    if (!clave || mapa[clave]) continue;
+    const sec = el.closest('section');
+    const tituloSec = sec ? sec.querySelector('h2[data-t]') : null;
+    const bloque = el.closest('.grupo, .acuerdo, .caja, .varia, .cab, .casa-res');
+    const tituloBl = bloque ? bloque.querySelector('h3[data-t]') : null;
+    mapa[clave] = {
+      n: n++,
+      pagina: etiqueta,
+      papel: papelDe(el),
+      seccion: sec ? secciones.indexOf(sec) : -1,
+      seccionClave: (tituloSec && tituloSec.dataset.t !== clave) ? tituloSec.dataset.t : null,
+      bloqueClave: (tituloBl && tituloBl.dataset.t !== clave) ? tituloBl.dataset.t : null
+    };
+  }
+
+  // El mapa: las secciones en el orden en que se leen. Sin esto, el archivo
+  // es una lista plana y no se puede opinar sobre cómo está presentada la
+  // información, que es la mitad de lo que se le pide a la auditoría.
+  for (let i = 0; i < secciones.length; i++) {
+    const t2 = secciones[i].querySelector('h2[data-t]');
+    const cuantos = secciones[i].querySelectorAll('[data-t]').length;
+    MAPA.push({
+      pagina: etiqueta,
+      archivo: archivo,
+      n: i,
+      seccion: t2 ? t2.dataset.t : (secciones[i].id || 'sin-titulo'),
+      piezas: cuantos
+    });
+  }
+  return mapa;
+}
+
+/* ---------- las piezas de los textos del sitio ----------
+   La lista de claves sale de la UNIÓN del diccionario y de lo editado: una
+   clave que alguien escribió en el panel y que todavía no está en
+   textos-sitio.js igual se traduce, y una clave del diccionario que nadie
+   editó también. Mirar una sola de las dos fuentes deja piezas afuera sin
+   que nada lo diga. */
+function piezasDeTextos(mapa) {
+  const claves = {};
+  Object.keys(T.es || {}).forEach((k) => { claves[k] = 1; });
+  DESTINOS.concat(['es']).forEach((l) => {
+    Object.keys((TEXTOS && TEXTOS[l]) || {}).forEach((k) => { claves[k] = 1; });
+  });
+
+  const lista = Object.keys(claves);
+  // Primero lo que está en alguna página, en orden de lectura; después el
+  // resto, alfabético.
+  lista.sort((a, b) => {
+    const A = mapa[a] ? mapa[a].n : 9e6;
+    const B = mapa[b] ? mapa[b].n : 9e6;
+    return A - B || a.localeCompare(b, 'es');
+  });
+
+  const valor = (l, k) => {
+    if (TEXTOS[l] && TEXTOS[l][k]) return TEXTOS[l][k];
+    if (T[l] && T[l][k]) return T[l][k];
+    return '';
+  };
+
+  const out = [];
+  for (let i = 0; i < lista.length; i++) {
+    const k = lista[i];
+    const es = valor('es', k);
+    if (!tieneAlgo(es)) continue;
+    const m = mapa[k] || {};
+    const partes = [];
+    if (m.pagina) partes.push(m.pagina);
+    if (m.seccionClave) partes.push(plano(valor('es', m.seccionClave)));
+    if (m.bloqueClave) partes.push(plano(valor('es', m.bloqueClave)));
+    partes.push(m.papel || 'etiqueta de la interfaz');
+    const p = {
+      id: 'sitio:' + k,
+      donde: partes.filter(Boolean).join(' · '),
+      pagina: m.pagina || null,
+      tipo: m.papel || 'etiqueta de la interfaz',
+      es: es,
+      esAnterior: null,
+      // Dónde se escribe cada idioma cuando vuelva la traducción.
+      ref: { que: 'sitio', clave: k }
+    };
+    for (let j = 0; j < DESTINOS.length; j++) p[DESTINOS[j]] = valor(DESTINOS[j], k);
+    out.push(p);
+  }
+  return out;
+}
+
+/* ---------- las piezas que viven en la base ----------
+   Alojamientos y áreas comunes. Sus nombres y descripciones son mapas
+   {es, pt, en} en el propio documento, no textos del sitio: por eso se
+   escriben distinto al aplicar. */
+async function piezasDeLaBase() {
+  const out = [];
+
+  const cs = await getDocs(collection(db, 'cabanas'));
+  const cabanas = [];
+  cs.forEach((d) => cabanas.push({ id: d.id, ...d.data() }));
+  // Sin orderBy (§3 del reglamento): se ordena acá.
+  cabanas.sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
+  for (let i = 0; i < cabanas.length; i++) {
+    const c = cabanas[i];
+    if (c.activa === false) continue;
+    const nom = plano((c.nombre && c.nombre.es) || c.id);
+    const campos = [
+      { campo: 'nombre', papel: 'nombre del alojamiento' },
+      { campo: 'descripcion', papel: 'descripción del alojamiento' }
+    ];
+    for (let j = 0; j < campos.length; j++) {
+      const f = campos[j];
+      const m = c[f.campo] || {};
+      if (!tieneAlgo(m.es)) continue;
+      const p = {
+        id: 'cabana:' + c.id + ':' + f.campo,
+        donde: 'Alojamiento · ' + nom + ' · ' + f.papel,
+        pagina: 'Portada',
+        tipo: f.papel,
+        es: m.es,
+        esAnterior: null,
+        ref: { que: 'doc', coleccion: 'cabanas', doc: c.id, campo: f.campo }
+      };
+      for (let k = 0; k < DESTINOS.length; k++) p[DESTINOS[k]] = m[DESTINOS[k]] || '';
+      out.push(p);
+    }
+  }
+
+  const es_ = await getDocs(collection(db, 'espacios_comunes'));
+  const espacios = [];
+  es_.forEach((d) => espacios.push({ id: d.id, ...d.data() }));
+  espacios.sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
+  for (let i = 0; i < espacios.length; i++) {
+    const e = espacios[i];
+    const m = e.nombre || {};
+    if (!tieneAlgo(m.es)) continue;
+    const p = {
+      id: 'espacio:' + e.id + ':nombre',
+      donde: 'Área común · ' + plano(m.es),
+      pagina: 'Portada',
+      tipo: 'nombre de área común',
+      es: m.es,
+      esAnterior: null,
+      ref: { que: 'doc', coleccion: 'espacios_comunes', doc: e.id, campo: 'nombre' }
+    };
+    for (let k = 0; k < DESTINOS.length; k++) p[DESTINOS[k]] = m[DESTINOS[k]] || '';
+    out.push(p);
+  }
+
+  return out;
+}
+
+/* ---------- lo que la propia pantalla puede ver ----------
+   No hace falta un chat para encontrar un espacio doble. Estas reglas son
+   mecánicas: o se cumplen o no, no hay criterio de por medio. Lo que sí
+   necesita criterio —si una frase se entiende, si el término es el que usa
+   la gente— es lo que va al chat.
+
+   La regla del portugués metido en el campo español no es un capricho: el
+   sitio arrancó con TODOS los textos por defecto en portugués, y el campo
+   'es' de una cabaña cargada apurada puede tener perfectamente el texto en
+   portugués. Se ve completo, suena bien y no lo nota nadie. */
+const SENAS_PT = [
+  /(^|\s)(ão|não|são|também|até|você|está|estão|nós|com o|da|do|das|dos|na|no|nas|nos|pelo|pela|muito|mais|aqui|para o)(\s|$)/gi,
+  /ç/g, /ã/g, /õ/g
+];
+const SENAS_EN = [
+  /(^|\s)(the|and|with|from|your|our|for the|there is|there are|please|you can|we have)(\s|$)/gi
+];
+const SENAS_ES = [
+  /(^|\s)(el|los|las|con|para|que|del|por|más|hacia|desde|como|pero|acá|nuestro|hay)(\s|$)/gi,
+  /ñ/g, /¿/g, /¡/g
+];
+
+function avisosDe(p) {
+  const av = [];
+  const es = String(p.es == null ? '' : p.es);
+
+  const cuenta = (t, res) => {
+    let n = 0;
+    for (let i = 0; i < res.length; i++) {
+      const m = t.match(res[i]);
+      n += m ? m.length : 0;
+    }
+    return n;
+  };
+  const pt_ = cuenta(es, SENAS_PT);
+  const en_ = cuenta(es, SENAS_EN);
+  const es_ = cuenta(es, SENAS_ES);
+  if (es && pt_ >= 3 && pt_ > es_) av.push('el texto en español parece estar en portugués');
+  if (es && en_ >= 3 && en_ > es_) av.push('el texto en español parece estar en inglés');
+
+  if (/ {2,}/.test(es)) av.push('espacios de más');
+  if (/\s+[,.;:]/.test(es)) av.push('espacio antes de un signo de puntuación');
+  if (/\?/.test(es) && !/¿/.test(es)) av.push('falta el ¿ de apertura');
+  if (/!/.test(es) && !/¡/.test(es)) av.push('falta el ¡ de apertura');
+  if (/\s$/.test(es) || /^\s/.test(es)) av.push('empieza o termina con un espacio');
+
+  for (let i = 0; i < DESTINOS.length; i++) {
+    const l = DESTINOS[i];
+    const v = String(p[l] == null ? '' : p[l]);
+    if (v && es && v === es && palabras(es) > 3) {
+      av.push('el ' + NOMBRE_IDIOMA[l] + ' es idéntico al español');
+    }
+  }
+  return av;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   2 · EXPORTAR — el pedido de auditoría
+
+   Estas instrucciones viven ACÁ y no se reescriben en el chat cada vez.
+   Una instrucción que se redacta de nuevo en cada tanda da un resultado
+   distinto en cada tanda, y entonces no se puede comparar una revisión
+   con la anterior ni saber si algo mejoró.
+   ═══════════════════════════════════════════════════════════════ */
+
+const INSTRUCCIONES = {
+  que_es: 'Este archivo es TODO el contenido publicado del sitio de Casa Verde Canas, '
+    + 'en español, en el mismo orden en que se lee. Es un alojamiento familiar de '
+    + 'apartamentos de alquiler en Canasvieiras, Florianópolis, Brasil: la familia vive '
+    + 'en la propiedad y hay además inquilinos permanentes. El público es turista '
+    + 'brasileño, argentino y uruguayo, y algo de público internacional. '
+    + 'Se pide una AUDITORÍA EDITORIAL COMPLETA, no solo una traducción.',
+
+  cuatro_trabajos: [
+    '1 · ORTOGRAFÍA Y GRAMÁTICA del español. Faltas, tildes, concordancias, '
+      + 'puntuación, espacios, signos de apertura. Español rioplatense: se trata de VOS '
+      + '(«escribinos», «elegí», «si necesitás»), nunca de tú ni de usted. Si encontrás '
+      + 'una mezcla de tratamientos, marcala: es el error más frecuente acá.',
+    '2 · COHERENCIA. Leé el sitio ENTERO antes de opinar sobre una parte. Buscá: un '
+      + 'dato que contradice a otro (cantidades, horarios, distancias, qué hay y qué no), '
+      + 'algo que se afirma en una sección y se niega en otra, una misma idea repetida con '
+      + 'otras palabras en dos lugares, y —muy importante— algo prometido en la portada '
+      + 'que la página del reglamento desmiente o condiciona.',
+    '3 · ESTRUCTURA Y PRESENTACIÓN. Mirá el campo "mapa" y el "donde" de cada pieza. '
+      + 'Decí qué debería estar antes, qué sobra, qué está en la página equivocada y qué '
+      + 'información le falta contexto para entenderse sola. Tené en cuenta que la '
+      + 'portada tiene que convencer a alguien que todavía no reservó, y que la página '
+      + '«Cómo funciona la casa» tiene que poder mandarse por WhatsApp antes de la '
+      + 'llegada y leerse entera sin que nadie la explique.',
+    '4 · TRADUCCIÓN a portugués de Brasil y a inglés. Traducí el USO, no la palabra: '
+      + 'buscá cómo se dice cada cosa en el Brasil real antes de decidir. El portugués es '
+      + 'el idioma del público principal y tiene que sonar escrito por alguien de allá, no '
+      + 'traducido. En portugués se trata de «você». En inglés, tono directo y cálido, '
+      + 'inglés internacional simple.'
+  ],
+
+  tono: 'Cordial y directo, sin adornos y sin lenguaje de folleto. Nada de superlativos, '
+    + 'nada de «único», «inolvidable», «paraíso». Lo que convence es el dato concreto y el '
+    + 'motivo de cada cosa. En el reglamento, cada regla va acompañada de su porqué: eso es '
+    + 'deliberado y no hay que sacarlo — una regla sin motivo se discute, una regla con '
+    + 'motivo se entiende. Si una frase se está vendiendo en lugar de informando, decilo '
+    + 'en el informe.',
+
+  reglas_de_correccion: [
+    'Devolvé "es" SÓLO cuando haya algo objetivamente mal. NO reescribas por gusto: la '
+      + 'voz es de quien lo escribió.',
+    'Cuando devuelvas "es", agregá "motivo" con una línea que diga qué se corrigió.',
+    'Si corregís el español de una pieza, devolvé TAMBIÉN su "pt" y su "en" al día con esa '
+      + 'corrección.',
+    'Las piezas cortas —títulos, botones, etiquetas— tienen que entrar en el mismo lugar '
+      + 'en pantalla. Mirá "cabe_en" y no te pases mucho del largo original.',
+    'Si una pieza trae "es_anterior", su traducción actual traduce ESE texto viejo: '
+      + 'cambiá de la traducción sólo lo que se movió, no la rehagas.',
+    'Los nombres propios no se traducen: Casa Verde Canas, Canasvieiras, Florianópolis, '
+      + 'Esteban, y los nombres de los alojamientos.',
+    'Los horarios se escriben con el formato de cada idioma (14:00 / 14h / 2pm), pero la '
+      + 'HORA no cambia nunca.',
+    'No inventes servicios ni comodidades que el original no menciona, ni siquiera si '
+      + 'parecen obvios para un alojamiento así. Si creés que falta información, decilo en '
+      + 'el informe en vez de agregarla.'
+  ],
+
+  formato_de_respuesta: {
+    como: 'Devolvé UN SOLO objeto JSON, sin texto afuera y sin ```. Tres campos, los tres '
+      + 'opcionales: "piezas", "informe", "resumen". Lo que no tengas, no lo mandes.',
+    ejemplo: {
+      piezas: [
+        { id: 'sitio:casa_titulo', pt: 'Como funciona a casa', en: 'How the house works' },
+        { id: 'sitio:casa_r_ruido_p', es: 'Hay gente durmiendo a pocos metros.',
+          motivo: 'sobraba un espacio antes del punto',
+          pt: 'Há gente dormindo a poucos metros.', en: 'People are sleeping a few metres away.' },
+        { id: 'cabana:c1:descripcion', pt: '…', en: '…' }
+      ],
+      informe: [
+        { tema: 'coherencia', donde: 'sitio:casa_prop_p1 y sitio:bajada',
+          dice: 'La portada habla de cabañas y la página de la casa de apartamentos.',
+          propongo: 'Elegir una palabra y usarla en todo el sitio.' },
+        { tema: 'estructura', donde: 'Cómo funciona la casa · Qué hay',
+          dice: 'La lista de la propiedad tiene once puntos del mismo peso y cansa.',
+          propongo: 'Separar en dos: lo que se usa todos los días y lo ocasional.' }
+      ],
+      resumen: 'Dos o tres frases sobre el estado general del español y qué es lo más '
+        + 'urgente de corregir.'
+    },
+    piezas: 'Cambios de texto que la pantalla escribe en la base. El "id" se copia TAL '
+      + 'CUAL, sin tocar un carácter. Sólo las piezas que cambian; el resto no se manda.',
+    informe: 'Todo lo que NO es un cambio de texto: coherencia, estructura, tono, dudas, '
+      + 'información que falta. No se escribe en ningún lado, se lee y se resuelve a mano. '
+      + 'Cuatro campos: tema, donde, dice, propongo. Sé concreto y decí siempre por qué.',
+    resumen: 'Opcional. Unas frases sobre el estado general.'
+  }
+};
+
+/* Punto de partida, no verdad revelada: son los términos que el propio
+   sitio ya usa. Quien traduce los respeta; si sabe más, los cambia y lo
+   dice en el informe. */
+const GLOSARIO = {
+  'Casa Verde Canas': 'no se traduce nunca',
+  'Canasvieiras': 'no se traduce',
+  'Florianópolis': 'no se traduce',
+  'apartamento': 'pt: apartamento · en: apartment',
+  'alojamiento': 'pt: acomodação / hospedagem · en: place to stay',
+  'parrilla / asador': 'pt: churrasqueira · en: barbecue',
+  'pileta / piscina': 'pt: piscina · en: pool',
+  'lavarropas': 'pt: máquina de lavar · en: washing machine',
+  'placard': 'pt: armário · en: wardrobe',
+  'heladera': 'pt: geladeira · en: fridge',
+  'hamaca (la de colgar)': 'pt: rede · en: hammock',
+  'cuadra': 'pt: quadra · en: block',
+  'temporada': 'pt: temporada · en: high season',
+  'acuerdo de convivencia': 'pt: acordo de convivência · en: living-together agreement'
+};
+
+function paraExportar() {
+  return PIEZAS.filter((p) => quePasa === 'todo' || p.estado !== 'hecho');
+}
+
+function armarPartes() {
+  const lista = paraExportar();
+  const tam = Number($('tamParte').value) || 0;
+  const sel = $('parte');
+  const n = tam ? Math.ceil(lista.length / tam) : 1;
+  sel.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const o = document.createElement('option');
+    o.value = i;
+    o.textContent = (i + 1) + ' de ' + n;
+    sel.appendChild(o);
+  }
+  $('cajaParte').classList.toggle('hide', n <= 1);
+  pintarSalida();
+}
+$('tamParte').addEventListener('change', armarPartes);
+$('parte').addEventListener('change', pintarSalida);
+$('notas').addEventListener('input', pintarSalida);
+
+function archivoExport() {
+  const lista = paraExportar();
+  const tam = Number($('tamParte').value) || 0;
+  const i = Number($('parte').value) || 0;
+  const trozo = tam ? lista.slice(i * tam, (i + 1) * tam) : lista;
+  const n = tam ? Math.ceil(lista.length / tam) : 1;
+
+  return {
+    casaverde: 'auditoria-y-traduccion',
+    version: TRADUCTOR,
+    generado: new Date().toISOString(),
+    de: 'es',
+    a: DESTINOS,
+    parte: (i + 1) + '/' + n,
+    instrucciones: INSTRUCCIONES,
+    glosario: GLOSARIO,
+    notas: $('notas').value.trim(),
+    // El mapa va SIEMPRE entero, aunque el archivo salga por partes: sin el
+    // sitio completo a la vista no se puede opinar sobre coherencia ni sobre
+    // el orden en que se presenta la información, que es la mitad del
+    // trabajo que se está pidiendo.
+    mapa: MAPA,
+    resumen: {
+      piezas_en_el_sitio: PIEZAS.length,
+      palabras_en_total: PIEZAS.reduce((n2, x) => n2 + palabras(x.es), 0),
+      sin_traducir: PIEZAS.filter((x) => x.estado === 'falta').length,
+      el_espanol_cambio: registroVivo
+        ? PIEZAS.filter((x) => x.estado === 'viejo').length
+        : 'sin registro: no se pudo calcular',
+      con_algo_mecanico_para_revisar: PIEZAS.filter((x) => x.avisos && x.avisos.length).length
+    },
+    piezas: trozo.map((p) => {
+      const o = {
+        id: p.id,
+        donde: p.donde,
+        tipo: p.tipo,
+        es: p.es
+      };
+      // Con el español anterior a la vista, quien traduce ajusta lo que se
+      // movió en lugar de rehacer la frase entera.
+      if (p.esAnterior) o.es_anterior = p.esAnterior;
+      if (CORTOS.indexOf(p.tipo) >= 0) o.cabe_en = String(p.es).length + ' caracteres en español';
+      for (let j = 0; j < DESTINOS.length; j++) {
+        const l = DESTINOS[j];
+        if (tieneAlgo(p[l])) o[l + '_actual'] = p[l];
+        if (p.porIdioma && p.porIdioma[l] !== 'hecho') {
+          o['falta_' + l] = p.porIdioma[l] === 'falta'
+            ? 'no está traducido'
+            : 'el español cambió después de traducir';
+        }
+      }
+      if (p.avisos && p.avisos.length) o.revisar = p.avisos;
+      return o;
+    })
+  };
+}
+
+function pintarSalida() {
+  if (!PIEZAS.length) { $('tam').textContent = ''; $('salida').value = ''; return; }
+  const a = archivoExport();
+  const j = JSON.stringify(a, null, 1);
+  $('salida').value = j;
+  const kb = (new Blob([j]).size / 1024).toFixed(1);
+  $('tam').textContent = a.piezas.length + ' piezas · ' + kb + ' KB';
+}
+
+$('verJson').addEventListener('click', () => $('salida').classList.toggle('hide'));
+
+$('copiar').addEventListener('click', async () => {
+  const j = $('salida').value;
+  if (!j) return CV2.toast('Todavía no hay nada para copiar', 'error');
+  try {
+    await navigator.clipboard.writeText(j);
+    CV2.toast('Copiado. Pegalo en el chat donde se audita.', 'success');
+  } catch (e) {
+    // Si el navegador no deja copiar sin gesto directo, se muestra y se
+    // selecciona: copiar a mano siempre funciona.
+    $('salida').classList.remove('hide');
+    $('salida').focus();
+    $('salida').select();
+    CV2.toast('No pude copiar solo: quedó seleccionado para copiar a mano.', 'error');
+  }
+});
+
+$('bajar').addEventListener('click', () => {
+  const j = $('salida').value;
+  if (!j) return CV2.toast('Todavía no hay nada para descargar', 'error');
+  const p = archivoExport().parte.replace('/', '-de-');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([j], { type: 'application/json' }));
+  a.download = 'casaverde-auditoria-' + p + '.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   3 · TRAER Y REVISAR
+   ═══════════════════════════════════════════════════════════════ */
+
+$('archivo').addEventListener('click', () => $('fich').click());
+$('fich').addEventListener('change', (ev) => {
+  const f = ev.currentTarget.files && ev.currentTarget.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    $('entrada').value = String(r.result || '');
+    $('leido').textContent = 'Leído ' + f.name + '. Tocá Revisar.';
+  };
+  r.readAsText(f);
+});
+
+$('revisar').addEventListener('click', () => {
+  let crudo = $('entrada').value.trim();
+  if (!crudo) return CV2.toast('Pegá el archivo primero', 'error');
+  // Los chats devuelven el JSON dentro de un bloque de código a pesar de
+  // que se les pide que no. Se saca acá en vez de hacer que alguien lo
+  // borre a mano cada vez.
+  crudo = crudo.replace(/^```[a-z]*\s*/i, '').replace(/```\s*$/, '').trim();
+
+  let datos;
+  try {
+    datos = JSON.parse(crudo);
+  } catch (e) {
+    return CV2.toast('Eso no es un JSON válido: ' + e.message, 'error');
+  }
+
+  INFORME = Array.isArray(datos.informe) ? datos.informe : [];
+  pintarInforme(datos.resumen);
+
+  const porId = {};
+  for (let i = 0; i < PIEZAS.length; i++) porId[PIEZAS[i].id] = PIEZAS[i];
+
+  CAMBIOS = [];
+  const perdidos = [];
+  const piezas = Array.isArray(datos.piezas) ? datos.piezas : [];
+  for (let i = 0; i < piezas.length; i++) {
+    const q = piezas[i];
+    if (!q || !q.id) continue;
+    const p = porId[q.id];
+    // Un id que no existe NO se aplica y NO se ignora en silencio: se
+    // cuenta y se dice. Un id inventado por el chat, o una clave que se
+    // renombró entre la exportación y la vuelta, se vería exactamente
+    // igual que "no había nada que cambiar".
+    if (!p) { perdidos.push(q.id); continue; }
+
+    // El español corregido es un cambio propio, aparte de las traducciones:
+    // se puede aceptar la traducción y rechazar la corrección, o al revés.
+    if (typeof q.es === 'string' && tieneAlgo(q.es) && !igual(q.es, p.es)) {
+      CAMBIOS.push({
+        pieza: p, idioma: 'es', vieja: p.es, nueva: q.es,
+        motivo: q.motivo || '', tomar: true
+      });
+    }
+    for (let j = 0; j < DESTINOS.length; j++) {
+      const l = DESTINOS[j];
+      if (typeof q[l] === 'string' && tieneAlgo(q[l]) && !igual(q[l], p[l])) {
+        CAMBIOS.push({
+          pieza: p, idioma: l, vieja: p[l], nueva: q[l],
+          // El español con el que se hizo ESTA traducción: el corregido si
+          // vino corregido, el de ahora si no. Es lo que se anota en el
+          // registro, y es lo que después permite decir "el español cambió".
+          conEs: (typeof q.es === 'string' && tieneAlgo(q.es)) ? q.es : p.es,
+          motivo: '', tomar: true
+        });
+      }
+    }
+  }
+
+  if (!CAMBIOS.length && !INFORME.length) {
+    return CV2.toast('El archivo no trae ningún cambio ni observación', 'error');
+  }
+  if (perdidos.length) {
+    CV2.toast(perdidos.length + ' identificador(es) del archivo no existen en el sitio y '
+      + 'se dejaron afuera. El primero: ' + perdidos[0], 'error');
+  }
+  pintarRevision();
+});
+
+function pintarInforme(resumen) {
+  const caja = $('informe');
+  caja.innerHTML = '';
+  if (!INFORME.length && !resumen) {
+    $('pasoInforme').classList.add('hide');
+    return;
+  }
+  $('pasoInforme').classList.remove('hide');
+  if (resumen) {
+    const r = document.createElement('p');
+    r.className = 'ayuda';
+    r.style.cssText = 'font-size:.88rem;color:var(--tinta);margin-bottom:6px';
+    r.textContent = String(resumen);
+    caja.appendChild(r);
+  }
+  for (let i = 0; i < INFORME.length; i++) {
+    const o = INFORME[i] || {};
+    const d = document.createElement('div');
+    d.className = 'inf';
+    d.innerHTML = '<span class="tema"></span> <span class="donde"></span>'
+      + '<div class="dice"></div><span class="propongo"></span>';
+    d.querySelector('.tema').textContent = o.tema || 'observación';
+    d.querySelector('.donde').textContent = o.donde || '';
+    d.querySelector('.dice').textContent = o.dice || '';
+    d.querySelector('.propongo').textContent = o.propongo ? '→ ' + o.propongo : '';
+    caja.appendChild(d);
+  }
+}
+
+function pintarRevision() {
+  $('pasoRev').classList.toggle('hide', !CAMBIOS.length);
+  if (!CAMBIOS.length) return;
+
+  const lista = $('revLista');
+  lista.innerHTML = '';
+  for (let i = 0; i < CAMBIOS.length; i++) {
+    const c = CAMBIOS[i];
+    const d = document.createElement('div');
+    d.className = 'rev';
+    d.innerHTML =
+      '<div class="cab">'
+      + '<input type="checkbox" checked>'
+      + '<span class="donde"></span>'
+      + '<span class="idi"></span>'
+      + '</div>'
+      + '<div class="par vieja-caja"><i>dice ahora</i><span class="vieja"></span></div>'
+      + '<div class="par"><i>va a decir</i><span class="nueva"></span></div>'
+      + '<div class="par motivo-caja"><i>motivo</i><span class="motivo"></span></div>';
+    d.querySelector('.donde').textContent = c.pieza.donde;
+    const idi = d.querySelector('.idi');
+    idi.textContent = c.idioma === 'es' ? 'corrige el español' : c.idioma;
+    idi.classList.add(c.idioma === 'es' ? 'esp' : c.idioma);
+    d.querySelector('.vieja').textContent = plano(c.vieja) || '(vacío)';
+    d.querySelector('.nueva').textContent = plano(c.nueva);
+    if (c.motivo) d.querySelector('.motivo').textContent = c.motivo;
+    else d.querySelector('.motivo-caja').classList.add('hide');
+
+    const cb = d.querySelector('input');
+    cb.addEventListener('change', (ev) => {
+      c.tomar = ev.currentTarget.checked;
+      d.classList.toggle('fuera', !c.tomar);
+      contarRev();
+    });
+    lista.appendChild(d);
+  }
+  contarRev();
+  $('pasoRev').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function contarRev() {
+  const n = CAMBIOS.filter((c) => c.tomar).length;
+  const esp = CAMBIOS.filter((c) => c.tomar && c.idioma === 'es').length;
+  $('resumenRev').textContent = n + ' de ' + CAMBIOS.length + ' cambios marcados'
+    + (esp ? ' · ' + esp + ' corrigen el español' : '');
+  const bs = document.querySelectorAll('.aplicar-ya');
+  for (let i = 0; i < bs.length; i++) bs[i].disabled = n === 0;
+}
+
+const marcarTodas = (v) => {
+  for (let i = 0; i < CAMBIOS.length; i++) CAMBIOS[i].tomar = v;
+  const cbs = $('revLista').querySelectorAll('input');
+  const divs = $('revLista').querySelectorAll('.rev');
+  for (let i = 0; i < cbs.length; i++) {
+    cbs[i].checked = v;
+    divs[i].classList.toggle('fuera', !v);
+  }
+  contarRev();
+};
+$('todas').addEventListener('click', () => marcarTodas(true));
+$('ninguna').addEventListener('click', () => marcarTodas(false));
+
+/* ═══════════════════════════════════════════════════════════════
+   4 · APLICAR
+   ═══════════════════════════════════════════════════════════════ */
+
+const botonesAplicar = document.querySelectorAll('.aplicar-ya');
+for (let i = 0; i < botonesAplicar.length; i++) {
+  botonesAplicar[i].addEventListener('click', () => aplicar());
+}
+
+async function aplicar() {
+  const tomar = CAMBIOS.filter((c) => c.tomar);
+  if (!tomar.length) return;
+
+  const esp = tomar.filter((c) => c.idioma === 'es').length;
+  const aviso = 'Se van a escribir ' + tomar.length + ' cambios en el sitio.\n\n'
+    + (esp ? esp + ' de ellos CORRIGEN EL TEXTO EN ESPAÑOL, que es el original.\n\n' : '')
+    + 'Se ve publicado en el acto.';
+  if (!(await preguntar(aviso))) return;
+
+  const bs = document.querySelectorAll('.aplicar-ya');
+  for (let i = 0; i < bs.length; i++) bs[i].disabled = true;
+
+  // Se agrupa por documento: un solo escrito por documento aunque se
+  // toquen veinte campos suyos. Es la misma idea del editor y es lo que
+  // hace que aplicar cien cambios no sean cien escrituras.
+  const porDoc = new Map();
+  const anotarRegistro = [];
+
+  for (let i = 0; i < tomar.length; i++) {
+    const c = tomar[i];
+    const r = c.pieza.ref;
+    let ruta, campo;
+    if (r.que === 'sitio') {
+      ruta = 'config/sitio';
+      // ⚠ La clave va como TERCER trozo y nada más. Si la clave tuviera un
+      // punto, Firestore leería cada punto como un nivel de anidamiento y
+      // el texto se guardaría donde el sitio no lo busca — sin dar error.
+      // Por eso las claves del sitio se separan con guión bajo. Acá se
+      // comprueba en vez de confiar.
+      if (String(r.clave).indexOf('.') >= 0) {
+        CV2.toast('La clave "' + r.clave + '" lleva un punto y no se puede guardar. '
+          + 'Hay que renombrarla con guión bajo.', 'error');
+        for (let k = 0; k < bs.length; k++) bs[k].disabled = false;
+        return;
+      }
+      campo = 'textos.' + c.idioma + '.' + r.clave;
+    } else {
+      ruta = r.coleccion + '/' + r.doc;
+      campo = r.campo + '.' + c.idioma;
+    }
+    if (!porDoc.has(ruta)) porDoc.set(ruta, {});
+    porDoc.get(ruta)[campo] = c.nueva;
+
+    if (c.idioma !== 'es') anotarRegistro.push({ idioma: c.idioma, id: c.pieza.id, es: c.conEs });
+  }
+
+  const fallidos = [];
+  let hechos = 0;
+  const total = porDoc.size;
+  for (const [ruta, campos] of porDoc) {
+    $('progreso').textContent = 'Escribiendo ' + (hechos + 1) + ' de ' + total + '…';
+    const partes = ruta.split('/');
+    const ref = doc(db, partes[0], partes[1]);
+    try {
+      // updateDoc y no setDoc con merge: updateDoc entiende los campos con
+      // puntos como camino dentro del objeto, que es lo que hace falta para
+      // no pisar los otros idiomas de la misma clave.
+      await updateDoc(ref, campos);
+    } catch (e) {
+      if (e.code === 'not-found') {
+        try { await setDoc(ref, anidar(campos), { merge: true }); }
+        catch (e2) { fallidos.push(ruta + ': ' + (e2.code || e2.message)); }
+      } else {
+        fallidos.push(ruta + ': ' + (e.code || e.message));
+      }
+    }
+    hechos++;
+  }
+
+  // El registro se guarda DESPUÉS de escribir los textos y en su propio
+  // intento: si falla, lo que se publicó ya está publicado y no se pierde.
+  // Anotar antes de escribir sería peor — quedaría diciendo que algo está
+  // traducido cuando la escritura falló.
+  let avisoRegistro = '';
+  if (anotarRegistro.length) {
+    for (let i = 0; i < anotarRegistro.length; i++) {
+      const a = anotarRegistro[i];
+      if (!ORIGEN[a.idioma]) ORIGEN[a.idioma] = {};
+      ORIGEN[a.idioma][a.id] = a.es;
+    }
+    try {
+      await guardarRegistro();
+      registroVivo = true;
+    } catch (e) {
+      registroVivo = false;
+      avisoRegistro = ' El registro no se pudo guardar (' + (e.code || e.message)
+        + '): los textos SÍ quedaron publicados, pero no se va a poder avisar cuando el'
+        + ' español cambie hasta que se resuelva.';
+    }
+  }
+
+  $('progreso').textContent = '';
+  for (let i = 0; i < bs.length; i++) bs[i].disabled = false;
+
+  if (fallidos.length) {
+    CV2.toast('No se escribió todo: ' + fallidos.join(' · '), 'error');
+    return;
+  }
+
+  CAMBIOS = [];
+  $('pasoRev').classList.add('hide');
+  $('entrada').value = '';
+  $('leido').textContent = '';
+  CV2.toast('✓ Aplicado.' + avisoRegistro, avisoRegistro ? 'error' : 'success');
+  // Se relee del servidor en vez de dar por bueno lo que está en pantalla:
+  // si algo se guardó distinto de lo que se creía, se ve ahora y no dentro
+  // de tres semanas.
+  await reunir();
+}
+
+/** { 'textos.es.titulo': v } → { textos: { es: { titulo: v } } } */
+function anidar(campos) {
+  const salida = {};
+  Object.keys(campos).forEach((camino) => {
+    const trozos = camino.split('.');
+    let n = salida;
+    for (let i = 0; i < trozos.length - 1; i++) {
+      if (!n[trozos[i]]) n[trozos[i]] = {};
+      n = n[trozos[i]];
+    }
+    n[trozos[trozos.length - 1]] = campos[camino];
+  });
+  return salida;
+}
+
+async function guardarRegistro() {
+  await setDoc(doc(db, 'config', 'traduccion'), {
+    origen: ORIGEN,
+    notas: $('notas').value.trim(),
+    actualizado: serverTimestamp(),
+    actualizadoPor: (CV2.usuario && CV2.usuario.email) || ''
+  });
+}
+
+/* Sin registro, el estado de una traducción sólo se puede adivinar. Lo que
+   ya estaba traducido antes de que esta pantalla existiera no tiene
+   registro: se toma una vez, a mano, como línea de base, y de ahí en
+   adelante el registro se mantiene solo cada vez que se aplica una
+   traducción. */
+$('basar').addEventListener('click', async () => {
+  const conTraduccion = [];
+  for (let i = 0; i < PIEZAS.length; i++) {
+    for (let j = 0; j < DESTINOS.length; j++) {
+      const l = DESTINOS[j];
+      if (tieneAlgo(PIEZAS[i][l]) && !igual(ORIGEN[l][PIEZAS[i].id], PIEZAS[i].es)) {
+        conTraduccion.push({ idioma: l, id: PIEZAS[i].id, es: PIEZAS[i].es });
+      }
+    }
+  }
+  if (!conTraduccion.length) return CV2.toast('Ya estaba todo anotado.', 'info');
+  if (!(await preguntar('Se van a dar por buenas ' + conTraduccion.length
+    + ' traducciones que ya existen.\n\nNo cambia ningún texto: sólo anota que esa '
+    + 'traducción corresponde a ese español, para poder avisarte cuando el español '
+    + 'cambie.'))) return;
+
+  const b = $('basar');
+  b.disabled = true;
+  try {
+    for (let i = 0; i < conTraduccion.length; i++) {
+      const a = conTraduccion[i];
+      if (!ORIGEN[a.idioma]) ORIGEN[a.idioma] = {};
+      ORIGEN[a.idioma][a.id] = a.es;
+    }
+    await guardarRegistro();
+    registroVivo = true;
+    for (let i = 0; i < PIEZAS.length; i++) {
+      revisarEstado(PIEZAS[i]);
+      PIEZAS[i].avisos = avisosDe(PIEZAS[i]);
+    }
+    pintarCuadro();
+    armarPartes();
+    CV2.toast('Anotado. ' + conTraduccion.length + ' traducciones quedan como línea de base.',
+      'success');
+  } catch (e) {
+    CV2.toast('No se pudo guardar el registro: ' + (e.code || e.message), 'error');
+  } finally {
+    b.disabled = false;
+  }
+});
+
+await reunir();
+</script>
+</body>
+</html>

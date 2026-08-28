@@ -7,6 +7,21 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v86 (27-ago-2026) — REVISAR Y TRADUCIR, y un defecto de la v85 corregido
+//       antes de que se notara. Nace 'traducir.html': saca TODO el español
+//       con su contexto —leyendo las dos páginas del sitio en marcos ocultos,
+//       no de una tabla a mano— con el pedido de auditoría adentro, y mete de
+//       vuelta las correcciones pieza por pieza. Estado por idioma destino:
+//       una pieza puede estar al día en portugués y vieja en inglés.
+//       ⚠ EL DEFECTO DE LA v85: las claves nuevas se llamaban 'casa.r.ruido.t'
+//       y el editor guarda con updateDoc, que lee CADA PUNTO del camino como
+//       un nivel de anidamiento. Se habrían guardado en textos→es→casa→r→
+//       ruido→t mientras el sitio lee la clave literal: el texto se guarda,
+//       dice "✓ Sitio actualizado" y no se muestra nunca. Todas las claves
+//       pasan a guión bajo ('casa_r_ruido_t') y editar.html se niega a
+//       guardar una clave con punto en vez de fallar callado.
+//       Además: el silencio pasa a ser de 0:00 a 8:00, y 'Editar el sitio'
+//       entra a la barra (antes solo se llegaba desde Cabañas).
 // v85 (27-ago-2026) — NACE LA PÁGINA DEL ACUERDO. El sitio público suma
 //       'la-casa.html' en la RAÍZ: horarios, qué hay en la propiedad y el
 //       acuerdo de convivencia, en los tres idiomas y editable encima del
@@ -94,7 +109,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v85';
+const VERSION = 'cv2-shell-v86';
 
 const SHELL = [
   './',
@@ -111,6 +126,7 @@ const SHELL = [
   './reservas.html',
   './cabanas.html',
   './editar.html',
+  './traducir.html',
   './espacios.html',
   './calendario.html',
   './agenda.html',
