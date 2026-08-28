@@ -458,9 +458,26 @@ function anotar(el) {
    más grande. */
 let claveEnfocada = null;
 
+/**
+ * La lista de ocultos, COPIADA a un array de esta ventana.
+ *
+ * ⚠ Array.from() no es adorno. El array viene de dentro del iframe y por
+ * lo tanto lleva el Array.prototype del iframe, no el de esta página.
+ * Para JavaScript es un array igual, pero Firestore comprueba el tipo
+ * contra SU propio Array y no lo reconoce: rechaza el guardado entero con
+ * 'invalid-argument', sin decir cuál de los campos fue. Se copia acá, al
+ * cruzar la frontera, y no en el momento de guardar: así todo lo que
+ * circula por el editor ya es de esta ventana y el problema no puede
+ * reaparecer por otro camino.
+ *
+ * Los arrays de fotos nunca tuvieron este problema porque arrayActual()
+ * los construye acá desde cero; este es el único dato que llega armado
+ * desde adentro del marco.
+ */
 function ocultosAhora() {
   const w = ventana();
-  return (w && w.CVSITIO && w.CVSITIO.ocultos) ? w.CVSITIO.ocultos : [];
+  const lista = (w && w.CVSITIO && w.CVSITIO.ocultos) ? w.CVSITIO.ocultos : [];
+  return Array.from(lista, (x) => String(x));
 }
 
 /** ¿Qué clave de texto es la que se está tocando? */
@@ -498,7 +515,9 @@ $('btnOjo').addEventListener('click', () => {
   // en la base hasta que se toque Guardar, igual que los textos. Guardar
   // al instante haría que el botón sea irreversible de hecho.
   w.CVSITIO.setOcultos(lista);
-  pendientes.set('config/sitio:ocultos', lista.slice());
+  // Array.from y no lista.slice(): slice() usa el prototipo del array que
+  // recibe, así que un array del iframe devuelve otro array del iframe.
+  pendientes.set('config/sitio:ocultos', Array.from(lista, (x) => String(x)));
   marcarOjo();
   contar();
 });
@@ -875,7 +894,12 @@ async function guardar() {
     // borra un texto. Ojo: merge no borra claves ausentes, hace falta
     // deleteField() explícito.
     const esTextoSitio = ruta === 'config/sitio' && campo.indexOf('textos.') === 0;
-    porDoc.get(ruta)[campo] = (valor === '' && esTextoSitio) ? deleteField() : valor;
+    // Último filtro antes de Firestore: cualquier array se reconstruye con
+    // el Array de ESTA ventana. Un array llegado del iframe se rechaza con
+    // 'invalid-argument' y el mensaje no dice qué campo fue, así que el
+    // rato que cuesta encontrarlo no compensa ahorrarse esta línea.
+    const limpio = Array.isArray(valor) ? Array.from(valor) : valor;
+    porDoc.get(ruta)[campo] = (limpio === '' && esTextoSitio) ? deleteField() : limpio;
   });
 
   if (conPunto.length) {

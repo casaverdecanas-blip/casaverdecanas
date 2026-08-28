@@ -7,6 +7,20 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v94 (28-ago-2026) — 'invalid-argument' AL GUARDAR DESPUES DE USAR EL OJO.
+//       La lista de ocultos se leia de dentro del iframe (w.CVSITIO.ocultos) y
+//       se guardaba tal cual. Ese array lleva el Array.prototype DEL IFRAME,
+//       no el de la pagina del editor: para JavaScript es un array igual
+//       —Array.isArray dice que si— pero Firestore comprueba el tipo contra
+//       SU propio Array, no lo reconoce y rechaza la escritura ENTERA con
+//       'invalid-argument', sin decir cual de los campos fue. Resultado: se
+//       ocultaba algo, se tocaba Guardar y no se guardaba nada, ni siquiera
+//       los textos que no tenian nada que ver.
+//       Se copia con Array.from() al cruzar la frontera del marco, y hay un
+//       ultimo filtro en guardar() por si el dato entra por otro camino.
+//       Los arrays de fotos nunca fallaron porque arrayActual() los construye
+//       en el editor desde cero: 'ocultos' era el unico dato que llegaba ya
+//       armado desde adentro del iframe.
 // v93 (28-ago-2026) — PODER SACAR ALGO DEL SITIO, y el icono del ventilador.
 //       'mode_fan' no existe en Material Icons: es de la fuente Symbols, que
 //       el sitio no carga, asi que salia un simbolo cualquiera. Cambia a
@@ -205,7 +219,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v93';
+const VERSION = 'cv2-shell-v94';
 
 const SHELL = [
   './',
