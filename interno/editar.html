@@ -257,6 +257,8 @@ const pendientes = new Map();
 let enUso = [];
 
 let fotosNube = null;      // caché del listado de Cloudinary
+// Lo que contó la función de Netlify sobre su propia búsqueda.
+let diagNube = null;
 let cursorNube = null;
 let destinoFoto = null;    // qué foto se está cambiando
 
@@ -560,6 +562,10 @@ async function pintarNube() {
     if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
     fotosNube = data.fotos || [];
     cursorNube = data.cursor || null;
+    // El diagnóstico que manda la función: en qué carpetas buscó y cuántas
+    // encontró en cada una. Se guarda para mostrarlo SOLO si la respuesta
+    // vino vacía, que es cuando hace falta.
+    diagNube = data.diagnostico || null;
     dibujarNube();
   } catch (e) {
     // El motivo completo a la vista: acá los errores son de
@@ -567,6 +573,27 @@ async function pintarNube() {
     cont.innerHTML = '<div class="aviso">No se pudo leer Cloudinary.<br>'
       + CV2.esc(e.message) + '</div>';
   }
+}
+
+/**
+ * Lo que la función de Netlify contó sobre su propia búsqueda. Se muestra
+ * únicamente cuando volvió vacía: ahí la pregunta es siempre la misma
+ * —¿buscó donde tenía que buscar?— y sin esto hay que abrir Netlify para
+ * responderla.
+ */
+function diagnosticoHTML() {
+  if (!diagNube) return '';
+  let h = '<br><br><b>Lo que buscó:</b><br>carpetas: '
+    + CV2.esc((diagNube.carpetas_pedidas || []).join(', '));
+  if (typeof diagNube.total_en_cloudinary === 'number') {
+    h += '<br>coincidencias en Cloudinary: ' + diagNube.total_en_cloudinary;
+  }
+  const pc = diagNube.por_carpeta || {};
+  const claves = Object.keys(pc);
+  if (claves.length) {
+    h += '<br>' + claves.map((k) => CV2.esc(k) + ': ' + pc[k]).join(' · ');
+  }
+  return h;
 }
 
 function dibujarNube() {
@@ -587,6 +614,7 @@ function dibujarNube() {
       + '(cabanas/cabana1…). Una búsqueda por el campo viejo devuelve cero sin '
       + 'dar error, que es exactamente lo que se ve acá. Se arregla en la '
       + 'función <b>cloudinary-listar</b> de Netlify.'
+      + diagnosticoHTML()
       + '</div>';
     return;
   }

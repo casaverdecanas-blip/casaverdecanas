@@ -7,6 +7,37 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v92 (28-ago-2026) — NACE cloudinary-listar. No existia: en el repo solo
+//       estaban claude-proxy y notify-whatsapp. Se escribe de cero, con el
+//       error de fondo evitado: la cuenta esta en modo Dynamic folders, donde
+//       la carpeta va en 'asset_folder' y no en 'folder'. Buscar por el campo
+//       viejo NO da error, devuelve cero con HTTP 200 — por eso el editor
+//       decia "no hay fotos" con las fotos ahi. Ahora se busca por los DOS
+//       campos y ademas por las SUBCARPETAS (cabanas/cabana1...), que una
+//       busqueda por carpeta exacta no ve. Los comprobantes de Dinero
+//       ('gastos') se excluyen en la propia expresion.
+//       La funcion devuelve siempre un diagnostico —donde busco, cuantas
+//       encontro por carpeta— y el editor lo muestra cuando la respuesta
+//       vuelve vacia, que es cuando hace falta.
+//       ⚠ VA A NETLIFY, NO AL SHELL: es codigo de servidor. Netlify no esta
+//       enganchado a Git, asi que subirla a GitHub no la despliega: hay que
+//       desplegarla a mano y cargar las variables de entorno.
+// v91 (28-ago-2026) — REVISAR LAS FOTOS. Pantalla nueva 'fotos.html': junta
+//       todas las fotos que muestra el sitio público y las mira una por una.
+//       Encuentra las servidas por otro sitio (y las trae a Cloudinary, a la
+//       carpeta que les toca, de a una y con confirmación), las que no cargan,
+//       las que se piden sin la transformación de entrega —bajan en tamaño
+//       original, que en 3G se nota— y las repetidas.
+//       ⚠ LO QUE NO PUEDE SABER, Y ES A PROPÓSITO: en qué carpeta está
+//       guardada cada foto. En modo Dynamic folders la carpeta es un dato
+//       aparte del identificador y NO viaja en la URL, así que desde el
+//       navegador es imposible. La pantalla lo dice en vez de fingir que
+//       verificó: si cloudinary-listar responde, cruza y marca las mal
+//       ubicadas; si no, muestra el identificador y la carpeta que
+//       corresponde, para acomodarlas a mano.
+//       Las correcciones reescriben el array de fotos ENTERO y lo releen del
+//       servidor justo antes: Firestore no cambia un elemento por índice, y
+//       'fotos.2' crearía un mapa con la clave "2" en vez de tocar el array.
 // v90 (28-ago-2026) — LAS FOTOS SE SUBÍAN A LA RAÍZ. CV2.subirImagen nunca
 //       mandaba carpeta, así que TODAS las fotos del sistema —las del sitio,
 //       las de los alojamientos, los avatares— caían en la raíz de
@@ -154,7 +185,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v90';
+const VERSION = 'cv2-shell-v92';
 
 const SHELL = [
   './',
@@ -172,6 +203,7 @@ const SHELL = [
   './cabanas.html',
   './editar.html',
   './traducir.html',
+  './fotos.html',
   './espacios.html',
   './calendario.html',
   './agenda.html',

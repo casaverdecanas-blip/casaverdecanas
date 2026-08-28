@@ -358,6 +358,7 @@ CV2.NAV = [
   // existe para quien no la escribió.
   { id: 'editar', label: 'Editar el sitio', href: './editar.html', icono: 'edit_note', permiso: 'contenido', grupo: 'sitio' },
   { id: 'traducir', label: 'Revisar y traducir', href: './traducir.html', icono: 'translate', permiso: 'contenido', grupo: 'sitio' },
+  { id: 'fotos', label: 'Revisar las fotos', href: './fotos.html', icono: 'photo_camera_back', permiso: 'contenido', grupo: 'sitio' },
 
   // Grupo 'cuenta' → hoja de la persona (el botón redondo de la cabecera).
   // "Mis avisos" es la PRIMERA pantalla del 2.0 donde alguien configura algo

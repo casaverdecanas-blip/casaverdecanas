@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Revisar las fotos</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .paso { background:#fff; border:1px solid var(--linea); border-radius:var(--radio);
+    padding:14px; margin:10px 0; box-shadow:var(--sombra); }
+  .paso > h2 { font-size:1.05rem; margin:0 0 3px; display:flex; align-items:center; gap:8px; }
+  .paso > h2 .material-icons { font-size:20px; flex:none; }
+  .ayuda { font-size:.8rem; color:var(--gris); line-height:1.45; margin:6px 0 0; }
+
+  .cuadro { display:grid; grid-template-columns:repeat(auto-fit,minmax(84px,1fr));
+    gap:6px; margin:12px 0; }
+  .cuadro div { background:var(--crema); border-radius:8px; padding:9px 8px; }
+  .cuadro b { display:block; font-size:1.25rem; line-height:1.1; }
+  .cuadro span { display:block; font-size:.68rem; color:var(--gris); margin-top:2px;
+    line-height:1.25; }
+  .cuadro div.mal b { color:var(--rojo); }
+  .cuadro div.ojo b { color:var(--amarillo); }
+  .cuadro div.ok b { color:var(--ok); }
+
+  .fila-btn { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .fila-btn .btn { flex:1; min-width:130px; justify-content:center; }
+
+  /* Cada foto con su miniatura al lado: sin verla, "cabanas/c1:fotos.2" no
+     le dice nada a nadie. */
+  .item { display:flex; gap:10px; border-top:1px solid var(--linea); padding:11px 0;
+    align-items:flex-start; }
+  .item:first-child { border-top:0; }
+  .item .mini { width:62px; height:62px; flex:none; border-radius:8px; object-fit:cover;
+    background:var(--crema); }
+  .item .mini.rota { display:flex; align-items:center; justify-content:center;
+    color:var(--rojo); font-size:11px; text-align:center; padding:4px; }
+  .item .cuerpo { flex:1; min-width:0; }
+  .item .donde { font-size:.78rem; font-weight:600; color:var(--verde-osc);
+    line-height:1.3; }
+  .item .url { font-size:.64rem; color:var(--gris); word-break:break-all;
+    line-height:1.35; margin-top:2px; font-family:ui-monospace,Menlo,monospace; }
+  .item .que { font-size:.78rem; margin-top:4px; line-height:1.4; }
+  .item .que.mal { color:var(--rojo); }
+  .item .que.ojo { color:var(--amarillo); }
+  .item .acc { margin-top:6px; display:flex; gap:6px; flex-wrap:wrap; }
+  .item .acc .btn { font-size:.76rem; min-height:36px; padding:0 12px; }
+  .item.hecho { opacity:.45; }
+
+  /* La carpeta que le toca, para copiar y pegar en Cloudinary. */
+  .destino { display:inline-flex; align-items:center; gap:5px; background:var(--crema);
+    border-radius:6px; padding:3px 8px; font-size:.72rem; margin-top:5px;
+    font-family:ui-monospace,Menlo,monospace; color:var(--tinta); cursor:pointer; }
+  .destino .material-icons { font-size:14px; color:var(--gris); }
+
+  .vacio { text-align:center; padding:18px 10px; color:var(--gris); font-size:.85rem; }
+  .vacio .material-icons { display:block; font-size:32px; color:var(--ok); margin-bottom:6px; }
+
+  #confirmar { position:fixed; inset:0; z-index:300; background:rgba(20,30,18,.55);
+    display:flex; align-items:flex-end; justify-content:center;
+    padding:14px 14px calc(14px + env(safe-area-inset-bottom)); }
+  #confirmar.hide { display:none; }
+  #confirmar .caja { background:#fff; border-radius:16px; padding:16px; max-width:520px;
+    width:100%; box-shadow:0 -8px 40px rgba(0,0,0,.3); }
+  #confirmar p { font-size:.92rem; line-height:1.5; margin:0 0 12px; white-space:pre-line; }
+  #confirmar .fila-conf { display:flex; gap:8px; }
+  #confirmar .fila-conf .btn { flex:1; justify-content:center; }
+
+  .hide { display:none !important; }
+</style>
+</head>
+<body>
+
+<div id="confirmar" class="hide">
+  <div class="caja">
+    <p id="conf-txt"></p>
+    <div class="fila-conf">
+      <button class="btn" id="conf-no">Cancelar</button>
+      <button class="btn btn-primario" id="conf-si">Sí</button>
+    </div>
+  </div>
+</div>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <h1 style="margin-bottom:2px;">Revisar las fotos</h1>
+  <p class="ayuda" style="margin-bottom:12px;">Busca las fotos del sitio que están fuera
+    de Cloudinary, las que no cargan, las que se sirven pesadas y las que están
+    guardadas en la carpeta que no les toca.</p>
+
+  <section class="paso">
+    <h2><span class="material-icons">fact_check</span> Cómo están las fotos</h2>
+    <div class="cuadro">
+      <div><b id="c-total">—</b><span>fotos en el sitio</span></div>
+      <div class="mal"><b id="c-fuera">—</b><span>fuera de Cloudinary</span></div>
+      <div class="mal"><b id="c-rota">—</b><span>no cargan</span></div>
+      <div class="ojo"><b id="c-pesada">—</b><span>se sirven pesadas</span></div>
+      <div class="ojo"><b id="c-carpeta">—</b><span>carpeta a revisar</span></div>
+      <div class="ojo"><b id="c-repe">—</b><span>repetidas</span></div>
+    </div>
+    <p class="ayuda" id="estado">Leyendo…</p>
+    <div class="fila-btn">
+      <button class="btn" id="releer">Volver a revisar</button>
+    </div>
+  </section>
+
+  <section class="paso" id="sFuera">
+    <h2><span class="material-icons">cloud_off</span> Fuera de Cloudinary</h2>
+    <p class="ayuda">Están servidas por otro sitio. Si ese sitio se cae, cambia la
+      dirección o borra el archivo, la foto desaparece del nuestro y nadie se entera
+      hasta que un huésped lo ve. <b>Traer una copia</b> la sube a Cloudinary, en la
+      carpeta que le toca, y deja apuntando ahí.</p>
+    <div id="lFuera"></div>
+  </section>
+
+  <section class="paso" id="sRota">
+    <h2><span class="material-icons">broken_image</span> No cargan</h2>
+    <p class="ayuda">La dirección existe pero no devuelve una imagen. En el sitio se ve
+      un hueco.</p>
+    <div id="lRota"></div>
+  </section>
+
+  <section class="paso" id="sPesada">
+    <h2><span class="material-icons">speed</span> Se sirven pesadas</h2>
+    <p class="ayuda">Están en Cloudinary pero se piden sin la transformación de entrega,
+      así que bajan en su tamaño original. En Canasvieiras mucha gente entra con datos
+      móviles: una foto de 4 MB donde alcanzaba con 200 KB se nota. Corregir esto no
+      cambia la foto, sólo cómo se pide.</p>
+    <div id="lPesada"></div>
+  </section>
+
+  <section class="paso" id="sCarpeta">
+    <h2><span class="material-icons">folder_off</span> Carpeta a revisar</h2>
+    <p class="ayuda" id="ayudaCarpeta"></p>
+    <div id="lCarpeta"></div>
+  </section>
+
+  <section class="paso" id="sRepe">
+    <h2><span class="material-icons">content_copy</span> Repetidas</h2>
+    <p class="ayuda">La misma foto usada en más de un lugar. No rompe nada, pero suele
+      ser una foto puesta por error donde iba otra.</p>
+    <div id="lRepe"></div>
+  </section>
+</div>
+
+<script type="module">
+import {
+  db, doc, getDoc, updateDoc, collection, getDocs
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+/* ═══════════════════════════════════════════════════════════════
+   REVISAR LAS FOTOS
+
+   Junta TODAS las fotos que el sitio público muestra —las de los
+   alojamientos y las de las áreas comunes— y las mira una por una.
+
+   QUÉ SE PUEDE SABER DESDE ACÁ Y QUÉ NO. Esto corre en el navegador, sin
+   la Admin API de Cloudinary. Entonces:
+
+     · Si una foto es de Cloudinary o de otro servidor  → SÍ, está en la URL.
+     · Si carga o está rota                             → SÍ, se prueba a cargarla.
+     · Si se pide con la transformación de entrega      → SÍ, está en la URL.
+     · Si está repetida                                 → SÍ, comparando.
+     · EN QUÉ CARPETA está guardada                     → NO SE PUEDE.
+
+   Lo último merece explicación, porque es lo que se pidió y hay que ser
+   claro: la cuenta está en modo Dynamic folders, donde la carpeta
+   ('asset_folder') es un dato aparte del identificador de la foto. En el
+   modo clásico la carpeta viajaba dentro del public_id y se leía de la
+   URL; acá NO. Dos fotos en carpetas distintas pueden tener URLs
+   indistinguibles.
+
+   Así que esta pantalla hace lo honesto: si la función cloudinary-listar
+   de Netlify responde, cruza cada foto contra el listado y dice cuáles
+   están mal ubicadas. Si no responde —hoy no lo hace—, muestra igual la
+   lista de qué carpeta le corresponde a cada una, para moverlas a mano
+   desde Cloudinary, y lo dice en vez de fingir que verificó algo.
+
+   MOVER UNA FOTO EN CLOUDINARY NO CAMBIA SU DIRECCIÓN DE ENTREGA. Por eso
+   ordenar las carpetas allá nunca rompe el sitio, y por eso esta pantalla
+   puede pedir que se muevan sin tener que tocar después ni un dato.
+   ═══════════════════════════════════════════════════════════════ */
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+if (!CV2.puede('contenido')) {
+  document.querySelector('.contenedor').innerHTML =
+    '<h1>Sin acceso</h1><p>Las fotos del sitio las revisa quien tiene el permiso de contenido.</p>';
+  throw new Error('sin contenido');
+}
+CV2.renderNav('fotos');
+CV2.dialogosConAtras();
+
+const $ = (id) => document.getElementById(id);
+
+let FOTOS = [];          // todas las fotos encontradas, con su origen
+let listadoNube = null;  // lo que devolvió cloudinary-listar, si funcionó
+
+function preguntar(texto) {
+  return new Promise((resolver) => {
+    const capa = $('confirmar');
+    $('conf-txt').textContent = texto;
+    capa.classList.remove('hide');
+    let resuelto = false;
+    const terminar = (r) => {
+      if (resuelto) return;
+      resuelto = true;
+      capa.classList.add('hide');
+      $('conf-si').onclick = null;
+      $('conf-no').onclick = null;
+      resolver(r);
+    };
+    const cerrarCapa = CV2.capaAtras(() => terminar(false));
+    $('conf-si').onclick = () => { terminar(true); cerrarCapa(); };
+    $('conf-no').onclick = () => { cerrarCapa(); };
+  });
+}
+
+/* ── 1 · Juntar todas las fotos ──────────────────────────────
+   Se recorren las dos colecciones que el sitio público muestra. Cada
+   foto queda anotada con su documento, su campo y su posición dentro
+   del array: sin eso no se puede escribir la corrección de vuelta. */
+async function juntarFotos() {
+  const out = [];
+
+  const cs = await getDocs(collection(db, 'cabanas'));
+  const cabanas = [];
+  cs.forEach((d) => cabanas.push({ id: d.id, ...d.data() }));
+  cabanas.sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
+  for (let i = 0; i < cabanas.length; i++) {
+    const c = cabanas[i];
+    const nom = (c.nombre && c.nombre.es) ? c.nombre.es : c.id;
+    const fotos = Array.isArray(c.fotos) ? c.fotos : [];
+    for (let j = 0; j < fotos.length; j++) {
+      if (!fotos[j]) continue;
+      out.push({
+        url: String(fotos[j]),
+        donde: nom + ' · foto ' + (j + 1),
+        coleccion: 'cabanas', doc: c.id, campo: 'fotos', pos: j,
+        // La carpeta que le corresponde, según dónde se usa. Sale del
+        // mismo mapa que usa la subida, así que no puede desincronizarse.
+        carpeta: CV2.carpetaDe(c.id)
+      });
+    }
+  }
+
+  const es = await getDocs(collection(db, 'espacios_comunes'));
+  const espacios = [];
+  es.forEach((d) => espacios.push({ id: d.id, ...d.data() }));
+  espacios.sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
+  for (let i = 0; i < espacios.length; i++) {
+    const e = espacios[i];
+    const nom = (e.nombre && e.nombre.es) ? e.nombre.es : e.id;
+    const fotos = Array.isArray(e.fotos) ? e.fotos : [];
+    for (let j = 0; j < fotos.length; j++) {
+      if (!fotos[j]) continue;
+      out.push({
+        url: String(fotos[j]),
+        donde: 'Área común · ' + nom + ' · foto ' + (j + 1),
+        coleccion: 'espacios_comunes', doc: e.id, campo: 'fotos', pos: j,
+        carpeta: CV2.carpetaDe('espacios')
+      });
+    }
+  }
+
+  return out;
+}
+
+/* ── 2 · Mirar cada una ──────────────────────────────────────
+   Se prueba a cargarla de verdad en vez de confiar en que la dirección
+   se ve bien: una URL correcta puede apuntar a algo que ya no existe, y
+   ese es justo el caso que nadie descubre hasta que lo ve un huésped. */
+function probarCarga(url) {
+  return new Promise((listo) => {
+    const im = new Image();
+    // Ocho segundos: en 3G desde la playa una foto grande tarda, y dar
+    // por rota una que sólo era lenta haría que alguien borre una foto
+    // que estaba bien.
+    const reloj = setTimeout(() => { im.onload = im.onerror = null; listo(false); }, 8000);
+    im.onload = () => { clearTimeout(reloj); listo(true); };
+    im.onerror = () => { clearTimeout(reloj); listo(false); };
+    im.src = url;
+  });
+}
+
+/** El identificador dentro de Cloudinary, para poder buscarla allá. */
+function publicIdDe(url) {
+  const marca = '/upload/';
+  const i = url.indexOf(marca);
+  if (i === -1) return '';
+  let resto = url.slice(i + marca.length);
+  const trozos = resto.split('/');
+  // Se salta la transformación y la versión si están.
+  while (trozos.length > 1 && (CV2._esTransformacion(trozos[0]) || /^v\d+$/.test(trozos[0]))) {
+    trozos.shift();
+  }
+  return trozos.join('/').replace(/\.[a-zA-Z0-9]+$/, '');
+}
+
+async function revisar() {
+  $('estado').textContent = 'Leyendo los alojamientos y las áreas comunes…';
+  try {
+    FOTOS = await juntarFotos();
+  } catch (e) {
+    $('estado').textContent = '';
+    CV2.toast('No se pudo leer: ' + (e.code || e.message), 'error');
+    return;
+  }
+
+  // El listado de Cloudinary es opcional: si funciona, se cruza; si no,
+  // todo lo demás se hace igual.
+  listadoNube = null;
+  try {
+    const r = await fetch(CV2.NETLIFY + '/cloudinary-listar');
+    const d = await r.json();
+    if (r.ok && Array.isArray(d.fotos) && d.fotos.length) listadoNube = d.fotos;
+  } catch (e) {
+    console.warn('cloudinary-listar', e);
+  }
+
+  const vistas = {};
+  for (let i = 0; i < FOTOS.length; i++) {
+    const f = FOTOS[i];
+    $('estado').textContent = 'Probando la foto ' + (i + 1) + ' de ' + FOTOS.length + '…';
+    f.esNube = CV2.esCloudinary(f.url);
+    f.publicId = f.esNube ? publicIdDe(f.url) : '';
+    f.pesada = f.esNube && CV2.urlEntrega(f.url) !== f.url;
+    f.carga = await probarCarga(f.url);
+    vistas[f.url] = (vistas[f.url] || 0) + 1;
+  }
+  for (let i = 0; i < FOTOS.length; i++) FOTOS[i].repetida = vistas[FOTOS[i].url] > 1;
+
+  // Carpeta: sólo se puede afirmar algo si el listado respondió.
+  for (let i = 0; i < FOTOS.length; i++) {
+    const f = FOTOS[i];
+    f.carpetaReal = null;
+    f.carpetaMal = false;
+    if (!f.esNube || !listadoNube) continue;
+    for (let j = 0; j < listadoNube.length; j++) {
+      const n = listadoNube[j];
+      if (n.publicId === f.publicId || n.url === f.url) {
+        f.carpetaReal = n.carpeta || n.asset_folder || '';
+        f.carpetaMal = f.carpetaReal !== f.carpeta;
+        break;
+      }
+    }
+  }
+
+  pintar();
+  $('estado').textContent = FOTOS.length + ' fotos revisadas.';
+}
+
+function pintar() {
+  const fuera = FOTOS.filter((f) => !f.esNube);
+  const rotas = FOTOS.filter((f) => !f.carga);
+  const pesadas = FOTOS.filter((f) => f.esNube && f.pesada);
+  const repes = FOTOS.filter((f) => f.repetida);
+  const carpeta = listadoNube
+    ? FOTOS.filter((f) => f.esNube && f.carpetaMal)
+    : FOTOS.filter((f) => f.esNube);
+
+  $('c-total').textContent = FOTOS.length;
+  $('c-fuera').textContent = fuera.length;
+  $('c-rota').textContent = rotas.length;
+  $('c-pesada').textContent = pesadas.length;
+  $('c-carpeta').textContent = listadoNube ? carpeta.length : '?';
+  $('c-repe').textContent = repes.length;
+
+  lista('lFuera', fuera, 'Todas las fotos del sitio están en Cloudinary.', (f) => [
+    { txt: 'Traer una copia', fn: () => traer(f), primario: true }
+  ], 'mal', 'Servida por otro sitio.');
+
+  lista('lRota', rotas, 'Todas las fotos cargan.', (f) => [
+    { txt: 'Quitarla del sitio', fn: () => quitar(f) }
+  ], 'mal', 'La dirección no devuelve una imagen.');
+
+  lista('lPesada', pesadas, 'Todas se sirven livianas.', (f) => [
+    { txt: 'Servirla liviana', fn: () => aliviar(f), primario: true }
+  ], 'ojo', 'Se pide sin la transformación de entrega.');
+
+  lista('lRepe', repes, 'No hay fotos repetidas.', null, 'ojo',
+    'Esta misma foto está en más de un lugar.');
+
+  $('ayudaCarpeta').innerHTML = listadoNube
+    ? 'Están en Cloudinary pero guardadas en una carpeta que no es la suya. '
+      + 'Moverlas allá no cambia su dirección, así que no rompe nada del sitio.'
+    : '<b>No se pudo verificar la carpeta.</b> La cuenta usa el modo Dynamic '
+      + 'folders, donde la carpeta es un dato aparte del identificador y NO viaja '
+      + 'en la dirección de la foto: desde acá es imposible saberla. Hace falta la '
+      + 'función <b>cloudinary-listar</b> de Netlify, que hoy no responde con '
+      + 'fotos.<br><br>Mientras tanto, abajo está cada foto con el identificador '
+      + 'con el que se la encuentra en Cloudinary y la carpeta que le corresponde, '
+      + 'para acomodarlas a mano. Tocá la carpeta para copiarla. Mover una foto no '
+      + 'cambia su dirección, así que no rompe nada.';
+
+  lista('lCarpeta', carpeta,
+    listadoNube ? 'Todas están en su carpeta.' : 'No hay fotos de Cloudinary.',
+    null, listadoNube ? 'ojo' : '',
+    listadoNube ? null : '', true);
+}
+
+function lista(id, items, siVacio, acciones, nivel, motivo, conDestino) {
+  const cont = $(id);
+  cont.innerHTML = '';
+  if (!items.length) {
+    cont.innerHTML = '<div class="vacio"><span class="material-icons">check_circle</span>'
+      + CV2.esc(siVacio) + '</div>';
+    return;
+  }
+  for (let i = 0; i < items.length; i++) {
+    const f = items[i];
+    const d = document.createElement('div');
+    d.className = 'item';
+
+    const im = document.createElement('img');
+    im.className = 'mini';
+    im.alt = '';
+    im.loading = 'lazy';
+    im.src = f.url;
+    im.onerror = () => {
+      const rep = document.createElement('div');
+      rep.className = 'mini rota';
+      rep.textContent = 'no carga';
+      im.replaceWith(rep);
+    };
+    d.appendChild(im);
+
+    const cu = document.createElement('div');
+    cu.className = 'cuerpo';
+    const t1 = document.createElement('div');
+    t1.className = 'donde';
+    t1.textContent = f.donde;
+    cu.appendChild(t1);
+
+    const t2 = document.createElement('div');
+    t2.className = 'url';
+    t2.textContent = f.publicId ? f.publicId : f.url;
+    cu.appendChild(t2);
+
+    let texto = motivo;
+    if (conDestino && listadoNube && f.carpetaMal) {
+      texto = 'Está en «' + (f.carpetaReal || 'la raíz') + '» y le toca «' + f.carpeta + '».';
+    }
+    if (texto) {
+      const t3 = document.createElement('div');
+      t3.className = 'que ' + (nivel || '');
+      t3.textContent = texto;
+      cu.appendChild(t3);
+    }
+
+    if (conDestino) {
+      const dst = document.createElement('span');
+      dst.className = 'destino';
+      dst.innerHTML = '<span class="material-icons">folder</span>';
+      const et = document.createElement('span');
+      et.textContent = f.carpeta;
+      dst.appendChild(et);
+      dst.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(f.carpeta);
+          CV2.toast('Carpeta copiada: ' + f.carpeta, 'success');
+        } catch (e) {
+          CV2.toast('Carpeta: ' + f.carpeta, 'info');
+        }
+      });
+      cu.appendChild(dst);
+    }
+
+    if (acciones) {
+      const acc = document.createElement('div');
+      acc.className = 'acc';
+      const bs = acciones(f);
+      for (let j = 0; j < bs.length; j++) {
+        const b = document.createElement('button');
+        b.className = 'btn' + (bs[j].primario ? ' btn-primario' : '');
+        b.textContent = bs[j].txt;
+        b.addEventListener('click', async () => {
+          b.disabled = true;
+          const ok = await bs[j].fn();
+          if (ok) { d.classList.add('hecho'); acc.innerHTML = ''; }
+          else b.disabled = false;
+        });
+        acc.appendChild(b);
+      }
+      cu.appendChild(acc);
+    }
+
+    d.appendChild(cu);
+    cont.appendChild(d);
+  }
+}
+
+/* ── 3 · Las correcciones ────────────────────────────────────
+   Todas escriben el array COMPLETO de vuelta y no la posición suelta:
+   Firestore no sabe cambiar un solo elemento de un array por índice, y
+   escribir 'fotos.2' crearía un mapa con la clave "2" en lugar de tocar
+   el array. El array se relee del servidor justo antes de escribir, así
+   que si alguien lo cambió desde el editor mientras tanto, se trabaja
+   sobre lo que hay y no sobre lo que se leyó hace diez minutos. */
+async function reemplazarEnArray(f, nuevoValor) {
+  const ref = doc(db, f.coleccion, f.doc);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error('el documento ya no existe');
+  const arr = Array.isArray(snap.data()[f.campo]) ? snap.data()[f.campo].slice() : [];
+  const i = arr.indexOf(f.url);
+  if (i === -1) throw new Error('esa foto ya no está en el documento');
+  if (nuevoValor === null) arr.splice(i, 1);
+  else arr[i] = nuevoValor;
+  const campos = {};
+  campos[f.campo] = arr;
+  await updateDoc(ref, campos);
+}
+
+async function traer(f) {
+  if (!(await preguntar('Se va a subir una copia de esta foto a Cloudinary, en la '
+    + 'carpeta «' + f.carpeta + '», y el sitio va a apuntar a la copia.\n\n'
+    + 'La foto original no se toca.'))) return false;
+  try {
+    CV2.toast('Trayendo la foto…');
+    const nueva = await CV2.traerImagenDesdeUrl(f.url, f.carpeta);
+    await reemplazarEnArray(f, nueva);
+    CV2.toast('✓ Traída a ' + f.carpeta, 'success');
+    return true;
+  } catch (e) {
+    CV2.toast('No se pudo traer: ' + (e.code || e.message), 'error');
+    return false;
+  }
+}
+
+async function aliviar(f) {
+  try {
+    await reemplazarEnArray(f, CV2.urlEntrega(f.url));
+    CV2.toast('✓ Ahora se sirve liviana', 'success');
+    return true;
+  } catch (e) {
+    CV2.toast('No se pudo cambiar: ' + (e.code || e.message), 'error');
+    return false;
+  }
+}
+
+async function quitar(f) {
+  if (!(await preguntar('Se va a quitar esta foto de «' + f.donde + '».\n\n'
+    + 'Sólo se saca del sitio: el archivo en Cloudinary no se borra.'))) return false;
+  try {
+    await reemplazarEnArray(f, null);
+    CV2.toast('✓ Quitada del sitio', 'success');
+    return true;
+  } catch (e) {
+    CV2.toast('No se pudo quitar: ' + (e.code || e.message), 'error');
+    return false;
+  }
+}
+
+$('releer').addEventListener('click', () => revisar());
+
+await revisar();
+</script>
+</body>
+</html>
