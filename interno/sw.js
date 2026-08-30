@@ -7,6 +7,44 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v96 (30-ago-2026) — OPINIONES TAMBIEN EN LA RAIZ, y las claves donde van.
+//       'opiniones.html' NUEVO en la RAIZ: la misma lista, en direccion
+//       propia, para mandar por WhatsApp a quien pregunta si hay referencias.
+//       Mismo criterio que la-casa.html: la portada convence a quien esta
+//       mirando, la pagina propia se comparte, se guarda y se cita.
+//       ⚠ HAY DOS 'opiniones.html' Y NO ES UN ERROR: el de la raiz es
+//       publico (lee y muestra) y el de interno/ es el cargador (escribe).
+//       Es el mismo par que ya existe con recuerdos.html.
+//       Las cinco claves que en la v95 quedaron en un T_EXTRA dentro del
+//       index PASAN a textos-sitio.js, con dos mas ('opi_p', 'opi_volver'):
+//       ahora el editor visual las ve y se traducen desde la pantalla.
+//       textos-sitio.js esta en el SHELL: por eso sube la VERSION aunque el
+//       archivo nuevo viva en la raiz y no entre a la lista.
+//       ⚠ FALTA A MANO: sumar /opiniones.html a sitemap.xml (§7.9).
+// v95 (30-ago-2026) — LAS OPINIONES DE AIRBNB, A MANO. Airbnb no tiene API
+//       publica (solo la da a socios aprobados) y los widgets que se venden
+//       raspan la pagina del anuncio: se rompen cuando Airbnb cambia el HTML
+//       y meten JavaScript de un tercero en el sitio. Se copian a mano desde
+//       'opiniones.html' [NUEVO] y se quedan quietas.
+//       DONDE VIVEN: config/sitio, que ya es "el unico lugar del contenido
+//       publico" y que el sitio ya bajaba. Cero coleccion nueva, cero regla
+//       nueva, cero lectura de mas por visita.
+//         opiniones: [ { autor, fecha, idioma, estrellas, texto, orden } ]
+//         airbnb:    { c1: { url, nota, resenas }, … }
+//       DECISION CORREGIDA sobre la marcha: iban a ir repartidas POR CABAÑA.
+//       Al mirar las resenas de verdad, casi ninguna nombra un departamento
+//       —hablan de la casa, la piscina, el jardin y de quienes reciben—, asi
+//       que repartirlas habria inventado una division que los huespedes no
+//       hicieron. Quedan en una seccion propia, justo antes del formulario;
+//       cada tarjeta conserva su nota y su enlace, que si son de cada anuncio.
+//       El enlace dice "verificar", no "ver el anuncio", va ultimo y en gris,
+//       y lleva rel="nofollow": es una prueba, no una segunda vidriera donde
+//       comprar, y no hay motivo para regalarle posicion al que nos cobra
+//       comision.
+//       ⚠ QUEDA ABIERTO: las cinco etiquetas nuevas (opi_t, opi_ver, opi_en,
+//       opi_mas, opi_menos) estan en un T_EXTRA dentro del index.html de la
+//       RAIZ y no en textos-sitio.js. Mientras esten ahi el editor visual NO
+//       las ve y no se traducen desde la pantalla.
 // v94 (28-ago-2026) — 'invalid-argument' AL GUARDAR DESPUES DE USAR EL OJO.
 //       La lista de ocultos se leia de dentro del iframe (w.CVSITIO.ocultos) y
 //       se guardaba tal cual. Ese array lleva el Array.prototype DEL IFRAME,
@@ -219,7 +257,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v94';
+const VERSION = 'cv2-shell-v96';
 
 const SHELL = [
   './',
@@ -247,6 +285,7 @@ const SHELL = [
   './reservas-core.js',
   './horas-stats.html',
   './recuerdos.html',
+  './opiniones.html',
   './nucleo.js',
   './textos-sitio.js',
   './firebase-init.js',

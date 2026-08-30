@@ -352,6 +352,11 @@ CV2.NAV = [
   { id: 'cabanas', label: 'Cabañas', href: './cabanas.html', icono: 'cottage', permiso: 'contenido', grupo: 'sitio' },
   { id: 'espacios', label: 'Espacios', href: './espacios.html', icono: 'deck', permiso: 'contenido', grupo: 'sitio' },
   { id: 'recuerdos', label: 'Recuerdos', href: './recuerdos.html', icono: 'photo_library', permiso: 'contenido', grupo: 'sitio' },
+  // Opiniones ≠ Recuerdos, y por eso son dos pantallas: los recuerdos son
+  // fotos que suben los huéspedes DESPUÉS de la estadía; las opiniones son
+  // palabra ajena que se lee ANTES de decidir. Juntarlas mezclaría dos
+  // cosas que ni se cargan igual ni se muestran en el mismo lugar.
+  { id: 'opiniones', label: 'Opiniones', href: './opiniones.html', icono: 'reviews', permiso: 'contenido', grupo: 'sitio' },
   // Editar y Traducir trabajan sobre el MISMO contenido y desde acá se llega
   // a los dos. Hasta la T11.46 el editor solo se alcanzaba desde Cabañas: una
   // pantalla a la que no lleva ningún camino visible es una pantalla que no

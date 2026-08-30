@@ -2,9 +2,10 @@
 //  CASAVERDE 2.0 — textos-sitio.js
 //  Textos por defecto del SITIO PÚBLICO, en los tres idiomas.
 //
-//  FUENTE ÚNICA. Lo importan TRES lados:
+//  FUENTE ÚNICA. Lo importan CUATRO lados:
 //   · index.html de la raíz (la portada).
 //   · la-casa.html de la raíz (el acuerdo de convivencia) — desde T11.45.
+//   · opiniones.html de la raíz (las reseñas de Airbnb) — desde T11.47.
 //   · interno/cabanas.html (el panel) — los muestra como texto de fondo
 //     de cada campo, así se ve qué dice el sitio HOY antes de editarlo.
 //
@@ -73,6 +74,17 @@ export const T = {
     libre:'Disponível nessas datas', ocupado:'Ocupado nessas datas',
     lOcupado:'Ocupado', lElegido:'Suas datas', elegirIn:'Escolha o dia de entrada',
     recuerdos:'Lembranças dos nossos hóspedes',
+
+    // ── Opiniões (T11.47) ──
+    // NUNCA traduzir o texto de uma opinião: é palavra de outra pessoa.
+    // Estas chaves são só os rótulos ao redor.
+    'opi_t':'O que dizem quem já veio',
+    'opi_p':'Opiniões deixadas no Airbnb por quem se hospedou aqui. Cada anúncio tem seu link para conferir o original.',
+    'opi_ver':'Verificar no Airbnb',
+    'opi_en':'opiniões',
+    'opi_mas':'Ver todas as opiniões',
+    'opi_menos':'Ver menos',
+    'opi_volver':'Voltar ao início',
     elegirOut:'Agora o dia de saída', chocan:'Há dias ocupados no meio. Escolha outro período.',
     noches:'noites', hasta:'até', pers:'pessoas', desde:'a partir de', noite:'a noite',
 
@@ -183,6 +195,17 @@ export const T = {
     libre:'Disponible en esas fechas', ocupado:'Ocupado en esas fechas',
     lOcupado:'Ocupado', lElegido:'Tus fechas', elegirIn:'Elegí el día de entrada',
     recuerdos:'Recuerdos de nuestros huéspedes',
+
+    // ── Opiniones (T11.47) ──
+    // NUNCA traducir el texto de una opinión: es palabra ajena.
+    // Estas claves son solo los rótulos de alrededor.
+    'opi_t':'Lo que dicen quienes ya vinieron',
+    'opi_p':'Opiniones dejadas en Airbnb por quienes se alojaron acá. Cada anuncio tiene su enlace para comprobar el original.',
+    'opi_ver':'Verificar en Airbnb',
+    'opi_en':'opiniones',
+    'opi_mas':'Ver todas las opiniones',
+    'opi_menos':'Ver menos',
+    'opi_volver':'Volver al inicio',
     elegirOut:'Ahora el día de salida', chocan:'Hay días ocupados en el medio. Elegí otro período.',
     noches:'noches', hasta:'hasta', pers:'personas', desde:'desde', noite:'la noche',
 
@@ -293,6 +316,17 @@ export const T = {
     libre:'Available on those dates', ocupado:'Not available on those dates',
     lOcupado:'Taken', lElegido:'Your dates', elegirIn:'Pick your arrival day',
     recuerdos:'Memories from our guests',
+
+    // ── Reviews (T11.47) ──
+    // NEVER translate the body of a review: those are someone else's words.
+    // These keys are only the labels around them.
+    'opi_t':'What past guests say',
+    'opi_p':'Reviews left on Airbnb by people who stayed here. Each listing has its own link so you can check the original.',
+    'opi_ver':'Verify on Airbnb',
+    'opi_en':'reviews',
+    'opi_mas':'See all reviews',
+    'opi_menos':'Show less',
+    'opi_volver':'Back to home',
     elegirOut:'Now the departure day', chocan:'There are booked days in between. Pick another period.',
     noches:'nights', hasta:'to', pers:'guests', desde:'from', noite:'per night',
 

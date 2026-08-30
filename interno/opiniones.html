@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Opiniones</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+<link rel="stylesheet" href="./design-system.css">
+<style>
+  /* Marca de versión para diagnostico.html: opiniones-1 */
+  .op-wrap{max-width:900px;margin:0 auto;padding:14px 14px 120px}
+  .op-nota{background:#fff8e8;border:1px solid #e8d9ae;border-radius:12px;
+    padding:12px 14px;font-size:.86rem;line-height:1.55;margin:0 0 18px}
+  .op-nota b{display:block;margin-bottom:4px}
+  h2.op-t{font-size:1.05rem;margin:22px 0 10px}
+  .op-card{background:#fff;border:1px solid #e6dcc2;border-radius:14px;
+    padding:14px;margin-bottom:12px}
+  .op-card h3{font-size:.95rem;margin:0 0 10px}
+  .op-fila{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+  .op-fila.tres{grid-template-columns:1fr 1fr 1fr}
+  label.op-l{display:block;font-size:.76rem;color:#6f7a68;margin-bottom:3px}
+  .op-card input, .op-card select, .op-card textarea{
+    width:100%;font:inherit;font-size:.92rem;padding:10px;border:1px solid #ddd4bd;
+    border-radius:9px;background:#fdfbf5;min-height:44px}
+  .op-card textarea{min-height:110px;resize:vertical;line-height:1.5}
+  .op-acc{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .op-acc button{min-height:44px;min-width:44px;border:1px solid #e6dcc2;background:#fff;
+    border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;
+    justify-content:center;gap:5px;font:inherit;font-size:.84rem;padding:0 12px}
+  .op-acc .borrar{color:#be402c;margin-left:auto}
+  .op-agregar{width:100%;min-height:52px;border:2px dashed #b86d4c;background:#fdf3ee;
+    color:#b86d4c;font:inherit;font-weight:600;border-radius:12px;cursor:pointer}
+  .op-guardar{position:fixed;left:0;right:0;bottom:0;padding:10px 14px;
+    padding-bottom:calc(10px + env(safe-area-inset-bottom));
+    background:rgba(250,244,230,.96);border-top:1px solid #e6dcc2;z-index:60}
+  .op-guardar button{width:100%;min-height:50px;border:0;border-radius:12px;
+    background:#305e30;color:#fff;font:inherit;font-size:1rem;font-weight:600;cursor:pointer}
+  .op-guardar button[disabled]{opacity:.55}
+  .op-vacio{color:#6f7a68;font-size:.9rem;padding:14px 2px}
+</style>
+</head>
+<body>
+<div id="nav"></div>
+
+<div class="op-wrap">
+
+  <p class="op-nota">
+    <b>Airbnb no se puede leer solo.</b>
+    No hay forma automática de traer las opiniones: Airbnb no da su API y los
+    complementos que se venden por ahí raspan la página del anuncio, se rompen
+    cuando Airbnb cambia algo y meten código de un tercero en el sitio. Se copian
+    a mano y se quedan quietas.
+    <br><br>
+    <b>Copiá el ORIGINAL, no la traducción.</b>
+    La aplicación de Airbnb te muestra las reseñas traducidas a tu idioma. Debajo
+    de cada una hay un <i>Mostrar original</i>: eso es lo que escribió la persona,
+    y es lo que va acá. Una traducción automática copiada como si fuera la palabra
+    del huésped ya no es un testimonio.
+    <br><br>
+    Extracto corto, nombre de pila y mes. El texto entero es de quien lo escribió;
+    el enlace de abajo lleva al original para quien quiera comprobarlo.
+  </p>
+
+  <h2 class="op-t">Los tres anuncios</h2>
+  <div id="anuncios"></div>
+
+  <h2 class="op-t">Las opiniones</h2>
+  <div id="lista"></div>
+  <button class="op-agregar" id="agregar">+ Agregar una opinión</button>
+
+</div>
+
+<div class="op-guardar">
+  <button id="guardar">Guardar</button>
+</div>
+
+<script type="module">
+// ═══════════════════════════════════════════════════════════
+// OPINIONES — carga a mano de las reseñas de Airbnb y de los datos
+// de los tres anuncios.
+//
+// TODO vive en config/sitio, que ya es "el único lugar del contenido
+// público": no hay colección nueva ni regla nueva. Lectura pública,
+// escritura con permiso 'contenido' — la regla que ya existe.
+//
+//   opiniones: [ { autor, fecha:'2026-03', idioma, estrellas, texto, orden } ]
+//   airbnb:    { c1: { url, nota, resenas }, c2:…, c3:… }
+//
+// El orden se guarda como el ORDEN DEL ARRAY, no como un número por
+// opinión: mover una cosa de lugar y tener que renumerar todo lo demás
+// es la clase de trabajo que nadie hace y que termina con la lista
+// desordenada. Igual se escribe 'orden' en cada una, para que el sitio
+// pueda ordenar sin depender de cómo le llegó el array.
+//
+// ⚠ Sin plantillas de texto (backticks) ni '?.' ni '??': hay iPad y
+//   Safari viejos en el equipo. Regla del proyecto.
+// ═══════════════════════════════════════════════════════════
+import { db, doc, getDoc, setDoc, collection, getDocs } from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+const $ = function (id) { return document.getElementById(id); };
+const esc = CV2.esc;
+
+let cabanas = [];
+let opiniones = [];
+let airbnb = {};
+
+// ── Los tres anuncios ────────────────────────────────────────
+function pintarAnuncios() {
+  if (!cabanas.length) {
+    $('anuncios').innerHTML = '<div class="op-vacio">No se pudieron leer las cabañas.</div>';
+    return;
+  }
+  let h = '';
+  for (let i = 0; i < cabanas.length; i++) {
+    const c = cabanas[i];
+    const a = airbnb[c.id] || {};
+    h += '<div class="op-card">'
+      + '<h3>' + esc(c.nombre) + '</h3>'
+      + '<label class="op-l">Dirección del anuncio en Airbnb</label>'
+      + '<input data-ab="' + esc(c.id) + '" data-campo="url" inputmode="url"'
+      + ' placeholder="https://www.airbnb.com/rooms/…" value="' + esc(a.url || '') + '">'
+      + '<div class="op-fila" style="margin-top:10px;">'
+      + '<div><label class="op-l">Nota</label>'
+      + '<input data-ab="' + esc(c.id) + '" data-campo="nota" inputmode="decimal"'
+      + ' placeholder="5.0" value="' + esc(a.nota || '') + '"></div>'
+      + '<div><label class="op-l">Cuántas reseñas</label>'
+      + '<input data-ab="' + esc(c.id) + '" data-campo="resenas" inputmode="numeric"'
+      + ' placeholder="12" value="' + esc(a.resenas || '') + '"></div>'
+      + '</div></div>';
+  }
+  $('anuncios').innerHTML = h;
+}
+
+// ── Las opiniones ────────────────────────────────────────────
+const IDIOMAS = [['pt', 'Portugués'], ['es', 'Español'], ['en', 'Inglés']];
+
+function pintarLista() {
+  if (!opiniones.length) {
+    $('lista').innerHTML = '<div class="op-vacio">Todavía no hay ninguna cargada.</div>';
+    return;
+  }
+  let h = '';
+  for (let i = 0; i < opiniones.length; i++) {
+    const o = opiniones[i];
+    let ops = '';
+    for (let j = 0; j < IDIOMAS.length; j++) {
+      ops += '<option value="' + IDIOMAS[j][0] + '"'
+        + (o.idioma === IDIOMAS[j][0] ? ' selected' : '') + '>'
+        + IDIOMAS[j][1] + '</option>';
+    }
+    let estr = '';
+    for (let n = 5; n >= 1; n--) {
+      estr += '<option value="' + n + '"'
+        + (Number(o.estrellas) === n ? ' selected' : '') + '>'
+        + n + '</option>';
+    }
+    h += '<div class="op-card">'
+      + '<label class="op-l">Lo que escribió (en su idioma original)</label>'
+      + '<textarea data-i="' + i + '" data-campo="texto">' + esc(o.texto || '') + '</textarea>'
+      + '<div class="op-fila tres" style="margin-top:10px;">'
+      + '<div><label class="op-l">Nombre</label>'
+      + '<input data-i="' + i + '" data-campo="autor" value="' + esc(o.autor || '') + '"></div>'
+      + '<div><label class="op-l">Mes</label>'
+      + '<input type="month" data-i="' + i + '" data-campo="fecha" value="' + esc(o.fecha || '') + '"></div>'
+      + '<div><label class="op-l">Estrellas</label>'
+      + '<select data-i="' + i + '" data-campo="estrellas">' + estr + '</select></div>'
+      + '</div>'
+      + '<div style="margin-top:10px;"><label class="op-l">Idioma del texto</label>'
+      + '<select data-i="' + i + '" data-campo="idioma">' + ops + '</select></div>'
+      + '<div class="op-acc">'
+      + '<button data-mover="' + i + '" data-dir="-1"' + (i === 0 ? ' disabled' : '') + '>'
+      + '<span class="material-icons">arrow_upward</span></button>'
+      + '<button data-mover="' + i + '" data-dir="1"'
+      + (i === opiniones.length - 1 ? ' disabled' : '') + '>'
+      + '<span class="material-icons">arrow_downward</span></button>'
+      + '<button class="borrar" data-borrar="' + i + '">'
+      + '<span class="material-icons">delete</span>Borrar</button>'
+      + '</div></div>';
+  }
+  $('lista').innerHTML = h;
+}
+
+// ── Cambios ──────────────────────────────────────────────────
+// Un solo oyente en el documento: la lista se rehace entera en cada
+// pintada y los oyentes colgados de cada campo morirían con ella.
+document.addEventListener('input', function (ev) {
+  const el = ev.target;
+  if (el.dataset.ab) {
+    if (!airbnb[el.dataset.ab]) airbnb[el.dataset.ab] = {};
+    airbnb[el.dataset.ab][el.dataset.campo] = el.value.trim();
+    return;
+  }
+  if (el.dataset.i !== undefined && el.dataset.campo) {
+    const o = opiniones[Number(el.dataset.i)];
+    if (o) o[el.dataset.campo] = el.value;
+  }
+});
+document.addEventListener('change', function (ev) {
+  const el = ev.target;
+  if (el.dataset.i !== undefined && el.dataset.campo) {
+    const o = opiniones[Number(el.dataset.i)];
+    if (o) o[el.dataset.campo] = el.value;
+  }
+});
+
+document.addEventListener('click', function (ev) {
+  const b = ev.target.closest ? ev.target.closest('button') : null;
+  if (!b) return;
+
+  if (b.dataset.mover !== undefined) {
+    const i = Number(b.dataset.mover);
+    const j = i + Number(b.dataset.dir);
+    if (j < 0 || j >= opiniones.length) return;
+    const tmp = opiniones[i]; opiniones[i] = opiniones[j]; opiniones[j] = tmp;
+    pintarLista();
+    return;
+  }
+
+  // Sin confirm(): Chrome deja desactivarlo y entonces el borrado pasa
+  // sin preguntar nada (regla del proyecto). Se borra de la pantalla y
+  // recién queda firme al Guardar; hasta entonces, recargar lo trae de
+  // vuelta.
+  if (b.dataset.borrar !== undefined) {
+    opiniones.splice(Number(b.dataset.borrar), 1);
+    pintarLista();
+    CV2.toast('Borrada de la lista. Queda firme al Guardar.');
+  }
+});
+
+$('agregar').addEventListener('click', function () {
+  opiniones.push({ autor: '', fecha: '', idioma: 'pt', estrellas: 5, texto: '' });
+  pintarLista();
+  const cards = $('lista').querySelectorAll('.op-card');
+  const ult = cards[cards.length - 1];
+  if (ult) {
+    ult.scrollIntoView({ block: 'center' });
+    const ta = ult.querySelector('textarea');
+    if (ta) ta.focus();
+  }
+});
+
+// ── Guardar ──────────────────────────────────────────────────
+$('guardar').addEventListener('click', async function () {
+  const btn = $('guardar');
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+  try {
+    // Se limpia acá y no al escribir: mientras se edita, una opinión a
+    // medio llenar tiene que poder quedar a medio llenar.
+    const limpias = [];
+    for (let i = 0; i < opiniones.length; i++) {
+      const o = opiniones[i];
+      const texto = String(o.texto || '').trim();
+      if (!texto) continue;
+      limpias.push({
+        texto: texto,
+        autor: String(o.autor || '').trim(),
+        fecha: String(o.fecha || '').trim(),
+        idioma: String(o.idioma || 'pt'),
+        estrellas: Number(o.estrellas) || 5,
+        orden: i
+      });
+    }
+
+    // Array.from en la frontera: cualquier array que venga de otro
+    // contexto lleva SU Array.prototype y Firestore lo rechaza entero
+    // con 'invalid-argument', sin decir cuál campo fue (lección v94).
+    await setDoc(doc(db, 'config', 'sitio'), {
+      opiniones: Array.from(limpias),
+      airbnb: airbnb
+    }, { merge: true });
+
+    CV2.toast('Guardado', 'success');
+  } catch (e) {
+    console.error('guardar opiniones:', e);
+    CV2.toast('No se pudo guardar: ' + ((e && e.code) || (e && e.message) || 'error'), 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Guardar';
+  }
+});
+
+// ── Arranque ─────────────────────────────────────────────────
+await CV2.verificarAuth();
+if (!CV2.puede('contenido')) {
+  document.querySelector('.op-wrap').innerHTML =
+    '<div class="op-vacio">No tenés permiso para editar el contenido del sitio.</div>';
+  document.querySelector('.op-guardar').style.display = 'none';
+} else {
+  try {
+    const cs = await getDocs(collection(db, 'cabanas'));
+    cs.forEach(function (d) {
+      const x = d.data();
+      if (x.activa === false) return;
+      // 'nombre' es un objeto {es, pt, en}: nunca tratarlo como texto.
+      const n = x.nombre;
+      const nombre = (n && typeof n === 'object')
+        ? (n.es || n.pt || n.en || d.id)
+        : (n || d.id);
+      cabanas.push({ id: d.id, nombre: nombre, orden: Number(x.orden) || 0 });
+    });
+    cabanas.sort(function (a, b) { return a.orden - b.orden; });
+  } catch (e) { console.warn('cabanas', e); }
+
+  try {
+    const cfg = await getDoc(doc(db, 'config', 'sitio'));
+    if (cfg.exists()) {
+      const x = cfg.data();
+      opiniones = Array.isArray(x.opiniones) ? x.opiniones.slice() : [];
+      airbnb = x.airbnb || {};
+    }
+  } catch (e) { console.warn('config sitio', e); }
+
+  opiniones.sort(function (a, b) {
+    return (Number(a.orden) || 0) - (Number(b.orden) || 0);
+  });
+
+  pintarAnuncios();
+  pintarLista();
+}
+
+CV2.renderNav('opiniones');
+CV2.registrarSW();
+</script>
+</body>
+</html>
