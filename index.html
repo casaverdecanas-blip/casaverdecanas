@@ -178,6 +178,45 @@
   .precio{font-size:1.16rem;font-weight:700;color:var(--terracota);font-family:Fraunces,serif}
   .precio small{font-weight:400;font-size:.8rem;color:var(--gris);font-family:Figtree,sans-serif}
 
+  /* ── La tira de Airbnb en cada tarjeta ─────────────────────
+     UNA línea: la nota de ESE anuncio y el enlace para comprobarla.
+     Dice "verificar" y no "ver el anuncio" a propósito: es una prueba,
+     no una segunda vidriera donde comprar. Va última, chica y en gris,
+     y con rel="nofollow" — no hay motivo para regalarle posición en
+     Google al lugar que nos cobra comisión. */
+  .ab-tira{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    border-top:1px solid var(--linea);padding-top:12px;margin-top:2px;font-size:.84rem}
+  .ab-nota{display:inline-flex;align-items:center;gap:4px;font-weight:700;color:var(--selva-osc)}
+  .ab-nota .material-icons{font-size:17px;color:var(--terracota)}
+  .ab-cnt{color:var(--gris)}
+  .ab-ver{display:inline-flex;align-items:center;gap:4px;color:var(--gris);
+    text-decoration:none;margin-left:auto;padding:8px 0;min-height:44px}
+  .ab-ver .material-icons{font-size:15px}
+
+  /* ── Opiniones ─────────────────────────────────────────────
+     Sección propia y NO una por cabaña: las opiniones reales hablan
+     de la casa, de la piscina, del jardín y de quienes reciben —casi
+     ninguna nombra un departamento—. Repartirlas por espacio sería
+     inventar una división que los huéspedes no hicieron. Cada anuncio
+     conserva su nota propia arriba, en su tarjeta.
+     Va justo antes del formulario: la prueba, y enseguida el pedido. */
+  .opi-lista{display:grid;gap:12px;
+    grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+  .opi-item{background:#fff;border:1px solid var(--linea);border-radius:16px;
+    padding:16px 18px;box-shadow:var(--sombra)}
+  .opi-item.oculta{display:none}
+  .opi-txt{margin:0;font-size:.92rem;line-height:1.6}
+  .opi-pie{margin-top:10px;padding-top:9px;border-top:1px solid var(--linea);
+    font-size:.78rem;color:var(--gris);display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .opi-pie b{color:var(--tinta)}
+  .opi-estrellas{color:var(--terracota);letter-spacing:1px}
+  .opi-idi{border:1px solid var(--linea);border-radius:5px;padding:0 5px;
+    font-size:.66rem;letter-spacing:.05em;text-transform:uppercase}
+  .opi-pie-sec{text-align:center;margin-top:16px}
+  .opi-mas{border:1px solid var(--linea);background:#fff;font:inherit;font-size:.86rem;
+    font-weight:600;color:var(--selva-osc);cursor:pointer;padding:11px 22px;
+    border-radius:999px;min-height:44px}
+
   /* ── Espacios comunes ──────────────────────────────────── */
   .espacios{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
   .esp{background:#fff;border:1px solid var(--linea);border-radius:15px;overflow:hidden;
@@ -447,6 +486,37 @@
   </svg>
 </div>
 
+<!-- ── Opiniones ─────────────────────────────────────────────
+     Se pinta sola desde config/sitio. Si no hay ninguna cargada, la
+     sección entera se esconde: un título "Lo que dicen los huéspedes"
+     sobre el vacío dice justo lo contrario de lo que se busca. -->
+<section class="wrap" id="secOpiniones" hidden>
+  <div class="titulo"><h2 data-t="opi_t">Lo que dicen quienes ya vinieron</h2></div>
+  <div class="opi-lista" id="opiLista"></div>
+  <div class="opi-pie-sec" id="opiPie" hidden>
+    <button class="opi-mas" id="opiMas"></button>
+  </div>
+  <p style="text-align:center;margin:14px 0 0;font-size:.86rem;">
+    <a href="./opiniones.html" style="color:var(--gris);"
+       data-t="opi_p">Opiniones dejadas en Airbnb por quienes se alojaron acá.</a>
+  </p>
+</section>
+
+<div class="guirnalda" aria-hidden="true">
+  <svg viewBox="0 0 600 46">
+    <path class="cordel" d="M0,8 Q300,44 600,8"/>
+    <g><line class="cordel" x1="60" y1="14.5" x2="60" y2="20"/><circle class="luz" cx="60" cy="23" r="3"/></g>
+    <g><line class="cordel" x1="120" y1="19.5" x2="120" y2="25"/><circle class="luz" cx="120" cy="28" r="3"/></g>
+    <g><line class="cordel" x1="180" y1="23" x2="180" y2="28.5"/><circle class="luz" cx="180" cy="31.5" r="3"/></g>
+    <g><line class="cordel" x1="240" y1="25.3" x2="240" y2="30.8"/><circle class="luz" cx="240" cy="33.8" r="3"/></g>
+    <g><line class="cordel" x1="300" y1="26" x2="300" y2="31.5"/><circle class="luz" cx="300" cy="34.5" r="3"/></g>
+    <g><line class="cordel" x1="360" y1="25.3" x2="360" y2="30.8"/><circle class="luz" cx="360" cy="33.8" r="3"/></g>
+    <g><line class="cordel" x1="420" y1="23" x2="420" y2="28.5"/><circle class="luz" cx="420" cy="31.5" r="3"/></g>
+    <g><line class="cordel" x1="480" y1="19.5" x2="480" y2="25"/><circle class="luz" cx="480" cy="28" r="3"/></g>
+    <g><line class="cordel" x1="540" y1="14.5" x2="540" y2="20"/><circle class="luz" cx="540" cy="23" r="3"/></g>
+  </svg>
+</div>
+
 <section class="wrap" id="consulta">
   <div class="titulo"><h2 data-t="tConsulta">Consultar disponibilidade</h2></div>
   <div class="consulta">
@@ -492,6 +562,9 @@
       <a href="./la-casa.html">🏡 <span data-t="casa_res_t">Cómo funciona la casa</span></a>
     </div>
     <div class="pie-links" style="margin-top:8px;">
+      <a href="./opiniones.html">⭐ <span data-t="opi_t">Lo que dicen quienes ya vinieron</span></a>
+    </div>
+    <div class="pie-links" style="margin-top:8px;">
       <a href="./recuerdos.html">🌿 <span data-t="recuerdos">Recuerdos de nuestros huéspedes</span></a>
     </div>
 
@@ -535,6 +608,23 @@ let TEXTOS = {};
 // vaciar un texto lo devuelve al diccionario (correcto cuando alguien
 // borra sin querer); sacar algo del sitio es otra intención, otro campo.
 let OCULTOS = [];
+
+// ── Opiniones y Airbnb ───────────────────────────────────────
+// Las dos cosas viven en config/sitio, que ya es "el único lugar del
+// contenido público" y que esta página ya bajaba de todos modos: no hay
+// colección nueva, no hay regla de Firestore nueva y no hay una segunda
+// lectura por visita.
+//
+//   opiniones: [ { autor, fecha:'2026-03', idioma:'pt', estrellas:5,
+//                  texto, orden } ]
+//   airbnb:    { c1: { url, nota:'5.0', resenas:'12' }, c2:…, c3:… }
+//
+// Airbnb NO tiene API pública —solo la da a socios aprobados— y los
+// widgets que se venden por ahí raspan la página del anuncio: se rompen
+// solos cuando Airbnb cambia el HTML y meten JavaScript de un tercero en
+// el sitio. Por eso esto se carga a mano desde interno/opiniones.html.
+// Es trabajo, pero es trabajo que no se rompe.
+let OPINIONES = [], AIRBNB = {};
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
@@ -610,7 +700,7 @@ function aplicarIdioma() {
   aplicarOcultos();
   document.querySelectorAll('.idiomas button').forEach((b) =>
     b.classList.toggle('on', b.dataset.i === lang));
-  pintarCabanas(); pintarEspacios(); pintarSelect();
+  pintarCabanas(); pintarEspacios(); pintarSelect(); pintarOpiniones();
   if (document.getElementById('calGrid')) pintarCal();
   revisar();
   marcarTextos();
@@ -662,9 +752,80 @@ function pintarCabanas() {
         </div>
         ${(c.amenities || []).length
           ? `<div class="amen">${c.amenities.slice(0, 8).map((a) => `<span>${esc(a)}</span>`).join('')}</div>` : ''}
+        ${tiraAirbnb(c)}
       </div>
     </article>`;
   }).join('');
+}
+
+/**
+ * La nota de ESTE anuncio y el enlace para comprobarla. Una línea.
+ * Cada uno de los tres anuncios tiene su propia reputación y su propia
+ * dirección: por eso va acá y no en la sección de opiniones, que es de
+ * la casa entera.
+ * Si esa cabaña no tiene nada cargado, no aparece nada.
+ */
+function tiraAirbnb(c) {
+  const ab = AIRBNB[c.id] || {};
+  if (!ab.url && !ab.nota) return '';
+  const nota = ab.nota
+    ? `<span class="ab-nota"><span class="material-icons">star</span>${esc(ab.nota)}</span>` : '';
+  const cnt = ab.resenas
+    ? `<span class="ab-cnt">${esc(ab.resenas)} ${esc(t('opi_en'))}</span>` : '';
+  const ver = ab.url
+    ? `<a class="ab-ver" href="${esc(ab.url)}" target="_blank" rel="noopener nofollow">
+         <span class="material-icons">verified</span>${esc(t('opi_ver'))}</a>` : '';
+  return `<div class="ab-tira">${nota}${cnt}${ver}</div>`;
+}
+
+// ── Opiniones ────────────────────────────────────────────────
+// Tres a la vista y el resto plegado: en un teléfono, doce opiniones
+// seguidas empujan el formulario abajo de todo y nadie llega.
+const OPI_VISIBLES = 3;
+let opiAbierto = false;
+
+function pintarOpiniones() {
+  const lista = OPINIONES
+    .filter((o) => o && o.texto)
+    .sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
+  // Se esconde si no hay ninguna cargada Y TAMBIÉN si alguien sacó el
+  // título con el ojo del editor: esta función corre DESPUÉS de
+  // aplicarOcultos() y le pisaría la decisión.
+  $('secOpiniones').hidden = !lista.length || OCULTOS.indexOf('opi_t') !== -1;
+  if ($('secOpiniones').hidden) return;
+
+  $('opiLista').innerHTML = lista.map((o, j) => {
+    const n = Math.max(0, Math.min(5, Number(o.estrellas) || 5));
+    return `<div class="opi-item${(opiAbierto || j < OPI_VISIBLES) ? '' : ' oculta'}">
+      <p class="opi-txt">${esc(o.texto)}</p>
+      <div class="opi-pie">
+        <span class="opi-estrellas">${'★'.repeat(n)}</span>
+        <b>${esc(o.autor || '—')}</b>
+        ${o.fecha ? `<span>· ${esc(mesTexto(o.fecha))}</span>` : ''}
+        ${o.idioma ? `<span class="opi-idi">${esc(o.idioma)}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  const hayMas = lista.length > OPI_VISIBLES;
+  $('opiPie').hidden = !hayMas;
+  if (hayMas) $('opiMas').textContent = opiAbierto ? t('opi_menos') : t('opi_mas');
+}
+
+$('opiMas').addEventListener('click', () => {
+  opiAbierto = !opiAbierto;
+  pintarOpiniones();
+  if (!opiAbierto) $('secOpiniones').scrollIntoView({ block: 'start' });
+});
+
+/** '2026-03' → 'marzo 2026'. Cualquier otra cosa se muestra tal cual. */
+function mesTexto(ym) {
+  const p = String(ym).split('-');
+  const m = Number(p[1]) - 1;
+  const nombres = MESES[lang] || MESES.pt;
+  if (!p[0] || !(m >= 0 && m < 12)) return String(ym);
+  return nombres[m] + ' ' + p[0];
 }
 
 window.mover = (i, d) => {
@@ -886,6 +1047,8 @@ async function cargarTodo() {
       WHATSAPP = (x.whatsapp || '').replace(/[^0-9]/g, '');
       TEXTOS = x.textos || {};
       OCULTOS = Array.isArray(x.ocultos) ? x.ocultos : [];
+      OPINIONES = Array.isArray(x.opiniones) ? x.opiniones : [];
+      AIRBNB = x.airbnb || {};
     }
   } catch (e) { console.warn('config sitio', e); }
 
