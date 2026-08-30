@@ -138,6 +138,12 @@
   .opi-pie{margin-top:11px;padding-top:10px;border-top:1px solid var(--linea);
     font-size:.79rem;color:var(--gris);display:flex;align-items:center;gap:7px;flex-wrap:wrap}
   .opi-pie b{color:var(--tinta)}
+  /* La inicial en un círculo, como hace el propio Airbnb con quien no
+     tiene foto. NO se copian las fotos de perfil: son imágenes de
+     personas reales alojadas en el servidor de Airbnb. */
+  .opi-ini{width:30px;height:30px;border-radius:50%;flex:none;color:#fff;
+    display:inline-flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:.82rem;font-family:Fraunces,serif}
   .opi-estrellas{color:var(--terracota);letter-spacing:1px}
   .opi-idi{border:1px solid var(--linea);border-radius:5px;padding:0 5px;
     font-size:.66rem;letter-spacing:.05em;text-transform:uppercase}
@@ -271,7 +277,21 @@ var MESES = {
   en:['January','February','March','April','May','June','July','August','September','October','November','December']
 };
 
-/** '2026-03' → 'marzo 2026'. Cualquier otra cosa se muestra tal cual. */
+/** La primera letra del nombre, y un color estable sacado del propio
+    nombre: el mismo nombre da siempre el mismo color, sin guardar nada. */
+function inicialDe(n) {
+  var s = String(n === null || n === undefined ? '?' : n).trim();
+  return (s.charAt(0) || '?').toUpperCase();
+}
+function colorDe(n) {
+  var h = 0, s = String(n === null || n === undefined ? '' : n);
+  for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+  return 'hsl(' + h + ',38%,42%)';
+}
+
+/** '2026-03' → 'marzo 2026'. Cualquier otra cosa se muestra tal cual.
+    Si viene vacía no se muestra nada: es mejor no decir el mes que
+    inventarlo. */
 function mesTexto(ym) {
   var p = String(ym).split('-');
   var m = Number(p[1]) - 1;
@@ -333,6 +353,8 @@ function pintarLista() {
     h += '<div class="opi-item">'
       + '<p class="opi-txt">' + esc(o.texto) + '</p>'
       + '<div class="opi-pie">'
+      + '<span class="opi-ini" style="background:' + colorDe(o.autor) + '">'
+      + esc(inicialDe(o.autor)) + '</span>'
       + '<span class="opi-estrellas">' + estr + '</span>'
       + '<b>' + esc(o.autor || '—') + '</b>'
       + (o.fecha ? '<span>· ' + esc(mesTexto(o.fecha)) + '</span>' : '')
