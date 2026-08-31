@@ -756,12 +756,40 @@ const txt = (o) => (o && (o[lang] || o.es || o.pt || o.en)) || '';
 const capDe = (c) => (c && typeof c.capacidad === 'object')
   ? c.capacidad : { base: Number(c.capacidad) || 0, max: Number(c.capacidad) || 0 };
 
+/**
+ * La capacidad, escrita como se lee — o nada.
+ *
+ * Antes salía siempre, tal cual estaba guardada, y una cabaña sin cargar
+ * se anunciaba como "1–1 personas" al lado de una descripción que decía
+ * "para 6 o 7". Un dato equivocado en la vidriera es peor que ningún
+ * dato: el visitante no piensa "esto no está cargado", piensa que entra
+ * una persona y se va.
+ *
+ * Tres casos:
+ *   sin cargar (0, o el 1–1 que deja un formulario vacío) → no se muestra
+ *   base y máximo distintos                               → "4–6 personas"
+ *   base y máximo iguales                                 → "6 personas"
+ *
+ * El 1–1 se descarta a propósito aunque sea un número válido: ningún
+ * alojamiento de esta casa recibe a una sola persona como tope, así que
+ * en la práctica siempre significa "nadie lo cargó todavía".
+ */
+function capTexto(c) {
+  const cap = capDe(c);
+  const base = Number(cap.base) || 0;
+  const max = Number(cap.max) || 0;
+  const tope = Math.max(base, max);
+  if (tope <= 1) return '';
+  const piso = base > 0 && base < tope ? base : 0;
+  return (piso ? piso + '–' + tope : String(tope)) + ' ' + t('pers');
+}
+
 // ── Cabañas con slider ───────────────────────────────────────
 function pintarCabanas() {
   if (!cabanas.length) { $('cabanas').innerHTML = '<div class="cargando">—</div>'; return; }
   $('cabanas').innerHTML = cabanas.map((c, i) => {
     const fotos = (c.fotos || []).filter(Boolean);
-    const cap = capDe(c);
+    const capTxt = capTexto(c);
     const noche = (c.tarifas && Number(c.tarifas.noche)) || 0;
     // En edición, cada foto y cada texto llevan escrito de dónde salieron:
     // 'cabanas/c1:fotos.0' es el documento, el campo y la posición.
@@ -784,7 +812,7 @@ function pintarCabanas() {
         <h3${ed('nombre.' + lang)}>${esc(txt(c.nombre))}</h3>
         <p class="desc"${ed('descripcion.' + lang)}>${esc(txt(c.descripcion))}</p>
         <div class="datos">
-          <span><b>${cap.base}</b>–<b>${cap.max}</b> ${esc(t('pers'))}</span>
+          ${capTxt ? `<span><b>${esc(capTxt)}</b></span>` : ''}
           ${noche ? `<span class="precio">${esc(t('desde'))} R$ ${noche} <small>${esc(t('noite'))}</small></span>` : ''}
         </div>
         ${noche ? `<span class="precio-nota" data-t="precioRef">${esc(t('precioRef'))}</span>` : ''}
