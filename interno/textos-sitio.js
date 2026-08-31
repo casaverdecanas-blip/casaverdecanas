@@ -65,6 +65,14 @@ export const T = {
   /* ─────────────────────────── PORTUGUÊS ─────────────────────── */
   pt: {
     consultar:'Consultar', titulo:'A três quadras do mar, cercado de verde',
+    // Precios: lo publicado es de temporada BAJA y hay que decirlo (T11.58).
+    // ⚠ Sin etiquetas HTML acá: el sitio pinta con textContent y el editor
+    // visual edita con contenteditable, así que un <b> se vería literal en
+    // la página y se guardaría como texto al editarlo. Para destacar se
+    // usa CSS sobre el elemento, no marcas dentro del texto.
+    'precioRef':'Preço de referência da baixa temporada. Na alta temporada, feriados e fim de ano varia conforme as datas.',
+    'pedirPresu':'Pedir orçamento',
+    'precioAviso':'Os preços que aparecem nos espaços são de referência da baixa temporada. Escolha as datas e peça o orçamento: respondemos pelo WhatsApp com o valor exato.',
     bajada:'Cabanas e apartamentos em Canasvieiras, Florianópolis. Piscina, churrasqueira e espaço para toda a família.',
     c1:'Piscina', c2:'Churrasqueira', c3:'3 quadras do mar',
     tCabanas:'Nossos espaços', tComunes:'Áreas comuns', tConsulta:'Consultar disponibilidade',
@@ -186,6 +194,10 @@ export const T = {
   /* ─────────────────────────── ESPAÑOL ───────────────────────── */
   es: {
     consultar:'Consultar', titulo:'A tres cuadras del mar, rodeado de verde',
+    // Precios: lo publicado es de temporada BAJA y hay que decirlo (T11.58).
+    'precioRef':'Precio de referencia de temporada baja. En temporada alta, feriados y fin de año varía según las fechas.',
+    'pedirPresu':'Pedir presupuesto',
+    'precioAviso':'Los precios que ves en los espacios son de referencia de temporada baja. Elegí las fechas y pedí el presupuesto: te respondemos por WhatsApp con el valor exacto.',
     bajada:'Cabañas y departamentos en Canasvieiras, Florianópolis. Piscina, parrilla y lugar para toda la familia.',
     c1:'Piscina', c2:'Parrilla', c3:'3 cuadras del mar',
     tCabanas:'Nuestros espacios', tComunes:'Áreas comunes', tConsulta:'Consultar disponibilidad',
@@ -307,6 +319,10 @@ export const T = {
   /* ─────────────────────────── ENGLISH ───────────────────────── */
   en: {
     consultar:'Enquire', titulo:'Three blocks from the sea, surrounded by green',
+    // Precios: lo publicado es de temporada BAJA y hay que decirlo (T11.58).
+    'precioRef':'Reference price for the low season. In high season, holidays and over New Year it varies with the dates.',
+    'pedirPresu':'Ask for a quote',
+    'precioAviso':'The prices shown on each place are low-season reference prices. Pick your dates and ask for a quote: we reply on WhatsApp with the exact figure.',
     bajada:'Cabins and apartments in Canasvieiras, Florianópolis. Pool, barbecue and room for the whole family.',
     c1:'Pool', c2:'Barbecue', c3:'3 blocks from the sea',
     tCabanas:'Our places', tComunes:'Common areas', tConsulta:'Check availability',

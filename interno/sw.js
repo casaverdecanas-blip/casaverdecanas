@@ -7,6 +7,24 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v97 (30-ago-2026) — LOS PRECIOS SON DE TEMPORADA BAJA, Y HAY QUE DECIRLO.
+//       Entrando en temporada alta, el numero publicado sin contexto hace que
+//       alguien que mira en diciembre entienda que ese es el precio de enero:
+//       la conversacion arranca con una correccion, que es la peor forma de
+//       arrancar una reserva. La aclaracion va PEGADA al numero, en la misma
+//       tarjeta —una nota al pie no la lee nadie— y se repite una vez mas
+//       justo antes del formulario, que es donde la persona esta por elegir
+//       fechas de enero mirando un numero de junio.
+//       Cada tarjeta suma su boton 'Pedir presupuesto'. NO abre WhatsApp
+//       directo a proposito: elige esa cabana en el formulario y baja hasta
+//       ahi, para que el mensaje salga con el espacio, las fechas y la
+//       cantidad de gente adentro. Sin eso el mensaje sale como "hola, quiero
+//       consultar" y hay que hacer tres preguntas antes de poder dar un
+//       precio.
+//       Claves nuevas: precioRef, precioAviso, pedirPresu (118 por idioma).
+//       ⚠ Sin etiquetas HTML en los textos: el sitio pinta con textContent y
+//       el editor edita con contenteditable, asi que un <b> se veria literal
+//       y se guardaria como texto al editarlo.
 // v96 (30-ago-2026) — OPINIONES TAMBIEN EN LA RAIZ, y las claves donde van.
 //       'opiniones.html' NUEVO en la RAIZ: la misma lista, en direccion
 //       propia, para mandar por WhatsApp a quien pregunta si hay referencias.
@@ -257,7 +275,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v96';
+const VERSION = 'cv2-shell-v97';
 
 const SHELL = [
   './',
