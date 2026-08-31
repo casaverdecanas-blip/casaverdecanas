@@ -7,6 +7,21 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v98 (31-ago-2026) — "1-1 PERSONAS" EN LA VIDRIERA. La capacidad se pintaba
+//       tal cual estaba guardada, sin mirar si tenia sentido: la Cabana salia
+//       anunciada como "1-1 personas" al lado de una descripcion que decia
+//       "para 6 o 7". El dato estaba mal en Firestore, pero el sitio no tenia
+//       por que publicarlo. Un dato equivocado en la vidriera es peor que
+//       ninguno: el visitante no piensa "esto no esta cargado", piensa que
+//       entra una persona y se va.
+//       Ahora: sin cargar (0, o el 1-1 que deja un formulario vacio) no se
+//       muestra nada; base y maximo distintos dan "6-7 personas"; iguales dan
+//       "6 personas" en vez del "6-6" de antes.
+//       El 1-1 se descarta aunque sea un numero valido: ningun alojamiento de
+//       esta casa recibe a una sola persona como tope, asi que en la practica
+//       siempre significa que nadie lo cargo.
+//       ⚠ IGUAL HAY QUE CARGAR LAS CAPACIDADES en el panel: 7 la Cabana, 6 el
+//       Loft, 4 el Departamento. Esto solo evita publicar el error.
 // v97 (30-ago-2026) — LOS PRECIOS SON DE TEMPORADA BAJA, Y HAY QUE DECIRLO.
 //       Entrando en temporada alta, el numero publicado sin contexto hace que
 //       alguien que mira en diciembre entienda que ese es el precio de enero:
@@ -275,7 +290,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v97';
+const VERSION = 'cv2-shell-v98';
 
 const SHELL = [
   './',
