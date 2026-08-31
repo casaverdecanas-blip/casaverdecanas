@@ -178,6 +178,34 @@
   .precio{font-size:1.16rem;font-weight:700;color:var(--terracota);font-family:Fraunces,serif}
   .precio small{font-weight:400;font-size:.8rem;color:var(--gris);font-family:Figtree,sans-serif}
 
+  /* ── El precio, dicho como lo que es ───────────────────────
+     El número que se publica es de temporada BAJA. Sin decirlo, alguien
+     que mira en diciembre entiende que ese es el precio de enero, y la
+     conversación arranca con una corrección — que es la peor forma de
+     arrancar una reserva. La aclaración va PEGADA al número, en la misma
+     tarjeta: una nota al pie de la página no la lee nadie. */
+  .precio-nota{font-size:.76rem;color:var(--gris);line-height:1.4;
+    margin:-6px 0 14px;display:block}
+  .precio-nota b{color:var(--terracota-osc);font-weight:600}
+
+  /* El botón de cada tarjeta. Lleva al calendario con ESA cabaña ya
+     elegida, no directo a WhatsApp: así el mensaje sale con las fechas y
+     la cantidad de gente adentro, y la primera respuesta puede ser un
+     precio en vez de tres preguntas. */
+  .btn-presu{display:flex;align-items:center;justify-content:center;gap:7px;
+    width:100%;background:var(--terracota);color:#fff;border:0;border-radius:999px;
+    padding:13px 18px;font:inherit;font-size:.92rem;font-weight:600;cursor:pointer;
+    text-decoration:none;min-height:46px;margin-bottom:14px;
+    box-shadow:0 2px 10px rgba(184,109,76,.28)}
+  .btn-presu:hover{background:var(--terracota-osc)}
+  .btn-presu .material-icons{font-size:18px}
+
+  /* El mismo aviso, una vez más, justo antes del formulario: es el punto
+     donde la persona está por elegir fechas de enero mirando un número de
+     junio. */
+  .aviso-precio{max-width:560px;margin:-6px auto 16px;text-align:center;
+    font-size:.86rem;color:var(--gris);line-height:1.5}
+
   /* ── La tira de Airbnb en cada tarjeta ─────────────────────
      UNA línea: la nota de ESE anuncio y el enlace para comprobarla.
      Dice "verificar" y no "ver el anuncio" a propósito: es una prueba,
@@ -527,6 +555,7 @@
 
 <section class="wrap" id="consulta">
   <div class="titulo"><h2 data-t="tConsulta">Consultar disponibilidade</h2></div>
+  <p class="aviso-precio" data-t="precioAviso">Los precios publicados son de referencia.</p>
   <div class="consulta">
     <div class="campos">
       <div>
@@ -758,6 +787,11 @@ function pintarCabanas() {
           <span><b>${cap.base}</b>–<b>${cap.max}</b> ${esc(t('pers'))}</span>
           ${noche ? `<span class="precio">${esc(t('desde'))} R$ ${noche} <small>${esc(t('noite'))}</small></span>` : ''}
         </div>
+        ${noche ? `<span class="precio-nota" data-t="precioRef">${esc(t('precioRef'))}</span>` : ''}
+        <button class="btn-presu" onclick="irAConsultar('${esc(c.id)}')">
+          <span class="material-icons">chat</span>
+          <span data-t="pedirPresu">${esc(t('pedirPresu'))}</span>
+        </button>
         ${(c.amenities || []).length
           ? `<div class="amen">${c.amenities.slice(0, 8).map((a) => `<span>${esc(a)}</span>`).join('')}</div>` : ''}
         ${tiraAirbnb(c)}
@@ -848,6 +882,31 @@ function mesTexto(ym) {
   if (!p[0] || !(m >= 0 && m < 12)) return String(ym);
   return nombres[m] + ' ' + p[0];
 }
+
+/**
+ * El botón de cada tarjeta. Elige ESA cabaña en el formulario y baja
+ * hasta ahí.
+ *
+ * No abre WhatsApp directo a propósito: sin fechas, el mensaje sale como
+ * "hola, quiero consultar" y la conversación arranca con tres preguntas
+ * antes de poder dar un precio. Pasando por el calendario, el mensaje
+ * sale con el espacio, las fechas y la cantidad de gente adentro, y la
+ * primera respuesta ya puede ser el presupuesto.
+ */
+window.irAConsultar = (id) => {
+  const sel = $('qCabana');
+  if (sel) {
+    // Se comprueba que la opción exista antes de asignarla: una cabaña
+    // despublicada mientras alguien miraba la página dejaría el select
+    // en blanco y el botón de WhatsApp apagado sin decir por qué.
+    for (let i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === id) { sel.value = id; break; }
+    }
+    sel.dispatchEvent(new Event('change'));
+  }
+  const destino = document.getElementById('consulta');
+  if (destino) destino.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
 
 window.mover = (i, d) => {
   const s = document.querySelector('.slider[data-s="' + i + '"]');
