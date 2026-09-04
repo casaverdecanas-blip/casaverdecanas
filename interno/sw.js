@@ -7,6 +7,23 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v103 (04-sep-2026) — EL AVISO DEL DARF SE ADELANTA AL COBRO. Airbnb paga
+//       el dia del check-in o el siguiente (dato del administrador), y para
+//       un no residente el DARF vence EL MISMO DIA en que la plataforma
+//       paga. Avisar cuando el cobro ya esta cargado llega tarde: para
+//       entonces el plazo corrio y la mora empezo.
+//       Como el sistema ya conoce los check-in de Airbnb, ahora avisa ANTES,
+//       sin que nadie cargue nada: un check-in de Airbnb es el anuncio de
+//       que va a entrar plata Y de que ese dia vence su impuesto.
+//       Tres estados, de mas a menos urgente: el cobro que ya entro y nadie
+//       registro (rojo, el plazo ya paso), el que entra hoy o manana, y los
+//       DARF de cobros ya cargados que siguen impagos.
+//       ⚠ EL PROCURADOR SE CRUZA CON ESTO. Si falta ese tramite y hay un
+//       cobro en puerta, el aviso sube a rojo y lo dice con todas las
+//       letras: no hay quien emita el DARF. Eran dos datos sueltos en dos
+//       pantallas y juntos son la advertencia que sirve.
+//       El mismo aviso va en el Inicio y en Impuestos, para que no dependa
+//       de pasar por la portada.
 // v102 (04-sep-2026) — LOS COBROS DE AIRBNB, RECONCILIADOS (A1). Airbnb paga
 //       en bloque y esa transferencia agrupa varias reservas; hasta hoy la
 //       plata caia en Dinero como un movimiento suelto, sin vinculo, y las
@@ -377,7 +394,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v102';
+const VERSION = 'cv2-shell-v103';
 
 const SHELL = [
   './',

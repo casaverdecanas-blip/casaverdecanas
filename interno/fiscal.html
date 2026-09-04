@@ -156,8 +156,7 @@ function renderPasos() {
     </div>`;
   }).join('')
   + (hechos === PASOS.length
-      ? '<p class="texto-gris" style="margin-top:10px;">Todo resuelto. Cuando exista la '
-        + 'reconciliación de Airbnb, esta pantalla pasa a calcular y avisar.</p>'
+      ? '<p class="texto-gris" style="margin-top:10px;">Todo resuelto.</p>'
       : `<p class="texto-gris" style="margin-top:10px;">${hechos} de ${PASOS.length} resueltos.</p>`);
 
   for (const p of PASOS) {
@@ -170,6 +169,9 @@ async function marcar(k, hecho) {
   cfg.pasos = { ...(cfg.pasos ?? {}),
     [k]: hecho ? { hecho: true, fecha: CV2.hoyISO(), por: u.nombre ?? '' } : { hecho: false } };
   renderPasos();
+  // Los cobros también, porque el aviso de "no hay procurador" sale de acá:
+  // tildar ese trámite tiene que apagarlo en el acto.
+  renderCobros();
   try {
     // merge: esta pantalla solo administra 'pasos'. Si mañana el documento
     // guarda además la alícuota o el procurador, no se los lleva puestos.
@@ -178,6 +180,7 @@ async function marcar(k, hecho) {
   } catch (e) {
     cfg.pasos = { ...cfg.pasos, [k]: antes };   // se deshace lo que no se guardó
     renderPasos();
+    renderCobros();
     CV2.toast('No se pudo guardar: ' + (e.code ?? e.message), 'error');
   }
 }
@@ -211,17 +214,52 @@ const venceEl = (l) => l.fecha;
 
 const cubiertas = () => new Set(liquidaciones.flatMap((l) => l.reservas ?? []));
 
+// Airbnb paga el día del check-in o el siguiente. Un check-in de Airbnb es
+// entonces el anuncio de que va a entrar plata Y de que ese mismo día vence
+// su DARF: se puede avisar ANTES de que nadie cargue nada.
+const masUnDia = (iso) => {
+  const d = new Date(iso + 'T12:00:00');   // mediodía: margen de zona horaria
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
+
 function renderCobros() {
   const cont = $('cobros');
-  const sinCubrir = reservasAB.filter((r) => !cubiertas().has(r.id));
+  const cub = cubiertas();
+  const hoyStr = CV2.hoyISO();
+  const manana = masUnDia(hoyStr);
+  const sinCubrir = reservasAB.filter((r) => !cub.has(r.id));
 
-  const aviso = sinCubrir.length
-    ? `<div class="marco aviso" style="margin-bottom:10px;">
-         <b>${sinCubrir.length} reserva(s) de Airbnb sin cobro registrado</b>
-         <p class="texto-gris" style="margin:5px 0 0;">Mientras no estén en un cobro, lo
-         que entró por ellas no figura y su impuesto tampoco.</p>
-       </div>`
-    : '';
+  // Lo inminente y lo ya pasado se separan del resto: son las dos cosas que
+  // tienen plazo. El aviso dice qué hacer, no solo que algo pasa.
+  const inminentes = sinCubrir.filter((r) => r.checkIn <= manana);
+  const vencidos = inminentes.filter((r) => r.checkIn < hoyStr);
+  const sinProcurador = !cfg.pasos?.procurador?.hecho;
+
+  let aviso = '';
+  if (inminentes.length) {
+    aviso += `<div class="marco" style="border-left:4px solid ${vencidos.length ? 'var(--rojo)' : '#b8860b'};
+        background:${vencidos.length ? '#fdecea' : '#fffaf0'};margin-bottom:10px;">
+      <b>${vencidos.length
+          ? vencidos.length + ' cobro(s) de Airbnb ya entraron y no están registrados'
+          : 'Airbnb paga hoy o mañana'}</b>
+      <p class="texto-gris" style="margin:5px 0 0;">
+        ${inminentes.map((r) => esc(r.clienteNombre || 'huésped') + ' · entra '
+            + CV2.fmtFecha(r.checkIn)).join('<br>')}
+      </p>
+      <p class="texto-gris" style="margin:6px 0 0;">El DARF vence el mismo día en que la
+      plataforma paga.${sinProcurador
+        ? ' <b style="color:var(--rojo);">Y todavía no hay procurador designado: no hay quién lo emita.</b>'
+        : ''}</p>
+    </div>`;
+  }
+  if (sinCubrir.length > inminentes.length) {
+    aviso += `<div class="marco aviso" style="margin-bottom:10px;">
+        <b>${sinCubrir.length - inminentes.length} reserva(s) de Airbnb más adelante</b>
+        <p class="texto-gris" style="margin:5px 0 0;">Todavía no entró plata por ellas.
+        Cuando entre, se registra acá.</p>
+      </div>`;
+  }
 
   if (!liquidaciones.length) {
     cont.innerHTML = aviso + '<div class="vacio">Todavía no se registró ningún cobro.</div>';

@@ -480,43 +480,89 @@ if (CV2.puede('finanzas')) {
     agregar('dinero', 'Dinero pendiente', 'savings', './dinero.html', items);
   } catch (e) { console.warn('movimientos', e); }
 
-  // ── 6b · Trámites del impuesto de Airbnb ───────────────────
-  // Van al Inicio y no solo a su pantalla porque el plazo real no es a fin
-  // de mes: para un no residente el DARF vence el día en que la plataforma
-  // paga. Un trámite que falta el día del primer cobro ya llega tarde, y la
-  // mora corre sola (1% mensual más SELIC). Desaparece al tildarlos todos.
+  // ── 6b · El impuesto de lo que entra por Airbnb ────────────
+  // Para un no residente el DARF 9478 vence EL MISMO DÍA en que la
+  // plataforma paga. No hay cierre de mes que valga: si el aviso esperara a
+  // que el cobro esté cargado, llegaría cuando el plazo ya corrió.
+  //
+  // Por eso el aviso se ADELANTA. Airbnb paga el día del check-in o el
+  // siguiente, así que un check-in de Airbnb es el anuncio de dos cosas a la
+  // vez: que va a entrar plata, y que ese mismo día vence su impuesto. Eso el
+  // sistema lo sabe sin que nadie cargue nada.
   try {
     const items = [];
+    const masUnDia = (iso) => {
+      const d = new Date(iso + 'T12:00:00');   // mediodía: margen de zona horaria
+      d.setDate(d.getDate() + 1);
+      return d.toISOString().slice(0, 10);
+    };
+    const manana = masUnDia(hoy);
 
-    // Los DARF impagos van PRIMERO y en rojo: la mora corre sola (1% mensual
-    // más SELIC) desde el día del cobro, así que un vencido no es un
-    // recordatorio, es plata que se está perdiendo.
     const sl = await getDocs(collection(db, 'liquidaciones'));
-    const impagos = [];
-    sl.forEach((d) => { const l = d.data(); if (!l.darf?.pagado) impagos.push(l); });
-    for (const l of impagos.sort((a, b) => (a.fecha ?? '').localeCompare(b.fecha ?? ''))) {
+    const liqs = [];
+    sl.forEach((d) => liqs.push(d.data()));
+    const yaCobradas = new Set(liqs.flatMap((l) => l.reservas ?? []));
+
+    const s = await getDoc(doc(db, 'config', 'fiscal'));
+    const pasos = s.exists() ? (s.data().pasos ?? {}) : {};
+    const faltan = CV2.PASOS_FISCALES.filter((p) => !pasos[p.k]?.hecho);
+    const sinProcurador = !pasos.procurador?.hecho;
+
+    // 1 · Lo que está por entrar, o entró y no se registró.
+    const sr = await getDocs(query(collection(db, 'reservas'), where('origen', '==', 'airbnb')));
+    const porCobrar = [];
+    sr.forEach((d) => {
+      const r = d.data();
+      if (r.estado !== 'confirmada' || typeof r.checkIn !== 'string') return;
+      if (yaCobradas.has(d.id)) return;             // ya tiene su cobro cargado
+      if (r.checkIn > manana) return;               // todavía falta
+      porCobrar.push({ id: d.id, ...r });
+    });
+    porCobrar.sort((a, b) => (a.checkIn ?? '').localeCompare(b.checkIn ?? ''));
+
+    for (const r of porCobrar) {
+      const pasado = r.checkIn < hoy;
+      items.push({
+        icono: 'schedule_send',
+        titulo: pasado
+          ? 'Cobro de Airbnb sin registrar · ' + (r.clienteNombre || 'huésped')
+          : 'Airbnb paga ' + (r.checkIn === hoy ? 'hoy' : 'mañana') + ' · ' + (r.clienteNombre || 'huésped'),
+        detalle: pasado
+          ? 'Entró el ' + CV2.fmtFecha(r.checkIn) + ' y el DARF vencía ese día. Registralo para saber cuánto se debe.'
+          : 'El DARF vence el mismo día que entra la plata'
+            + (sinProcurador ? ' — y todavía no hay procurador designado' : ''),
+        tono: (pasado || sinProcurador) ? 'urgente' : 'aviso', href: './fiscal.html'
+      });
+    }
+
+    // 2 · Cobros ya registrados con su DARF sin pagar.
+    const impagos = liqs.filter((l) => !l.darf?.pagado)
+      .sort((a, b) => (a.fecha ?? '').localeCompare(b.fecha ?? ''));
+    for (const l of impagos) {
       const vencido = (l.fecha ?? '') < hoy;
       items.push({
         icono: 'receipt_long',
         titulo: (vencido ? 'DARF vencido' : 'DARF por pagar')
           + ' · ' + CV2.fmtMonto(Number(l.neto) || Number(l.bruto) || 0, l.moneda || 'BRL'),
-        detalle: 'Cobro de Airbnb del ' + CV2.fmtFecha(l.fecha),
+        detalle: 'Cobro del ' + CV2.fmtFecha(l.fecha)
+          + (vencido ? ' — la mora corre desde ese día' : ', vence hoy'),
         tono: vencido ? 'urgente' : 'aviso', href: './fiscal.html'
       });
     }
 
-    const s = await getDoc(doc(db, 'config', 'fiscal'));
-    const pasos = s.exists() ? (s.data().pasos ?? {}) : {};
-    const todos = CV2.PASOS_FISCALES;
-    const faltan = todos.filter((p) => !pasos[p.k]?.hecho);
+    // 3 · Los trámites, al final: son lo menos urgente salvo que ya haya
+    //     plata en camino y falte justo el procurador, que es quien paga.
     if (faltan.length) {
       items.push({
         icono: 'gavel',
-        titulo: faltan.length + ' de ' + todos.length + ' trámites sin resolver',
-        detalle: 'Hay que tenerlos listos antes de la primera declaración de lo que entra por Airbnb',
-        tono: 'aviso', href: './fiscal.html'
+        titulo: faltan.length + ' trámite(s) del impuesto sin resolver',
+        detalle: (sinProcurador && porCobrar.length)
+          ? 'Falta el procurador y ya hay un cobro en puerta: no hay quién emita el DARF'
+          : 'Hay que tenerlos listos antes de la primera declaración',
+        tono: (sinProcurador && porCobrar.length) ? 'urgente' : 'aviso', href: './fiscal.html'
       });
     }
+
     agregar('fiscal', 'Impuestos', 'account_balance', './fiscal.html', recortar(items, 6, './fiscal.html'));
   } catch (e) { console.warn('fiscal', e); }
 }
