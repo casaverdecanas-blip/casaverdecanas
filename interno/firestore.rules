@@ -61,6 +61,23 @@ rules_version = '2';
 //       función solo miraba el segundo, así que un movimiento ya contado en
 //       un cierre cerrado se podía borrar y descuadrar un balance que ya es
 //       historia. Lo destapó escribir el flujo F8 de CONVENCIONES §10.
+//
+//  CAMBIO sep-2026 · EL IMPUESTO DE LO QUE ENTRA POR AIRBNB  [FISCAL]
+//   12. bloque nuevo /config/fiscal — régimen impositivo y trámites
+//       pendientes. Pide 'finanzas', NO 'activo()': quien limpia no tiene
+//       por qué leer bajo qué régimen se declara ni a nombre de quién se
+//       cobra. Como las reglas se suman, hubo que excluirlo A MANO del
+//       bloque general /config/{doc}, igual que ya se hacía con
+//       'integraciones' — sin esa exclusión el bloque general lo abriría a
+//       todo el equipo y este bloque no serviría de nada.
+//       (No se guarda ningún documento de identidad: el sistema no lo
+//       necesita y sería un dato personal expuesto sin motivo.)
+//   13. bloque nuevo /liquidaciones/{id} — cada transferencia que manda
+//       Airbnb, con las reservas que cubre y el estado de su DARF. Es
+//       colección propia y no un campo del movimiento porque el movimiento
+//       se SELLA al entrar en un balance cerrado (movSellado, punto 11) y
+//       el DARF se paga después: guardado ahí quedaría congelado en
+//       'pendiente' para siempre.
 // ═══════════════════════════════════════════════════════════════
 
 service cloud.firestore {
