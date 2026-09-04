@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Impuestos</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .paso { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 12px 13px; margin: 8px 0; box-shadow: var(--sombra); }
+  .paso.hecho { opacity: .55; }
+  .paso .cab { display: flex; align-items: flex-start; gap: 10px; }
+  .paso .cab b { flex: 1; overflow-wrap: anywhere; }
+  .paso.hecho .cab b { text-decoration: line-through; }
+  .paso .porque { font-size: .84rem; color: var(--gris); margin: 7px 0 0 30px; }
+  .paso .cuando { font-size: .78rem; color: var(--gris); margin: 5px 0 0 30px; }
+  .paso input[type=checkbox] { width: 20px; height: 20px; margin: 1px 0 0; flex: none; }
+  .marco { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 13px; box-shadow: var(--sombra); margin-bottom: 12px; }
+  .marco dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 8px 0 0; }
+  .marco dt { color: var(--gris); font-size: .84rem; }
+  .marco dd { margin: 0; font-size: .84rem; font-weight: 600; }
+  .aviso { border-left: 4px solid #b8860b; background: #fffaf0; }
+  .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <h1>Impuestos</h1>
+
+  <div class="marco aviso">
+    <b>Lo que el sistema todavía NO hace</b>
+    <p class="texto-gris" style="margin:6px 0 0;">No calcula el impuesto ni avisa de cada
+    vencimiento. Para eso falta primero poder decir qué parte de cada transferencia de
+    Airbnb corresponde a qué reserva y en qué fecha se cobró. Esta pantalla, por ahora,
+    es solo la lista de trámites que hay que tener listos antes de la primera
+    declaración.</p>
+  </div>
+
+  <div class="marco" id="situacion"></div>
+
+  <h2 style="margin:18px 0 2px;font-size:1.05rem;">Trámites pendientes</h2>
+  <p class="texto-gris" style="margin:0 0 6px;">Cada uno se tilda cuando está resuelto.</p>
+  <div id="pasos"><div class="vacio">Cargando…</div></div>
+</div>
+
+<script type="module">
+// Regla del 2.0: definiciones primero, suscripción AL FINAL.
+import { db, doc, getDoc, setDoc, serverTimestamp } from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('fiscal');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+if (!CV2.puede('finanzas')) {
+  $('pasos').innerHTML = '<div class="vacio">Esta pantalla es de quien lleva las finanzas.</div>';
+  $('situacion').classList.add('oculto');
+  throw new Error('sin permiso');
+}
+
+// Los pasos viven en nucleo.js (CV2.PASOS_FISCALES) porque el Inicio también
+// los cuenta. En Firestore solo se guarda si cada uno está hecho y cuándo.
+const PASOS = CV2.PASOS_FISCALES;
+
+const REGIMENES = {
+  no_residente: { n: 'No residente', a: '15% fijo', darf: 'DARF 9478',
+                  v: 'el día de cada cobro' },
+  residente:    { n: 'Residente fiscal en Brasil', a: 'progresiva, 0 a 27,5%',
+                  darf: 'DARF 0190 (carnê-leão)', v: 'último día hábil del mes siguiente' }
+};
+
+const ref = doc(db, 'config', 'fiscal');
+let cfg = { regimen: 'no_residente', titular: 'Mauro', pasos: {} };
+
+function renderSituacion() {
+  const r = REGIMENES[cfg.regimen] ?? REGIMENES.no_residente;
+  $('situacion').innerHTML = `
+    <b>Situación declarada</b>
+    <dl>
+      <dt>Régimen</dt><dd>${esc(r.n)}</dd>
+      <dt>Alícuota</dt><dd>${esc(r.a)}</dd>
+      <dt>Instrumento</dt><dd>${esc(r.darf)}</dd>
+      <dt>Vence</dt><dd>${esc(r.v)}</dd>
+      <dt>Cobra</dt><dd>${esc(cfg.titular || '—')}</dd>
+    </dl>
+    <p class="texto-gris" style="margin:9px 0 0;">Es lo que se asumió al armar esta lista,
+    no un dictamen: mientras el primer trámite siga sin tildar, tomalo como provisorio.</p>`;
+}
+
+function renderPasos() {
+  const hechos = PASOS.filter((p) => cfg.pasos?.[p.k]?.hecho).length;
+  $('pasos').innerHTML = PASOS.map((p) => {
+    const e = cfg.pasos?.[p.k] ?? {};
+    return `<div class="paso${e.hecho ? ' hecho' : ''}">
+      <div class="cab">
+        <input type="checkbox" id="ck-${p.k}" ${e.hecho ? 'checked' : ''}>
+        <b>${esc(p.t)}</b>
+      </div>
+      <div class="porque">${esc(p.d)}</div>
+      ${e.hecho && e.fecha ? `<div class="cuando">Resuelto el ${CV2.fmtFecha(e.fecha)}</div>` : ''}
+    </div>`;
+  }).join('')
+  + (hechos === PASOS.length
+      ? '<p class="texto-gris" style="margin-top:10px;">Todo resuelto. Cuando exista la '
+        + 'reconciliación de Airbnb, esta pantalla pasa a calcular y avisar.</p>'
+      : `<p class="texto-gris" style="margin-top:10px;">${hechos} de ${PASOS.length} resueltos.</p>`);
+
+  for (const p of PASOS) {
+    $('ck-' + p.k).addEventListener('change', (ev) => marcar(p.k, ev.target.checked));
+  }
+}
+
+async function marcar(k, hecho) {
+  const antes = cfg.pasos?.[k] ?? {};
+  cfg.pasos = { ...(cfg.pasos ?? {}),
+    [k]: hecho ? { hecho: true, fecha: CV2.hoyISO(), por: u.nombre ?? '' } : { hecho: false } };
+  renderPasos();
+  try {
+    // merge: esta pantalla solo administra 'pasos'. Si mañana el documento
+    // guarda además la alícuota o el procurador, no se los lleva puestos.
+    await setDoc(ref, { pasos: cfg.pasos, actualizadoEn: serverTimestamp() }, { merge: true });
+    CV2.toast(hecho ? 'Marcado como resuelto' : 'Vuelve a pendiente', 'success');
+  } catch (e) {
+    cfg.pasos = { ...cfg.pasos, [k]: antes };   // se deshace lo que no se guardó
+    renderPasos();
+    CV2.toast('No se pudo guardar: ' + (e.code ?? e.message), 'error');
+  }
+}
+
+// ── Carga — AL FINAL ──────────────────────────────────────────
+try {
+  const s = await getDoc(ref);
+  if (s.exists()) cfg = { ...cfg, ...s.data() };
+} catch (e) {
+  console.warn('config/fiscal:', e);
+  CV2.toast('No se pudo leer la configuración (' + (e.code ?? e.message) + ')', 'error');
+}
+renderSituacion();
+renderPasos();
+</script>
+</body>
+</html>

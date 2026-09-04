@@ -479,6 +479,26 @@ if (CV2.puede('finanzas')) {
     });
     agregar('dinero', 'Dinero pendiente', 'savings', './dinero.html', items);
   } catch (e) { console.warn('movimientos', e); }
+
+  // ── 6b · Trámites del impuesto de Airbnb ───────────────────
+  // Van al Inicio y no solo a su pantalla porque el plazo real no es a fin
+  // de mes: para un no residente el DARF vence el día en que la plataforma
+  // paga. Un trámite que falta el día del primer cobro ya llega tarde, y la
+  // mora corre sola (1% mensual más SELIC). Desaparece al tildarlos todos.
+  try {
+    const s = await getDoc(doc(db, 'config', 'fiscal'));
+    const pasos = s.exists() ? (s.data().pasos ?? {}) : {};
+    const todos = CV2.PASOS_FISCALES;
+    const faltan = todos.filter((p) => !pasos[p.k]?.hecho);
+    if (faltan.length) {
+      agregar('fiscal', 'Impuestos · trámites sin resolver', 'account_balance', './fiscal.html', [{
+        icono: 'gavel',
+        titulo: faltan.length + ' de ' + todos.length + ' sin resolver',
+        detalle: 'Hay que tenerlos listos antes de la primera declaración de lo que entra por Airbnb',
+        tono: 'aviso', href: './fiscal.html'
+      }]);
+    }
+  } catch (e) { console.warn('config/fiscal', e); }
 }
 
 // ── 7 · Recuerdos esperando moderación ───────────────────────

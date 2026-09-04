@@ -621,12 +621,20 @@ service cloud.firestore {
       allow write: if tiene('contenido');
     }
 
+    // Régimen impositivo y trámites pendientes. Es del libro del negocio, no
+    // del equipo: quien limpia no tiene por qué leer bajo qué régimen se
+    // declara ni a nombre de quién se cobra. (Documentos de identidad no se
+    // guardan acá ni en ningún lado — el sistema no los necesita.)
+    match /config/fiscal {
+      allow read, write: if tiene('finanzas');
+    }
+
     // OJO: las reglas se suman. Este bloque tiene que excluir
-    // 'integraciones' a mano — si no, anularía al de arriba y cualquiera
-    // leería la clave de Google.
+    // 'integraciones' y 'fiscal' a mano — si no, anularía a los de arriba y
+    // cualquiera del equipo leería la clave de Google o los datos fiscales.
     match /config/{doc} {
-      allow read: if activo() && doc != 'integraciones';
-      allow write: if activo() && doc != 'integraciones';
+      allow read: if activo() && doc != 'integraciones' && doc != 'fiscal';
+      allow write: if activo() && doc != 'integraciones' && doc != 'fiscal';
     }
 
   }

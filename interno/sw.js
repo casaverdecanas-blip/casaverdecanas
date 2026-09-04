@@ -7,6 +7,32 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v101 (04-sep-2026) — LOS TRAMITES DEL IMPUESTO DE AIRBNB, ANOTADOS. Nace
+//       'fiscal.html' [NUEVO, SHELL] con los cinco tramites que hay que tener
+//       resueltos antes de la primera declaracion, cada uno con el motivo
+//       escrito: un tramite sin su porque se tilda para sacarselo de encima.
+//       El Inicio avisa cuantos faltan mientras quede alguno.
+//       ⚠ EL PLAZO NO ES A FIN DE MES. Para un no residente el DARF 9478
+//       vence el DIA en que la plataforma paga —normalmente el check-in— y
+//       puede haber varios DARF en el mismo mes. Por eso el aviso va al
+//       Inicio y no espera a un cierre: un tramite que falta el dia del
+//       primer cobro ya llego tarde, y la mora corre sola (1% mensual, tope
+//       20%, mas SELIC).
+//       ⚠ TENSION A RESOLVER, y es el primer tramite de la lista: el dinero
+//       entra con CPF a nombre de Mauro. Recibir con CPF en cuenta brasilena
+//       sin haber formalizado la no residencia es justo el caso donde la
+//       Receita trata a la persona como RESIDENTE, y entonces el regimen no
+//       seria el 15% fijo sino carne-leao progresivo. Hasta que el contador
+//       lo confirme, lo que muestra la pantalla es provisorio y lo dice.
+//       Los pasos viven en CV2.PASOS_FISCALES (nucleo.js) y no en la
+//       pantalla: el Inicio tambien los cuenta, y una copia de las claves
+//       alla haria que el dia que se agregue un tramite el aviso contara de
+//       menos sin que nada falle a la vista.
+//       firestore.rules: /config/fiscal pasa a pedir 'finanzas' y se lo
+//       excluye a mano del bloque general /config/{doc} —las reglas se
+//       suman, asi que sin esa exclusion cualquiera del equipo lo leeria,
+//       igual que ya pasaba con 'integraciones'.
+//       NO se guarda el CPF ni ningun documento: el sistema no lo necesita.
 // v100 (04-sep-2026) — POR DONDE LLEGA CADA CLIENTE. Campo 'llegoPor' en
 //       clientes, con su detalle libre, y un resumen que cuenta clientes Y
 //       reservas por origen: un cliente que llego recomendado y volvio tres
@@ -322,7 +348,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v100';
+const VERSION = 'cv2-shell-v101';
 
 const SHELL = [
   './',
@@ -347,6 +373,7 @@ const SHELL = [
   './clientes.html',
   './dinero.html',
   './balance.html',
+  './fiscal.html',
   './reservas-core.js',
   './horas-stats.html',
   './recuerdos.html',

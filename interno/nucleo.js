@@ -329,6 +329,41 @@ CV2._listonAdmin = function () {
 // `soloAdmin: true`→ únicamente la cuenta CasaVerde.
 // `grupo`          → 'directo' va en la barra de abajo; el resto, en la
 //                    hoja de "Más", bajo el título de su grupo.
+// ── Trámites del impuesto sobre lo que entra por Airbnb ──────
+// Viven acá y no en fiscal.html porque el Inicio también los cuenta: si la
+// lista estuviera en la pantalla, el Inicio tendría una copia de las claves
+// y el día que se agregue un trámite el aviso quedaría contando de menos,
+// sin que nada falle a la vista.
+// El texto explica POR QUÉ importa cada uno: un trámite sin su motivo se
+// tilda para sacárselo de encima.
+// NO se guarda el CPF ni ningún documento: el sistema no lo necesita.
+CV2.PASOS_FISCALES = [
+  { k: 'regimen',
+    t: 'Confirmar el régimen con el contador',
+    d: 'No residente: 15% fijo, DARF 9478, vence el día de cada cobro. Residente: '
+     + 'carnê-leão progresivo (0 a 27,5%), DARF 0190, vence el último día hábil del mes '
+     + 'siguiente. El dinero entra con CPF a nombre de Mauro, y eso importa: si nunca se '
+     + 'formalizó la salida del país (DSDP) o la cuenta es de residente, la Receita puede '
+     + 'tratarlo como residente y correspondería el segundo régimen. Define a los demás.' },
+  { k: 'procurador',
+    t: 'Designar procurador en Brasil',
+    d: 'Si el régimen es de no residente, es quien paga el DARF y presenta la DIRF. '
+     + 'Sin procurador designado no hay quién haga el trámite.' },
+  { k: 'base',
+    t: 'Confirmar sobre qué monto se calcula',
+    d: 'Las fuentes no coinciden: unas dicen 15% sobre el bruto, otras que se admiten '
+     + 'deducciones. Cambia cuánto hay que pagar; conviene tenerlo por escrito.' },
+  { k: 'cuenta',
+    t: 'Verificar el tipo de cuenta bancaria',
+    d: 'Un no residente debería cobrar en cuenta de no residente (CDE). Cobrar en una '
+     + 'cuenta común de residente apunta en contra de la condición que se declara.' },
+  { k: 'calendario',
+    t: 'Fijar cuándo se emite cada DARF',
+    d: 'Para no residente el plazo NO es a fin de mes: vence el día en que la plataforma '
+     + 'paga, que suele ser el check-in, y puede haber más de un DARF en el mismo mes. '
+     + 'La mora es 1% mensual (tope 20%) más SELIC.' }
+];
+
 CV2.NAV = [
   { id: 'inicio', label: 'Inicio', corto: 'Inicio', href: './index.html', icono: 'home', permiso: null, grupo: 'directo' },
   { id: 'actividades', label: 'Actividades', corto: 'Tareas', href: './actividades.html', icono: 'checklist', permiso: null, grupo: 'directo' },
@@ -348,6 +383,9 @@ CV2.NAV = [
   { id: 'honorarios', label: 'Cobros', href: './honorarios.html', icono: 'payments', permiso: null, grupo: 'plata' },
   { id: 'sesiones', label: 'Sesiones', href: './gestion-sesiones.html', icono: 'schedule', permiso: null, grupo: 'plata' },
   { id: 'horas', label: 'Horas', href: './horas-stats.html', icono: 'insights', permiso: 'horas', grupo: 'plata' },
+  // Impuestos va con 'finanzas' y no con 'dinero': 'dinero' carga gastos y ve
+  // solo los suyos; lo que se debe declarar es del libro del negocio entero.
+  { id: 'fiscal', label: 'Impuestos', href: './fiscal.html', icono: 'account_balance', permiso: 'finanzas', grupo: 'plata' },
 
   { id: 'cabanas', label: 'Cabañas', href: './cabanas.html', icono: 'cottage', permiso: 'contenido', grupo: 'sitio' },
   { id: 'espacios', label: 'Espacios', href: './espacios.html', icono: 'deck', permiso: 'contenido', grupo: 'sitio' },
