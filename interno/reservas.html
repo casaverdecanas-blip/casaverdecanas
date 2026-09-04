@@ -240,7 +240,9 @@
         <option value="transferencia">Transferencia</option>
         <option value="airbnb">Airbnb</option>
         <option value="otro">Otro</option>
-      </select></div>
+      </select>
+      <p id="notaAirbnb" class="oculto texto-gris" style="font-size:.78rem;margin:4px 0 0;">Airbnb paga en liquidación mensual. Registrá este pago cuando llegue la transferencia de la plataforma.</p>
+    </div>
   </div>
   <div class="fila2c">
     <div><label>Moneda</label>
@@ -986,6 +988,7 @@ window.abrirPago = (clave) => {
     + ' · saldo ' + CV2.fmtMonto(Math.max(0, saldo), mon);
   $('pConcepto').value = pagosAcuerdo(a).length ? 'saldo' : 'sena';
   $('pMetodo').value = a.rs[0].origen === 'airbnb' ? 'airbnb' : 'pix';
+  $('notaAirbnb').classList.toggle('oculto', a.rs[0].origen !== 'airbnb');
   $('pMoneda').value = mon;
   $('grupoEquiv').classList.add('oculto');
   $('pEquiv').value = '';

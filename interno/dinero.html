@@ -738,10 +738,13 @@ function renderCierres() {
       <div class="cierre">
         <h4>${CV2.fmtFecha(c.desde)} → ${CV2.fmtFecha(c.hasta)}</h4>
         <div class="det">
-          ${c.totales?.movimientos ?? 0} movimientos ·
-          entró ${CV2.fmtMonto(c.totales?.entroBRL ?? 0)} ·
-          salió ${CV2.fmtMonto(c.totales?.salioBRL ?? 0)} ·
-          <b>resultado ${CV2.fmtMonto(c.totales?.resultadoBRL ?? 0)}</b>
+          ${c.totales?.movimientos ?? 0} movimientos
+          ${c.totalesPorMoneda?.length
+            ? c.totalesPorMoneda.map(t =>
+                ` · ${t.moneda}: entró ${CV2.fmtMonto(t.entro, t.moneda)} · salió ${CV2.fmtMonto(t.salio, t.moneda)} · <b>resultado ${CV2.fmtMonto(t.resultado, t.moneda)}</b>`
+              ).join('')
+            : ` · entró ${CV2.fmtMonto(c.totales?.entroBRL ?? 0)} · salió ${CV2.fmtMonto(c.totales?.salioBRL ?? 0)} · <b>resultado ${CV2.fmtMonto(c.totales?.resultadoBRL ?? 0)}</b>`
+          }
         </div>
         <div class="det">
           Cobros saldados: ${(c.cobrosSaldados ?? []).length} ·
