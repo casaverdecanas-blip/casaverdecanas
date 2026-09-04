@@ -26,6 +26,13 @@
   .marco dd { margin: 0; font-size: .84rem; font-weight: 600; }
   .aviso { border-left: 4px solid #b8860b; background: #fffaf0; }
   .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
+  .btn-ico { border: 1px solid var(--linea); background: #fff; border-radius: 7px;
+    padding: 5px 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+    font: inherit; font-size: .8rem; color: var(--tinta); }
+  .btn-ico .material-icons { font-size: 16px; }
+  dialog { border: 0; border-radius: 14px; padding: 16px; width: min(500px, 94vw);
+    max-height: 88dvh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(20,30,18,.45); }
 </style>
 </head>
 <body>
@@ -35,25 +42,62 @@
 <div class="contenedor">
   <h1>Impuestos</h1>
 
-  <div class="marco aviso">
-    <b>Lo que el sistema todavía NO hace</b>
-    <p class="texto-gris" style="margin:6px 0 0;">No calcula el impuesto ni avisa de cada
-    vencimiento. Para eso falta primero poder decir qué parte de cada transferencia de
-    Airbnb corresponde a qué reserva y en qué fecha se cobró. Esta pantalla, por ahora,
-    es solo la lista de trámites que hay que tener listos antes de la primera
-    declaración.</p>
-  </div>
-
   <div class="marco" id="situacion"></div>
 
-  <h2 style="margin:18px 0 2px;font-size:1.05rem;">Trámites pendientes</h2>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:20px 0 2px;">
+    <h2 style="margin:0;font-size:1.05rem;margin-right:auto;">Cobros de Airbnb</h2>
+    <button class="btn btn-primario" id="btnCobro">
+      <span class="material-icons">add</span> Registrar cobro
+    </button>
+  </div>
+  <p class="texto-gris" style="margin:0 0 6px;">Cada transferencia de la plataforma, con
+  las reservas que cubre y el impuesto que genera.</p>
+  <div id="cobros"><div class="vacio">Cargando…</div></div>
+
+  <h2 style="margin:22px 0 2px;font-size:1.05rem;">Trámites pendientes</h2>
   <p class="texto-gris" style="margin:0 0 6px;">Cada uno se tilda cuando está resuelto.</p>
   <div id="pasos"><div class="vacio">Cargando…</div></div>
 </div>
 
+<dialog id="mCobro">
+  <h2 style="margin:0 0 6px;">Registrar cobro de Airbnb</h2>
+  <label>Fecha en que la plataforma pagó</label>
+  <input id="cFecha" type="date">
+  <p class="texto-gris" style="font-size:.78rem;margin:4px 0 0;">Es la fecha que manda para
+  el vencimiento, no la del check-in ni la del cierre de mes.</p>
+
+  <div class="fila2c" style="margin-top:10px;">
+    <div><label>Bruto (lo que Airbnb dice)</label>
+      <input id="cBruto" type="number" min="0" step="0.01" inputmode="decimal"></div>
+    <div><label>Neto (lo que entró)</label>
+      <input id="cNeto" type="number" min="0" step="0.01" inputmode="decimal"></div>
+  </div>
+  <p class="texto-gris" style="font-size:.78rem;margin:4px 0 0;">Se guardan los dos porque
+  todavía no está confirmado sobre cuál se calcula el impuesto (trámite 3). Si solo sabés
+  uno, cargá ese.</p>
+
+  <label style="margin-top:10px;">Cuenta donde entró</label>
+  <select id="cCuenta"></select>
+
+  <label style="margin-top:10px;">Reservas que cubre</label>
+  <div id="cReservas" style="max-height:34vh;overflow:auto;border:1px solid var(--linea);
+    border-radius:var(--radio);padding:6px;"></div>
+
+  <label style="margin-top:10px;">Nota</label>
+  <input id="cNota" maxlength="120" placeholder="Opcional">
+
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+    <button class="btn" id="cCancelar">Cancelar</button>
+    <button class="btn btn-primario" id="cGuardar"><span class="material-icons">save</span> Guardar</button>
+  </div>
+</dialog>
+
 <script type="module">
 // Regla del 2.0: definiciones primero, suscripción AL FINAL.
-import { db, doc, getDoc, setDoc, serverTimestamp } from './firebase-init.js';
+import {
+  db, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
+  collection, query, where, serverTimestamp
+} from './firebase-init.js';
 import { CV2 } from './nucleo.js';
 
 CV2.registrarSW();
@@ -138,6 +182,201 @@ async function marcar(k, hecho) {
   }
 }
 
+// ═══ COBROS DE AIRBNB ═════════════════════════════════════════
+// El hecho gravable NO es la reserva: es el COBRO. Airbnb paga en bloque y
+// esa transferencia es la que dispara el impuesto, con su propia fecha.
+//
+// Vive en colección propia y no como campo del movimiento por una razón
+// concreta: los movimientos se SELLAN al entrar en un balance cerrado
+// (movSellado() en firestore.rules), y entonces ya no se pueden actualizar.
+// El estado del DARF cambia después —se paga semanas más tarde—, así que
+// guardarlo ahí lo dejaría congelado en 'pendiente' para siempre.
+//
+// Se guardan BRUTO y NETO los dos. Cuál de los dos es la base del 15% es
+// justo el trámite 3, todavía sin confirmar: con los dos números guardados,
+// la respuesta del contador no obliga a volver a cargar nada.
+let liquidaciones = [];
+let reservasAB = [];
+let cuentas = [];
+
+const nOf = (v) => Number(v) || 0;
+const brutoDe = (l) => nOf(l.bruto) || nOf(l.neto);
+const netoDe = (l) => nOf(l.neto) || nOf(l.bruto);
+const alicuota = () => nOf(cfg.alicuota) || 15;
+const impuestoDe = (base) => Math.round(base * alicuota()) / 100;
+
+// Para un no residente el DARF vence EL MISMO DÍA del cobro. No es un olvido:
+// es lo que dice la norma, y por eso el vencimiento es la fecha del cobro.
+const venceEl = (l) => l.fecha;
+
+const cubiertas = () => new Set(liquidaciones.flatMap((l) => l.reservas ?? []));
+
+function renderCobros() {
+  const cont = $('cobros');
+  const sinCubrir = reservasAB.filter((r) => !cubiertas().has(r.id));
+
+  const aviso = sinCubrir.length
+    ? `<div class="marco aviso" style="margin-bottom:10px;">
+         <b>${sinCubrir.length} reserva(s) de Airbnb sin cobro registrado</b>
+         <p class="texto-gris" style="margin:5px 0 0;">Mientras no estén en un cobro, lo
+         que entró por ellas no figura y su impuesto tampoco.</p>
+       </div>`
+    : '';
+
+  if (!liquidaciones.length) {
+    cont.innerHTML = aviso + '<div class="vacio">Todavía no se registró ningún cobro.</div>';
+    return;
+  }
+
+  cont.innerHTML = aviso + liquidaciones.map((l) => {
+    const b = brutoDe(l), n = netoDe(l);
+    const impB = impuestoDe(b), impN = impuestoDe(n);
+    const pagado = !!l.darf?.pagado;
+    const vencido = !pagado && venceEl(l) < CV2.hoyISO();
+    const nombres = (l.reservas ?? [])
+      .map((id) => reservasAB.find((r) => r.id === id))
+      .filter(Boolean);
+
+    return `<div class="paso${pagado ? ' hecho' : ''}"
+        ${vencido ? 'style="border-left:4px solid var(--rojo);"' : ''}>
+      <div class="cab">
+        <span class="material-icons" style="font-size:19px;color:var(--gris);">payments</span>
+        <b>${CV2.fmtFecha(l.fecha)} · ${CV2.fmtMonto(n, l.moneda || 'BRL')}</b>
+        ${vencido ? '<span class="chip" style="background:#fdecea;color:var(--rojo);">DARF vencido</span>'
+                  : pagado ? '<span class="chip">DARF pagado</span>'
+                           : '<span class="chip" style="background:#fdf1d8;color:#8a6206;">DARF pendiente</span>'}
+      </div>
+      <div class="porque">
+        ${b !== n ? `Bruto ${CV2.fmtMonto(b, l.moneda || 'BRL')} · neto ${CV2.fmtMonto(n, l.moneda || 'BRL')}
+                     · comisión ${CV2.fmtMonto(b - n, l.moneda || 'BRL')}<br>` : ''}
+        Cubre ${nombres.length || (l.reservas ?? []).length} reserva(s)${
+          nombres.length ? ': ' + esc(nombres.map((r) => r.clienteNombre || r.id).join(' · ')) : ''}
+        ${l.nota ? `<br>📝 ${esc(l.nota)}` : ''}
+      </div>
+      <div class="porque" style="margin-top:6px;">
+        <b>Impuesto al ${alicuota()}%:</b>
+        ${b !== n
+          ? `sobre bruto ${CV2.fmtMonto(impB, l.moneda || 'BRL')} · sobre neto ${CV2.fmtMonto(impN, l.moneda || 'BRL')}
+             <br><span style="color:#8a6206;">Los dos números hasta que el trámite 3 diga cuál corresponde.</span>`
+          : CV2.fmtMonto(impN, l.moneda || 'BRL')}
+        <br>Vence el ${CV2.fmtFecha(venceEl(l))}${vencido ? ' — <b style="color:var(--rojo);">ya pasó</b>' : ''}
+      </div>
+      <div style="display:flex;gap:6px;margin:9px 0 0 30px;flex-wrap:wrap;">
+        <button class="btn-ico" onclick="marcarDarf('${l.id}', ${!pagado})">
+          <span class="material-icons">${pagado ? 'undo' : 'check'}</span>
+          ${pagado ? 'Volver a pendiente' : 'DARF pagado'}
+        </button>
+        <button class="btn-ico" onclick="borrarCobro('${l.id}')">
+          <span class="material-icons" style="color:var(--rojo);">delete</span>
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.marcarDarf = async (id, pagado) => {
+  try {
+    await updateDoc(doc(db, 'liquidaciones', id), {
+      darf: pagado ? { pagado: true, fecha: CV2.hoyISO(), por: u.nombre ?? '' } : { pagado: false },
+      actualizadoEn: serverTimestamp()
+    });
+    const l = liquidaciones.find((x) => x.id === id);
+    if (l) l.darf = pagado ? { pagado: true, fecha: CV2.hoyISO() } : { pagado: false };
+    renderCobros();
+    CV2.toast(pagado ? 'DARF marcado como pagado' : 'Vuelve a pendiente', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+};
+
+window.borrarCobro = async (id) => {
+  const l = liquidaciones.find((x) => x.id === id);
+  if (!l) return;
+  if (!confirm('¿Borrar este cobro?\n\nTambién se borra el ingreso que generó en Dinero.')) return;
+  try {
+    // El ingreso se va con él: si no, Dinero mostraría plata sin respaldo.
+    // Si ya entró en un balance cerrado la regla lo protege y esto falla —
+    // y está bien que falle: un cierre es historia y no se retoca.
+    if (l.movimientoId) await deleteDoc(doc(db, 'movimientos', l.movimientoId));
+    await deleteDoc(doc(db, 'liquidaciones', id));
+    liquidaciones = liquidaciones.filter((x) => x.id !== id);
+    renderCobros();
+    CV2.toast('Borrado', 'success');
+  } catch (e) {
+    CV2.toast('No se pudo: ' + (e.code ?? e.message)
+      + (String(e.code ?? '').includes('permission') ? ' — puede estar sellado por un balance' : ''), 'error');
+  }
+};
+
+// ── Alta de un cobro ──────────────────────────────────────────
+function abrirCobro() {
+  $('cFecha').value = CV2.hoyISO();
+  $('cBruto').value = '';
+  $('cNeto').value = '';
+  $('cNota').value = '';
+  $('cCuenta').innerHTML = '<option value="">(sin definir)</option>'
+    + cuentas.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  const libres = reservasAB.filter((r) => !cubiertas().has(r.id));
+  $('cReservas').innerHTML = libres.length
+    ? libres.map((r) => `<label style="display:flex;gap:8px;align-items:flex-start;padding:5px 2px;">
+        <input type="checkbox" value="${r.id}" style="width:auto;margin-top:3px;">
+        <span style="font-size:.85rem;">${esc(r.clienteNombre || '(sin nombre)')}<br>
+          <span class="texto-gris">${CV2.fmtFecha(r.checkIn)} → ${CV2.fmtFecha(r.checkOut)}</span></span>
+      </label>`).join('')
+    : '<div class="texto-gris" style="padding:6px;">No quedan reservas de Airbnb sin cobro.</div>';
+  $('mCobro').showModal();
+}
+$('btnCobro').addEventListener('click', abrirCobro);
+$('cCancelar').addEventListener('click', () => $('mCobro').close());
+
+$('cGuardar').addEventListener('click', async () => {
+  const fecha = $('cFecha').value || CV2.hoyISO();
+  const bruto = nOf($('cBruto').value);
+  const neto = nOf($('cNeto').value);
+  if (!bruto && !neto) { CV2.toast('Cargá al menos uno de los dos montos', 'error'); return; }
+  const reservas = [...$('cReservas').querySelectorAll('input:checked')].map((i) => i.value);
+  if (!reservas.length) { CV2.toast('Elegí qué reservas cubre', 'error'); return; }
+
+  $('cGuardar').disabled = true;
+  try {
+    // Primero el ingreso en Dinero: es la plata que de verdad entró, y va
+    // por el NETO —lo que llegó a la cuenta—, no por el bruto. UN solo
+    // movimiento por transferencia: el banco muestra un crédito, no cinco.
+    const movRef = await addDoc(collection(db, 'movimientos'), {
+      fecha, tipo: 'entro',
+      monto: neto || bruto, moneda: 'BRL', montoBRL: neto || bruto,
+      categoria: 'Reservas',
+      cuenta: $('cCuenta').value || null,
+      uid: u.uid, nombre: 'Airbnb',
+      detalle: 'Cobro de Airbnb · ' + reservas.length + ' reserva(s)',
+      comprobanteUrl: null, pendiente: null,
+      refTipo: 'liquidacion', refId: null,
+      creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? '',
+      actualizadoEn: serverTimestamp()
+    });
+
+    const liqRef = await addDoc(collection(db, 'liquidaciones'), {
+      fecha, bruto: bruto || null, neto: neto || null, moneda: 'BRL',
+      reservas, movimientoId: movRef.id,
+      darf: { pagado: false },
+      nota: $('cNota').value.trim() || null,
+      creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
+    });
+    // Se cierra el vínculo en los dos sentidos recién ahora: el id de la
+    // liquidación no existe hasta que se creó.
+    await updateDoc(doc(db, 'movimientos', movRef.id), { refId: liqRef.id });
+
+    liquidaciones.unshift({
+      id: liqRef.id, fecha, bruto: bruto || null, neto: neto || null, moneda: 'BRL',
+      reservas, movimientoId: movRef.id, darf: { pagado: false },
+      nota: $('cNota').value.trim() || null
+    });
+    liquidaciones.sort((a, b) => (b.fecha ?? '').localeCompare(a.fecha ?? ''));
+    $('mCobro').close();
+    renderCobros();
+    CV2.toast('Cobro registrado · ingreso en Dinero', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+  finally { $('cGuardar').disabled = false; }
+});
+
 // ── Carga — AL FINAL ──────────────────────────────────────────
 try {
   const s = await getDoc(ref);
@@ -148,6 +387,31 @@ try {
 }
 renderSituacion();
 renderPasos();
+
+try {
+  const [sr, sl, sm] = await Promise.all([
+    getDocs(query(collection(db, 'reservas'), where('origen', '==', 'airbnb'))),
+    getDocs(collection(db, 'liquidaciones')),
+    getDocs(collection(db, 'movimientos'))
+  ]);
+  sr.forEach((d) => reservasAB.push({ id: d.id, ...d.data() }));
+  reservasAB = reservasAB
+    .filter((r) => r.estado === 'confirmada')
+    .sort((a, b) => (b.checkIn ?? '').localeCompare(a.checkIn ?? ''));
+
+  sl.forEach((d) => liquidaciones.push({ id: d.id, ...d.data() }));
+  liquidaciones.sort((a, b) => (b.fecha ?? '').localeCompare(a.fecha ?? ''));
+
+  // Las cuentas son etiquetas dinámicas: salen de lo que ya existe en
+  // movimientos, igual que en Dinero (no hay catálogo).
+  const cs = new Set();
+  sm.forEach((d) => { const c = d.data().cuenta; if (c) cs.add(c); });
+  cuentas = [...cs].sort();
+} catch (e) {
+  console.warn('cobros:', e);
+  CV2.toast('No se pudieron cargar los cobros (' + (e.code ?? e.message) + ')', 'error');
+}
+renderCobros();
 </script>
 </body>
 </html>

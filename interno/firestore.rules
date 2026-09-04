@@ -336,6 +336,15 @@ service cloud.firestore {
       allow update, delete: if tiene('finanzas') && !movSellado();
     }
 
+    // Cobros de Airbnb: cada transferencia de la plataforma, con las reservas
+    // que cubre y el estado de su DARF. Es colección propia y no un campo del
+    // movimiento porque el movimiento se SELLA al entrar en un balance
+    // cerrado, y el DARF se paga después: ahí quedaría congelado en
+    // 'pendiente' para siempre.
+    match /liquidaciones/{id} {
+      allow read, create, update, delete: if tiene('finanzas');
+    }
+
     // El balance es una foto: se crea y no se retoca nunca más.
     match /cierres/{id} {
       allow read: if tiene('finanzas');

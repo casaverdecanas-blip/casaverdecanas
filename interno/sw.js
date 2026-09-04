@@ -7,6 +7,35 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v102 (04-sep-2026) — LOS COBROS DE AIRBNB, RECONCILIADOS (A1). Airbnb paga
+//       en bloque y esa transferencia agrupa varias reservas; hasta hoy la
+//       plata caia en Dinero como un movimiento suelto, sin vinculo, y las
+//       reservas importadas quedaban con total 0. No habia forma de decir
+//       cuanto rindio cada una ni sobre que se declara.
+//       Nace la coleccion 'liquidaciones': una por transferencia, con la
+//       fecha, el bruto, el neto, que reservas cubre y el estado de su DARF.
+//       COLECCION PROPIA Y NO UN CAMPO DEL MOVIMIENTO, por una razon
+//       concreta: los movimientos se SELLAN al entrar en un balance cerrado
+//       (movSellado), y el DARF se paga despues. Guardado ahi habria quedado
+//       congelado en 'pendiente' para siempre.
+//       SE GUARDAN BRUTO Y NETO LOS DOS. Cual es la base del 15% es el
+//       tramite 3, todavia sin confirmar: con los dos numeros, la respuesta
+//       del contador no obliga a recargar nada. Mientras siga abierto, la
+//       pantalla muestra LOS DOS impuestos en vez de elegir uno por su
+//       cuenta.
+//       UN movimiento por transferencia, no uno por reserva: el banco
+//       muestra un credito, no cinco (§1.3, el flujo define los saldos). Va
+//       por el NETO, que es lo que llego a la cuenta.
+//       El Inicio avisa de los DARF impagos, los vencidos en rojo y
+//       primeros: la mora corre sola desde el dia del cobro.
+//       ⚠ LO QUE NO HACE: no reparte el cobro entre las reservas ni les
+//       cierra el saldo. Las de Airbnb siguen con total 0 hasta que alguien
+//       les cargue el precio, y crear pagos contra un total 0 las mostraria
+//       sobrepagadas. Queda el vinculo, que es lo que faltaba.
+//       firestore.rules: /liquidaciones/ pide 'finanzas'.
+//       design-system.css: '.fila2c' sube al sistema de diseño y se borran
+//       las tres copias locales (cabanas, dinero, reservas) — hacia falta
+//       una cuarta y §3.16 dice que eso no se arregla pagina por pagina.
 // v101 (04-sep-2026) — LOS TRAMITES DEL IMPUESTO DE AIRBNB, ANOTADOS. Nace
 //       'fiscal.html' [NUEVO, SHELL] con los cinco tramites que hay que tener
 //       resueltos antes de la primera declaracion, cada uno con el motivo
@@ -348,7 +377,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v101';
+const VERSION = 'cv2-shell-v102';
 
 const SHELL = [
   './',

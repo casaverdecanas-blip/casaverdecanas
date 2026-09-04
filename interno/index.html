@@ -486,19 +486,39 @@ if (CV2.puede('finanzas')) {
   // paga. Un trámite que falta el día del primer cobro ya llega tarde, y la
   // mora corre sola (1% mensual más SELIC). Desaparece al tildarlos todos.
   try {
+    const items = [];
+
+    // Los DARF impagos van PRIMERO y en rojo: la mora corre sola (1% mensual
+    // más SELIC) desde el día del cobro, así que un vencido no es un
+    // recordatorio, es plata que se está perdiendo.
+    const sl = await getDocs(collection(db, 'liquidaciones'));
+    const impagos = [];
+    sl.forEach((d) => { const l = d.data(); if (!l.darf?.pagado) impagos.push(l); });
+    for (const l of impagos.sort((a, b) => (a.fecha ?? '').localeCompare(b.fecha ?? ''))) {
+      const vencido = (l.fecha ?? '') < hoy;
+      items.push({
+        icono: 'receipt_long',
+        titulo: (vencido ? 'DARF vencido' : 'DARF por pagar')
+          + ' · ' + CV2.fmtMonto(Number(l.neto) || Number(l.bruto) || 0, l.moneda || 'BRL'),
+        detalle: 'Cobro de Airbnb del ' + CV2.fmtFecha(l.fecha),
+        tono: vencido ? 'urgente' : 'aviso', href: './fiscal.html'
+      });
+    }
+
     const s = await getDoc(doc(db, 'config', 'fiscal'));
     const pasos = s.exists() ? (s.data().pasos ?? {}) : {};
     const todos = CV2.PASOS_FISCALES;
     const faltan = todos.filter((p) => !pasos[p.k]?.hecho);
     if (faltan.length) {
-      agregar('fiscal', 'Impuestos · trámites sin resolver', 'account_balance', './fiscal.html', [{
+      items.push({
         icono: 'gavel',
-        titulo: faltan.length + ' de ' + todos.length + ' sin resolver',
+        titulo: faltan.length + ' de ' + todos.length + ' trámites sin resolver',
         detalle: 'Hay que tenerlos listos antes de la primera declaración de lo que entra por Airbnb',
         tono: 'aviso', href: './fiscal.html'
-      }]);
+      });
     }
-  } catch (e) { console.warn('config/fiscal', e); }
+    agregar('fiscal', 'Impuestos', 'account_balance', './fiscal.html', recortar(items, 6, './fiscal.html'));
+  } catch (e) { console.warn('fiscal', e); }
 }
 
 // ── 7 · Recuerdos esperando moderación ───────────────────────
