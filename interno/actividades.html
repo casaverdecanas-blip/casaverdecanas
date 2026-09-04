@@ -621,6 +621,11 @@ const esHoy = (it) => {
 };
 
 const pasaFiltro = (it) => {
+  // Una limpieza latente no pasa NINGÚN filtro, ni siquiera "Todas": existe
+  // desde que se confirmó la reserva, pero el check-in puede estar a meses.
+  // Sin este corte, el árbol de limpiezas —que va primero— se llenaría de
+  // filas de la temporada que viene y taparía todo lo demás.
+  if (Core.limpiezaLatente(it)) return false;
   if (filtro === 'destacadas') return destacados.has(it.id);
   if (filtro === 'hoy') return esHoy(it);
   return true;

@@ -211,7 +211,8 @@ const ctx = {};
 
 // ═══ LA PRUEBA DEL CICLO DE LIMPIEZA (§10 · F1) ═══════════
 // Cada expectativa sale del código real, no de la memoria:
-//   · limp-<reservaId>  ← RCore.sincronizarLimpiezas, ventana de 7 días
+//   · limp-<reservaId>  ← RCore.sincronizarLimpiezas, al confirmar la reserva
+//                         (latente en las vistas hasta 7 días antes)
 //   · checkout-<id>     ← actividades.html, al terminar la limpieza de entrada
 //   · falta-<id>        ← actividades.html, si el control de salida encuentra algo
 const PRUEBAS = [{

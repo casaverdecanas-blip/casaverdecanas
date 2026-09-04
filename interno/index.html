@@ -209,10 +209,16 @@ tocanAhora.sort((x, y) => y.atraso - x.atraso);
 // así que el bloque de "vencidas" recién las mostraba ESE MISMO DÍA. Nacen
 // siete días antes y quedaban invisibles justo en el tiempo en que se pueden
 // organizar. Ahora se muestran desde que existen, con los días que faltan.
+//
+// Y se descartan las LATENTES: desde que la limpieza se crea al confirmar la
+// reserva, "desde que existen" puede ser con meses de anticipación, y esta
+// lista no tiene tope de filas. Core.limpiezaLatente deja pasar solo las que
+// entran en el horizonte — las mismas que se veían antes de aquel cambio.
 const aActividad = (a) => './actividades.html?a=' + encodeURIComponent(a.id);
 
 const limpiezas = acts
-  .filter((a) => !a.hecho && a.reservaId && (a.fase === 'entrada' || a.fase === 'salida'))
+  .filter((a) => !a.hecho && a.reservaId && (a.fase === 'entrada' || a.fase === 'salida')
+    && !Core.limpiezaLatente(a))
   .sort((x, y) => String(x.fechaVencimiento ?? x.fechaInicio ?? '')
     .localeCompare(String(y.fechaVencimiento ?? y.fechaInicio ?? '')));
 

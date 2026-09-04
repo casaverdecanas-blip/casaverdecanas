@@ -327,7 +327,9 @@ const nombreDia = (iso) => DIAS[new Date(iso + 'T12:00:00').getDay()];
 const numDia = (iso) => Number(iso.slice(8, 10));
 const mesDe = (iso) => MESES[Number(iso.slice(5, 7)) - 1];
 
-const esLimpieza = (it) => !!(it.reservaId && it.fase);
+// Definida en actividades-core.js: la usan también el árbol de Actividades y
+// el Inicio, y si cambia el criterio tiene que cambiar en un solo lugar.
+const esLimpieza = Core.esLimpieza;
 function marca(it) {
   if (it.faltantesData) return '🛒 ';
   if (it.reservaId && it.fase === 'salida') return '📤 ';
@@ -622,7 +624,10 @@ function ramaHTML(id, hijosDe, nivel) {
 function renderArbol() {
   const hijosDe = {};
   const raices = [];
-  todas.filter((it) => !it.hecho).forEach((it) => {
+  // Se descartan las limpiezas latentes (check-in a más de una semana): el
+  // documento existe desde que se confirmó la reserva, pero acá se elige de
+  // dónde sacar trabajo para ESTA semana. Ver Core.limpiezaLatente.
+  todas.filter((it) => !it.hecho && !Core.limpiezaLatente(it)).forEach((it) => {
     if (!it.parentId) raices.push(it);
     else (hijosDe[it.parentId] = hijosDe[it.parentId] || []).push(it);
   });

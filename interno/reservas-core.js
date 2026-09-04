@@ -276,8 +276,6 @@ RCore.sincronizarAirbnb = async (reservas, cabanas, u) => {
   return stats;
 };
 
-// Días de anticipación con que se materializa cada actividad.
-const VENTANA_DIAS = 7;
 // Se parte del MEDIODÍA a propósito: doce horas de margen contra el desfase
 // de zona horaria y contra el cambio de horario. Acá toISOString() sí es
 // seguro — el problema es solo cuando se convierte la hora ACTUAL.
@@ -329,26 +327,33 @@ async function espejarDisponibilidad(r) {
 }
 
 /**
- * Barre TODAS las reservas y materializa las que entran en la ventana de 7
- * días. Como no hay servidor, se llama al abrir la app (Actividades y
- * Reservas). Idempotente: los IDs deterministas no duplican.
+ * Barre TODAS las reservas confirmadas por venir y se asegura de que cada una
+ * tenga su limpieza. Como no hay servidor, se llama al abrir la app
+ * (Actividades y Reservas). Idempotente: los IDs deterministas no duplican.
+ *
+ * Ya no recorta a la ventana de siete días: la limpieza se crea apenas se
+ * confirma la reserva y queda latente hasta que se acerca. Esta pasada es la
+ * red de contención — repone la limpieza de las reservas confirmadas antes de
+ * este cambio, y la de cualquiera que se haya perdido su creación.
  */
 RCore.materializarPendientes = async (reservas, cabanas, u) => {
   const hoy = hoyISO();
-  const enVentana = reservas.filter((r) =>
+  const porVenir = reservas.filter((r) =>
     r.estado === 'confirmada'
     && typeof r.checkIn === 'string'
-    && r.checkIn >= hoy && restarDias(r.checkIn, VENTANA_DIAS) <= hoy);
-  if (!enVentana.length) return { creadas: 0, actualizadas: 0, borradas: 0 };
-  return RCore.sincronizarLimpiezas(enVentana, cabanas, u);
+    && r.checkIn >= hoy);
+  if (!porVenir.length) return { creadas: 0, actualizadas: 0, borradas: 0 };
+  return RCore.sincronizarLimpiezas(porVenir, cabanas, u);
 };
 
 /**
- * Materializa, para una lista de reservas, las actividades que entran en la
- * ventana de 7 días:
+ * Materializa, para una lista de reservas, la limpieza de entrada:
  *   · limp-<id>      LIMPIEZA de entrada  (se hace ANTES del check-in;
- *                    rojo un día antes; lleva la tarifa → genera honorarios)
- *   · checkout-<id>  CONTROL de salida    (se hace en el check-out)
+ *                    lleva la tarifa → el honorario sale al cerrar el ciclo)
+ * Se crea apenas la reserva está confirmada, aunque falten meses; las que
+ * están lejos quedan latentes y no se muestran (Core.limpiezaLatente).
+ * El CONTROL de salida (checkout-<id>) no nace acá: lo crea "terminar la
+ * limpieza" en actividades.html.
  * Idempotente (IDs deterministas + merge). Anular borra lo no hecho.
  * Mantiene el nombre sincronizarLimpiezas por compatibilidad de llamadas.
  */
@@ -376,11 +381,22 @@ RCore.sincronizarLimpiezas = async (reservas, cabanas, u) => {
 
     if (r.estado === 'confirmada' && okFechas) {
       // ── LIMPIEZA DE ENTRADA (se prepara antes del check-in) ──
-      // Único que se materializa por fecha: una semana antes del check-in,
-      // rojo un día antes. Lleva la tarifa → genera honorarios.
+      // Nace apenas la reserva se confirma, aunque falten meses. Antes nacía
+      // recién dentro de la ventana de siete días, y como no hay servidor,
+      // eso dependía de que alguien abriera la app en esos siete días: si
+      // nadie entraba, la limpieza no se creaba, y una vez pasado el check-in
+      // ya no se creaba nunca más (la condición pedía checkIn >= hoy). El
+      // huésped llegaba a una cabaña que el sistema nunca mandó a preparar,
+      // y no quedaba rastro de la falta.
+      //
+      // Para que crearlas temprano no llene las listas, la que todavía está
+      // lejos queda LATENTE: existe, pero las vistas la esconden hasta que
+      // faltan Core.HORIZONTE_LIMPIEZA días (ver actividades-core.js).
+      // Lleva la tarifa, pero el honorario recién se genera al cerrar el
+      // ciclo, así que adelantar la creación no mueve ningún saldo.
       // El CONTROL DE SALIDA ya NO nace acá: lo crea "terminar la limpieza"
       // como hijo de esta actividad (ver actividades.html).
-      if (r.checkIn >= hoy && restarDias(r.checkIn, VENTANA_DIAS) <= hoy) {
+      if (r.checkIn >= hoy) {
         await upsert('limp-' + r.id,
           {
             titulo: 'Limpieza ' + cab + ' · entrada ' + r.checkIn,

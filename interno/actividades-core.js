@@ -41,6 +41,28 @@ const sumarDias = (iso, n) => {
 };
 const r2 = (n) => Math.round(n * 100) / 100;
 
+// ── Limpiezas latentes ───────────────────────────────────────
+// La limpieza de una reserva se CREA apenas la reserva se confirma, aunque
+// falten meses. Antes nacía recién siete días antes del check-in, y eso
+// dependía de que alguien abriera la app justo en esa ventana: si nadie
+// entraba, la limpieza no se creaba nunca y nadie se enteraba.
+//
+// Para que el cambio no llene las listas de tareas de dentro de tres meses,
+// la que todavía está lejos queda LATENTE: existe en la base, pero no se
+// muestra hasta que faltan HORIZONTE_LIMPIEZA días. El día que aparece es
+// el mismo en que aparecía antes — lo que cambia es que ahora aparece
+// siempre, no solo si alguien estuvo mirando.
+Core.HORIZONTE_LIMPIEZA = 7;
+
+Core.esLimpieza = (it) => !!(it && it.reservaId && it.fase);
+
+Core.limpiezaLatente = (it) => {
+  if (!Core.esLimpieza(it) || it.hecho) return false;
+  const ini = it.fechaInicio || it.fechaVencimiento;
+  if (!ini) return false;
+  return ini > sumarDias(hoyISO(), Core.HORIZONTE_LIMPIEZA);
+};
+
 // ── Sesión activa del usuario (en cualquier actividad) ───────
 Core.sesionActiva = async (uid) => {
   const s = await getDocs(query(

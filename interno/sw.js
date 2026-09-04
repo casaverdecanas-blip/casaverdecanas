@@ -7,6 +7,25 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v99 (04-sep-2026) — LA LIMPIEZA QUE NO SE CREABA NUNCA. Nacia recien siete
+//       dias antes del check-in, y como no hay servidor, eso dependia de que
+//       alguien abriera la app en esos siete dias. Si nadie entraba, no se
+//       creaba; y pasado el check-in ya no se creaba nunca mas, porque la
+//       condicion pedia checkIn >= hoy. El huesped llegaba a una cabana que
+//       el sistema nunca mando a preparar, sin dejar rastro de la falta.
+//       Ahora la limpieza se crea AL CONFIRMAR la reserva, aunque falten
+//       meses, y las vistas esconden las que todavia estan lejos
+//       (Core.limpiezaLatente, horizonte de 7 dias en actividades-core.js).
+//       El dia que aparece es el mismo de antes: lo que cambia es que ahora
+//       aparece siempre, no solo si alguien estuvo mirando.
+//       Se verifico que adelantar la creacion NO mueve honorarios: el
+//       honorario nace al cerrar el ciclo (_cerrarCiclo), no al crear la
+//       actividad; el 'monto' de la limpieza es solo un numero guardado.
+//       Tres vistas filtran lo latente — index.html (el bloque de limpiezas
+//       no tiene tope de filas y va primero), actividades.html (el arbol, que
+//       por defecto muestra "Todas") y agenda.html (su arbol lateral). "Mi
+//       semana" de la agenda ya recortaba por fecha y no necesito tocarla.
+//       Se borra VENTANA_DIAS de reservas-core.js, que quedo sin uso.
 // v98 (31-ago-2026) — "1-1 PERSONAS" EN LA VIDRIERA. La capacidad se pintaba
 //       tal cual estaba guardada, sin mirar si tenia sentido: la Cabana salia
 //       anunciada como "1-1 personas" al lado de una descripcion que decia
@@ -290,7 +309,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v98';
+const VERSION = 'cv2-shell-v99';
 
 const SHELL = [
   './',
