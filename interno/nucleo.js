@@ -39,18 +39,41 @@ CV2.usuario = null;   // { uid, nombre, email, rol, permisos, activo }
  */
 CV2.ESPERA_PERFIL = 15000;
 
+/**
+ * Plazo del arranque ENTERO. El de arriba cubre la lectura del perfil, pero
+ * ese reloj solo empieza a correr si `onAuthStateChanged` llegó a disparar
+ * alguna vez. Si no dispara nunca, no había NINGÚN plazo: la promesa quedaba
+ * colgada y la página en blanco para siempre, sin error y sin nada que leer.
+ *
+ * Y no es un caso raro: el SDK de Firebase se importa de gstatic.com, que es
+ * otro origen y por eso el service worker NO lo cachea (a propósito). En un
+ * arranque sin señal —el primero después de instalar la app, típicamente— el
+ * shell sale de la caché y anda, pero el SDK no llega, el callback no
+ * dispara, y el resultado es exactamente "la app se instaló y no abre".
+ *
+ * Es más largo que el de perfil porque acá se está esperando una descarga,
+ * no una consulta.
+ */
+CV2.ESPERA_ARRANQUE = 25000;
+
 CV2.verificarAuth = function () {
   return new Promise((resolver) => {
     let quitar = null;
     let listo = false;
+    let guardia = null;
 
     const salir = (motivo) => {
       if (listo) return;
       listo = true;
+      if (guardia) clearTimeout(guardia);
       if (quitar) { try { quitar(); } catch { /* ya cortada */ } }
       if (location.pathname.indexOf('login.html') !== -1) return;   // ya estamos ahí
       location.replace('./login.html?e=' + encodeURIComponent(motivo));
     };
+
+    // Se arma ANTES de suscribirse: si el SDK está roto, ni siquiera se llega
+    // a la línea de abajo, y el plazo tiene que estar corriendo igual.
+    guardia = setTimeout(() => salir('sinred'), CV2.ESPERA_ARRANQUE);
 
     quitar = onAuthStateChanged(auth, async (fbUser) => {
       if (listo) return;
@@ -76,6 +99,7 @@ CV2.verificarAuth = function () {
         CV2.usuario = { uid: fbUser.uid, email: fbUser.email, ...snap.data() };
         if (listo) return;
         listo = true;
+        if (guardia) clearTimeout(guardia);
         if (quitar) { try { quitar(); } catch { /* ya cortada */ } }
         if (CV2.usuario.rol === 'admin') CV2._listonAdmin();
         resolver(CV2.usuario);

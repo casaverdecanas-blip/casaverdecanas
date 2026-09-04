@@ -50,8 +50,41 @@
 <div class="contenedor">
   <h1 class="saludo" id="saludo">Hola</h1>
   <p class="sub" id="sub">Cargando novedades…</p>
+
+  <div id="noArranca" hidden style="background:#fffaf0;border:1px solid var(--linea);
+    border-left:4px solid #b8860b;border-radius:var(--radio);padding:14px;margin:10px 0;">
+    <b>La app no terminó de abrir</b>
+    <p class="texto-gris" style="margin:6px 0 0;">Suele ser falta de señal: el panel
+    necesita bajar una parte de Google la primera vez que abre, y eso no queda guardado
+    en el teléfono.</p>
+    <p style="margin:10px 0 0;"><a href="./login.html?e=sinred">Ir al ingreso</a> —
+    ahí está también el botón «La app no abre», que limpia lo que haya quedado trancado.</p>
+  </div>
+
   <div id="cuerpo"></div>
 </div>
+
+<script>
+// RELOJ DE GUARDIA DE LA PÁGINA, y es un script CLÁSICO a propósito.
+//
+// El de nucleo.js cubre el arranque una vez que el módulo corre. Pero si el
+// módulo no llega a cargarse —firebase-init.js importa el SDK de gstatic.com,
+// que es otro origen y que el service worker NO cachea— entonces NINGÚN
+// código de módulo se ejecuta: ni el reloj de guardia, ni el catch, ni nada.
+// La pantalla queda con "Cargando novedades…" para siempre, sin un solo
+// mensaje. Es el síntoma de "instalé la app y no abre".
+//
+// Un <script> clásico sí corre, porque no depende de esa cadena de imports.
+// Por eso este cartel es la única red que queda cuando falla todo lo demás.
+window.__cvArranco = false;
+setTimeout(function () {
+  if (window.__cvArranco) return;
+  var d = document.getElementById('noArranca');
+  if (d) d.hidden = false;
+  var s = document.getElementById('sub');
+  if (s) s.textContent = '';
+}, 26000);   // por encima de CV2.ESPERA_ARRANQUE: si aquel alcanza a saltar, gana él
+</script>
 
 <script type="module">
 // ═══════════════════════════════════════════════════════════
@@ -73,6 +106,11 @@ import { CV2 } from './nucleo.js';
 import { Core } from './actividades-core.js';
 
 CV2.registrarSW();
+// Se apaga el reloj de guardia de arriba apenas se sabe que el módulo corre.
+// Va ANTES del await: lo que ese cartel vigila es que la cadena de imports
+// haya llegado hasta acá, no que la sesión se resuelva — de eso ya se ocupa
+// el plazo de verificarAuth, que sí sabe mandar al login con un motivo.
+window.__cvArranco = true;
 const u = await CV2.verificarAuth();
 CV2.renderNav('inicio');
 

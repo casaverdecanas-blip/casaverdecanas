@@ -60,6 +60,11 @@ const MOTIVOS = {
   inactivo: 'Tu usuario está desactivado. Hablá con el administrador.',
   sinperfil: 'Tu cuenta existe pero todavía no está dada de alta en el sistema. Pedile al administrador que te cree el perfil.',
   trancado: 'El panel no pudo leer tu perfil (algo quedó trancado en este teléfono). Probá "La app no abre", acá abajo.',
+  // El arranque tiene que bajar el SDK de Firebase, que viene de Google y NO
+  // queda guardado en el teléfono. Sin señal, la app abre y se queda
+  // esperando. Este mensaje manda a mirar la conexión ANTES que a reparar:
+  // reparar borra lo guardado y no arregla nada si lo que falta es internet.
+  sinred: 'La app no pudo terminar de abrir. Suele ser falta de señal: revisá la conexión y volvé a entrar. Si tenés señal y se repite, probá "La app no abre".',
   reparada: 'Listo, quedó limpio. Entrá de nuevo.'
 };
 if (MOTIVOS[aviso]) $('error').textContent = MOTIVOS[aviso];

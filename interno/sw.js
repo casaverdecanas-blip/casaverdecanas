@@ -7,6 +7,28 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v104 (04-sep-2026) — "SE INSTALO LA APP Y NO ABRE". Reportado desde el
+//       telefono: el icono queda en el escritorio y al tocarlo no arranca
+//       nada. Revisado el arranque entero, aparecieron DOS agujeros, y los
+//       dos dan exactamente ese sintoma: pantalla muda, sin error.
+//       1) firebase-init.js importa el SDK de gstatic.com. Es OTRO ORIGEN y
+//          el service worker no lo cachea, a proposito. En un arranque sin
+//          señal —el primero despues de instalar, tipicamente— el shell sale
+//          de la cache y anda, pero el SDK no llega: NINGUN codigo de modulo
+//          se ejecuta. Ni el reloj de guardia, ni el catch, ni nada.
+//       2) Aunque el SDK cargue, si onAuthStateChanged no dispara nunca, la
+//          promesa de verificarAuth no resolvia jamas. El reloj de guardia
+//          que ya existia cubre la lectura del perfil, pero corre ADENTRO de
+//          ese callback: si el callback no llega, no habia plazo ninguno.
+//       Para (2): CV2.ESPERA_ARRANQUE (25s) envuelve el arranque completo y
+//       se arma ANTES de suscribirse. Al vencer manda a login con 'sinred'.
+//       Para (1): un <script> CLASICO en index.html, que corre aunque la
+//       cadena de imports falle, y a los 26s muestra un cartel con el camino
+//       a login. Es la unica red que queda cuando falla todo lo demas.
+//       El mensaje manda a MIRAR LA CONEXION antes que a reparar: reparar
+//       borra lo guardado y no arregla nada si lo que falta es internet.
+//       26s > 25s a proposito: si el reloj de nucleo.js alcanza a saltar,
+//       gana el, que sabe mandar al login con su motivo.
 // v103 (04-sep-2026) — EL AVISO DEL DARF SE ADELANTA AL COBRO. Airbnb paga
 //       el dia del check-in o el siguiente (dato del administrador), y para
 //       un no residente el DARF vence EL MISMO DIA en que la plataforma
@@ -394,7 +416,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v103';
+const VERSION = 'cv2-shell-v104';
 
 const SHELL = [
   './',
