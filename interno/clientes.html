@@ -41,6 +41,12 @@
   </div>
 
   <input id="buscar" placeholder="Buscar por nombre, teléfono o email…" style="margin:10px 0;">
+
+  <button class="btn-ico" id="btnPorDonde" style="margin-bottom:8px;">
+    <span class="material-icons">insights</span> ¿Por dónde llegan?
+  </button>
+  <div id="porDonde" class="oculto"></div>
+
   <div id="lista"><div class="vacio">Cargando…</div></div>
 </div>
 
@@ -54,6 +60,9 @@
   <input id="fEmail" type="email" inputmode="email" maxlength="80">
   <label>País</label>
   <input id="fPais" maxlength="40" placeholder="Argentina, Brasil, Uruguay…">
+  <label>¿Por dónde llegó?</label>
+  <select id="fLlegoPor"></select>
+  <input id="fLlegoPorDetalle" maxlength="80" style="margin-top:6px;">
   <label>Notas</label>
   <textarea id="fNotas" rows="2" placeholder="Preferencias, historia, detalles…"></textarea>
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
@@ -76,11 +85,31 @@ CV2.renderNav('clientes');
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
 
+// ── Por dónde llegó el cliente ────────────────────────────
+// OJO: esto NO es 'reserva.origen'. Aquel dice por qué CANAL entró la
+// reserva (directa o airbnb); este dice cómo nos CONOCIÓ la persona. Alguien
+// puede llegar por recomendación de un huésped viejo y reservar directo: son
+// dos hechos distintos y los dos importan. Por eso el campo se llama
+// 'llegoPor' y no 'origen' — para que nadie los confunda más adelante.
+//
+// 'detalle' es el dato que de verdad sirve: en una recomendación, quién.
+const ORIGENES = [
+  { k: 'recomendacion', n: 'Recomendación',    i: 'record_voice_over', pide: 'Quién lo recomendó' },
+  { k: 'repetidor',     n: 'Ya se alojó antes', i: 'replay' },
+  { k: 'airbnb',        n: 'Airbnb',            i: 'apartment' },
+  { k: 'instagram',     n: 'Instagram',         i: 'photo_camera' },
+  { k: 'google',        n: 'Google / búsqueda', i: 'search' },
+  { k: 'sitio',         n: 'Sitio web',         i: 'language' },
+  { k: 'otro',          n: 'Otro',              i: 'more_horiz', pide: 'Por dónde' }
+];
+const ORIGEN = Object.fromEntries(ORIGENES.map((o) => [o.k, o]));
+
 let clientes = [];
 let reservas = [];
 let abierto = null;
 let editId = null;
 let filtro = '';
+let filtroOrigen = '';   // '' = todos · '__sin' = sin cargar
 
 const reservasDe = (cid) => reservas
   .filter((r) => r.clienteId === cid)
@@ -88,12 +117,65 @@ const reservasDe = (cid) => reservas
 
 const soloDigitos = (t) => String(t ?? '').replace(/[^\d]/g, '');
 
+// Cuenta clientes Y reservas por origen. Las dos cifras juntas dicen algo
+// que ninguna dice sola: un cliente que llegó recomendado y volvió tres
+// veces vale más que tres que vinieron una vez y no volvieron.
+function resumenOrigen() {
+  const filas = ORIGENES.map((o) => ({ ...o, cli: 0, res: 0 }));
+  const sin = { k: '__sin', n: 'Sin cargar', i: 'help_outline', cli: 0, res: 0 };
+  const porK = Object.fromEntries(filas.map((f) => [f.k, f]));
+  for (const c of clientes) {
+    const f = porK[c.llegoPor] ?? sin;
+    f.cli++;
+    f.res += reservas.filter((r) => r.clienteId === c.id).length;
+  }
+  return [...filas, sin]
+    .filter((f) => f.cli)
+    .sort((a, b) => b.res - a.res || b.cli - a.cli);
+}
+
+function renderPorDonde() {
+  const filas = resumenOrigen();
+  if (!filas.length) {
+    $('porDonde').innerHTML = '<div class="vacio">Todavía no hay clientes con origen cargado.</div>';
+    return;
+  }
+  $('porDonde').innerHTML = filas.map((f) => `
+    <div class="cli" onclick="filtrarOrigen('${f.k}')"
+      style="${filtroOrigen === f.k ? 'border-color:var(--verde);' : ''}padding:9px 12px;margin:5px 0;">
+      <div class="fila1">
+        <span class="material-icons" style="font-size:18px;color:var(--gris);">${f.i}</span>
+        <b>${esc(f.n)}</b>
+        <span class="texto-gris">${f.cli} cliente(s) · ${f.res} reserva(s)</span>
+      </div>
+    </div>`).join('')
+    + (filtroOrigen ? `<button class="btn-ico" onclick="filtrarOrigen('')" style="margin-top:4px;">
+        <span class="material-icons">close</span> Ver todos</button>` : '');
+}
+
+window.filtrarOrigen = (k) => {
+  filtroOrigen = filtroOrigen === k ? '' : k;
+  render();
+};
+
+$('btnPorDonde').addEventListener('click', () => {
+  $('porDonde').classList.toggle('oculto');
+  render();
+});
+
 function render() {
+  // El resumen se redibuja acá y no en cada llamador: render() es lo que
+  // corre cuando llega una tanda de datos nueva, así que los conteos no
+  // pueden quedar viejos abajo de un panel abierto.
+  if (!$('porDonde').classList.contains('oculto')) renderPorDonde();
+
   const t = filtro.toLowerCase();
-  const fs = clientes.filter((c) => !t ||
+  const fs = clientes.filter((c) => (!t ||
     (c.nombre ?? '').toLowerCase().includes(t) ||
     (c.email ?? '').toLowerCase().includes(t) ||
-    (c.telefono ?? '').includes(t));
+    (c.telefono ?? '').includes(t))
+    && (!filtroOrigen
+      || (filtroOrigen === '__sin' ? !ORIGEN[c.llegoPor] : c.llegoPor === filtroOrigen)));
   const cont = $('lista');
   if (!fs.length) {
     cont.innerHTML = `<div class="vacio">${clientes.length ? 'Sin resultados.' : 'Sin clientes todavía.<br>Se crean acá o directamente al cargar una reserva.'}</div>`;
@@ -104,6 +186,7 @@ function render() {
     let h = `<div class="cli" onclick="abrir('${c.id}')">
       <div class="fila1"><b>${esc(c.nombre)}</b>
         ${c.pais ? `<span class="chip">${esc(c.pais)}</span>` : ''}
+        ${ORIGEN[c.llegoPor] ? `<span class="chip" title="Por dónde llegó"><span class="material-icons" style="font-size:14px;">${ORIGEN[c.llegoPor].i}</span>${esc(c.llegoPorDetalle || ORIGEN[c.llegoPor].n)}</span>` : ''}
         ${rs.length ? `<span class="texto-gris">${rs.length} reserva(s)</span>` : ''}
       </div>
       <div class="contacto" onclick="event.stopPropagation()">
@@ -140,6 +223,19 @@ window.borrar = async (id) => {
 $('buscar').addEventListener('input', () => { filtro = $('buscar').value.trim(); render(); });
 
 // ═══ Alta / edición ═══════════════════════════════════════
+$('fLlegoPor').innerHTML = '<option value="">— sin cargar —</option>'
+  + ORIGENES.map((o) => `<option value="${o.k}">${esc(o.n)}</option>`).join('');
+
+// El campo de detalle solo aparece donde agrega algo. En una recomendación
+// el dato que importa es QUIÉN — sin eso, "recomendación" no dice nada útil.
+function ajustarDetalle() {
+  const o = ORIGEN[$('fLlegoPor').value];
+  const inp = $('fLlegoPorDetalle');
+  inp.classList.toggle('oculto', !o);
+  inp.placeholder = o?.pide ? o.pide : 'Detalle (opcional)';
+}
+$('fLlegoPor').addEventListener('change', ajustarDetalle);
+
 function abrirModal(c) {
   editId = c?.id ?? null;
   $('mTit').textContent = editId ? 'Editar cliente' : 'Nuevo cliente';
@@ -147,6 +243,9 @@ function abrirModal(c) {
   $('fTelefono').value = c?.telefono ?? '';
   $('fEmail').value = c?.email ?? '';
   $('fPais').value = c?.pais ?? '';
+  $('fLlegoPor').value = ORIGEN[c?.llegoPor] ? c.llegoPor : '';
+  $('fLlegoPorDetalle').value = c?.llegoPorDetalle ?? '';
+  ajustarDetalle();
   $('fNotas').value = c?.notas ?? '';
   $('modal').showModal();
   $('fNombre').focus();
@@ -163,6 +262,8 @@ $('mGuardar').addEventListener('click', async () => {
     telefono: $('fTelefono').value.trim() || null,
     email: $('fEmail').value.trim() || null,
     pais: $('fPais').value.trim() || null,
+    llegoPor: $('fLlegoPor').value || null,
+    llegoPorDetalle: ($('fLlegoPor').value && $('fLlegoPorDetalle').value.trim()) || null,
     notas: $('fNotas').value.trim() || '',
     actualizadoEn: serverTimestamp()
   };

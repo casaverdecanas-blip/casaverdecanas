@@ -7,6 +7,19 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v100 (04-sep-2026) — POR DONDE LLEGA CADA CLIENTE. Campo 'llegoPor' en
+//       clientes, con su detalle libre, y un resumen que cuenta clientes Y
+//       reservas por origen: un cliente que llego recomendado y volvio tres
+//       veces vale mas que tres que vinieron una vez. Se puede filtrar la
+//       lista tocando una fila del resumen, y el bucket "sin cargar" dice
+//       cuantos faltan completar.
+//       ⚠ NO CONFUNDIR con 'reserva.origen'. Aquel dice por que CANAL entro
+//       la reserva (directa / airbnb); este dice como nos CONOCIO la persona.
+//       Alguien puede llegar por recomendacion de un huesped viejo y reservar
+//       directo: son dos hechos distintos. Por eso el campo se llama
+//       'llegoPor' y no 'origen'.
+//       Sin cambios en firestore.rules: /clientes/ no tiene hasOnly, asi que
+//       el campo nuevo entra sin tocar las reglas.
 // v99 (04-sep-2026) — LA LIMPIEZA QUE NO SE CREABA NUNCA. Nacia recien siete
 //       dias antes del check-in, y como no hay servidor, eso dependia de que
 //       alguien abriera la app en esos siete dias. Si nadie entraba, no se
@@ -309,7 +322,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v99';
+const VERSION = 'cv2-shell-v100';
 
 const SHELL = [
   './',
