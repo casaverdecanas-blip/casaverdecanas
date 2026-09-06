@@ -448,6 +448,124 @@ CV2.verItem = function (it) {
   return Array.isArray(it.permiso) ? CV2.puedeAlguno(it.permiso) : CV2.puede(it.permiso);
 };
 
+/* ═══ CRUZAR INFORMACIÓN ENTRE PANTALLAS ═════════════════════
+ *
+ * El problema que resuelve: el panel mostraba el nombre de una reserva en
+ * Dinero, el título de una actividad en Cobros, las reservas de un cliente
+ * en su ficha — todo como texto muerto. Para ver el dato de al lado había
+ * que memorizar un nombre, cambiar de pantalla y buscarlo a mano.
+ *
+ * Antes de esto había, para lo mismo, tres helpers de URL escritos en línea
+ * en cuatro archivos y dos receptores con la misma estructura sin una línea
+ * compartida. Acá vive el vocabulario único.
+ *
+ *   CV2.hrefDe('reserva', id)        → './reservas.html?r=<id>'
+ *   CV2.hrefDe('reserva', id, {volver: true})
+ *                                    → agrega ?volver=<esta pantalla>
+ *   CV2.pedido()                     → { tipo, id, volver } del lado que recibe
+ *   CV2.traerALaVista(el)            → scroll + destello
+ *   CV2.botonVolver()                → pinta el «volver» si vino ?volver=
+ *
+ * POR QUÉ EL VOLVER ES UN ENLACE Y NO history.back():
+ * está copiado de reservas.html, que ya lo había resuelto bien y explicaba
+ * el motivo — desde que se llega a una ficha se puede editar, pagar o
+ * anular, y cada una de esas acciones mueve el historial. Para cuando el
+ * usuario toca Atrás, `history.back()` ya no lleva a donde él cree. Un
+ * <a href> con la dirección escrita adentro no se despeina con nada.
+ *
+ * LA EXCEPCIÓN, dicha acá para que no sorprenda: el par agenda ↔ actividades
+ * NO usa esto. Tiene su propio mecanismo —`?volver=agenda` (un literal, no
+ * una dirección) más sessionStorage con la vista, la semana y el scroll— y
+ * vuelve con location.replace a propósito, para que Atrás no reabra el
+ * formulario de alta. Es un caso distinto: ahí no se va a *mirar* una ficha,
+ * se va a *crear* algo y volver con el trabajo hecho. Los dos conviven sin
+ * pisarse porque botonVolver() solo acepta valores que terminen en .html, y
+ * 'agenda' pelado no pasa ese filtro: falla hacia el lado seguro.
+ */
+
+// Dónde vive cada tipo de entidad y con qué parámetro se la pide. Es la
+// única tabla: agregar un tipo acá lo habilita en las dos direcciones.
+CV2.FICHAS = {
+  reserva:   { pagina: 'reservas.html',    param: 'r' },
+  actividad: { pagina: 'actividades.html', param: 'a' },
+  cliente:   { pagina: 'clientes.html',    param: 'c' }
+};
+
+CV2.hrefDe = function (tipo, id, opts) {
+  const f = CV2.FICHAS[tipo];
+  if (!f || !id) return null;
+  let u = './' + f.pagina + '?' + f.param + '=' + encodeURIComponent(id);
+  if (opts && opts.volver) {
+    // `volver: true` guarda la pantalla ACTUAL con su querystring: volver a
+    // 'dinero.html' pelado perdería el filtro y el período que se estaba
+    // mirando, que es la mitad del trabajo de haber llegado hasta ahí.
+    //
+    // `volver: 'calendario.html?d=2026-01-05'` para cuando la pantalla sabe
+    // mejor que la dirección adónde hay que volver — el calendario, por
+    // ejemplo, cambia de día sin que la URL se entere.
+    const aca = opts.volver === true
+      ? location.pathname.split('/').pop() + location.search
+      : opts.volver;
+    u += '&volver=' + encodeURIComponent(aca);
+  }
+  return u;
+};
+
+/**
+ * Lo que pide la dirección, del lado que recibe. Devuelve siempre un objeto
+ * (nunca null) para que quien lo use no tenga que defenderse.
+ */
+CV2.pedido = function () {
+  const p = new URLSearchParams(location.search);
+  let tipo = null, id = null;
+  for (const [t, f] of Object.entries(CV2.FICHAS)) {
+    const v = p.get(f.param);
+    if (v) { tipo = t; id = v; break; }
+  }
+  return { tipo, id, volver: p.get('volver') || null };
+};
+
+/**
+ * Trae un elemento a la vista y lo destella. El destello no es adorno: sin
+ * él, en una lista larga, el usuario aterriza sin saber cuál de las filas
+ * es la que pidió.
+ *
+ * El setTimeout está porque quien llama a esto acaba de repintar la lista y
+ * el navegador todavía no midió nada; sin la espera, scrollIntoView calcula
+ * sobre un alto viejo y deja el elemento fuera de pantalla.
+ */
+CV2.traerALaVista = function (el, opts) {
+  if (!el) return false;
+  const o = opts || {};
+  setTimeout(() => {
+    try { el.scrollIntoView({ behavior: 'smooth', block: o.bloque || 'center' }); }
+    catch { el.scrollIntoView(); }
+    const clase = o.clase || 'cv-destello';
+    el.classList.add(clase);
+    setTimeout(() => el.classList.remove(clase), o.duracion || 2600);
+  }, o.espera || 70);
+  return true;
+};
+
+/**
+ * Pinta el botón de volver si la dirección trae ?volver=. Se le pasa el
+ * elemento <a> que la pantalla ya tenga preparado y oculto.
+ *
+ * Solo acepta destinos RELATIVOS y de este mismo directorio: el valor viene
+ * de la dirección, o sea de afuera, y un 'volver' que aceptara
+ * 'https://otro-sitio' sería un trampolín escrito por nosotros.
+ */
+CV2.botonVolver = function (el, etiqueta) {
+  if (!el) return false;
+  const v = CV2.pedido().volver;
+  if (!v || !/^[A-Za-z0-9._-]+\.html(\?[^#]*)?$/.test(v)) return false;
+  el.href = './' + v;
+  if (etiqueta) el.textContent = etiqueta;
+  el.classList.remove('oculto');
+  el.hidden = false;
+  return true;
+};
+
 /**
  * Capa emergente (hoja, modal, panel) que se cierra con el botón ATRÁS
  * de Android en vez de salir de la aplicación.

@@ -401,6 +401,35 @@ dialog::backdrop { background: rgba(20, 30, 18, .45); }
    sumar una cuarta copia (§3.16). */
 .fila2c { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
+/* ── Cruzar información entre pantallas ──────────────────── */
+/* El destello de "es esta": cuando se llega a una ficha desde otra pantalla,
+   dice cuál de las filas es la que se pidió. Se apaga solo — un resaltado
+   permanente se vuelve ruido y deja de significar nada.
+   Lo usa CV2.traerALaVista(). Nació en actividades.html y subió acá al
+   necesitarlo la segunda pantalla (§3.16). */
+@keyframes cv-llegada {
+  0%   { box-shadow: 0 0 0 0 rgba(45, 90, 39, .55); }
+  100% { box-shadow: 0 0 0 14px rgba(45, 90, 39, 0); }
+}
+.cv-destello { animation: cv-llegada 1.3s ease-out 2; border-radius: var(--radio); }
+
+/* Un dato que lleva a su ficha. Se ve tocable sin gritar: dentro de una
+   lista de movimientos, media docena de enlaces subrayados en azul serían
+   más ruido que ayuda. */
+.cv-ir {
+  color: var(--verde-osc); text-decoration: none;
+  border-bottom: 1px dotted var(--verde); cursor: pointer;
+}
+.cv-ir:active { opacity: .6; }
+
+/* El botón de volver a donde se estaba. Va arriba de todo en la ficha. */
+.cv-volver {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: .85rem; color: var(--gris); text-decoration: none;
+  padding: 7px 0; margin-bottom: 2px;
+}
+.cv-volver .material-icons { font-size: 18px; }
+
 .chip {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: .78rem; padding: 3px 10px; border-radius: 999px;

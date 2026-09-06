@@ -173,7 +173,9 @@ function render() {
     const c = colorProy(g.id);
     return `<div class="fila" style="background:${c.p};">
       <span class="dot" style="background:${c.a};"></span>
-      <span class="nm">${esc(actIdx[g.id]?.titulo ?? '(sin proyecto)')}</span>
+      <span class="nm">${actIdx[g.id]
+        ? `<a class="cv-ir" href="${CV2.hrefDe('actividad', g.id, { volver: true })}">${esc(actIdx[g.id].titulo)}</a>`
+        : '(sin proyecto)'}</span>
       <span class="hs">${CV2.fmtHM(g.horas)} · ${Math.round(g.horas / total * 100)}%</span>
     </div>`;
   }).join('');

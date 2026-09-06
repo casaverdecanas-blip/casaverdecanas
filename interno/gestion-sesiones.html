@@ -178,7 +178,9 @@ function render() {
         const horasAct = ss.reduce((a, s) => a + (s.horas ?? 0), 0);
         h += `<div class="ghead" style="background:${col.p}66;padding-left:26px;" onclick="toggleP('a-${aid}')">
           <span>${abiertos['a-' + aid] ? '▾' : '▸'}</span>
-          <b>${esc(actIdx[aid]?.titulo ?? ss[0].actividadTitulo ?? '(actividad)')}</b>
+          <b><a class="cv-ir" href="${CV2.hrefDe('actividad', aid, { volver: true })}"
+             onclick="event.stopPropagation()"
+             >${esc(actIdx[aid]?.titulo ?? ss[0].actividadTitulo ?? '(actividad)')}</a></b>
           <span class="tot">${CV2.fmtHM(horasAct)}</span></div>`;
         if (abiertos['a-' + aid]) {
           for (const s of ss) {

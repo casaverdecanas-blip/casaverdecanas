@@ -7,6 +7,47 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v105 (06-sep-2026) — CRUZAR INFORMACION SIN IR A BUSCARLA. Pedido del
+//       administrador: que desde Dinero se pueda saltar a la reserva y
+//       volver, y que eso sea parejo en todo el panel.
+//       El relevamiento dio feo: de 12 lugares donde el panel muestra una
+//       entidad ajena, UNO enlazaba (el calendario). En ocho de los once
+//       restantes el id ya estaba en memoria — el enlace era una linea. Y
+//       habia cuatro mecanismos distintos de "volver", en tres nombres de
+//       parametro, sin una linea compartida.
+//       Nace el vocabulario unico en nucleo.js: CV2.FICHAS, CV2.hrefDe,
+//       CV2.pedido, CV2.traerALaVista, CV2.botonVolver. Agregar un tipo a
+//       CV2.FICHAS lo habilita en las dos direcciones.
+//       EL VOLVER ES UN ENLACE, NO history.back(). El criterio no es nuevo:
+//       ya estaba escrito en reservas.html y explicado — desde una ficha se
+//       puede editar, pagar o anular, y cada una mueve el historial, asi que
+//       para cuando se toca Atras el back ya no lleva a donde uno cree. Lo
+//       que se hizo fue sacarlo de esa pantalla y ponerlo donde sirve a
+//       todas. De paso el parametro pasa a llevar la DIRECCION entera en vez
+//       de una fecha: antes solo sabia volver al calendario.
+//       Emisores: de 4 pantallas a 9. Dinero enlaza al origen de cada
+//       movimiento —con el salto pago→reserva y honorario→actividad, porque
+//       refId no es el id de la ficha—, Cobros y Horas y Sesiones a su
+//       actividad, Clientes a cada reserva, Reservas al cliente, Impuestos a
+//       las reservas del cobro, y la limpieza a su reserva.
+//       Receptor nuevo: clientes.html lee ?c=. actividades.html suma boton
+//       de volver: es destino de cuatro pantallas y no tenia con que.
+//       ⚠ EXCEPCION documentada: el par agenda↔actividades NO usa esto.
+//       Tiene lo suyo —'volver=agenda' literal, sessionStorage con vista,
+//       semana y scroll, y location.replace para que Atras no reabra el
+//       formulario—. Conviven porque botonVolver solo acepta valores
+//       terminados en .html, y 'agenda' no pasa: falla al lado seguro.
+//       DOS BUGS DE PASO, los dos con el mismo sintoma. cabanas.html y
+//       editar.html echaban con location.href en la guarda de permiso: con
+//       href la pantalla queda en el historial y Atras vuelve a entrar para
+//       que la echen otra vez, un rebote sin salida. Pasan a replace, que es
+//       lo que usuarios.html ya explicaba en su propia guarda.
+//       Y UN FOSIL: clientes.html mostraba el monto de cada reserva con
+//       r.totalBRL, campo que la migracion T11.25 saco de las reservas — o
+//       sea que decia "R$ 0,00" en todas. Se quita: el precio vive en el
+//       acuerdo y esta en la ficha, a un toque de distancia.
+//       design-system.css suma .cv-destello (subido de actividades.html),
+//       .cv-ir y .cv-volver.
 // v104 (04-sep-2026) — "SE INSTALO LA APP Y NO ABRE". Reportado desde el
 //       telefono: el icono queda en el escritorio y al tocarlo no arranca
 //       nada. Revisado el arranque entero, aparecieron DOS agujeros, y los
@@ -416,7 +457,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v104';
+const VERSION = 'cv2-shell-v105';
 
 const SHELL = [
   './',

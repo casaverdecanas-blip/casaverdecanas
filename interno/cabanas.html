@@ -163,7 +163,11 @@ import { T as TEXTOS_SITIO } from './textos-sitio.js';
 
 CV2.registrarSW();
 const u = await CV2.verificarAuth();
-if (!CV2.puede('contenido')) { location.href = './index.html'; throw new Error('sin permiso de contenido'); }
+// replace y NO href: con href esta pantalla queda en el historial, y el
+// botón Atrás desde el Inicio vuelve a entrar acá para que la echen otra
+// vez — un rebote sin salida. Es el mismo motivo que ya explicaba
+// usuarios.html en su guarda, y que acá faltaba.
+if (!CV2.puede('contenido')) { location.replace('./index.html'); throw new Error('sin permiso de contenido'); }
 CV2.renderNav('cabanas');
 
 const $ = (id) => document.getElementById(id);

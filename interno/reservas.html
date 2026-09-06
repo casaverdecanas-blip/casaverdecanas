@@ -310,9 +310,11 @@ let abierta = null;
 //   mismo día que se estaba mirando.
 // La ficha vive SOLO acá: el calendario no la duplica (dependería de la
 // suscripción a pagos, de los helpers de moneda y de los dos modales).
-const _q = new URLSearchParams(location.search);
-const _pedida = _q.get('r');
-const _volverA = _q.get('volver');
+// La dirección la lee CV2.pedido() (nucleo.js), que es el mismo vocabulario
+// que usan el resto de las pantallas. El destino de vuelta lo resuelve
+// CV2.botonVolver más abajo; acá ya no hace falta guardarlo.
+const _p = CV2.pedido();
+const _pedida = _p.tipo === 'reserva' ? _p.id : null;
 let resaltada = _pedida || null;
 let traidaALaVista = false;
 let editId = null;
@@ -473,7 +475,10 @@ function render() {
 
     let h = `<div class="res${a.clave === resaltada || a.rs.some((r) => r.id === resaltada) ? ' resaltada' : ''}" id="res-${a.clave}" style="border-left:5px solid ${a.esGrupo ? 'var(--verde-osc)' : col};" onclick="abrir('${a.clave}')">
       <div class="fila1">
-        <span class="quien">${esc(r0.clienteNombre)}</span>
+        <span class="quien">${r0.clienteId
+          ? `<a class="cv-ir" href="${CV2.hrefDe('cliente', r0.clienteId, { volver: true })}"
+               onclick="event.stopPropagation()">${esc(r0.clienteNombre)}</a>`
+          : esc(r0.clienteNombre)}</span>
         ${a.esGrupo ? `<span class="est" style="background:var(--verde-claro);color:var(--verde-osc);">acuerdo · ${a.rs.length} cabañas</span>` : ''}
         ${algunaEnCasa ? '<span class="encasa">🏠 En casa</span>' : ''}
         ${r0.origen === 'airbnb' ? '<span class="est" style="background:#fde8ec;color:#b0164a;">Airbnb</span>' : ''}
@@ -1245,16 +1250,16 @@ try {
   }
 }
 
-// El botón de volver se enciende SOLO si se llegó desde el calendario.
-// Lleva el día que se estaba mirando, así se vuelve al mismo lugar y no al
-// mes actual. Es un enlace común: funciona después de editar, de pagar o de
-// anular, sin depender del historial del navegador.
-if (_volverA !== null) {
-  $('volver').classList.remove('oculto');
-  if (/^\d{4}-\d{2}-\d{2}$/.test(_volverA)) {
-    $('volver').href = './calendario.html?d=' + _volverA;
-  }
-}
+// El botón de volver se enciende si se llegó desde otra pantalla, y lleva
+// escrito adónde. Es un enlace común y no history.back(): sigue andando
+// después de editar, de pagar o de anular, y cada una de esas acciones mueve
+// el historial y lo deja apuntando a otra cosa.
+//
+// Ese criterio nació en esta pantalla; ahora vive en CV2.botonVolver y se
+// aplica igual en todas. Antes el parámetro traía una FECHA y esta pantalla
+// armaba el destino a mano —o sea que solo sabía volver al calendario—:
+// ahora trae la dirección entera y sirve para cualquier origen.
+CV2.botonVolver($('volver'));
 
 // §3.9 — el sello es decorativo y NO puede estar en el camino crítico. Sin
 // este guard, el 31-jul-2026 un elemento que no se había creado dejó la página

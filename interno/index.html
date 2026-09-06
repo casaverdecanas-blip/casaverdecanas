@@ -252,7 +252,7 @@ tocanAhora.sort((x, y) => y.atraso - x.atraso);
 // reserva, "desde que existen" puede ser con meses de anticipación, y esta
 // lista no tiene tope de filas. Core.limpiezaLatente deja pasar solo las que
 // entran en el horizonte — las mismas que se veían antes de aquel cambio.
-const aActividad = (a) => './actividades.html?a=' + encodeURIComponent(a.id);
+const aActividad = (a) => CV2.hrefDe('actividad', a.id, { volver: true });
 
 const limpiezas = acts
   .filter((a) => !a.hecho && a.reservaId && (a.fase === 'entrada' || a.fase === 'salida')
@@ -386,7 +386,7 @@ if (CV2.puede('reservas')) {
     const cuantas = (g) => g.length > 1 ? ' · ' + g.length + ' cabañas' : '';
     // El enlace lleva DIRECTO a esa reserva y la abre allá (?r=), igual que
     // desde el calendario. Antes caía en la lista y había que buscarla.
-    const aReserva = (r) => './reservas.html?r=' + encodeURIComponent(r.id);
+    const aReserva = (r) => CV2.hrefDe('reserva', r.id, { volver: true });
 
     porAcuerdo(rs.filter((r) => r.estado === 'presupuesto'))
       .slice(0, 4)
@@ -458,8 +458,9 @@ try {
       // lugar donde se puede frenar. Este enlace era el último que caía en
       // la lista, y justo el más urgente de todos.
       tono: 'urgente',
-      href: s.actividadId ? './actividades.html?a=' + encodeURIComponent(s.actividadId)
-                          : './actividades.html'
+      href: s.actividadId
+        ? CV2.hrefDe('actividad', s.actividadId, { volver: true })
+        : './actividades.html'
     }]);
   }
 } catch (e) { console.warn('sesion activa', e); }

@@ -375,7 +375,7 @@ function render() {
     <div class="mov">
       <span class="flecha">${m.tipo === 'entro' ? '⬇' : '⬆'}</span>
       <div class="info">
-        <b>${esc(m.detalle || m.categoria || '(sin detalle)')}</b>
+        ${tituloMov(m)}
         <small>${CV2.fmtFecha(m.fecha)} · ${esc(m.categoria ?? '')} · ${esc(m.nombre ?? '')}${m.cuenta ? ' · 🏦 ' + esc(m.cuenta) : ''}
           ${m.comprobanteUrl ? `· <a href="${esc(m.comprobanteUrl)}" target="_blank">comprobante</a>` : ''}${m.editadoEn ? '<br><span style="color:var(--gris);font-style:italic;">editado por ' + esc(m.editadoNombre || '') + ' · ' + CV2.fmtFecha(m.editadoEn) + '</span>' : ''}</small>
       </div>
@@ -855,6 +855,55 @@ function pintarPermisos() {
   if (kpis) kpis.classList.toggle('oculto', !finanzas);
 }
 
+// ═══ Cruzar a la ficha que originó el movimiento ══════════
+// Un movimiento guarda de dónde vino en refTipo/refId, pero ese id no es
+// siempre el de la ficha que uno quiere abrir:
+//   · 'pago'        → refId es el id del PAGO, no el de la reserva. Hay que
+//                     dar un salto más: pagos/<refId>.reservaId.
+//   · 'honorario'   → refId sí es el honorario, y el honorario tiene
+//                     actividadId. Dos saltos también.
+//   · 'liquidacion' → refId es el cobro de Airbnb; van todos juntos en
+//                     Impuestos, así que alcanza con llevar a esa pantalla.
+// Se cargan una sola vez y con getDocs, no onSnapshot: son para navegar, no
+// datos que se muestren. Si la lectura falla, el movimiento se pinta como
+// antes —texto sin enlace— y no se rompe nada.
+let refReserva = {};      // pagoId      → reservaId
+let refActividad = {};    // honorarioId → actividadId
+
+async function cargarVinculos() {
+  try {
+    const sp = await getDocs(collection(db, 'pagos'));
+    sp.forEach((d) => { const p = d.data(); if (p.reservaId) refReserva[d.id] = p.reservaId; });
+  } catch (e) { console.warn('vínculos · pagos:', e); }
+  // Los honorarios ajenos solo los ve 'finanzas'; con permiso 'dinero' a
+  // secas la regla rechaza la lectura amplia y no hay nada que enlazar.
+  if (!CV2.puede('finanzas')) return;
+  try {
+    const sh = await getDocs(collection(db, 'honorarios'));
+    sh.forEach((d) => { const h = d.data(); if (h.actividadId) refActividad[d.id] = h.actividadId; });
+  } catch (e) { console.warn('vínculos · honorarios:', e); }
+}
+
+function fichaDe(m) {
+  if (m.refTipo === 'pago' && refReserva[m.refId]) {
+    return CV2.hrefDe('reserva', refReserva[m.refId], { volver: true });
+  }
+  if (m.refTipo === 'honorario' && refActividad[m.refId]) {
+    return CV2.hrefDe('actividad', refActividad[m.refId], { volver: true });
+  }
+  if (m.refTipo === 'liquidacion') return './fiscal.html';
+  return null;
+}
+
+// El detalle del movimiento se vuelve el enlace. Es el texto que la persona
+// ya está leyendo para saber de qué se trata: no hace falta agregarle un
+// icono al lado.
+function tituloMov(m) {
+  const t = esc(m.detalle || m.categoria || '(sin detalle)');
+  const h = fichaDe(m);
+  return h ? `<a class="cv-ir" href="${h}"><b>${t}</b></a>` : `<b>${t}</b>`;
+}
+
 // ═══ Suscripción — AL FINAL ═══════════════════════════════
 function suscribir() {
   if (desuscribir) { desuscribir(); desuscribir = null; }
@@ -878,6 +927,9 @@ function suscribir() {
 
 pintarPermisos();
 suscribir();
+// Después de suscribir: los enlaces son un agregado, no pueden demorar la
+// lista. Cuando los vínculos llegan se repinta y aparecen.
+cargarVinculos().then(render);
 </script>
 </body>
 </html>

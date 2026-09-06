@@ -173,8 +173,12 @@ window.verDia = (d) => { diaSel = d; render(); };
 // a la primera corrección. Se navega, y se lleva el día para poder volver
 // exactamente a esta pantalla.
 window.verReserva = (id) => {
-  location.href = './reservas.html?r=' + encodeURIComponent(id)
-    + '&volver=' + encodeURIComponent(diaSel || '');
+  // El destino de vuelta va explícito y no se deduce de la dirección: acá se
+  // cambia de mes y de día sin que la URL se entere, así que 'volver: true'
+  // traería de vuelta al mes de hoy en vez de al que se estaba mirando.
+  location.href = CV2.hrefDe('reserva', id, {
+    volver: 'calendario.html' + (diaSel ? '?d=' + diaSel : '')
+  });
 };
 
 $('prev').addEventListener('click', () => { mes--; if (mes < 0) { mes = 11; anio--; } render(); });

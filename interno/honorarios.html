@@ -148,8 +148,17 @@ function render() {
     return;
   }
 
+  // El concepto lleva a la actividad que generó el honorario: es la forma de
+  // contestar "¿de qué era esto?" sin tener que ir a buscarlo a mano.
+  const concepto = (h) => {
+    const t = esc(h.concepto ?? 'Actividad');
+    return h.actividadId
+      ? `<a class="cv-ir" href="${CV2.hrefDe('actividad', h.actividadId, { volver: true })}">${t}</a>`
+      : t;
+  };
+
   const fila = (h) => `<div class="hon">
-    <div class="info">${esc(h.concepto ?? 'Actividad')}
+    <div class="info">${concepto(h)}
       <small>${CV2.fmtFecha(h.cicloCerradoEn)} · ${CV2.fmtHM(h.horas ?? 0)}</small>
       ${h.nota ? `<small style="font-style:italic;color:#7a6a2e;">💬 ${esc(h.nota)}</small>` : ''}
     </div>

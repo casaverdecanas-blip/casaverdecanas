@@ -40,6 +40,9 @@
 <div id="nav"></div>
 
 <div class="contenedor">
+  <a class="cv-volver oculto" id="volver">
+    <span class="material-icons">arrow_back</span> Volver
+  </a>
   <h1>Impuestos</h1>
 
   <div class="marco" id="situacion"></div>
@@ -106,6 +109,8 @@ CV2.renderNav('fiscal');
 
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
+
+CV2.botonVolver($('volver'));
 
 if (!CV2.puede('finanzas')) {
   $('pasos').innerHTML = '<div class="vacio">Esta pantalla es de quien lleva las finanzas.</div>';
@@ -288,7 +293,9 @@ function renderCobros() {
         ${b !== n ? `Bruto ${CV2.fmtMonto(b, l.moneda || 'BRL')} · neto ${CV2.fmtMonto(n, l.moneda || 'BRL')}
                      · comisión ${CV2.fmtMonto(b - n, l.moneda || 'BRL')}<br>` : ''}
         Cubre ${nombres.length || (l.reservas ?? []).length} reserva(s)${
-          nombres.length ? ': ' + esc(nombres.map((r) => r.clienteNombre || r.id).join(' · ')) : ''}
+          nombres.length ? ': ' + nombres.map((r) =>
+            `<a class="cv-ir" href="${CV2.hrefDe('reserva', r.id, { volver: true })}">${esc(r.clienteNombre || r.id)}</a>`
+          ).join(' · ') : ''}
         ${l.nota ? `<br>📝 ${esc(l.nota)}` : ''}
       </div>
       <div class="porque" style="margin-top:6px;">

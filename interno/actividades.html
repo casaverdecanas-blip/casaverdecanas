@@ -184,6 +184,11 @@
 <div id="nav"></div>
 
 <div class="contenedor">
+  <!-- Esta pantalla es destino de Cobros, Horas, Sesiones y Dinero: si no
+       hubiera con qué volver, cada consulta terminaría en un callejón. -->
+  <a class="cv-volver oculto" id="volver">
+    <span class="material-icons">arrow_back</span> Volver
+  </a>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
     <h1 style="margin-right:auto;">Actividades</h1>
     <!-- Solo aparece si el administrador tiene algo esperando en la papelera:
@@ -501,6 +506,12 @@ let pedidaHecha = false;
 // formulario se desincronizan a la primera modificación.
 const pedidaNueva = _q.get('nueva');
 let volverAgenda = _q.get('volver') === 'agenda';
+
+// El botón de volver, para cuando se llegó desde Cobros, Horas, Sesiones o
+// Dinero a mirar de qué se trataba una actividad. No pisa lo de la Agenda:
+// aquello manda 'volver=agenda' —un literal, no una dirección— y
+// CV2.botonVolver solo acepta valores terminados en .html, así que lo ignora.
+CV2.botonVolver($('volver'));
 // Se enciende cuando esta página abrió el formulario POR PEDIDO de la Agenda
 // —a crear o a editar—. Solo entonces cerrarlo devuelve allá: si alguien
 // después abre otra actividad por su cuenta, cerrar esa no lo saca de acá.
@@ -1174,7 +1185,12 @@ async function cargarReserva(reservaId) {
     }
 
     const fila = (k, v) => v ? '<dt>' + k + '</dt><dd>' + esc(String(v)) + '</dd>' : '';
-    caja.innerHTML = '<h4><span class="material-icons">king_bed</span>La reserva</h4><dl>'
+    // El título lleva a la ficha completa. Acá se muestra lo que hace falta
+    // para preparar la cabaña; lo demás —pagos, saldo, historial— vive en
+    // Reservas y no se copia, se enlaza.
+    caja.innerHTML = '<h4><span class="material-icons">king_bed</span>'
+      + '<a class="cv-ir" href="' + CV2.hrefDe('reserva', reservaId, { volver: true })
+      + '">La reserva</a></h4><dl>'
       + fila('Huésped', r.clienteNombre)
       + fila('Estado', r.estado)
       + fila('Entra', CV2.fmtFecha(r.checkIn) + '  ' + (r.horaEntrada || '14:00'))
@@ -1539,7 +1555,7 @@ function avisarActividad(id, datos, asignados, esNueva) {
         + ':\n' + datos.titulo + donde + cuando,
       para: asignados,
       excluir: u.uid,
-      enlace: './actividades.html?a=' + encodeURIComponent(id)
+      enlace: CV2.hrefDe('actividad', id)   // sin 'volver': desde un mail no hay adónde
     });
     return;
   }
@@ -1552,7 +1568,7 @@ function avisarActividad(id, datos, asignados, esNueva) {
         + datos.titulo + donde + cuando,
       para: 'todos',
       excluir: u.uid,
-      enlace: './actividades.html?a=' + encodeURIComponent(id)
+      enlace: CV2.hrefDe('actividad', id)   // sin 'volver': desde un mail no hay adónde
     });
   }
 }

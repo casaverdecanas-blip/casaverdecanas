@@ -245,8 +245,11 @@ import {
 // ── Arranque: sesión y permiso antes que nada ────────────────
 CV2.registrarSW();
 const u = await CV2.verificarAuth();
+// replace y NO href: con href esta pantalla queda en el historial, y el
+// botón Atrás desde el Inicio vuelve a entrar acá para que la echen otra
+// vez — un rebote sin salida. Mismo motivo que explica usuarios.html.
 if (!CV2.puede('contenido')) {
-  location.href = './index.html';
+  location.replace('./index.html');
   throw new Error('sin permiso de contenido');
 }
 CV2.dialogosConAtras();

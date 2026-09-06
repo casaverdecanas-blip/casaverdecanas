@@ -40,6 +40,10 @@
     </button>
   </div>
 
+  <a class="cv-volver oculto" id="volver">
+    <span class="material-icons">arrow_back</span> Volver
+  </a>
+
   <input id="buscar" placeholder="Buscar por nombre, teléfono o email…" style="margin:10px 0;">
 
   <button class="btn-ico" id="btnPorDonde" style="margin-bottom:8px;">
@@ -104,9 +108,17 @@ const ORIGENES = [
 ];
 const ORIGEN = Object.fromEntries(ORIGENES.map((o) => [o.k, o]));
 
+// Se puede llegar acá pidiendo un cliente (?c=), desde la ficha de su
+// reserva. La ficha se abre sola y se destella para que no haya que
+// buscarla en la lista. Ver CV2.hrefDe / CV2.pedido en nucleo.js.
+const _pedido = CV2.pedido();
+const _pedido_id = _pedido.tipo === 'cliente' ? _pedido.id : null;
+let traido = false;      // idempotente: se aplica una vez, cuando el dato llegó
+CV2.botonVolver($('volver'));
+
 let clientes = [];
 let reservas = [];
-let abierto = null;
+let abierto = _pedido_id;
 let editId = null;
 let filtro = '';
 let filtroOrigen = '';   // '' = todos · '__sin' = sin cargar
@@ -183,7 +195,7 @@ function render() {
   }
   cont.innerHTML = fs.map((c) => {
     const rs = reservasDe(c.id);
-    let h = `<div class="cli" onclick="abrir('${c.id}')">
+    let h = `<div class="cli" id="cli-${c.id}" onclick="abrir('${c.id}')">
       <div class="fila1"><b>${esc(c.nombre)}</b>
         ${c.pais ? `<span class="chip">${esc(c.pais)}</span>` : ''}
         ${ORIGEN[c.llegoPor] ? `<span class="chip" title="Por dónde llegó"><span class="material-icons" style="font-size:14px;">${ORIGEN[c.llegoPor].i}</span>${esc(c.llegoPorDetalle || ORIGEN[c.llegoPor].n)}</span>` : ''}
@@ -198,7 +210,8 @@ function render() {
         ${c.notas ? `<div>📝 ${esc(c.notas)}</div>` : ''}
         ${rs.length ? rs.slice(0, 6).map((r) => `<div class="rsv">
           <span class="material-icons" style="font-size:15px;">king_bed</span>
-          ${CV2.fmtFecha(r.checkIn)} → ${CV2.fmtFecha(r.checkOut)} · ${esc(r.estado)} · ${CV2.fmtMonto(r.totalBRL ?? 0)}
+          <a class="cv-ir" href="${CV2.hrefDe('reserva', r.id, { volver: true })}">
+            ${CV2.fmtFecha(r.checkIn)} → ${CV2.fmtFecha(r.checkOut)}</a> · ${esc(r.estado)}
         </div>`).join('') : '<div class="texto-gris">Sin reservas asociadas.</div>'}
         <div style="display:flex;gap:6px;margin-top:8px;">
           <button class="btn-ico" onclick="editar('${c.id}')"><span class="material-icons">edit</span> Editar</button>
@@ -208,6 +221,14 @@ function render() {
     }
     return h + '</div>';
   }).join('');
+
+  // Si se llegó pidiendo un cliente, traerlo a la vista. Va DENTRO de
+  // render() y con bandera, porque el dato puede no estar en la primera
+  // tanda del onSnapshot: así se aplica en cuanto llega, y una sola vez.
+  if (_pedido_id && !traido) {
+    const el = $('cli-' + _pedido_id);
+    if (el) { traido = true; CV2.traerALaVista(el); }
+  }
 }
 
 window.abrir = (id) => { abierto = abierto === id ? null : id; render(); };
