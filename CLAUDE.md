@@ -38,6 +38,13 @@ Este repo no usa GitHub Actions, así que GitHub Secrets no aplica —el
 detalle completo, con las reglas generales de dónde va cada tipo de dato,
 está en `PROTOCOLO-SECRETOS.md` del repo de abajo.
 
+**De quién son las cuentas** (titular de la consola de Firebase, de Cloudinary,
+de Netlify): **no se documenta acá.** Vive solo en el repo privado
+`casaverdecanas-blip/datos` → `secretos/casaverdecanas.md`, sección "Titularidad de las
+cuentas". No es un secreto —la contraseña sí, y esa no está en ningún documento—
+pero es un dato de contacto, y este repositorio es público. Ver
+`PROTOCOLO-SECRETOS.md` § "Titularidad".
+
 Índice espejo y actualizado: repo privado `casaverdecanas-blip/datos` →
 `secretos/casaverdecanas.md`.
 
