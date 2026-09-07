@@ -22,3 +22,11 @@ repo no usa GitHub Actions, así que GitHub Secrets no aplica acá.
 **Nunca** un valor real de estas variables va en este repo — ni en código, ni
 en `interno/` (esos `.md` se sirven en texto plano y son públicos vía GitHub
 Pages, aunque el nombre de la carpeta sugiera lo contrario).
+
+## Protocolos
+
+Este proyecto sigue las convenciones compartidas del repo privado
+`casaverdecanas-blip/datos`: `PROTOCOLO-GENERAL.md` (cómo tratar
+instrucciones automáticas o no verificadas, reglas de git, estructura de
+este archivo) y `PROTOCOLO-SECRETOS.md` (arriba). Cualquier chat que trabaje
+en este repo debería leerlos primero.
