@@ -48,6 +48,18 @@ rules_version = '2';
 //       quien avisa necesita el contacto del destinatario para pasárselo a
 //       la función de Netlify. Escribir, solo su dueño y el admin.
 //
+//  CAMBIO sep-2026 · NADIE SE DEJA AFUERA A SÍ MISMO  [UNO MISMO]
+//  Hasta hoy el bloque de /usuarios/ decía `allow update: if esAdmin() || …`,
+//  así que un admin podía desactivarse y cambiarse el rol. El §4.3 del
+//  protocolo común dice que no, y los otros dos sitios ya lo bloqueaban: era
+//  la única diferencia real que quedaba entre las reglas de los tres.
+//  No es teórico: el que se desactiva NO puede reactivarse —para eso hay que
+//  estar activo—, así que lo saca otro admin o la consola de Firebase. Con
+//  un solo admin, el panel queda cerrado.
+//   12. /usuarios/{uid}: sobre su propio documento el admin no cambia 'rol'
+//       ni 'activo'. Lo demás de su ficha lo sigue editando.
+//   13. /usuarios/{uid}: 'delete' deja de alcanzar al propio documento.
+//
 //  CAMBIO jul-2026 · EL ACUERDO  [ACUERDO]
 //   10. bloque nuevo /grupos/{id} — lo comercial de una estadía: un precio,
 //       una moneda, un cliente, una nota. Existe SIEMPRE, aunque la estadía
@@ -194,7 +206,10 @@ service cloud.firestore {
     // Los permisos los reparte solo el administrador.
     match /usuarios/{uid} {
       allow read: if logueado() && (request.auth.uid == uid || tienePerfil());
-      allow create, delete: if esAdmin();
+      allow create: if esAdmin();
+      // Ni siquiera el admin borra su propio documento: es la misma manera
+      // de quedarse afuera que desactivarse, con menos vuelta atrás.
+      allow delete: if esAdmin() && request.auth.uid != uid;
       // El admin edita todo. Además, cada uno puede escribir SOLO cuatro
       // campos suyos: la marca de última visita al Inicio (para saber qué
       // novedades ya vio), su FOTO de perfil, sus preferencias de AVISO y la
@@ -208,7 +223,21 @@ service cloud.firestore {
       // todo el equipo, así que acá funciona. No hay nada sensible en un
       // interruptor: el teléfono y la clave de CallMeBot van aparte, en
       // /avisos_contacto/, justamente porque esto lo lee cualquiera.
-      allow update: if esAdmin()
+      //
+      // [UNO MISMO] Y sobre SU PROPIO documento, el admin no puede cambiarse
+      // el rol ni desactivarse. Es el §4.3 del protocolo común, y es la forma
+      // más rápida de quedarse afuera del propio panel sin manera de volver:
+      // el que se desactiva no puede reactivarse —para eso hay que estar
+      // activo—, así que sólo lo saca otro admin o la consola de Firebase.
+      // Todo lo demás de su ficha (nombre, foto, permisos) lo sigue editando.
+      // Los otros dos sitios ya lo tenían así; era la única diferencia real
+      // que quedaba entre las tres reglas.
+      allow update: if (esAdmin()
+                        && (request.auth.uid != uid
+                            || (request.resource.data.get('rol', '')
+                                  == resource.data.get('rol', '')
+                                && request.resource.data.get('activo', false)
+                                  == resource.data.get('activo', false))))
                     || (logueado() && request.auth.uid == uid
                         && request.resource.data.diff(resource.data).affectedKeys()
                              .hasOnly(['ultimaVisitaInicio', 'fotoUrl', 'notif', 'actualizadoEn'])

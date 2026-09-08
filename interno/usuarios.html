@@ -109,6 +109,11 @@
     <option value="colaborador">Colaborador</option>
     <option value="admin">Administrador (CasaVerde)</option>
   </select>
+  <p class="aviso oculto" id="avisoRolPropio" style="margin-top:6px;">
+    Tu propio rol no se puede cambiar desde acá. Lo niegan las reglas, no la
+    pantalla: quitarte el rol de administrador es quedarte afuera del panel sin
+    manera de volver, porque para reactivarte hay que estar activo. Si de verdad
+    hace falta, lo hace otro administrador.</p>
 
   <h3 style="margin:14px 0 2px;font-size:.95rem;">Permisos</h3>
   <p class="aviso" style="margin-top:0;">
@@ -242,6 +247,9 @@ $('fRol').addEventListener('change', ajustarPorRol);
 
 // ═══ Modal ════════════════════════════════════════════════
 const ponerModo = (m) => {
+  // Al salir de «editar tu propia ficha» el selector vuelve a funcionar.
+  $('fRol').disabled = false;
+  $('avisoRolPropio').classList.add('oculto');
   modo = m;
   document.querySelectorAll('#modos .btn').forEach((b) => b.classList.toggle('activo', b.dataset.m === m));
   $('grupoNueva').classList.toggle('oculto', m !== 'nueva');
@@ -276,6 +284,13 @@ window.editar = (uid) => {
   $('fNombre').value = x.nombre ?? '';
   fotoEdit = x.fotoUrl ?? ''; pintarFoto();
   $('fRol').value = x.rol ?? 'colaborador';
+  /* Editando tu propia ficha, el selector de rol se apaga: las reglas lo
+     niegan (firestore.rules, [UNO MISMO]) y ofrecer algo que va a fallar es
+     peor que no ofrecerlo. El botón de desactivar ya se escondía así en la
+     lista; faltaba esto. */
+  const esUnoMismo = uid === u.uid;
+  $('fRol').disabled = esUnoMismo;
+  $('avisoRolPropio').classList.toggle('oculto', !esUnoMismo);
   pintarPermisos(x.permisos ?? {});
   ajustarPorRol();
   $('modal').showModal();

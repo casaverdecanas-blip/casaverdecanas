@@ -7,6 +7,22 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v107 (08-sep-2026) — NADIE SE DEJA AFUERA A SI MISMO. Hasta hoy el
+//       bloque de /usuarios/ decia `allow update: if esAdmin() || …`, asi que
+//       un admin podia desactivarse y cambiarse el rol. El §4.3 del protocolo
+//       comun dice que no, y los otros dos sitios ya lo bloqueaban: era la
+//       unica diferencia real que quedaba entre las reglas de los tres.
+//       No es teorico: el que se desactiva NO puede reactivarse —para eso hay
+//       que estar activo—, asi que lo saca otro admin o la consola.
+//       firestore.rules [UNO MISMO]: sobre su propio documento el admin no
+//       cambia 'rol' ni 'activo', y 'delete' deja de alcanzarlo. ⚠ HAY QUE
+//       PUBLICARLO EN LA CONSOLA: la autoridad es lo publicado (§4.8).
+//       usuarios.html [SHELL]: editando tu propia ficha el selector de rol se
+//       apaga y dice por que. El boton de desactivar ya se escondia solo.
+//       diagnostico.html: la cuarta negativa —desactivarte a vos mismo— pasa
+//       a CORRERSE, y si pasa se revierte en el acto. Es la que mas vale: las
+//       otras tres las cumple el deny por defecto aunque lo publicado este
+//       viejo; esta solo pasa si lo publicado es de verdad este archivo.
 // v106 (08-sep-2026) — EL TELEFONO SE MUESTRA CON EL +. Un telefono tiene
 //       dos formas: la que lee una persona lleva el + del codigo de pais, y
 //       la que pide wa.me no lo lleva. Se guardaba sin +, que es dejar que
@@ -472,7 +488,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v106';
+const VERSION = 'cv2-shell-v107';
 
 const SHELL = [
   './',

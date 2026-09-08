@@ -2146,6 +2146,57 @@ falta el archivo, se pide — no se reconstruye.
 
 ---
 
+# v5.73 — Nadie se deja afuera a sí mismo (T11.60)
+
+> **Registro v5.73 (Tanda 11.60 — 8 de septiembre de 2026 — `interno/firestore.rules`,
+> `interno/usuarios.html`, `interno/diagnostico.html`). `VERSION` a `cv2-shell-v107`,
+> porque `usuarios.html` está en el `SHELL`.**
+>
+> **⚠ ACCIÓN MANUAL PENDIENTE: hay que publicar las reglas.** Firebase → Firestore →
+> Reglas, pegar `interno/firestore.rules` **completo** y publicar. Hasta que eso pase, el
+> archivo del repositorio dice una cosa y la base hace otra (§4.8: la autoridad es la
+> consola). El propio diagnóstico avisa si están viejas.
+
+El bloque de `/usuarios/` decía `allow update: if esAdmin() || (…)`, así que **un
+administrador podía desactivarse y cambiarse el rol a sí mismo.** El §4.3 del protocolo
+común dice que no, y los otros dos sitios ya lo bloqueaban: era la última diferencia real
+que quedaba entre las reglas de los tres.
+
+**No es teórico.** El que se desactiva **no puede reactivarse** —para eso hay que estar
+activo—, así que sólo lo saca otro administrador o la consola de Firebase. Con un solo
+administrador, el panel queda cerrado con la llave adentro.
+
+| Dónde | Qué cambia |
+|---|---|
+| `firestore.rules` `[UNO MISMO]` | sobre su propio documento, el admin no cambia `rol` ni `activo`. Todo lo demás de su ficha —nombre, foto, permisos— lo sigue editando |
+| `firestore.rules` | `delete` deja de alcanzar al propio documento: es la misma manera de quedarse afuera, con menos vuelta atrás |
+| `usuarios.html` | editando tu propia ficha, el selector de rol se apaga y dice por qué |
+| `diagnostico.html` | la cuarta negativa pasa a correrse |
+
+> **Un detalle que vale la pena mirar:** el botón de desactivar **ya se escondía** en tu
+> propia fila (`x.uid !== u.uid`), desde antes de esta tanda. O sea que la interfaz estaba
+> bien y la regla no — que es exactamente lo que el §4.3 previene al decir que esto es
+> **una regla, no un cuidado de la interfaz**. Cualquiera con la consola del navegador
+> abierta podía hacer la escritura igual.
+
+## La prueba que faltaba, y por qué vale más que las otras tres
+
+Hasta hoy la pantalla **no corría** la prueba de desactivarte a vos mismo, y lo decía en un
+⚠️ con todas las letras: correrla con una cuenta admin te dejaba afuera de verdad. Ahora se
+corre, y es **la que más vale de las cuatro**: las otras tres comprueban que una colección
+sin bloque está cerrada, y eso lo cumple el deny por defecto aunque lo publicado sea de
+hace meses. Ésta comprueba una cláusula concreta de `/usuarios/`, así que **sólo pasa si lo
+publicado es de verdad este archivo**.
+
+> **Se intenta y, si pasa, se revierte en el acto.** Que la regla esté escrita en el
+> repositorio no significa que esté publicada, así que la prueba tiene que sobrevivir al
+> caso en que todavía no lo esté. Verificado en un banco de pruebas con un Firestore de
+> mentira que deja pasar todo: la escritura pasa, la pantalla la revierte, informa en rojo
+> y la cuenta queda en `activo: true`. Es el mismo patrón que ya usaba CasaYourte (§2.13:
+> antes de inventar uno propio, se repite el que ya existe en otro de los tres).
+
+---
+
 # v5.72 — El shell que se sirve (T11.59)
 
 > **Registro v5.72 (Tanda 11.59 — 8 de septiembre de 2026 —

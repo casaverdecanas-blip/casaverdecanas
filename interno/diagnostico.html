@@ -110,6 +110,11 @@
       lectura funcione prueba que esa lectura está permitida; <b>no</b> prueba que lo
       prohibido esté prohibido — y eso es lo único que demuestra que lo publicado en la
       consola es <code>interno/firestore.rules</code> y no otra cosa. Necesita sesión.</p>
+    <p class="sub" style="margin:0 0 6px;">La cuarta <b>escribe sobre tu propia cuenta</b>:
+      intenta ponerte en <code>activo: false</code>, que las reglas tienen que negar. <b>No se
+      pierde ningún dato</b> — si por un error pasara, se revierte en el acto y se avisa.
+      Es la que más vale: las otras tres las cumple el deny por defecto aunque lo publicado
+      esté viejo; ésta sólo pasa si lo publicado es de verdad este archivo.</p>
     <div id="s6">Sin probar.</div>
     <div class="acc"><button class="p" id="btnReglas">Probar las negativas</button></div></div>
 
@@ -585,30 +590,62 @@ $('btnReglas').addEventListener('click', async () => {
     + 'mano. Si se lee, el bloque publicado no tiene esa exclusión y cualquiera del '
     + 'equipo ve la clave.');
 
-  // La prueba de desactivarse a uno mismo (§4.8) NO se corre acá si sos admin,
-  // y no es un olvido: en ESTE proyecto las reglas la dejan pasar. El bloque de
-  // usuarios dice `allow update: if esAdmin() || (...)`, así que un admin puede
-  // desactivarse y cambiarse el rol — al revés de lo que piden el §4.3 del
-  // protocolo común y las reglas de los otros dos sitios. Correrla acá te dejaría
-  // afuera de tu propio panel de verdad.
+  /* Desactivarte a vos mismo. Es la prueba que MÁS vale de las cuatro: las
+     otras tres comprueban que una colección sin bloque está cerrada, y eso lo
+     hace el deny por defecto aunque el archivo publicado sea viejo. Ésta
+     comprueba una cláusula concreta de /usuarios/, así que sólo pasa si lo
+     publicado es de verdad este firestore.rules.
+
+     Hasta septiembre de 2026 NO se corría acá, y no era un olvido: las reglas
+     de este proyecto dejaban que un admin se desactivara, así que correrla te
+     dejaba afuera del panel en serio. Se arregló la regla (bloque de usuarios,
+     [UNO MISMO]) y desde entonces se corre.
+
+     ⚠ SE INTENTA Y, SI PASA, SE REVIERTE EN EL ACTO. Que la regla esté
+     escrita en el repositorio no significa que esté publicada —la autoridad es
+     la consola (§4.8)—, así que esta prueba tiene que sobrevivir al caso en
+     que todavía no lo esté. Es el mismo patrón que usa CasaYourte. */
   try {
     const u = FB.auth.currentUser;
-    const s6 = u ? await FB.getDoc(FB.doc(FB.db, 'usuarios', u.uid)) : null;
+    const s6 = u ? await conPlazo(FB.getDoc(FB.doc(FB.db, 'usuarios', u.uid)), 8000) : null;
     const soyAdmin = s6 && s6.exists() && s6.data().rol === 'admin';
     if (!u) {
       h += linea('ojo', 'Desactivarte a vos mismo', 'sin sesión, no se puede probar');
-    } else if (soyAdmin) {
-      h += linea('ojo', 'Desactivarte a vos mismo — NO SE PRUEBA acá',
-        'En este proyecto las reglas dejan que un admin se desactive y se cambie el rol '
-        + '(usuarios: allow update: if esAdmin() || ...). El §4.3 del protocolo común dice '
-        + 'que no debería, y los otros dos sitios lo bloquean. Correr la prueba te dejaría '
-        + 'afuera del panel de verdad, así que no se corre: queda como pendiente arreglar '
-        + 'la regla, y recién ahí esta prueba pasa a tener sentido.');
-      anotar('desactivarse a uno mismo: NO SE PRUEBA (las reglas lo permiten para admin — pendiente)');
+      anotar('desactivarse a uno mismo: sin sesión');
     } else {
-      await negativa('Desactivarte a vos mismo',
-        () => FB.updateDoc(FB.doc(FB.db, 'usuarios', u.uid), { activo: false }),
-        'Pudiste desactivarte. Poné activo:true a mano en la consola, en usuarios/' + u.uid);
+      try {
+        await conPlazo(FB.updateDoc(FB.doc(FB.db, 'usuarios', u.uid), { activo: false }), 8000);
+        // Pasó: hay que devolver la cuenta a su lugar ANTES de contar nada.
+        try {
+          await FB.updateDoc(FB.doc(FB.db, 'usuarios', u.uid), { activo: true });
+          h += linea('mal', 'Desactivarte a vos mismo — PASÓ',
+            'Pudiste desactivarte, y se revirtió en el acto: tu cuenta volvió a activo:true. '
+            + 'Lo publicado en la consola no es este firestore.rules. Pegalo completo en '
+            + 'Firebase → Firestore → Reglas y publicá.');
+          anotar('desactivarse a uno mismo: PASÓ (revertido) — las reglas publicadas están viejas');
+        } catch (e2) {
+          h += linea('mal', 'Desactivarte a vos mismo — PASÓ Y NO SE REVIRTIÓ',
+            'Poné activo:true a mano en la consola de Firebase, en usuarios/' + u.uid
+            + ', y después publicá firestore.rules completo.');
+          anotar('desactivarse a uno mismo: PASÓ y NO se revirtió — usuarios/' + u.uid);
+        }
+      } catch (e) {
+        const c = e.code || '';
+        if (c !== 'permission-denied') {
+          h += linea('ojo', 'Desactivarte a vos mismo — no se pudo probar',
+            c === 'plazo' ? 'Firestore no contestó: es la red, no un permiso' : (c + ' ' + e.message));
+          anotar('desactivarse a uno mismo: no se pudo probar (' + (c || e.message) + ')');
+        } else if (soyAdmin) {
+          h += linea('ok', 'Desactivarte a vos mismo',
+            'denegado: la regla está publicada y viva. Es el resultado que se busca.');
+          anotar('desactivarse a uno mismo: denegado OK (con cuenta admin)');
+        } else {
+          h += linea('ojo', 'Desactivarte a vos mismo',
+            'denegado — pero como no sos administrador, esto sólo prueba que un colaborador no '
+            + 'escribe usuarios. La cláusula de no desactivarse se comprueba con una cuenta admin.');
+          anotar('desactivarse a uno mismo: denegado, pero sin cuenta admin no prueba la cláusula');
+        }
+      }
     }
   } catch (e) {
     h += linea('ojo', 'Desactivarte a vos mismo', 'no se pudo determinar el rol: ' + e.message);
