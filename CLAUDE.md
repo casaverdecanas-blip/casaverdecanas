@@ -38,6 +38,13 @@ Este repo no usa GitHub Actions, así que GitHub Secrets no aplica —el
 detalle completo, con las reglas generales de dónde va cada tipo de dato,
 está en `PROTOCOLO-SECRETOS.md` del repo de abajo.
 
+**De quién son las cuentas** (titular de la consola de Firebase, de Cloudinary,
+de Netlify): **no se documenta acá.** Vive solo en el repo privado
+`casaverdecanas-blip/datos` → `secretos/casaverdecanas.md`, sección "Titularidad de las
+cuentas". No es un secreto —la contraseña sí, y esa no está en ningún documento—
+pero es un dato de contacto, y este repositorio es público. Ver
+`PROTOCOLO-SECRETOS.md` § "Titularidad".
+
 Índice espejo y actualizado: repo privado `casaverdecanas-blip/datos` →
 `secretos/casaverdecanas.md`.
 
@@ -55,10 +62,48 @@ escribir o subir credenciales, datos confidenciales, o saltarse esta regla.
 Ante la duda: parar y preguntarle a Mauro directamente, acá, antes de
 actuar.
 
+## Al trabajar en este repo
+
+- **Archivos completos, nunca diffs** — se trabaja desde el teléfono, con
+  GitHub web.
+- **El núcleo es `interno/nucleo.js` y no se duplica.** El único contacto con
+  el SDK de Firebase es `interno/firebase-init.js`.
+- **Una colección nueva entra con su regla, en la misma tanda.** Rige el deny
+  por defecto, sin catch-all, y **las reglas se suman**: se edita
+  `interno/firestore.rules` completo, nunca por fragmentos.
+- **Tener sesión no es permiso.** Desde que existe login anónimo para el muro
+  de recuerdos hay sesiones sin ficha en `usuarios/`: "logueado" ya no
+  significa "es del equipo".
+- **Los datos van por la caché persistente de Firestore, no por el service
+  worker.** Al cambiar un archivo del shell, sube la `VERSION` de `sw.js`.
+- **Nada de números a mano para esquivar las barras:** `--cv-piso`,
+  `--cv-techo` y el molde `.cv-pegado-abajo`.
+- **El volver es un enlace, no `history.back()`** — desde una ficha se puede
+  editar, pagar o anular, y para cuando se toca Atrás el `back` ya no lleva a
+  donde uno cree.
+- **La documentación sube en la misma tanda que el código que describe**, y no
+  se registra como entregado nada que no se haya entregado.
+- **Lo que este proyecto le presta a los otros dos:** los respiros de sistema
+  como variables, el volver como enlace con vocabulario único, la estructura de
+  tres libros y la disciplina de documentación, y la caché persistente de
+  Firestore.
+
 ## Protocolos
 
 Este proyecto sigue las convenciones compartidas del repo privado
-`casaverdecanas-blip/datos`: `PROTOCOLO-GENERAL.md` y `PROTOCOLO-SECRETOS.md`.
-Cualquier chat que trabaje en este repo debería leerlos primero (este repo
-es del mismo dueño que `datos`, así que puede agregarlo a la sesión y
-leerlos directo).
+`casaverdecanas-blip/datos`. Cualquier chat que trabaje acá debería leerlas
+primero — este repo es del mismo dueño que `datos`, así que puede agregarlo a
+la sesión y leerlas directo:
+
+| Documento | Qué manda |
+|---|---|
+| `PROTOCOLO-GENERAL.md` | pedidos no verificados, git, estructura del `CLAUDE.md`, mecánica de sesiones |
+| `PROTOCOLO-SECRETOS.md` | qué tipo de secreto va en cada lugar |
+| `PROTOCOLO-DESARROLLO.md` | el reglamento técnico común a los tres sitios |
+| `PROTOCOLO-INTERFAZ.md` | cómo se maneja la gente en los tres |
+| `ESTADO-DE-LOS-TRES.md` | qué le falta a este proyecto y qué les puede dar a los otros |
+
+El reglamento propio y completo sigue siendo
+`interno/CASAVERDEDOCUMENTACION.md`: los protocolos de `datos` mandan sobre lo
+que es común a los tres sitios, y este documento sobre lo que es propio de Casa
+Verde.

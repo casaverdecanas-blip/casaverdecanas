@@ -2146,6 +2146,45 @@ falta el archivo, se pide — no se reconstruye.
 
 ---
 
+# v5.71 — Las negativas entran al diagnóstico (T11.58)
+
+> **Registro v5.71 (Tanda 11.58 — 8 de septiembre de 2026 —
+> `interno/diagnostico.html`). Sin cambios de reglas, de datos ni del `SHELL`:
+> la página no está en la lista del service worker, así que la `VERSION` no sube.**
+
+La página probaba que **lo permitido funcione**. Le faltaba lo único que demuestra que
+lo publicado en la consola es `interno/firestore.rules` y no otra cosa: **que lo
+prohibido esté prohibido**. Es la sección 6, y se lee al revés que las otras — ahí lo
+bueno es que falle.
+
+Tres negativas, cada una con su motivo:
+
+1. **Leer una colección sin bloque propio.** Este archivo de reglas **no tiene
+   catch-all**, así que una colección sin bloque tiene que quedar inaccesible. Si se
+   puede leer, lo publicado no es este archivo.
+2. **Escribir en esa misma colección.**
+3. **Leer `config/integraciones`.** El bloque `config/{doc}` lo excluye a mano, porque
+   ahí viven claves de terceros. Si se lee, la exclusión no está publicada y cualquiera
+   del equipo ve la clave de Google.
+
+> **Y una cuarta que NO se corre acá, que es el hallazgo de esta tanda.** La prueba
+> estándar del ecosistema es *desactivarse a uno mismo* y comprobar que el panel te
+> echa. **En este proyecto no se puede correr:** el bloque de `usuarios` dice
+> `allow update: if esAdmin() || (...)`, así que **un administrador puede desactivarse
+> y cambiarse el rol**. `Rematetaller` y `CasaYourte` lo bloquean explícitamente;
+> nosotros no. Correr la prueba con una cuenta admin te dejaría afuera del panel de
+> verdad, así que la página lo detecta, no la corre, y explica por qué.
+>
+> **Es una diferencia real con el protocolo común** (`PROTOCOLO-DESARROLLO.md` §4.3:
+> *"El admin no puede quitarse el rol ni desactivarse — es la forma más rápida de
+> quedarse afuera del propio panel sin manera de volver"*). Arreglarlo es tocar el
+> bloque de `usuarios` de las reglas, o sea una decisión y una republicación: queda
+> anotado, no hecho.
+
+Con una cuenta que **no** sea admin la prueba sí corre, y ahí la negativa es legítima.
+
+---
+
 # v5.70 — Las opiniones de Airbnb (T11.55 a T11.57)
 
 > **Registro v5.70 (Tandas 11.55 a 11.57 — 30 de agosto de 2026 —
