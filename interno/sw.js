@@ -7,6 +7,21 @@
 //  Al cambiar cualquier archivo del shell: subir la VERSION.
 // ═══════════════════════════════════════════════════════════
 
+// v106 (08-sep-2026) — EL TELEFONO SE MUESTRA CON EL +. Un telefono tiene
+//       dos formas: la que lee una persona lleva el + del codigo de pais, y
+//       la que pide wa.me no lo lleva. Se guardaba sin +, que es dejar que
+//       el formato de un tercero decida como se le habla a la gente.
+//       nucleo.js: CV2.soloDigitos, CV2.telVisible, CV2.urlWhatsapp y
+//       CV2.avisoDeTelefono — este ultimo ataja lo que de verdad pasa, el 0
+//       inicial del DDD, con el que wa.me devuelve una pagina de error en
+//       vez del chat y desde el panel no se nota.
+//       cabanas.html: guarda y muestra con +, y avisa antes de guardar.
+//       clientes.html: muestra con + y arma el enlace con CV2.urlWhatsapp;
+//       se le saca la copia local de soloDigitos (§3.2). No bloquea el
+//       guardado: ahi el telefono es un dato de la ficha, no el canal.
+//       index.html, la-casa.html y opiniones.html NO cambian: no importan
+//       nucleo.js a proposito, y ya sacaban los no-digitos por su cuenta.
+//       Viene de remateTaller, que lo tiene en interno/utils.js.
 // v105 (06-sep-2026) — CRUZAR INFORMACION SIN IR A BUSCARLA. Pedido del
 //       administrador: que desde Dinero se pueda saltar a la reserva y
 //       volver, y que eso sea parejo en todo el panel.
@@ -457,7 +472,7 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v105';
+const VERSION = 'cv2-shell-v106';
 
 const SHELL = [
   './',

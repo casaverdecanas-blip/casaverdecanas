@@ -823,6 +823,59 @@ CV2.fmtHM = function (h) {
 CV2.fmtMonto = (n, moneda = 'BRL') =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: moneda }).format(Number(n) || 0);
 
+/* ---------- Teléfonos ----------
+   Un teléfono tiene DOS formas y no son intercambiables: la que se le muestra
+   a una persona lleva el «+» del código de país —sin él, «5548999999999» no
+   se lee como un número, se lee como un error— y la que pide la API de
+   WhatsApp no lo lleva, porque wa.me quiere dígitos pelados.
+
+   Se guarda y se muestra la primera; la segunda se arma al usarla. Al revés
+   —guardar sin «+» porque así lo quiere wa.me— es dejar que el formato de un
+   tercero decida cómo se le habla a la gente.
+
+   Las tres toleran cualquier entrada, con «+» o sin él: hay números guardados
+   de antes. Y por eso mismo `index.html`, `la-casa.html` y `opiniones.html`
+   siguen sacando los no-dígitos por su cuenta: esas tres NO importan nucleo.js
+   a propósito (arrancaría verificarAuth y mandaría al visitante al login), y
+   ya toleraban las dos formas. Es la excepción, y está acá escrita.
+
+   Este bloque viene de remateTaller, que lo tiene en interno/utils.js. */
+
+/** Solo dígitos. Es lo que pide la API de WhatsApp, y nada más. */
+CV2.soloDigitos = (t) => String(t ?? '').replace(/\D/g, '');
+
+/** El teléfono como se le muestra a una persona: con el «+» del código de país. */
+CV2.telVisible = (t) => {
+  const d = CV2.soloDigitos(t);
+  return d ? '+' + d : '';
+};
+
+/** El enlace para abrir un chat de WhatsApp. Acá —y en ningún otro lado— se
+    saca el «+», porque es el único lugar donde estorba. */
+CV2.urlWhatsapp = (telefono, texto) => {
+  const d = CV2.soloDigitos(telefono);
+  if (!d) return '';
+  return 'https://wa.me/' + d + (texto ? '?text=' + encodeURIComponent(texto) : '');
+};
+
+/* Lo que está objetivamente mal en un teléfono internacional. Devuelve el
+   aviso, o '' si no hay nada que decir. No adivina el país: sólo tres cosas
+   que no pueden ser. La del 0 es la que de verdad pasa —en Brasil el número
+   se dicta con el 0 del DDD, y ese 0 es para llamar dentro del país—: ningún
+   código de país empieza con 0, así que wa.me devuelve una página de error en
+   vez del chat, y desde el panel eso no se ve. El máximo de 15 es E.164. */
+CV2.avisoDeTelefono = (t) => {
+  const d = CV2.soloDigitos(t);
+  if (!d) return '';
+  if (d[0] === '0') return 'El número empieza con 0. Ese 0 sirve para llamar dentro del '
+    + 'país; WhatsApp necesita el código de país. Brasil es 55: +55, DDD y número.';
+  if (d.length < 8) return 'El número parece corto: son ' + d.length
+    + ' dígitos y con el código de país tendrían que ser al menos 8.';
+  if (d.length > 15) return 'El número parece largo: son ' + d.length
+    + ' dígitos y un teléfono internacional no pasa de 15.';
+  return '';
+};
+
 // La fecha LOCAL de un Date, en formato 'YYYY-MM-DD'.
 //
 // NO usa toISOString(): eso da la fecha en UTC, y Brasil está tres horas
@@ -900,7 +953,7 @@ CV2.toast = function (msj, tipo = 'info') {
 // (el WhatsApp iba al número por defecto) era idéntico a un problema de
 // configuración, y no había forma de saber qué código estaba corriendo.
 // Se sube a mano cada vez que se toca el bloque de avisos.
-CV2.VERSION = 'nucleo-avisos-11';
+CV2.VERSION = 'nucleo-avisos-12';
 
 CV2.NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
 

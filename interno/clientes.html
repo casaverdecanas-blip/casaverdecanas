@@ -127,7 +127,12 @@ const reservasDe = (cid) => reservas
   .filter((r) => r.clienteId === cid)
   .sort((a, b) => (b.checkIn ?? '').localeCompare(a.checkIn ?? ''));
 
-const soloDigitos = (t) => String(t ?? '').replace(/[^\d]/g, '');
+/* El teléfono se muestra con «+» y el enlace a WhatsApp se arma sin él: las
+   dos cosas las hace nucleo.js, en un solo lugar (PROTOCOLO-INTERFAZ §11).
+   Acá había una copia local de `soloDigitos`, que es justo lo que §3.2 no
+   quiere. Se guarda normalizado, pero NO se bloquea el guardado como en
+   Cabañas: ahí el número ES el canal por el que entra una consulta, y acá es
+   un dato de contacto de la ficha, que puede ser un fijo o estar a medias. */
 
 // Cuenta clientes Y reservas por origen. Las dos cifras juntas dicen algo
 // que ninguna dice sola: un cliente que llegó recomendado y volvió tres
@@ -202,7 +207,7 @@ function render() {
         ${rs.length ? `<span class="texto-gris">${rs.length} reserva(s)</span>` : ''}
       </div>
       <div class="contacto" onclick="event.stopPropagation()">
-        ${c.telefono ? `<a href="https://wa.me/${soloDigitos(c.telefono)}" target="_blank"><span class="material-icons" style="font-size:15px;color:#25d366;">chat</span>${esc(c.telefono)}</a>` : ''}
+        ${c.telefono ? `<a href="${CV2.urlWhatsapp(c.telefono)}" target="_blank"><span class="material-icons" style="font-size:15px;color:#25d366;">chat</span>${esc(CV2.telVisible(c.telefono))}</a>` : ''}
         ${c.email ? `<a href="mailto:${esc(c.email)}"><span class="material-icons" style="font-size:15px;">mail</span>${esc(c.email)}</a>` : ''}
       </div>`;
     if (abierto === c.id) {
@@ -261,7 +266,7 @@ function abrirModal(c) {
   editId = c?.id ?? null;
   $('mTit').textContent = editId ? 'Editar cliente' : 'Nuevo cliente';
   $('fNombre').value = c?.nombre ?? '';
-  $('fTelefono').value = c?.telefono ?? '';
+  $('fTelefono').value = CV2.telVisible(c?.telefono);
   $('fEmail').value = c?.email ?? '';
   $('fPais').value = c?.pais ?? '';
   $('fLlegoPor').value = ORIGEN[c?.llegoPor] ? c.llegoPor : '';
@@ -280,7 +285,7 @@ $('mGuardar').addEventListener('click', async () => {
   if (!nombre) { CV2.toast('Falta el nombre', 'error'); return; }
   const datos = {
     nombre,
-    telefono: $('fTelefono').value.trim() || null,
+    telefono: CV2.telVisible($('fTelefono').value) || null,
     email: $('fEmail').value.trim() || null,
     pais: $('fPais').value.trim() || null,
     llegoPor: $('fLlegoPor').value || null,

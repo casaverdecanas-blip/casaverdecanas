@@ -59,10 +59,10 @@
   <p id="sMeta" class="texto-gris" style="margin:0 0 10px;font-size:.76rem;"></p>
 
   <label>WhatsApp que recibe las consultas</label>
-  <input id="sWa" inputmode="tel" placeholder="5548999999999"
+  <input id="sWa" inputmode="tel" placeholder="+5548999999999"
     style="font-family:monospace;">
   <p class="texto-gris" style="font-size:.78rem;margin:4px 0 12px;">
-    Con código de país, sin espacios ni signos. Brasil: 55 + DDD + número.</p>
+    Con el + y el código de país. Brasil: +55 + DDD + número, sin el 0 del DDD.</p>
 
   <div style="display:flex;gap:6px;margin-bottom:12px;">
     <button class="btn sIdi activo" data-i="pt" style="flex:1;">Português</button>
@@ -478,7 +478,8 @@ $('btnSitio').addEventListener('click', async () => {
       sitio = { whatsapp: crudo.whatsapp || '', textos: crudo.textos || { pt:{}, es:{}, en:{} } };
     }
   } catch (e) { CV2.toast('No se pudo leer la configuración', 'error'); }
-  $('sWa').value = sitio.whatsapp || '';
+  // telVisible y no el crudo: si quedó guardado sin «+» de antes, se ve con «+».
+  $('sWa').value = CV2.telVisible(sitio.whatsapp);
   pintarMeta(crudo);
   cargarIdioma('pt');
   $('mSitio').showModal();
@@ -488,8 +489,12 @@ $('sCancelar').addEventListener('click', () => $('mSitio').close());
 
 $('sGuardar').addEventListener('click', async () => {
   guardarIdiomaActual();
-  const wa = $('sWa').value.replace(/[^0-9]/g, '');
-  if (wa && wa.length < 10) { CV2.toast('El número de WhatsApp parece incompleto', 'error'); return; }
+  // Se guarda con «+», que es la forma que se le muestra a una persona. El
+  // formato pelado que pide wa.me lo arman las páginas públicas al usarlo.
+  // Ver nucleo.js, «Teléfonos».
+  const wa = CV2.telVisible($('sWa').value);
+  const avisoWa = CV2.avisoDeTelefono(wa);
+  if (avisoWa) { CV2.toast(avisoWa, 'error'); return; }
   $('sGuardar').disabled = true;
   try {
     await setDoc(doc(db, 'config', 'sitio'), {
