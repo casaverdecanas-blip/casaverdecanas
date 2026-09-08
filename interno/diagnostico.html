@@ -182,6 +182,44 @@ async function verNavegador() {
     }
   } catch (e) { h += linea('mal', 'No se pudieron leer las cachés', e.message); }
 
+  // El sello del shell es la VERSION de sw.js, y la prueba que vale es que
+  // coincida con la caché que se está sirviendo. Si no coinciden, este
+  // dispositivo está mezclando archivos viejos y nuevos — el síntoma que §3.4
+  // manda mirar primero y el que más veces se confundió con otra cosa.
+  // Se pide sw.js a la red a propósito: la idea es comparar contra lo publicado.
+  try {
+    const rsw = await conPlazo(fetch('sw.js?d=' + Date.now(), { cache: 'no-store' }), 12000);
+    if (!rsw.ok) {
+      h += linea('mal', 'No se pudo leer sw.js', 'HTTP ' + rsw.status);
+      anotar('shell: sw.js HTTP ' + rsw.status);
+    } else {
+      const m = (await rsw.text()).match(/const\s+VERSION\s*=\s*['"]([^'"]+)['"]/);
+      const claves = window.caches ? await caches.keys() : [];
+      if (!m) {
+        h += linea('duda', 'El shell que se sirve', 'sw.js no declara una VERSION reconocible.');
+        anotar('shell: sw.js sin VERSION reconocible');
+      } else if (!claves.length) {
+        h += linea('duda', 'El shell que se sirve',
+          'sw.js publica ' + m[1] + ', pero todavía no hay ninguna caché. Recargá una vez con señal.');
+        anotar('shell: publicado ' + m[1] + ' · sin caché todavía');
+      } else if (claves.indexOf(m[1]) !== -1) {
+        h += linea('ok', 'El shell que se sirve',
+          'sw.js publica ' + m[1] + ' y es la que está activa.');
+        anotar('shell: ' + m[1] + ' OK');
+      } else {
+        h += linea('mal', 'El shell que se sirve está DESFASADO',
+          'sw.js publica ' + m[1] + ' y la caché activa es ' + claves.join(', ')
+          + '. Este dispositivo está sirviendo una mezcla de archivos viejos y nuevos: es lo '
+          + 'primero a descartar ante cualquier rareza. Cerrá todas las pestañas del sitio y '
+          + 'volvé a abrir, o usá "Reparar la app" desde el avatar.');
+        anotar('shell: DESFASADO — publicado ' + m[1] + ', activo ' + claves.join(', '));
+      }
+    }
+  } catch (e) {
+    h += linea('duda', 'El shell que se sirve', 'no se pudo comparar: '
+      + (e.code === 'plazo' ? 'sw.js no contestó' : e.message));
+  }
+
   h += linea(navigator.onLine ? 'ok' : 'mal',
     navigator.onLine ? 'Con conexión' : 'SIN conexión',
     navigator.onLine ? '' : 'Nada va a poder validarse contra el servidor.');

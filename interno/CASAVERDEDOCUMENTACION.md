@@ -2146,6 +2146,27 @@ falta el archivo, se pide — no se reconstruye.
 
 ---
 
+# v5.72 — El shell que se sirve (T11.59)
+
+> **Registro v5.72 (Tanda 11.59 — 8 de septiembre de 2026 —
+> `interno/diagnostico.html`). Sin cambios de reglas ni de datos. La página no está en el
+> `SHELL`, así que la `VERSION` no sube.**
+
+La sección 1 suma una comparación que faltaba: **la `VERSION` que publica `sw.js` contra
+la caché que este dispositivo está sirviendo.** Se pide `sw.js` a la red a propósito —la
+idea es comparar contra lo publicado, no contra lo cacheado—.
+
+Si no coinciden, sale en rojo y dice qué hacer: este dispositivo está sirviendo **una
+mezcla de archivos viejos y nuevos**, que es el síntoma que §3.4 manda descartar primero
+y el que más veces se confundió con un problema de configuración.
+
+> **De dónde salió.** No de una teoría: de una corrida real de la pantalla equivalente de
+> CasaYourte, que informó `cy-shell-v25` **con la v27 ya publicada** y no lo señaló. El
+> dato estaba a la vista, en la línea de arriba, y la pantalla no lo cruzaba con nada.
+> **Mostrar un dato no es lo mismo que verificarlo.**
+
+---
+
 # v5.71 — Las negativas entran al diagnóstico (T11.58)
 
 > **Registro v5.71 (Tanda 11.58 — 8 de septiembre de 2026 —
