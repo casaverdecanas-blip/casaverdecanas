@@ -105,6 +105,14 @@
     <div id="s5">Sin probar.</div>
     <div class="acc"><button class="p" id="btnRed">Probar la conexión</button></div></div>
 
+  <div class="tarj"><h2>6 · Que las reglas estén vivas</h2>
+    <p class="sub" style="margin:0 0 6px;">Acá lo bueno es que <b>falle</b>. Que una
+      lectura funcione prueba que esa lectura está permitida; <b>no</b> prueba que lo
+      prohibido esté prohibido — y eso es lo único que demuestra que lo publicado en la
+      consola es <code>interno/firestore.rules</code> y no otra cosa. Necesita sesión.</p>
+    <div id="s6">Sin probar.</div>
+    <div class="acc"><button class="p" id="btnReglas">Probar las negativas</button></div></div>
+
   <div class="tarj"><h2>Para traer al chat</h2>
     <textarea id="informe" readonly></textarea>
     <div class="acc"><button class="p" id="btnCopiar">Copiar el informe</button>
@@ -483,6 +491,92 @@ $('btnRed').addEventListener('click', async () => {
     }
   }
   $('s5').innerHTML = h;
+  b.disabled = false;
+});
+
+
+// ── 6 · Que las reglas estén vivas ───────────────────────
+// Lo que se busca acá es el ERROR: cada negativa prueba que esa regla está
+// publicada. El archivo del repositorio es una copia; la autoridad es la
+// consola, y pueden divergir sin aviso (PROTOCOLO-DESARROLLO.md §11.3, en el
+// repositorio `datos`).
+$('btnReglas').addEventListener('click', async () => {
+  const b = $('btnReglas'); b.disabled = true;
+  if (!FB) {
+    $('s6').innerHTML = linea('mal', 'Hace falta entrar primero',
+      'Iniciá sesión en la seccion 3 y volvé.');
+    b.disabled = false; return;
+  }
+  $('s6').innerHTML = 'Probando…';
+  anotar('\n=== 6 · QUE LAS REGLAS ESTÉN VIVAS ===');
+  anotar('(acá lo bueno es que FALLE: cada negativa prueba que esa regla está publicada)');
+  let h = '';
+
+  const negativa = async (titulo, intento, siPasa) => {
+    try {
+      await conPlazo(intento(), 8000);
+      h += linea('mal', titulo + ' — PASÓ', siPasa);
+      anotar(titulo + ': PASÓ — ' + siPasa);
+    } catch (e) {
+      const c = e.code || '';
+      if (c === 'permission-denied') {
+        h += linea('ok', titulo, 'denegado, como corresponde');
+        anotar(titulo + ': denegado OK');
+      } else {
+        h += linea('ojo', titulo + ' — no se pudo probar',
+          c === 'plazo' ? 'Firestore no contestó: es la red, no un permiso' : (c + ' ' + e.message));
+        anotar(titulo + ': no se pudo probar (' + (c || e.message) + ')');
+      }
+    }
+  };
+
+  await negativa('Leer una colección sin bloque',
+    () => FB.getDocs(FB.collection(FB.db, 'zz-diagnostico-sin-regla')),
+    'Este archivo de reglas no tiene catch-all, así que una colección sin bloque '
+    + 'propio tiene que quedar inaccesible. Si se pudo leer, lo publicado no es '
+    + 'firestore.rules: hay un bloque de más.');
+
+  await negativa('Escribir en una colección sin bloque',
+    () => FB.setDoc(FB.doc(FB.db, 'zz-diagnostico-sin-regla', 'prueba'), { t: Date.now() }),
+    'Se escribió de verdad. Borrá zz-diagnostico-sin-regla/prueba desde la consola '
+    + 'y republicá firestore.rules completo.');
+
+  await negativa('Leer config/integraciones',
+    () => FB.getDoc(FB.doc(FB.db, 'config', 'integraciones')),
+    'Ese documento guarda claves de terceros y el bloque config/{doc} lo excluye a '
+    + 'mano. Si se lee, el bloque publicado no tiene esa exclusión y cualquiera del '
+    + 'equipo ve la clave.');
+
+  // La prueba de desactivarse a uno mismo (§4.8) NO se corre acá si sos admin,
+  // y no es un olvido: en ESTE proyecto las reglas la dejan pasar. El bloque de
+  // usuarios dice `allow update: if esAdmin() || (...)`, así que un admin puede
+  // desactivarse y cambiarse el rol — al revés de lo que piden el §4.3 del
+  // protocolo común y las reglas de los otros dos sitios. Correrla acá te dejaría
+  // afuera de tu propio panel de verdad.
+  try {
+    const u = FB.auth.currentUser;
+    const s6 = u ? await FB.getDoc(FB.doc(FB.db, 'usuarios', u.uid)) : null;
+    const soyAdmin = s6 && s6.exists() && s6.data().rol === 'admin';
+    if (!u) {
+      h += linea('ojo', 'Desactivarte a vos mismo', 'sin sesión, no se puede probar');
+    } else if (soyAdmin) {
+      h += linea('ojo', 'Desactivarte a vos mismo — NO SE PRUEBA acá',
+        'En este proyecto las reglas dejan que un admin se desactive y se cambie el rol '
+        + '(usuarios: allow update: if esAdmin() || ...). El §4.3 del protocolo común dice '
+        + 'que no debería, y los otros dos sitios lo bloquean. Correr la prueba te dejaría '
+        + 'afuera del panel de verdad, así que no se corre: queda como pendiente arreglar '
+        + 'la regla, y recién ahí esta prueba pasa a tener sentido.');
+      anotar('desactivarse a uno mismo: NO SE PRUEBA (las reglas lo permiten para admin — pendiente)');
+    } else {
+      await negativa('Desactivarte a vos mismo',
+        () => FB.updateDoc(FB.doc(FB.db, 'usuarios', u.uid), { activo: false }),
+        'Pudiste desactivarte. Poné activo:true a mano en la consola, en usuarios/' + u.uid);
+    }
+  } catch (e) {
+    h += linea('ojo', 'Desactivarte a vos mismo', 'no se pudo determinar el rol: ' + e.message);
+  }
+
+  $('s6').innerHTML = h;
   b.disabled = false;
 });
 
