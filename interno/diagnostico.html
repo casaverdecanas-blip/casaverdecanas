@@ -236,21 +236,42 @@ async function verNavegador() {
   $('s1').innerHTML = h;
 }
 
-// ── 2 · Los archivos ─────────────────────────────────────
-// Cada archivo lleva una marca que solo existe en su versión nueva. Se pide
-// con cache:'no-store' para preguntarle al SERVIDOR, no al teléfono.
+/* ── 2 · Los archivos ─────────────────────────────────────
+   Se pide cada archivo con cache:'no-store' para preguntarle al SERVIDOR y no
+   al teléfono, y se comprueba que tenga su MARCA ESTRUCTURAL: una función, una
+   constante, un escuchador. Algo sin lo que el archivo no puede andar.
+
+   ⚠ LA MARCA NUNCA ES UN SELLO DE VERSIÓN, y esto es lo que se aprendió acá.
+   Un sello se mueve por definición: el día que se mueve, esta pantalla grita
+   «VERSIÓN VIEJA» sobre el archivo MÁS NUEVO. No es hipotético — en la corrida
+   del 8-sep-2026 salieron en rojo cuatro de once estando todos al día: la
+   marca de sw.js era `cv2-shell-v79` y el archivo iba por la v107. Y un quinto,
+   reservas.html, estaba a un cambio de sello de hacer lo mismo.
+   **Una prueba que falla cuando todo está bien enseña a ignorarla**, que es
+   peor que no tenerla. Es la otra cara del §11.3: una que no puede fallar da
+   una confianza que no corresponde; una que falla de mentira la destruye.
+
+   `sello` dice de dónde LEER el número de versión. Ese número se MUESTRA, no
+   se juzga: desde acá no hay contra qué compararlo. La comparación que sí
+   vale —el sw.js publicado contra la caché que se está sirviendo— la hace la
+   sección 1, y esa sí puede fallar por el motivo correcto. */
 const ARCHIVOS = [
-  { f: 'reservas.html', marca: 'reservas-ical-6', que: 'la lista de reservas con acuerdos' },
-  { f: 'nucleo.js', marca: 'nucleo-fecha-10', que: 'el motor común' },
-  { f: 'avisos.html', marca: 'avisos-4', que: 'Mis avisos' },
-  { f: 'sw.js', marca: 'cv2-shell-v79', que: 'el service worker' },
+  { f: 'reservas.html', marca: 'function agrupar', sello: /SELLO\s*=\s*'([^']+)'/,
+    que: 'la lista de reservas con acuerdos' },
+  { f: 'nucleo.js', marca: 'CV2.verificarAuth', sello: /CV2\.VERSION\s*=\s*'([^']+)'/,
+    que: 'el motor común' },
+  { f: 'avisos.html', marca: 'function guardarNotif', sello: /pantalla: (avisos-[\w.]+)/,
+    que: 'Mis avisos' },
+  { f: 'sw.js', marca: "self.addEventListener('install'", sello: /VERSION\s*=\s*'([^']+)'/,
+    que: 'el service worker' },
   { f: 'comunicacion.html', marca: 'CV2.avisar', que: 'el chat que dispara los avisos' },
   { f: 'calendario.html', marca: 'verReserva', que: 'el calendario que lleva a la reserva' },
   { f: 'reservas-core.js', marca: 'leerICS', que: 'el motor de limpiezas y el lector de iCal' },
   { f: 'firebase-init.js', marca: 'signInWithEmailAndPassword', que: 'la conexión con Firebase' },
   { f: 'design-system.css', marca: 'cv-nodo-fila.estatico', que: 'los estilos, con el árbol de nodos' },
   { f: 'actividades.html', marca: 'abrirDetalle', que: 'el árbol y la lista de compras' },
-  { f: 'agenda.html', marca: 'agenda-5', que: 'la agenda por fecha' }
+  { f: 'agenda.html', marca: 'function guardarPlegado', sello: /SELLO\s*=\s*'([^']+)'/,
+    que: 'la agenda por fecha' }
 ];
 
 async function verArchivos() {
@@ -267,10 +288,16 @@ async function verArchivos() {
       const txt = await r.text();
       const tiene = txt.indexOf(a.marca) !== -1;
       const kb = Math.round(txt.length / 1024);
+      // El sello se lee y se muestra; no se juzga (ver la nota de arriba).
+      const m = a.sello ? a.sello.exec(txt) : null;
+      const sello = m ? m[1] : '';
       h += linea(tiene ? 'ok' : 'mal',
-        a.f + (tiene ? ' — versión nueva' : ' — VERSIÓN VIEJA'),
-        kb + ' KB · ' + a.que + (tiene ? '' : ' · falta la marca "' + a.marca + '"'));
-      anotar(a.f + ': ' + (tiene ? 'nueva' : 'VIEJA') + ' (' + kb + ' KB)');
+        a.f + (tiene ? '' : ' — LE FALTA ALGO'),
+        (sello ? sello + ' · ' : '') + kb + ' KB · ' + a.que
+        + (tiene ? '' : ' · no tiene "' + a.marca + '", que es lo que lo hace funcionar. '
+                      + 'O el servidor sirve otro archivo, o ese pedazo se perdió al subirlo.'));
+      anotar(a.f + ': ' + (tiene ? 'ok' : 'LE FALTA "' + a.marca + '"')
+        + (sello ? ' · ' + sello : '') + ' (' + kb + ' KB)');
     } catch (e) {
       h += linea('mal', a.f + ' — error al pedirlo', e.message);
       anotar(a.f + ': ERROR ' + e.message);
@@ -555,6 +582,24 @@ $('btnReglas').addEventListener('click', async () => {
   anotar('(acá lo bueno es que FALLE: cada negativa prueba que esa regla está publicada)');
   let h = '';
 
+  /* Quién soy, UNA sola vez. Dos de las cuatro pruebas de abajo dependen de
+     con qué cuenta corren: leer config/integraciones está permitido a quien
+     tiene «reservas», y desactivarse sólo lo intenta de verdad un admin.
+     Una negativa que no sabe con qué cuenta corre no prueba nada, y encima
+     puede gritar por algo que está bien. */
+  let yo = null, miFicha = null;
+  try {
+    yo = FB.auth.currentUser;
+    if (yo) {
+      const d = await conPlazo(FB.getDoc(FB.doc(FB.db, 'usuarios', yo.uid)), 8000);
+      if (d.exists()) miFicha = d.data();
+    }
+  } catch (e) { /* cada prueba que lo necesite lo informa */ }
+  const soyAdmin = !!(miFicha && miFicha.rol === 'admin');
+  const tengoReservas = soyAdmin || !!(miFicha && (miFicha.permisos || {}).reservas === true);
+  anotar('corriendo como: ' + (yo ? yo.email : 'sin sesión')
+    + (miFicha ? ' · rol ' + miFicha.rol + (tengoReservas ? ' · con «reservas»' : ' · sin «reservas»') : ''));
+
   const negativa = async (titulo, intento, siPasa) => {
     try {
       await conPlazo(intento(), 8000);
@@ -584,11 +629,59 @@ $('btnReglas').addEventListener('click', async () => {
     'Se escribió de verdad. Borrá zz-diagnostico-sin-regla/prueba desde la consola '
     + 'y republicá firestore.rules completo.');
 
-  await negativa('Leer config/integraciones',
-    () => FB.getDoc(FB.doc(FB.db, 'config', 'integraciones')),
-    'Ese documento guarda claves de terceros y el bloque config/{doc} lo excluye a '
-    + 'mano. Si se lee, el bloque publicado no tiene esa exclusión y cualquiera del '
-    + 'equipo ve la clave.');
+  /* config/integraciones NO está cerrado para todos, y por eso esta prueba no
+     puede ser una negativa a secas. Su bloque dice
+     `allow read: if esAdmin() || tiene('reservas')`: quien sincroniza Airbnb
+     necesita la clave de Google Calendar para trabajar. Lo que el bloque
+     general excluye a mano es que lo lea CUALQUIERA del equipo.
+
+     Hasta el 8-sep-2026 esto se probaba como negativa a secas, y con una
+     cuenta con 'reservas' informaba «PASÓ» en rojo sobre un permiso
+     perfectamente correcto. Una negativa tiene que saber si la cuenta con la
+     que corre está entre las que DEBEN ser denegadas; si no, no prueba nada y
+     encima asusta. Es la misma corrección que ya tenía la de desactivarse. */
+  try {
+    const puedeLeerla = tengoReservas;
+    try {
+      await conPlazo(FB.getDoc(FB.doc(FB.db, 'config', 'integraciones')), 8000);
+      if (puedeLeerla) {
+        const porQue = soyAdmin ? 'sos administrador' : 'tenés el permiso «reservas»';
+        h += linea('ok', 'Leer config/integraciones',
+          'se leyó, y corresponde: ' + porQue + ', y la regla lo habilita a propósito '
+          + '(la sincronización de Airbnb necesita la clave de Google Calendar). '
+          + 'Para comprobar que un colaborador SIN ese permiso no la ve, hay que correr '
+          + 'esta prueba con una cuenta que no lo tenga.');
+        anotar('config/integraciones: se leyó, y corresponde (' + porQue + ') — la cláusula '
+          + 'no se prueba con esta cuenta');
+      } else {
+        h += linea('mal', 'Leer config/integraciones — PASÓ',
+          'Ese documento guarda claves de terceros, y esta cuenta NO tiene «reservas» ni es '
+          + 'admin, así que no debería poder leerlo. El bloque config/{doc} publicado no está '
+          + 'excluyendo «integraciones». Publicá firestore.rules completo.');
+        anotar('config/integraciones: PASÓ sin permiso — la exclusión no está publicada');
+      }
+    } catch (e) {
+      const c = e.code || '';
+      if (c !== 'permission-denied') {
+        h += linea('ojo', 'Leer config/integraciones — no se pudo probar',
+          c === 'plazo' ? 'Firestore no contestó: es la red, no un permiso' : (c + ' ' + e.message));
+        anotar('config/integraciones: no se pudo probar (' + (c || e.message) + ')');
+      } else if (puedeLeerla) {
+        h += linea('mal', 'Leer config/integraciones — DENEGADO, y no debería',
+          (soyAdmin ? 'Sos administrador' : 'Tenés «reservas»') + ' y la regla dice que con eso se lee. Si te lo niega, '
+          + 'lo publicado en la consola no es este firestore.rules: la sincronización de '
+          + 'Airbnb va a fallar por falta de la clave de Google Calendar.');
+        anotar('config/integraciones: DENEGADO teniendo «reservas» — reglas publicadas viejas');
+      } else {
+        h += linea('ok', 'Leer config/integraciones',
+          'denegado, como corresponde: no tenés «reservas» ni sos admin, así que la clave de '
+          + 'terceros no está a tu alcance. Es el resultado que se busca.');
+        anotar('config/integraciones: denegado OK (cuenta sin «reservas»)');
+      }
+    }
+  } catch (e) {
+    h += linea('ojo', 'Leer config/integraciones', 'no se pudo probar: ' + e.message);
+  }
 
   /* Desactivarte a vos mismo. Es la prueba que MÁS vale de las cuatro: las
      otras tres comprueban que una colección sin bloque está cerrada, y eso lo
@@ -606,9 +699,7 @@ $('btnReglas').addEventListener('click', async () => {
      la consola (§4.8)—, así que esta prueba tiene que sobrevivir al caso en
      que todavía no lo esté. Es el mismo patrón que usa CasaYourte. */
   try {
-    const u = FB.auth.currentUser;
-    const s6 = u ? await conPlazo(FB.getDoc(FB.doc(FB.db, 'usuarios', u.uid)), 8000) : null;
-    const soyAdmin = s6 && s6.exists() && s6.data().rol === 'admin';
+    const u = yo;
     if (!u) {
       h += linea('ojo', 'Desactivarte a vos mismo', 'sin sesión, no se puede probar');
       anotar('desactivarse a uno mismo: sin sesión');

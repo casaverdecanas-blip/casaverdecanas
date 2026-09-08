@@ -2146,6 +2146,75 @@ falta el archivo, se pide — no se reconstruye.
 
 ---
 
+# v5.74 — Cinco alarmas falsas en una sola corrida (T11.61)
+
+> **Registro v5.74 (Tanda 11.61 — 8 de septiembre de 2026 — `interno/diagnostico.html`).
+> Sin cambios de reglas ni de datos. La página no está en el `SHELL`, así que la `VERSION`
+> no sube.**
+
+La primera corrida real después de la T11.60 volvió con **cinco cosas en rojo, y las cinco
+estaban bien.** Ninguna era un problema del sistema: las cinco eran problemas de la
+pantalla que las medía.
+
+## Cuatro: la marca era un sello de versión
+
+La sección 2 comprueba que el servidor esté sirviendo la versión nueva de cada archivo,
+buscándole una **marca**. Cuatro de las once marcas eran el **sello de versión** del propio
+archivo:
+
+| Archivo | Marca que buscaba | Sello real hoy |
+|---|---|---|
+| `sw.js` | `cv2-shell-v79` | **`cv2-shell-v107`** |
+| `nucleo.js` | `nucleo-fecha-10` | `nucleo-avisos-12` |
+| `avisos.html` | `avisos-4` | `avisos-5` |
+| `agenda.html` | `agenda-5` | `agenda-7` |
+
+**Un sello se mueve por definición.** El día que se mueve, esta pantalla grita «VERSIÓN
+VIEJA» sobre el archivo **más nuevo** — `sw.js` iba 28 versiones adelante de lo que la
+prueba esperaba. Y había un quinto a punto de caer: `reservas.html` buscaba
+`reservas-ical-6`, que también es su sello.
+
+Ahora la marca es **estructural**: una función, una constante, un escuchador. Algo sin lo
+que el archivo no puede andar, y que no cambia porque se publique una versión. El sello,
+cuando el archivo tiene uno, **se lee y se muestra** —`nucleo.js · nucleo-avisos-12 · 72
+KB`— pero **no se juzga**: desde acá no hay contra qué compararlo. La comparación que sí
+vale —el `sw.js` publicado contra la caché que se está sirviendo— la hace la sección 1, y
+ésa sí puede fallar por el motivo correcto.
+
+> **Es la otra cara del §11.3.** Una prueba que no puede fallar da una confianza que no
+> corresponde. Una que falla de mentira **destruye la confianza en todas las demás**: si
+> cuatro de once están siempre en rojo, el rojo deja de significar algo.
+
+## La quinta: una negativa que no sabía con qué cuenta corría
+
+`Leer config/integraciones` salió **«PASÓ»** en rojo, con el texto *«cualquiera del equipo
+ve la clave»*. **No era cierto.** El bloque de ese documento dice:
+
+```
+allow read: if esAdmin() || tiene('reservas');
+```
+
+Quien sincroniza Airbnb necesita la clave de Google Calendar para trabajar, así que leerla
+**con el permiso `reservas` es exactamente lo que la regla quiere**. Lo que el bloque
+general excluye a mano es que la lea *cualquiera*. La cuenta que corrió el diagnóstico
+tiene `reservas`: la prueba estaba mirando un permiso correcto y llamándolo agujero.
+
+**Una negativa tiene que saber si la cuenta con la que corre está entre las que deben ser
+denegadas.** Ahora la sección 6 lee el perfil una sola vez, al principio, y las dos pruebas
+que dependen de la cuenta —ésta y la de desactivarse— la usan:
+
+| Con qué cuenta | Qué dice |
+|---|---|
+| Con `reservas`, o admin | ✅ se leyó **y corresponde** · y avisa que así no se prueba la cláusula |
+| Sin `reservas` | ✅ denegado, como corresponde — o ❌ de verdad si pasa |
+| Con `reservas` y **denegado** | ❌ las reglas publicadas están viejas, y la sincronización de Airbnb va a fallar |
+
+**Verificado en el banco con tres cuentas** —colaborador con `reservas`, colaborador de
+limpieza sin él, y admin—: las once marcas de la sección 2 en verde con su sello a la
+vista, y la prueba de `config/integraciones` dando el veredicto correcto en cada caso.
+
+---
+
 # v5.73 — Nadie se deja afuera a sí mismo (T11.60)
 
 > **Registro v5.73 (Tanda 11.60 — 8 de septiembre de 2026 — `interno/firestore.rules`,
