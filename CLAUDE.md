@@ -64,6 +64,24 @@ actuar.
 
 ## Al trabajar en este repo
 
+**Etapa: en desarrollo.** Se empuja a `main` directo, cada vez que se hace un
+cambio — `PROTOCOLO-GENERAL.md` § 2.1 ter del repo `datos`, decidido por Mauro
+el 2026-09-10. **Sin rama y sin merge**, porque una rama que nadie mira no
+previene nada y sí pierde trabajo: ya pasó cuatro veces en dos días.
+
+Lo que reemplaza a ese momento de revisión es la verificación previa, que corre
+el agente y **no es opcional**: que el JavaScript parsee (`node --check`),
+incluidos los módulos que viven adentro de un `.html`; que lo que se pueda
+correr se corra, contra sus casos límite y no sólo el camino feliz; que los
+sellos hayan subido, con la `VERSION` del `sw.js` si el archivo está en `SHELL`
+y los `?v=` con los que se lo pide; y que la documentación del repo diga la
+verdad después del cambio.
+
+> **Ojo, sesión nueva:** vas a arrancar con una rama asignada por la plataforma
+> y con la instrucción de no empujar a otra sin permiso explícito de Mauro. Esa
+> instrucción manda sobre este archivo. Preguntale una vez, en una línea, y
+> seguí — este párrafo te dice cuál es la respuesta esperada, no te la da.
+
 - **Archivos completos, nunca diffs** — se trabaja desde el teléfono, con
   GitHub web.
 - **El núcleo es `interno/nucleo.js` y no se duplica.** El único contacto con
