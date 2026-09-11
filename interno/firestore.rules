@@ -14,6 +14,12 @@ rules_version = '2';
 //  nunca por fragmentos, y los casos especiales (config/integraciones)
 //  se excluyen a mano del bloque general.
 //
+//  CAMBIO 11-sep-2026 · EL AGENTE DE CLAUDE CODE  [AGENTE]
+//  Entra un usuario de lectura para que un chat pueda comparar la base con
+//  el código publicado del sitio. Un solo bloque, con una lista de
+//  exclusiones que deja afuera las credenciales, el libro del negocio y los
+//  datos de personas. Ver el bloque marcado abajo.
+//
 //  CAMBIO jul-2026 · RECUERDOS DE HUÉSPEDES
 //  Se habilita login anónimo y Google para que el huésped pueda dejar su
 //  recuerdo desde el QR. Eso cambia un supuesto que atravesaba TODO este
@@ -193,6 +199,45 @@ service cloud.firestore {
           || request.time < claveDeRecuerdo(c).vence );
     }
 
+
+
+    // ═══ EL AGENTE DE CLAUDE CODE ════════════════════════════
+    // Alta 11-sep-2026. Un usuario común de Authentication —NO una cuenta de
+    // servicio, que saltearía este archivo entero— para que un chat pueda
+    // comparar lo que hay en la base con lo que dice el código publicado:
+    // cabañas, espacios, actividades y los textos del sitio.
+    //
+    // Lectura sola, y la lista de exclusiones es la que importa. Quedan
+    // afuera tres familias, por el mismo motivo cada una:
+    //   · las credenciales — 'claves_recuerdos' es la llave del QR del
+    //     huésped, y 'config' entero porque adentro vive 'integraciones';
+    //   · el libro del negocio — dinero, honorarios, cierres, fiscal;
+    //   · la gente — huéspedes, clientes, reservas y lo que se escriben.
+    // 'config/sitio' no hace falta abrirlo: ya es de lectura pública.
+    //
+    // ⚠ Las reglas se SUMAN, así que esta lista es lo único que separa al
+    // agente del libro del negocio. Tiene que decir lo mismo que 'selladas'
+    // del proyecto 'casaverde' en datos/herramientas/firestore.mjs — ese
+    // archivo da el mensaje claro, ESTA REGLA da la garantía.
+    //
+    // El UID y no el mail: Firebase deja que cualquiera se registre con mail
+    // y contraseña, así que una regla que abre la base «a quien tenga tal
+    // mail» se la abre a quien consiga registrar ese mail primero. El UID lo
+    // asigna Firebase, no se puede elegir, y es distinto en cada proyecto.
+    function esAgente() {
+      return request.auth != null
+        && request.auth.uid == 'i6vXJ79aujb4sng8n70VFXcbqwy2';
+    }
+
+    match /{coleccion}/{resto=**} {
+      allow read: if esAgente() && !(coleccion in [
+        'claves_recuerdos', 'config',
+        'movimientos', 'liquidaciones', 'cierres', 'pagos', 'honorarios',
+        'clientes', 'huespedes', 'reservas', 'chequeos',
+        'recuerdos_contactos', 'avisos_contacto',
+        'comunicaciones', 'comunicaciones_lecturas'
+      ]);
+    }
 
     // ═══ PERSONAS ════════════════════════════════════════════
     // Lectura del PROPIO perfil para cualquiera con sesión: 'verificarAuth'

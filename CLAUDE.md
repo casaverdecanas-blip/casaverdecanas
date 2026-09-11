@@ -102,6 +102,14 @@ verdad después del cambio.
 - **Una colección nueva entra con su regla, en la misma tanda.** Rige el deny
   por defecto, sin catch-all, y **las reglas se suman**: se edita
   `interno/firestore.rules` completo, nunca por fragmentos.
+- **El agente de Claude Code lee la base para compararla con el código**, con
+  un bloque propio (`esAgente()`) y una lista de exclusiones que deja afuera las
+  credenciales, el libro del negocio y los datos de personas. Esa lista está en
+  `interno/firestore.rules` **y** en `selladas` del proyecto `casaverde` de
+  `datos/herramientas/firestore.mjs`: si cambia una, cambia la otra en la misma
+  tanda. El archivo da el mensaje claro, la regla da la garantía. Y es un
+  usuario común, no una cuenta de servicio — una cuenta de servicio saltearía
+  las reglas enteras.
 - **Tener sesión no es permiso.** Desde que existe login anónimo para el muro
   de recuerdos hay sesiones sin ficha en `usuarios/`: "logueado" ya no
   significa "es del equipo".
