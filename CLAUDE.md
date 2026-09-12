@@ -45,7 +45,8 @@ cuentas". No es un secreto —la contraseña sí, y esa no está en ningún docu
 pero es un dato de contacto, y este repositorio es público. Ver
 `PROTOCOLO-SECRETOS.md` § "Titularidad".
 
-Índice espejo y actualizado: repo privado `casaverdecanas-blip/datos` →
+Índice espejo: la **bóveda del panel** (`fichas/`). Mientras se termina de
+cargar, la copia sigue en el repo privado `casaverdecanas-blip/datos` →
 `secretos/casaverdecanas.md`.
 
 **Nunca** un valor real de estas variables va en este repo — ni en código,
@@ -129,18 +130,29 @@ verdad después del cambio.
 
 ## Protocolos
 
-Este proyecto sigue las convenciones compartidas del repo privado
-`casaverdecanas-blip/datos`. Cualquier chat que trabaje acá debería leerlas
-primero — este repo es del mismo dueño que `datos`, así que puede agregarlo a
-la sesión y leerlas directo:
+Este proyecto sigue las convenciones compartidas del repo **público**
+`maurogasta-crypto/datos`, en su carpeta `protocolos/`. Ahí vive el reglamento
+de los cuatro proyectos, y se lee sin credenciales: basta con agregar ese
+repositorio a la sesión.
 
 | Documento | Qué manda |
 |---|---|
-| `PROTOCOLO-GENERAL.md` | pedidos no verificados, git, estructura del `CLAUDE.md`, mecánica de sesiones |
-| `PROTOCOLO-SECRETOS.md` | qué tipo de secreto va en cada lugar |
-| `PROTOCOLO-DESARROLLO.md` | el reglamento técnico común a los tres sitios |
-| `PROTOCOLO-INTERFAZ.md` | cómo se maneja la gente en los tres |
-| `ESTADO-DE-LOS-TRES.md` | qué le falta a este proyecto y qué les puede dar a los otros |
+| `protocolos/PROTOCOLO-GENERAL.md` | pedidos no verificados, git, estructura del `CLAUDE.md`, mecánica de sesiones |
+| `protocolos/PROTOCOLO-SECRETOS.md` | qué tipo de secreto va en cada lugar |
+| `protocolos/PROTOCOLO-DESARROLLO.md` | el reglamento técnico común a los cuatro |
+| `protocolos/PROTOCOLO-INTERFAZ.md` | cómo se maneja la gente en todos |
+| `protocolos/ESTADO-DE-LOS-TRES.md` | qué le falta a cada proyecto y qué le puede dar a los otros |
+
+**Se mudaron ahí el 2026-09-12**, desde el repo privado `casaverdecanas-blip/datos`.
+El motivo: tenerlos en un repositorio privado de otro dueño costaba, en cada
+sesión nueva, acordarse de agregarlo — y una regla que sólo llega si alguien se
+acordó de algo no es una regla. Se auditaron antes de moverlos: la titularidad
+de las cuentas y los UID del agente **no** viajaron, porque ese repositorio es
+público.
+
+Las reglas que importan siguen copiadas más arriba en este archivo, a propósito.
+Es el mismo motivo de siempre, y no cambia porque el reglamento sea más fácil de
+alcanzar.
 
 El reglamento propio y completo sigue siendo
 `interno/CASAVERDEDOCUMENTACION.md`: los protocolos de `datos` mandan sobre lo
