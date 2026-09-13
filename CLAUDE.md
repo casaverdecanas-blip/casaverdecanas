@@ -28,7 +28,7 @@ valor.
 |---|---|---|---|---|---|
 | `GEMINI_API_KEY` | Lee facturas con Gemini | secreto de infraestructura | Netlify → proyecto `serene-scone-76bd4e` → Environment variables | `netlify/functions/claude-proxy.js` | declarado por Mauro, 2026-09-07 |
 | `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Listan fotos y firman llamadas a Cloudinary para el editor visual | secreto de infraestructura | Netlify → mismo proyecto → Environment variables | `netlify/functions/cloudinary-listar.js` | declarado por Mauro, 2026-09-07 |
-| `CALLMEBOT_PHONE` / `CALLMEBOT_APIKEY` | Aviso por WhatsApp | mixto — ver `datos/secretos/casaverdecanas.md` | ver índice | `netlify/functions/notify-whatsapp.js` | no verificable desde código, 2026-09-07 |
+| `CALLMEBOT_PHONE` / `CALLMEBOT_APIKEY` | Aviso por WhatsApp | mixto — ver la ficha de titularidad en el panel | ver índice | `netlify/functions/notify-whatsapp.js` | no verificable desde código, 2026-09-07 |
 
 Lo que NO está acá y no tiene que estar: ningún valor de las variables de
 arriba; tampoco un `.env` en este repo (las funciones toman todo de
@@ -39,15 +39,15 @@ detalle completo, con las reglas generales de dónde va cada tipo de dato,
 está en `PROTOCOLO-SECRETOS.md` del repo de abajo.
 
 **De quién son las cuentas** (titular de la consola de Firebase, de Cloudinary,
-de Netlify): **no se documenta acá.** Vive solo en el repo privado
-`casaverdecanas-blip/datos` → `secretos/casaverdecanas.md`, sección "Titularidad de las
-cuentas". No es un secreto —la contraseña sí, y esa no está en ningún documento—
+de Netlify): **no se documenta acá.** Vive en la **bóveda del panel**, en la
+ficha «Titularidad de las consolas · Casa Verde Canas» de `fichas/`. Ahí está
+también lo de CallMeBot que no se pudo confirmar desde el código. No es un secreto —la contraseña sí, y esa no está en ningún documento—
 pero es un dato de contacto, y este repositorio es público. Ver
 `PROTOCOLO-SECRETOS.md` § "Titularidad".
 
-Índice espejo: la **bóveda del panel** (`fichas/`). Mientras se termina de
-cargar, la copia sigue en el repo privado `casaverdecanas-blip/datos` →
-`secretos/casaverdecanas.md`.
+Índice espejo: la **bóveda del panel** (`fichas/`), que desde el 2026-09-13 es
+el único lugar donde eso está escrito — el repo privado que tenía la copia se
+borró, después de pasar su contenido a la bóveda.
 
 **Nunca** un valor real de estas variables va en este repo — ni en código,
 ni en `interno/` (esos `.md` se sirven en texto plano y son públicos vía
@@ -143,7 +143,8 @@ repositorio a la sesión.
 | `protocolos/PROTOCOLO-INTERFAZ.md` | cómo se maneja la gente en todos |
 | `protocolos/ESTADO-DE-LOS-TRES.md` | qué le falta a cada proyecto y qué le puede dar a los otros |
 
-**Se mudaron ahí el 2026-09-12**, desde el repo privado `casaverdecanas-blip/datos`.
+**Se mudaron ahí el 2026-09-12**, desde el repo privado `casaverdecanas-blip/datos`,
+que se borró el 2026-09-13 una vez vacío.
 El motivo: tenerlos en un repositorio privado de otro dueño costaba, en cada
 sesión nueva, acordarse de agregarlo — y una regla que sólo llega si alguien se
 acordó de algo no es una regla. Se auditaron antes de moverlos: la titularidad
