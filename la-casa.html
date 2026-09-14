@@ -475,7 +475,7 @@
 // no muestra cabañas ni disponibilidad, así que no pide esas
 // colecciones. Cuanto menos baja, más rápido se lee desde la playa.
 // ═══════════════════════════════════════════════════════════
-import { db, doc, getDoc } from './interno/firebase-init.js';
+import { cargarFirebase, db, doc, getDoc } from './interno/firebase-init.js';
 import { T } from './interno/textos-sitio.js';
 
 var WHATSAPP = '';
@@ -645,7 +645,13 @@ if (EDITAR) {
   window.CVSITIO = {
     get lang() { return lang; },
     setLang: function (l) { if (T[l]) { lang = l; aplicarIdioma(); } },
-    recargar: async function () { await cargarTodo(); aplicarIdioma(); },
+    recargar: async function () { // El SDK de Firebase se baja diferido desde `firebase-init.js` sello `init-2`:
+// `db` vale `undefined` hasta que esto resuelva. Esta página es PÚBLICA y no
+// pasa por `CV2.verificarAuth()`, así que lo pide ella misma. Si no baja, se
+// sigue igual: `cargarTodo` tiene su propio catch y la página se dibuja con
+// los textos que trae el HTML, que para eso están.
+try { await cargarFirebase(); } catch (e) { console.warn('Firebase no bajó:', e && e.message); }
+await cargarTodo(); aplicarIdioma(); },
     diccionario: T,
     // El editor pregunta qué está oculto y avisa cuando cambia. La lista
     // la guarda ÉL —es quien tiene la sesión y los permisos—; esta página

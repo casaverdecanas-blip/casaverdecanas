@@ -262,6 +262,7 @@
 //  documento en 'pendiente'. Publicar es del panel.
 // ═══════════════════════════════════════════════════════════
 import {
+  cargarFirebase,
   db, auth, collection, query, where, getDocs, doc, getDoc, setDoc, addDoc, serverTimestamp,
   signInAnonymously, GoogleAuthProvider, signInWithPopup, signInWithRedirect,
   getRedirectResult
@@ -812,6 +813,12 @@ if (!acceso.ok && acceso.codigo !== 'SIN_RED') olvidarClave();
 pintarPuerta();
 
 // 2) El muro, que se lee sin nada.
+// El SDK de Firebase se baja diferido desde `firebase-init.js` sello `init-2`:
+// `db` vale `undefined` hasta que esto resuelva. Esta página es PÚBLICA y no
+// pasa por `CV2.verificarAuth()`, así que lo pide ella misma. Si no baja se
+// sigue igual: el muro queda vacío y los botones de dejar un recuerdo
+// avisan al tocarlos, en vez de dejar la página en blanco.
+try { await cargarFirebase(); } catch (e) { console.warn('Firebase no bajó:', e && e.message); }
 await cargarCabanas();
 await pintarMuro();
 

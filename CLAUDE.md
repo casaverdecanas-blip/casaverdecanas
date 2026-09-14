@@ -100,6 +100,29 @@ verdad después del cambio.
   GitHub web.
 - **El núcleo es `interno/nucleo.js` y no se duplica.** El único contacto con
   el SDK de Firebase es `interno/firebase-init.js`.
+- **El SDK de Firebase se baja DIFERIDO, desde el sello `init-2`**
+  (14-sep-2026), con `import()` dentro de un `try` y no con un `import`
+  estático. Antes, si `gstatic.com` no contestaba, las treinta y una páginas
+  que lo importan quedaban **en blanco** y sin un solo mensaje: un import
+  estático es una dependencia dura y sin él no evalúa nada de lo que lo
+  importa.
+
+  Este proyecto ya lo tenía diagnosticado sin saberlo: el comentario de
+  `CV2.ESPERA_ARRANQUE` lo describe desde julio —«el shell sale de la caché y
+  anda, pero el SDK no llega… la app se instaló y no abre»— y lo tapaba con
+  relojes de guardia de 15 y 25 segundos. Esos relojes siguen, pero ahora son
+  para un cuelgue de verdad; la descarga que nunca llega se detecta y se dice.
+
+  Lo que exporta `firebase-init.js` son `let` —enlaces vivos—, así que nadie
+  tuvo que reescribir un `doc(db, …)`, y **las veinticinco páginas internas no
+  cambiaron una línea** porque todas entran por `CV2.verificarAuth()`, que
+  espera el SDK y muestra `CV2.sinFirebase()` si no baja. **La contra es la
+  que hay que tener presente:** hasta que `cargarFirebase()` resuelva, `db` y
+  `auth` valen `undefined`, así que **nada que dependa de Firebase puede
+  correr al nivel superior de un módulo** antes de esa espera. Las cinco
+  páginas que no pasan por esa puerta —`index.html`, `la-casa.html`,
+  `opiniones.html`, `recuerdos.html` e `interno/login.html`— lo piden ellas
+  mismas, y está escrito al lado en cada una.
 - **Una colección nueva entra con su regla, en la misma tanda.** Rige el deny
   por defecto, sin catch-all, y **las reglas se suman**: se edita
   `interno/firestore.rules` completo, nunca por fragmentos.

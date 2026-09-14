@@ -632,7 +632,7 @@
 // cero backend, y el contacto llega directo.
 // ═══════════════════════════════════════════════════════════
 import {
-  db, collection, getDocs, doc, getDoc
+  cargarFirebase, db, collection, getDocs, doc, getDoc
 } from './interno/firebase-init.js';
 import { T } from './interno/textos-sitio.js';
 
@@ -1175,7 +1175,13 @@ if (EDITAR) {
   window.CVSITIO = {
     get lang() { return lang; },
     setLang(l) { if (T[l]) { lang = l; aplicarIdioma(); } },
-    async recargar() { await cargarTodo(); aplicarIdioma(); pintarCal(); },
+    async recargar() { // El SDK de Firebase se baja diferido desde `firebase-init.js` sello `init-2`:
+// `db` vale `undefined` hasta que esto resuelva. Esta página es PÚBLICA y no
+// pasa por `CV2.verificarAuth()`, así que lo pide ella misma. Si no baja se
+// sigue igual: lo de abajo tiene su propio catch y la página se dibuja con los
+// textos que trae el HTML, que para eso están.
+try { await cargarFirebase(); } catch (e) { console.warn('Firebase no bajó:', e && e.message); }
+await cargarTodo(); aplicarIdioma(); pintarCal(); },
     // El diccionario completo: el editor lo usa para saber qué texto
     // sale de fábrica y cuál escribió alguien.
     diccionario: T,

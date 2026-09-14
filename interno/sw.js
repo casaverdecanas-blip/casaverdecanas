@@ -488,7 +488,14 @@
 // Subir la VERSION no es un trámite: al activarse, el 'activate' borra TODAS
 // las cachés que no sean esta, y esa es la única forma segura de que un
 // teléfono deje de servir la mezcla de archivos viejos y nuevos.
-const VERSION = 'cv2-shell-v107';
+// v108 (14-sep-2026) — EL SDK DE FIREBASE SE BAJA DIFERIDO.
+//   Cambian `firebase-init.js` (sello init-2), `nucleo.js`
+//   (nucleo-avisos-13, con `CV2.sinFirebase`) y cinco páginas que no pasan
+//   por `verificarAuth`. Este número importa más que de costumbre: una
+//   mezcla de `nucleo.js` nuevo con un `firebase-init.js` viejo llamaría a
+//   `cargarFirebase()`, que ahí no existe, y la app no abriría — que es
+//   justo lo que esta tanda vino a arreglar.
+const VERSION = 'cv2-shell-v108';
 
 const SHELL = [
   './',

@@ -5,7 +5,7 @@
 //  Namespace único: CV2 (import { CV2 } from './nucleo.js')
 // ═══════════════════════════════════════════════════════════════
 
-import { auth, db, doc, getDoc, updateDoc, collection, getDocs, serverTimestamp, onAuthStateChanged, signOut, terminate, clearIndexedDbPersistence } from './firebase-init.js';
+import { cargarFirebase, auth, db, doc, getDoc, updateDoc, collection, getDocs, serverTimestamp, onAuthStateChanged, signOut, terminate, clearIndexedDbPersistence } from './firebase-init.js';
 
 export const CV2 = {};
 
@@ -56,7 +56,26 @@ CV2.ESPERA_PERFIL = 15000;
  */
 CV2.ESPERA_ARRANQUE = 25000;
 
-CV2.verificarAuth = function () {
+CV2.verificarAuth = async function () {
+  // ── El SDK se baja ACÁ, y por eso las veinticinco páginas internas no
+  // tuvieron que cambiar una línea: todas entran por esta puerta.
+  //
+  // Desde `firebase-init.js` sello `init-2` el SDK llega diferido, así que
+  // `auth` y `db` valen `undefined` hasta que esto resuelva. Si gstatic.com no
+  // contesta, se dice en el acto en vez de esperar el reloj de guardia: ese
+  // reloj sigue existiendo, pero ahora es para lo que de verdad es un cuelgue
+  // —una base local trancada, un callback que no dispara— y no para tapar una
+  // descarga que nunca iba a llegar.
+  try {
+    await cargarFirebase();
+  } catch (e) {
+    CV2.sinFirebase(e);
+    // Nunca resuelve, y es a propósito: quien llamó hizo
+    // `const u = await CV2.verificarAuth()` y sigue con la página. Si esto
+    // resolviera, esa página seguiría corriendo contra un `db` inexistente y
+    // llenaría la consola de errores encima del cartel.
+    return new Promise(() => {});
+  }
   return new Promise((resolver) => {
     let quitar = null;
     let listo = false;
@@ -953,7 +972,41 @@ CV2.toast = function (msj, tipo = 'info') {
 // (el WhatsApp iba al número por defecto) era idéntico a un problema de
 // configuración, y no había forma de saber qué código estaba corriendo.
 // Se sube a mano cada vez que se toca el bloque de avisos.
-CV2.VERSION = 'nucleo-avisos-12';
+/**
+ * El cartel de «no se pudo bajar Firebase».
+ * Desde `nucleo-avisos-13` (14-sep-2026), con el SDK diferido.
+ *
+ * Reemplaza el cuerpo entero a propósito: para cuando esto corre, la página
+ * ya pintó su cabecera y sus cajas vacías, y media pantalla viva confunde más
+ * que una pantalla que explica. Es la misma decisión que toma `login.html`
+ * cuando rebota con un motivo.
+ *
+ * Vive en el núcleo y no en cada página (regla del proyecto): son
+ * veinticinco pantallas y el mensaje tiene que ser el mismo en las
+ * veinticinco.
+ */
+CV2.sinFirebase = function (e) {
+  const msg = (e && e.message) || 'No se pudo cargar Firebase.';
+  document.body.innerHTML =
+    '<div style="max-width:34rem;margin:0 auto;padding:2rem 1.25rem;line-height:1.5">'
+    + '<h1 style="font-size:1.25rem;margin:0 0 .75rem">No se pudo abrir el panel</h1>'
+    + '<p style="margin:0 0 .75rem">' + CV2.esc(msg) + '</p>'
+    + '<p style="margin:0 0 1.25rem;opacity:.75;font-size:.9rem">'
+    + 'El panel en sí está bien: lo que falta es una pieza que se baja de '
+    + 'internet cada vez y no se puede guardar en el teléfono. Con señal, '
+    + 'volvé a intentar.</p>'
+    + '<button id="cvReintentar" type="button" style="font:inherit;padding:.6rem 1.1rem;'
+    + 'border-radius:.5rem;border:1px solid currentColor;background:transparent;'
+    + 'color:inherit;cursor:pointer">Reintentar</button>'
+    + '</div>';
+  const b = document.getElementById('cvReintentar');
+  // Recargar y no reintentar en caliente: para cuando se toca el botón la
+  // página ya se quedó sin la mitad de su arranque. Volver a empezar limpio
+  // es más corto de explicar y no deja estados a medias.
+  if (b) b.addEventListener('click', () => location.reload());
+};
+
+CV2.VERSION = 'nucleo-avisos-13';
 
 CV2.NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
 

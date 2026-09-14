@@ -249,7 +249,7 @@
 // ⚠ Sin plantillas de texto (backticks) ni '?.' ni '??': hay iPad y
 //   Safari viejos. Regla del proyecto.
 // ═══════════════════════════════════════════════════════════
-import { db, doc, getDoc, collection, getDocs } from './interno/firebase-init.js';
+import { cargarFirebase, db, doc, getDoc, collection, getDocs } from './interno/firebase-init.js';
 import { T } from './interno/textos-sitio.js';
 
 var TEXTOS = {}, OCULTOS = [], OPINIONES = [], AIRBNB = {}, WHATSAPP = '';
@@ -428,6 +428,12 @@ async function cargarTodo() {
   } catch (e) { console.warn('cabanas', e); }
 }
 
+// El SDK de Firebase se baja diferido desde `firebase-init.js` sello `init-2`:
+// `db` vale `undefined` hasta que esto resuelva. Esta página es PÚBLICA y no
+// pasa por `CV2.verificarAuth()`, así que lo pide ella misma. Si no baja, se
+// sigue igual: `cargarTodo` tiene su propio catch y la página se dibuja con
+// los textos que trae el HTML, que para eso están.
+try { await cargarFirebase(); } catch (e) { console.warn('Firebase no bajó:', e && e.message); }
 await cargarTodo();
 aplicarIdioma();
 </script>

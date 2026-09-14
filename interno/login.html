@@ -45,10 +45,22 @@
 </div>
 
 <script type="module">
-import { auth, signInWithEmailAndPassword, sendPasswordResetEmail } from './firebase-init.js';
+import { cargarFirebase, auth, signInWithEmailAndPassword,
+         sendPasswordResetEmail } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
 
 CV2.registrarSW();
+
+// El SDK se baja acá. Esta pantalla es la PRIMERA que ve alguien que entra,
+// así que si queda muda parece que el sistema entero está caído — y es
+// justamente adonde manda `verificarAuth` cuando algo falla. Se usa el mismo
+// cartel que el resto del panel (`nucleo.js`), para no inventar uno propio.
+try {
+  await cargarFirebase();
+} catch (e) {
+  CV2.sinFirebase(e);
+  throw e;
+}
 
 const $ = (id) => document.getElementById(id);
 
