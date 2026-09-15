@@ -495,7 +495,7 @@
 //   mezcla de `nucleo.js` nuevo con un `firebase-init.js` viejo llamaría a
 //   `cargarFirebase()`, que ahí no existe, y la app no abriría — que es
 //   justo lo que esta tanda vino a arreglar.
-const VERSION = 'cv2-shell-v108';
+const VERSION = 'cv2-shell-v109';
 
 const SHELL = [
   './',

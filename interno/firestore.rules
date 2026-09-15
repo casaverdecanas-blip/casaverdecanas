@@ -729,6 +729,50 @@ service cloud.firestore {
       allow read, write: if tiene('finanzas');
     }
 
+    // ═══ REPORTAR UNA FALLA ══════════════════════════════════
+    // Entra el 15-sep-2026, con el circuito de `CV2.reportar()`. Molde de
+    // remate (su REPORTES.md), ya pasado por CasaYourte. Quien trabaja en el
+    // panel ve algo mal y lo reporta desde la pantalla donde lo vio; después
+    // un agente lo lee y lo convierte en un pendiente del panel de Mauro, que
+    // vive en OTRA base — por eso cada sitio reporta en su casa.
+    //
+    // [ANÓNIMO] Pide activo(), NO logueado(), y acá esa diferencia es la que
+    // importa más que en los otros dos sitios: desde que existe login anónimo
+    // para el muro de recuerdos hay sesiones sin ficha en `usuarios/`.
+    // Con logueado(), cualquier visitante del sitio público podría escribir
+    // en esta colección. «Tener sesión no es permiso» es la regla del
+    // proyecto, y acá se aplica sola: activo() exige ficha Y activo == true.
+    //
+    // Y no pide ningún permiso más allá de eso: si alguien del equipo entra
+    // al panel puede ver una falla, y pedirle un permiso para contarla es
+    // garantizar que no la cuente.
+    //
+    // Tres cosas que no son de trámite, y son las del molde:
+    //  · el `uid` tiene que ser el de quien escribe — un reporte que puede
+    //    mentir de quién vino no sirve para volver a preguntarle qué vio;
+    //  · leerlos es de admin — un reporte se escribe sin pensar en quién lo
+    //    va a leer, y acá puede nombrar a un huésped, una reserva o un
+    //    movimiento de dinero, así que se lo trata como lo más sensible que
+    //    podría llegar a contener;
+    //  · `texto` y `uid` no se pueden cambiar — se cierra o se marca tomado,
+    //    no se reescribe. Pisar lo que dijo una persona es perder el reporte.
+    //
+    // El agente los LEE por el comodín de esAgente() de arriba —lectura
+    // sola—, y `reportes` no está en su lista de exclusiones a propósito:
+    // que los lea es todo el punto de este circuito.
+    match /reportes/{id} {
+      allow create: if activo()
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.estado == 'nuevo';
+
+      allow get, list: if esAdmin();
+
+      allow update: if esAdmin()
+                    && request.resource.data.texto == resource.data.texto
+                    && request.resource.data.uid == resource.data.uid;
+      allow delete: if esAdmin();
+    }
+
     // OJO: las reglas se suman. Este bloque tiene que excluir
     // 'integraciones' y 'fiscal' a mano — si no, anularía a los de arriba y
     // cualquiera del equipo leería la clave de Google o los datos fiscales.

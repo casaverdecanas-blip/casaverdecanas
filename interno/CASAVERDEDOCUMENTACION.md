@@ -1133,6 +1133,32 @@ visitante del sitio público, sin sesión.
     `novedades` es un consentimiento explícito y separado, nunca marcado por defecto: es
     la única base legítima para mandarle algo (LGPD). Dar de baja a alguien del registro
     es una acción del equipo y no toca su recuerdo publicado.
+18. **`reportes/` — reportar una falla desde donde se vio** (15-sep-2026). Quien trabaja
+    en el panel ve algo mal y lo reporta desde la pantalla donde lo vio; después un agente
+    lo lee y lo convierte en un pendiente del panel de Mauro, que vive en OTRA base
+    (`datos-830f8`). Cada sitio reporta en su casa porque un token de Firebase sirve para
+    **un** proyecto: darle a cada persona del equipo una cuenta en la base donde Mauro
+    guarda sus fichas es exactamente lo que no se hace.
+    · **La regla pide `activo()`, no `logueado()`,** y acá esa diferencia vale más que en
+      los otros sitios: desde que existe login anónimo para el muro de recuerdos hay
+      sesiones sin ficha en `usuarios/`. Con `logueado()`, cualquier visitante del sitio
+      público podría escribir en esta colección.
+    · **No pide ningún permiso más.** Si alguien del equipo entra al panel puede ver una
+      falla, y pedirle un permiso para contarla es garantizar que no la cuente.
+    · **El `uid` tiene que ser el de quien escribe** —un reporte que puede mentir de
+      quién vino no sirve para volver a preguntarle qué vio—, **leerlos es de admin**
+      —puede nombrar a un huésped, una reserva o un movimiento de dinero— y **`texto` y
+      `uid` no se pueden cambiar**: se cierra o se marca tomado, no se reescribe. Pisar
+      lo que dijo una persona es perder el reporte.
+    · **El agente los LEE y no los escribe.** Entra por el comodín de `esAgente()`, y
+      `reportes` no está en su lista de exclusiones a propósito: que los lea es todo el
+      punto del circuito. Para saber cuál ya trajo se mira el campo `origen` del
+      pendiente que creó en el panel — mantener «el agente no escribe acá» vale más que
+      esa comodidad.
+    · El molde entero está en `REPORTES.md` de **remate**, que lo estrenó en su tanda 27.
+      Acá se copió la forma y no el texto: una segunda copia del porqué son dos
+      documentos que se separan. Lo cruza el banco `pruebas/reportes.mjs` del repo
+      `datos`, que comprueba que la regla y el código de los tres sitios digan lo mismo.
 
 ---
 

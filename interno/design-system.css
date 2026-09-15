@@ -437,3 +437,30 @@ dialog::backdrop { background: rgba(20, 30, 18, .45); }
 }
 .texto-gris { color: var(--gris); font-size: .85rem; }
 .oculto { display: none !important; }
+
+/* ── LA HOJA DE REPORTAR UNA FALLA (15-sep-2026) ──────────────
+   Reusa `.cv-tapa` y `.cv-hoja` del menú, que ya son el idioma del panel:
+   lo que sube desde abajo se cierra con el Atrás y con un toque afuera. Lo
+   único propio es que ésta lleva un formulario adentro, así que puede
+   pasarse de alto en un teléfono chico y tiene que poder scrollear.
+
+   Y los botones de adentro NO son los de la hoja: `.cv-hoja button` es un
+   renglón de menú a lo ancho. Se acota con `.cv-rep-cuerpo` para no pisar
+   ese estilo ni tener que pelearle con !important. */
+.cv-hoja-rep { max-height: 86vh; overflow-y: auto; padding-bottom: 16px; }
+.cv-rep-donde { margin: 0 14px 10px; font-size: .78rem; color: var(--gris); }
+.cv-rep-cuerpo { padding: 0 14px; }
+.cv-rep-cuerpo textarea { width: 100%; min-height: 3.2rem; }
+.cv-rep-estado { margin: 8px 0 0; font-size: .8rem; color: var(--gris); min-height: 1rem; }
+.cv-rep-botones { display: flex; gap: 8px; margin-top: 12px; }
+.cv-rep-cuerpo .btn,
+.cv-rep-botones .btn { width: auto; flex: 1; justify-content: center; }
+/* Los dos botones de gravedad. Un segmentado y no un desplegable: son dos
+   opciones y la respuesta tiene que costar un toque, no tres. */
+.cv-rep-seg { display: flex; gap: 6px; margin: 4px 0 2px; }
+.cv-rep-seg button {
+  flex: 1; min-height: 42px; width: auto; justify-content: center;
+  border: 1px solid var(--linea); border-radius: 10px; background: #fff;
+  color: var(--gris); font-size: .82rem; padding: 6px;
+}
+.cv-rep-seg button.activo { background: var(--verde); border-color: var(--verde); color: #fff; font-weight: 600; }

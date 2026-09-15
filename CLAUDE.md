@@ -141,6 +141,16 @@ verdad después del cambio.
   tanda. El archivo da el mensaje claro, la regla da la garantía. Y es un
   usuario común, no una cuenta de servicio — una cuenta de servicio saltearía
   las reglas enteras.
+- **Una falla se reporta desde donde se vio** (desde `nucleo-avisos-14`,
+  15-sep-2026). Va a `reportes/` de ESTA base, no al panel de Mauro: el panel
+  vive en otro proyecto de Firebase y un token sirve para uno solo. La entrada
+  está en `CV2.renderNav()`, en la hoja de la cuenta — el único lugar que dibuja
+  la navegación, así que no se duplica en cada página. **El agente lee
+  `reportes/` y no lo escribe**: para saber qué ya trajo se mira el campo
+  `origen` del pendiente que creó en el panel. La regla pide `activo()` y no
+  `logueado()`, y acá esa diferencia importa más que en los otros dos sitios —
+  ver el punto de abajo. El molde está en `REPORTES.md` de remate; acá se copió
+  la forma y no el texto.
 - **Tener sesión no es permiso.** Desde que existe login anónimo para el muro
   de recuerdos hay sesiones sin ficha en `usuarios/`: "logueado" ya no
   significa "es del equipo".
