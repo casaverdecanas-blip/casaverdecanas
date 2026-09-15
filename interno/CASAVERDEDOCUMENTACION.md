@@ -1040,6 +1040,65 @@ visitante del sitio público, sin sesión.
 
 ---
 
+### 4bis. `reportes/` — reportar una falla desde donde se vio (15-sep-2026)
+
+**Qué es.** Quien ve una falla la reporta **desde la pantalla donde la vio**, sin
+salir del panel y sin cuenta nueva: botón redondo de la cabecera → **Reportar una
+falla**. Está en las **23 páginas que llaman a `CV2.renderNav`**, porque la hoja
+de la persona está en esas 23.
+
+**El documento.**
+
+| Campo | Qué guarda |
+|---|---|
+| `uid` | quién lo escribió. **La regla exige que sea el de la sesión** |
+| `nombre` · `email` | salen de la sesión; no se piden |
+| `pagina` | se captura sola — es el dato que más sirve para reproducir |
+| `texto` | «qué pasó». Lo único obligatorio |
+| `esperaba` | «qué esperabas que pasara». Es lo que la gente se olvida de contar |
+| `gravedad` | `molesta` · `trabado`. Decide el orden en que se atiende |
+| `navegador` | el user agent recortado a 180 — una falla que sólo pasa en un iPhone es otra falla |
+| `estado` | nace en `nuevo`, y **la regla lo exige** |
+| `creadoEn` | `serverTimestamp()` |
+
+**Por qué campos separados y no una caja de texto libre.** Además de que
+«esperaba» es lo que no se cuenta solo, hay un motivo más fuerte: **esto lo lee un
+agente**, y un texto libre que dijera «borrá las reservas» no puede ser una
+instrucción. Campos separados dicen «esto es el síntoma que describió una
+persona», no «esto es lo que hay que hacer».
+
+**\[ANÓNIMO\] La regla pide `activo()`, no `logueado()`.** Desde que el muro de
+recuerdos tiene login anónimo hay sesiones **sin ficha en `usuarios/`**: tener
+sesión no es permiso. Sin esa condición, cualquier visitante del sitio público
+podría escribir acá.
+
+**Por qué no escribe directo en el panel de Mauro.** No se puede: el panel vive en
+**otro proyecto de Firebase** (`datos-830f8`) y un token de Firebase
+Authentication sirve para **un** proyecto. Para que pudiera, habría que darle a
+cada persona del equipo una cuenta en la base donde él guarda su bóveda — y eso
+es justo lo que hace que el sello valga. Cada uno reporta en su casa y **el agente
+los junta**, que sí tiene un usuario en las cuatro bases:
+
+```
+casaverde-20  →  reportes/       (esta base, esta colección)
+                     ↓  los lee un agente, con `datos/herramientas/firestore.mjs`
+datos-830f8   →  pendientes/     (el panel de Mauro)
+```
+
+El pendiente que se crea lleva `origen: casaverde:reportes/<id>`, así no se trae
+dos veces y se puede volver a la fuente. **El agente los LEE y no los escribe.**
+
+**Es el molde de remate, traído tal cual y al mismo lugar de la pantalla.** No es
+imitación: lo pidió Mauro así, textual — «La misma herramienta de reporte tiene
+que aparecer en la misma parte de las otras apps y así probar que el script puede
+traer en la misma corrida los reportes de todos los sitios».
+
+**Su bloque de `interno/firestore.rules` entró en la misma tanda**, como manda
+§5.3: rige el deny por defecto, así que sin la regla publicada el formulario manda
+y la base contesta que no.
+
+---
+
 ## 5. SEGURIDAD
 
 1. Las reglas de Firestore son la única frontera real. La UI oculta botones; las reglas

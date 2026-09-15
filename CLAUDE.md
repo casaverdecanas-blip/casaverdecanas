@@ -141,6 +141,14 @@ verdad después del cambio.
   tanda. El archivo da el mensaje claro, la regla da la garantía. Y es un
   usuario común, no una cuenta de servicio — una cuenta de servicio saltearía
   las reglas enteras.
+- **Reportar una falla vive en el núcleo, desde `nucleo-avisos-14`**
+  (15-sep-2026). Molde de remate traído tal cual y **al mismo lugar de la
+  pantalla** —el botón redondo de la cabecera—, que es lo que pidió Mauro para
+  que una sola corrida del script junte los reportes de todos los sitios.
+  Escribe en `reportes/` de ESTA base, nunca en el panel: un token de Firebase
+  sirve para un solo proyecto. Su bloque de `interno/firestore.rules` entró en
+  la misma tanda. El detalle está en `interno/CASAVERDEDOCUMENTACION.md`
+  § 4bis.
 - **Tener sesión no es permiso.** Desde que existe login anónimo para el muro
   de recuerdos hay sesiones sin ficha en `usuarios/`: "logueado" ya no
   significa "es del equipo".

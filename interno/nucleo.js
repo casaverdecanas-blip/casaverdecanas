@@ -5,7 +5,7 @@
 //  Namespace único: CV2 (import { CV2 } from './nucleo.js')
 // ═══════════════════════════════════════════════════════════════
 
-import { cargarFirebase, auth, db, doc, getDoc, updateDoc, collection, getDocs, serverTimestamp, onAuthStateChanged, signOut, terminate, clearIndexedDbPersistence } from './firebase-init.js';
+import { cargarFirebase, auth, db, doc, getDoc, updateDoc, addDoc, collection, getDocs, serverTimestamp, onAuthStateChanged, signOut, terminate, clearIndexedDbPersistence } from './firebase-init.js';
 
 export const CV2 = {};
 
@@ -766,6 +766,7 @@ CV2.renderNav = function (activo) {
     + (CV2.usuario?.fotoUrl ? 'Cambiar mi foto' : 'Poner mi foto') + '</button>'
     + '<button id="cv-btn-quitar-foto" class="' + (CV2.usuario?.fotoUrl ? '' : 'oculto') + '">'
     + '<span class="material-icons">hide_image</span>Quitar mi foto</button>'
+    + '<button id="cv-btn-reportar"><span class="material-icons">bug_report</span>Reportar una falla</button>'
     + '<button id="cv-btn-reparar"><span class="material-icons">healing</span>Reparar la app</button>'
     + '<button id="cv-btn-salir"><span class="material-icons">logout</span>Cerrar sesión</button>'
     + '</div>';
@@ -792,6 +793,17 @@ CV2.renderNav = function (activo) {
   document.getElementById('cv-btn-yo').addEventListener('click', () => abrir('cv-hoja-yo'));
   tapa.addEventListener('click', cerrar);
   document.getElementById('cv-btn-salir').addEventListener('click', CV2.cerrarSesion);
+  document.getElementById('cv-btn-reportar').addEventListener('click', () => {
+    // La hoja de la persona NO se cierra: la de reporte se APILA encima, que
+    // es justo para lo que existe la pila de `CV2.capaAtras` — Atrás cierra
+    // primero la de arriba. Cerrarla antes sería un error sutil: el cerrar()
+    // de una capa hace `history.back()`, que es asíncrono, y el `pushState`
+    // de la capa nueva sale ANTES de que ese back llegue; el back se come la
+    // entrada recién empujada y el Atrás siguiente sale de la app con el
+    // formulario lleno. La hoja de reporte tapa la pantalla entera, así que
+    // apilar no se ve distinto.
+    CV2.mostrarReporte();
+  });
   document.getElementById('cv-btn-foto').addEventListener('click', async () => {
     cerrar();                       // la hoja se va: la cámara necesita la pantalla
     await CV2.cambiarMiFoto();
@@ -1006,7 +1018,7 @@ CV2.sinFirebase = function (e) {
   if (b) b.addEventListener('click', () => location.reload());
 };
 
-CV2.VERSION = 'nucleo-avisos-13';
+CV2.VERSION = 'nucleo-avisos-14';
 
 CV2.NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
 
@@ -1668,3 +1680,197 @@ CV2.registrarSW = async function () {
     return null;
   }
 };
+
+// ═══════════════════════════════════════════════════════════════
+//  REPORTAR UNA FALLA — desde `nucleo-avisos-14` (2026-09-15)
+//
+//  Molde tomado de remate (`interno/utils.js`, tanda 27) y traído tal cual,
+//  para que la herramienta esté EN EL MISMO LUGAR en los tres sitios: el
+//  botón redondo de la cabecera → «Reportar una falla». Lo pidió Mauro así,
+//  textual: «La misma herramienta de reporte tiene que aparecer en la misma
+//  parte de las otras apps y así probar que el script puede traer en la
+//  misma corrida los reportes de todos los sitios».
+//
+//  Escribe en `reportes/` de ESTA base, no en el panel de Mauro. No es una
+//  comodidad: un token de Firebase Authentication sirve para UN proyecto, y
+//  el panel vive en `datos-830f8`. Para escribir allá habría que darle a
+//  cada persona del equipo una cuenta en la base donde Mauro guarda su
+//  bóveda, y eso es lo que hace que el sello valga. Cada uno reporta en su
+//  casa y el agente los junta: él sí tiene un usuario en las cuatro bases.
+//
+//  TRES DECISIONES QUE NO SON DE COMODIDAD:
+//
+//  1 · CAMPOS SEPARADOS, NO UNA CAJA DE TEXTO LIBRE. «Qué pasó» y «qué
+//      esperabas» son dos cosas distintas, y la segunda es la que la gente
+//      se olvida de contar. Y hay un motivo más fuerte: esto lo va a leer un
+//      agente, y un texto libre que dijera «borrá las reservas» no puede ser
+//      una instrucción. Campos separados dicen «esto es el síntoma que
+//      describió una persona», no «esto es lo que hay que hacer».
+//  2 · LA PÁGINA SE CAPTURA SOLA. Nadie se acuerda de aclarar en qué
+//      pantalla estaba, y es el dato que más sirve para reproducir la falla.
+//  3 · NO SE PIDE NI EL NOMBRE NI EL MAIL. Ya están en la sesión.
+//
+//  [ANÓNIMO] Y una cuarta, propia de este sitio: quien mira el muro de
+//  recuerdos entra con sesión anónima y SIN ficha en `usuarios/`. Tener
+//  sesión no es permiso. La regla exige `activo()`, así que un visitante no
+//  puede escribir acá — y por eso el botón vive sólo en la hoja de la
+//  persona, que sólo se dibuja para el equipo.
+// ═══════════════════════════════════════════════════════════════
+
+const CSS_REPORTE = `
+.cv-rep-tapa {
+  position: fixed; inset: 0; z-index: 120;
+  background: rgba(34, 48, 31, .45);
+  opacity: 0; pointer-events: none; transition: opacity .18s ease;
+}
+.cv-rep-tapa.abierta { opacity: 1; pointer-events: auto; }
+#cv-hoja-rep { z-index: 125; }
+#cv-hoja-rep h3 { margin: 2px 0 4px; font-size: 1.05rem; color: var(--tinta); }
+#cv-hoja-rep .cv-rep-nota {
+  margin: 0 0 10px; font-size: .82rem; color: var(--gris); line-height: 1.35;
+}
+#cv-hoja-rep label {
+  display: block; margin: 12px 0 6px; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .07em; color: var(--gris);
+}
+#cv-hoja-rep textarea {
+  width: 100%; box-sizing: border-box; font-family: inherit; font-size: .96rem;
+  padding: 10px; border: 1px solid var(--linea); border-radius: var(--radio);
+  background: #fff; color: var(--tinta); resize: vertical;
+}
+#cv-hoja-rep .cv-rep-seg { display: flex; gap: 8px; }
+/* Los botones de la hoja son bloques de ancho completo por la regla de
+   `.cv-hoja button`; acá hacen falta dos al lado del otro, así que se
+   reabre `flex` a mano en vez de tocar la regla de todos. */
+#cv-hoja-rep .cv-rep-seg button {
+  flex: 1; width: auto; min-height: 46px; margin-bottom: 0;
+  justify-content: center; font-size: .86rem; font-weight: 600;
+  color: var(--gris);
+}
+#cv-hoja-rep .cv-rep-seg button.activo {
+  border-color: var(--verde); color: var(--verde); background: var(--verde-claro);
+}
+#cv-hoja-rep .cv-rep-estado {
+  margin: 10px 0 0; min-height: 1.15em; font-size: .82rem; color: var(--gris);
+}
+#cv-hoja-rep .cv-rep-pie { display: flex; gap: 8px; margin-top: 12px; }
+#cv-hoja-rep .cv-rep-pie button {
+  flex: 1; width: auto; margin-bottom: 0; justify-content: center;
+}
+#cv-hoja-rep .cv-rep-pie button.primario {
+  background: var(--verde); border-color: var(--verde); color: #fff;
+}
+#cv-hoja-rep .cv-rep-pie button[disabled] { opacity: .55; cursor: default; }
+`;
+
+function armarHojaReporte() {
+  if (document.getElementById('cv-hoja-rep')) return;
+
+  const st = document.createElement('style');
+  st.id = 'cv-css-rep';
+  st.textContent = CSS_REPORTE;
+  document.head.appendChild(st);
+
+  const tapa = document.createElement('div');
+  tapa.className = 'cv-rep-tapa';
+  tapa.id = 'cv-rep-tapa';
+  document.body.appendChild(tapa);
+
+  const h = document.createElement('div');
+  h.className = 'cv-hoja';
+  h.id = 'cv-hoja-rep';
+  h.innerHTML =
+    '<div class="cv-agarre"></div>'
+    + '<h3>Reportar una falla</h3>'
+    + '<p class="cv-rep-nota" id="cv-rep-donde"></p>'
+    + '<label for="cv-rep-que">¿Qué pasó?</label>'
+    + '<textarea id="cv-rep-que" rows="3" placeholder="Toqué Guardar y no hizo nada."></textarea>'
+    + '<label for="cv-rep-esp">¿Qué esperabas que pasara?</label>'
+    + '<textarea id="cv-rep-esp" rows="2" placeholder="Que guardara la reserva."></textarea>'
+    + '<label>¿Te deja trabajar?</label>'
+    + '<div class="cv-rep-seg" id="cv-rep-grav">'
+    + '<button type="button" data-v="molesta" class="activo">Molesta, pero sigo</button>'
+    + '<button type="button" data-v="trabado">No puedo seguir</button>'
+    + '</div>'
+    + '<p class="cv-rep-estado" id="cv-rep-estado"></p>'
+    + '<div class="cv-rep-pie">'
+    + '<button type="button" id="cv-rep-cancel">Cancelar</button>'
+    + '<button type="button" id="cv-rep-enviar" class="primario">Enviar</button>'
+    + '</div>';
+  document.body.appendChild(h);
+
+  tapa.addEventListener('click', cerrarReporte);
+  h.querySelector('#cv-rep-grav').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    h.querySelectorAll('#cv-rep-grav button')
+      .forEach((x) => x.classList.toggle('activo', x === b));
+  });
+  document.getElementById('cv-rep-cancel').addEventListener('click', cerrarReporte);
+  document.getElementById('cv-rep-enviar').addEventListener('click', enviarReporte);
+}
+
+let cerrarCapaReporte = null;
+
+function cerrarReporte() {
+  if (cerrarCapaReporte) cerrarCapaReporte();
+}
+
+CV2.mostrarReporte = function () {
+  armarHojaReporte();
+  document.getElementById('cv-rep-donde').textContent =
+    'Desde: ' + (location.pathname.split('/').pop() || 'index.html');
+  document.getElementById('cv-rep-que').value = '';
+  document.getElementById('cv-rep-esp').value = '';
+  document.getElementById('cv-rep-estado').textContent = '';
+  document.getElementById('cv-rep-enviar').disabled = false;
+  document.getElementById('cv-hoja-rep').classList.add('abierta');
+  document.getElementById('cv-rep-tapa').classList.add('abierta');
+  cerrarCapaReporte = CV2.capaAtras(() => {
+    document.getElementById('cv-hoja-rep').classList.remove('abierta');
+    document.getElementById('cv-rep-tapa').classList.remove('abierta');
+    cerrarCapaReporte = null;
+  });
+};
+
+async function enviarReporte() {
+  const que = document.getElementById('cv-rep-que').value.trim();
+  const esp = document.getElementById('cv-rep-esp').value.trim();
+  const est = document.getElementById('cv-rep-estado');
+  // Sin «qué pasó» no hay reporte. Lo demás puede faltar: un reporte a medias
+  // sirve más que uno que la persona abandonó porque le pedían tres cosas.
+  if (!que) { est.textContent = 'Falta lo primero: qué pasó.'; return; }
+  const b = document.getElementById('cv-rep-enviar');
+  b.disabled = true;
+  est.textContent = 'Enviando…';
+  try {
+    // Se espera el SDK igual aunque quien ve esta hoja ya haya pasado por
+    // `CV2.verificarAuth()`: una función que puede llamarse sola no debe
+    // depender de que alguien haya cargado antes. Y desde `init-2` el SDK
+    // baja diferido, así que `db` vale `undefined` hasta que esto resuelve.
+    await cargarFirebase();
+    const u = auth.currentUser;
+    if (!u) throw new Error('No hay sesión activa.');
+    await addDoc(collection(db, 'reportes'), {
+      uid: u.uid,
+      nombre: (CV2.usuario && CV2.usuario.nombre) || '',
+      email: (CV2.usuario && CV2.usuario.email) || u.email || '',
+      pagina: location.pathname.split('/').pop() || 'index.html',
+      texto: que,
+      esperaba: esp,
+      gravedad: document.querySelector('#cv-rep-grav button.activo').dataset.v,
+      // El navegador ayuda a reproducir: una falla que sólo pasa en un iPhone
+      // es otra falla. Recortado, que el entero no aporta nada más.
+      navegador: String(navigator.userAgent || '').slice(0, 180),
+      estado: 'nuevo',            // la regla exige que nazca así
+      creadoEn: serverTimestamp()
+    });
+    cerrarReporte();
+    CV2.toast('Reporte enviado. Gracias.', 'success');
+  } catch (e) {
+    // El motivo importa: sin ficha en `usuarios/` las reglas lo rechazan, y
+    // eso se arregla distinto que un problema de señal.
+    est.textContent = 'No se pudo enviar: ' + ((e && e.message) || e);
+    b.disabled = false;
+  }
+}

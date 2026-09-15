@@ -495,7 +495,15 @@
 //   mezcla de `nucleo.js` nuevo con un `firebase-init.js` viejo llamaría a
 //   `cargarFirebase()`, que ahí no existe, y la app no abriría — que es
 //   justo lo que esta tanda vino a arreglar.
-const VERSION = 'cv2-shell-v108';
+// v109 (15-sep-2026) — entra REPORTAR UNA FALLA: el botón redondo de la
+//       cabecera → «Reportar una falla» abre una hoja con tres campos y
+//       escribe en `reportes/` de esta base. Mismo molde que remate y mismo
+//       lugar en la pantalla, que es lo que pidió Mauro. Sube la VERSION
+//       porque `nucleo.js` está en este SHELL: sin esto los teléfonos
+//       servirían el núcleo viejo y el botón no aparecería. Su bloque de
+//       `interno/firestore.rules` entra en la misma tanda — rige el deny por
+//       defecto, y sin la regla el formulario manda y la base contesta que no.
+const VERSION = 'cv2-shell-v109';
 
 const SHELL = [
   './',
