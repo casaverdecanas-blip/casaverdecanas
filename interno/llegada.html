@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>CasaVerde 2.0 · Llegada</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<!--
+  LA FICHA DE LLEGADA (llegada-1, 29-sep-2026, pedido de Mauro).
+
+  Es lo que abre quien va a recibir a un huésped, desde el enlace que le llega
+  por WhatsApp unos días antes: la reserva, el huésped, su historia con
+  nosotros, cómo contactarlo, la plata, y el mensaje de bienvenida listo para
+  mandar.
+
+  ── POR QUÉ UNA PÁGINA INTERNA Y NO UN MENSAJE CON TODO ADENTRO ──────────────
+  El enlace viaja por WhatsApp —y antes por CallMeBot—: quien lo vea no ve
+  nada, porque esta página pasa por CV2.verificarAuth como todas y además pide
+  el permiso `reservas`. El mensaje lleva el nombre y la fecha; el teléfono,
+  la plata y la historia se quedan detrás del login. Y si el navegador no
+  tenía la sesión abierta, el login vuelve acá (CV2.destinoTrasLogin).
+
+  ── LO QUE ESCRIBE ───────────────────────────────────────────────────────────
+  · El teléfono, si falta (en la reserva y, si su ficha no tiene, en el cliente).
+  · «Ya la mandé»: `bienvenida.enviadaEn/enviadaPor` en la reserva, con su
+    renglón de historial. Es lo que le dice a la ronda que no vuelva a avisar.
+  · La plantilla de la bienvenida, en `config/bienvenida` (un texto por
+    idioma). NO en `cabanas/`, que es de lectura pública: una bienvenida
+    termina llevando la dirección y cómo se entra.
+  La plata NO se toca acá: se mira. Para cargar un pago está Reservas.
+-->
+<style>
+  .caja { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 12px 13px; margin: 10px 0; box-shadow: var(--sombra); font-size: .88rem; }
+  .caja > h2 { font-size: .95rem; margin: 0 0 8px; display: flex; align-items: center; gap: 6px; color: var(--verde-osc); }
+  .caja > h2 .material-icons { font-size: 19px; }
+  dl.datos { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0; }
+  dl.datos dt { color: var(--gris); }
+  dl.datos dd { margin: 0; overflow-wrap: anywhere; }
+  .chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+  .est { font-size: .72rem; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .est.presupuesto { background: #e8ecfd; color: #2b3f9e; }
+  .est.confirmada { background: var(--verde-claro); color: var(--verde-osc); }
+  .est.finalizada { background: #eee; color: #666; }
+  .est.anulada { background: #fde4e2; color: #8f1d17; }
+  .falta { background: #fdf1d8; color: #8a6206; border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
+  .fila { display: flex; gap: 8px; align-items: center; padding: 5px 0; border-top: 1px dashed var(--linea); }
+  .fila:first-of-type { border-top: 0; }
+  .fila .q { flex: 1; min-width: 0; }
+  .fila small { color: var(--gris); }
+  .saldo { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; font-size: .9rem; }
+  .pedido { display: flex; gap: 7px; align-items: flex-start; margin-top: 5px; }
+  .pedido input { width: 18px; height: 18px; margin: 1px 0 0; flex: none; }
+  .pedido.resuelto span { text-decoration: line-through; color: var(--gris); }
+  .hist { font-size: .78rem; color: var(--gris); line-height: 1.5; }
+  textarea#texto { width: 100%; box-sizing: border-box; min-height: 190px; font: inherit;
+    font-size: .92rem; line-height: 1.45; padding: 9px; border: 1px solid var(--linea); border-radius: 9px; }
+  .acciones { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 9px; }
+  .acciones .btn { text-decoration: none; }
+  .fila-tel { display: flex; gap: 6px; margin-top: 6px; }
+  .fila-tel input { flex: 1; min-width: 0; }
+  .ayuda { font-size: .76rem; color: var(--gris); line-height: 1.5; margin: 6px 0 0; }
+  .volver { display: flex; align-items: center; gap: 6px; min-height: 44px;
+    margin: 0 0 10px; padding: 9px 12px; background: var(--verde-claro);
+    border-radius: 10px; color: var(--verde-osc); text-decoration: none;
+    font-size: .88rem; font-weight: 600; }
+  .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <a class="volver" id="volver" href="./reservas.html"><span class="material-icons">arrow_back</span> Reservas</a>
+  <div id="todo"><div class="vacio">Cargando…</div></div>
+  <p class="texto-gris" id="sello" style="font-size:.7rem;text-align:center;margin-top:18px;"></p>
+</div>
+
+<script type="module">
+import {
+  db, collection, query, where, getDocs, doc, getDoc, updateDoc, setDoc,
+  serverTimestamp, arrayUnion, Timestamp
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('reservas');
+
+const SELLO = 'llegada-1';
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+$('sello').textContent = 'pantalla: ' + SELLO + ' · motor: ' + (CV2.VERSION ?? 'nucleo viejo');
+
+const id = new URLSearchParams(location.search).get('r');
+// Por defecto se vuelve a la reserva en Reservas; si la dirección dice otra
+// cosa (el calendario, por ejemplo), manda la dirección.
+$('volver').href = id ? './reservas.html?r=' + encodeURIComponent(id) : './reservas.html';
+CV2.botonVolver($('volver'));
+
+// ═══ Las bienvenidas por defecto ═══════════════════════════
+// Se pueden cambiar desde la misma pantalla («Cambiar la plantilla») y se
+// guardan en config/bienvenida. Las marcas entre llaves se reemplazan; las
+// que no se conocen quedan tal cual, para que se vean y se completen.
+const MARCAS = ['nombre', 'anfitrion', 'cabana', 'entrada', 'salida', 'noches', 'horaEntrada', 'horaSalida', 'llegada'];
+const DEFECTO = {
+  es: `¡Hola, {nombre}! 👋 Soy {anfitrion}, de Casa Verde, en Canasvieiras.
+
+Les escribo para darles la bienvenida: los esperamos el {entrada} en {cabana}, hasta el {salida} ({noches} noches). La entrada es desde las {horaEntrada} y la salida hasta las {horaSalida}.
+
+{llegada}
+
+Cualquier cosa que necesiten antes de venir, me escriben por acá. ¡Buen viaje! 🌿`,
+  pt: `Olá, {nombre}! 👋 Aqui é {anfitrion}, da Casa Verde, em Canasvieiras.
+
+Passando para dar as boas-vindas: esperamos vocês {entrada}, em {cabana}, até {salida} ({noches} noites). O check-in é a partir das {horaEntrada} e o check-out até as {horaSalida}.
+
+{llegada}
+
+Qualquer coisa que precisarem antes de vir, é só me chamar por aqui. Boa viagem! 🌿`,
+  en: `Hi {nombre}! 👋 This is {anfitrion} from Casa Verde, in Canasvieiras.
+
+Just writing to welcome you: we're expecting you on {entrada} at {cabana}, until {salida} ({noches} nights). Check-in is from {horaEntrada} and check-out is until {horaSalida}.
+
+{llegada}
+
+If you need anything before you arrive, just message me here. Have a good trip! 🌿`
+};
+// {llegada}: si ya se sabe a qué hora llegan, se confirma; si no, se pregunta.
+const LLEGADA = {
+  es: { sabe: (h) => `Tenemos anotado que llegan tipo las ${h}: les dejamos todo listo para esa hora.`,
+        pregunta: '¿Más o menos a qué hora piensan llegar? Así les tenemos todo listo.' },
+  pt: { sabe: (h) => `Anotamos que vocês chegam por volta das ${h}: vamos deixar tudo pronto para esse horário.`,
+        pregunta: 'Mais ou menos a que horas pretendem chegar? Assim deixamos tudo pronto.' },
+  en: { sabe: (h) => `We have you down as arriving around ${h}: everything will be ready by then.`,
+        pregunta: 'Roughly what time do you think you\'ll arrive? That way we\'ll have everything ready.' }
+};
+const LOCALE = { es: 'es-UY', pt: 'pt-BR', en: 'en-US' };
+const IDIOMA_DE_PAIS = { Brasil: 'pt', Brazil: 'pt', 'Estados Unidos': 'en', 'United States': 'en' };
+
+// ═══ Datos ═════════════════════════════════════════════════
+let r = null, cliente = null, grupo = null, cabanas = [], pagos = [],
+    otras = [], hermanas = [], plantillas = {}, idioma = 'es', editado = false;
+
+const nombreCab = (cid, lang) => {
+  const n = cabanas.find((c) => c.id === cid)?.nombre;
+  return typeof n === 'object' ? (n[lang] ?? n.es ?? n.pt ?? cid) : (n ?? cid);
+};
+const noches = (x) => Math.max(0, Math.round((new Date(x.checkOut) - new Date(x.checkIn)) / 86400000));
+const fechaLarga = (iso, lang) => new Date(iso + 'T12:00:00')
+  .toLocaleDateString(LOCALE[lang] || 'es-UY', { weekday: 'long', day: 'numeric', month: 'long' });
+const aporte = (p, mon) => Number(p.moneda === mon ? p.monto : (p.montoEquiv ?? p.montoBRL)) || 0;
+// El nombre del huésped sin el «Airbnb · HM…» que le pone el importador.
+const nombreHuesped = () => {
+  const n = cliente?.nombre || String(r.clienteNombre || '')
+    .replace(/^Airbnb\s*·?\s*/i, '').replace(/\bHM[A-Z0-9]{6,12}\b/, '').trim();
+  return n || '';
+};
+const telefono = () => (r.contacto?.telefono || cliente?.telefono || '').trim();
+const codigoAirbnb = () => (String(r.clienteNombre || '').match(/\bHM[A-Z0-9]{6,12}\b/) || [''])[0];
+
+async function cargar() {
+  if (!id) { $('todo').innerHTML = '<div class="vacio">Falta qué reserva mostrar.</div>'; return; }
+  if (!CV2.puede('reservas')) {
+    $('todo').innerHTML = '<div class="vacio">Esta ficha es para quien atiende las reservas: tu cuenta no tiene ese permiso.</div>';
+    return;
+  }
+  const s = await getDoc(doc(db, 'reservas', id));
+  if (!s.exists()) { $('todo').innerHTML = '<div class="vacio">Esa reserva no existe (¿se borró?).</div>'; return; }
+  r = { id: s.id, ...s.data() };
+
+  const pedidos = [
+    getDocs(collection(db, 'cabanas')),
+    r.clienteId ? getDoc(doc(db, 'clientes', r.clienteId)) : null,
+    r.grupoId ? getDoc(doc(db, 'grupos', r.grupoId)) : null,
+    // Los pagos del acuerdo; una reserva vieja sin acuerdo tiene los suyos
+    // por reservaId (el mismo criterio que pagosAcuerdo en reservas.html).
+    r.grupoId ? getDocs(query(collection(db, 'pagos'), where('grupoId', '==', r.grupoId)))
+              : getDocs(query(collection(db, 'pagos'), where('reservaId', '==', r.id))),
+    r.clienteId ? getDocs(query(collection(db, 'reservas'), where('clienteId', '==', r.clienteId))) : null,
+    r.grupoId ? getDocs(query(collection(db, 'reservas'), where('grupoId', '==', r.grupoId))) : null,
+    getDoc(doc(db, 'config', 'bienvenida')).catch(() => null)
+  ];
+  const [sCab, sCli, sGr, sPag, sOtras, sHerm, sPlant] = await Promise.all(pedidos);
+  cabanas = sCab.docs.map((d) => ({ id: d.id, ...d.data() }));
+  cliente = sCli && sCli.exists() ? { id: sCli.id, ...sCli.data() } : null;
+  grupo = sGr && sGr.exists() ? sGr.data() : null;
+  pagos = sPag.docs.map((d) => ({ id: d.id, ...d.data() }))
+    .filter((p) => r.grupoId || !p.grupoId)
+    .sort((a, b) => String(b.fecha ?? '').localeCompare(String(a.fecha ?? '')));
+  hermanas = sHerm ? sHerm.docs.map((d) => ({ id: d.id, ...d.data() })).filter((x) => x.id !== r.id && x.estado !== 'anulada') : [];
+  const deEsteAcuerdo = new Set([r.id, ...hermanas.map((x) => x.id)]);
+  otras = sOtras ? sOtras.docs.map((d) => ({ id: d.id, ...d.data() }))
+    .filter((x) => !deEsteAcuerdo.has(x.id))
+    .sort((a, b) => String(b.checkIn).localeCompare(String(a.checkIn))) : [];
+  plantillas = (sPlant && sPlant.exists && sPlant.exists()) ? (sPlant.data() || {}) : {};
+
+  idioma = r.contacto?.idioma || cliente?.idioma || IDIOMA_DE_PAIS[cliente?.pais] || 'es';
+  if (!DEFECTO[idioma]) idioma = 'es';
+  pintar();
+}
+
+// ═══ Pintar ════════════════════════════════════════════════
+function pintar() {
+  const tel = telefono();
+  const nom = nombreHuesped();
+  const cod = codigoAirbnb();
+  const mon = grupo?.moneda || r.moneda || 'BRL';
+  const total = Number(grupo?.total ?? r.total ?? r.totalBRL ?? 0) || 0;
+  const pagado = pagos.reduce((x, p) => x + aporte(p, mon), 0);
+  const saldo = total - pagado;
+  const env = r.bienvenida?.enviadaEn;
+
+  let h = '';
+
+  // ── La reserva ──
+  h += `<div class="caja">
+    <h2><span class="material-icons">king_bed</span> ${esc(nom || r.clienteNombre || 'Huésped')}</h2>
+    <dl class="datos">
+      <dt>Cabaña</dt><dd>${esc(nombreCab(r.cabanaId, 'es'))}${hermanas.length ? ' <small>+ ' + hermanas.map((x) => esc(nombreCab(x.cabanaId, 'es'))).join(', ') + ' (mismo acuerdo)</small>' : ''}</dd>
+      <dt>Entra</dt><dd>${esc(fechaLarga(r.checkIn, 'es'))} · ${esc(r.horaEntrada || '14:00')}</dd>
+      <dt>Sale</dt><dd>${esc(fechaLarga(r.checkOut, 'es'))} · ${esc(r.horaSalida || '10:00')}</dd>
+      <dt>Noches</dt><dd>${noches(r)}</dd>
+      <dt>Estado</dt><dd><span class="est ${esc(r.estado)}">${esc(r.estado)}</span> · ${esc(r.origen || 'directa')}${cod ? ' · ' + esc(cod) : ''}</dd>
+      <dt>Personas</dt><dd>${r.adultos ?? 0} adulto(s)${r.ninos ? ' + ' + r.ninos + ' niño(s)' : ''}${r.bebes ? ' + ' + r.bebes + ' bebé(s)' : ''}</dd>
+      ${r.mascotas ? `<dt>Mascotas</dt><dd>🐾 ${esc(r.mascotas)}</dd>` : ''}
+      <dt>Llega</dt><dd>${r.llegadaEstimada ? '~' + esc(r.llegadaEstimada) : '<span style="color:var(--gris)">no se sabe todavía</span>'}</dd>
+    </dl>
+    ${(r.pedidos ?? []).length ? '<div style="margin-top:8px;"><b>Pedidos</b>' + r.pedidos.map((p, i) => `
+      <label class="pedido${p.estado === 'resuelto' ? ' resuelto' : ''}"><input type="checkbox" data-pedido="${i}" ${p.estado === 'resuelto' ? 'checked' : ''}>
+      <span>${esc(p.texto)}${p.fuente && p.fuente !== 'panel' ? ' <small>· ' + esc(p.fuente) + '</small>' : ''}</span></label>`).join('') + '</div>' : ''}
+    ${r.notas ? `<p class="hist" style="white-space:pre-wrap;margin:8px 0 0;">📝 ${esc(r.notas)}</p>` : ''}
+  </div>`;
+
+  // ── Contacto ──
+  h += `<div class="caja">
+    <h2><span class="material-icons">call</span> Contacto</h2>
+    <dl class="datos">
+      <dt>Teléfono</dt><dd>${tel ? `<a href="${esc(CV2.urlWhatsapp(tel))}" target="_blank" rel="noopener">${esc(CV2.telVisible(tel))}</a>` : '—'}</dd>
+      ${cliente?.email ? `<dt>Mail</dt><dd><a href="mailto:${esc(cliente.email)}">${esc(cliente.email)}</a></dd>` : ''}
+      ${cliente?.pais ? `<dt>País</dt><dd>${esc(cliente.pais)}</dd>` : ''}
+      <dt>Idioma</dt><dd>${esc({ es: 'español', pt: 'portugués', en: 'inglés' }[idioma])}</dd>
+      ${r.contacto?.canal ? `<dt>Escribe por</dt><dd>${esc(r.contacto.canal)}</dd>` : ''}
+      ${cliente?.llegoPor ? `<dt>Nos conoció</dt><dd>${esc(cliente.llegoPor)}${cliente.llegoPorDetalle ? ' · ' + esc(cliente.llegoPorDetalle) : ''}</dd>` : ''}
+    </dl>
+    ${tel ? (CV2.avisoDeTelefono(tel) ? `<div class="falta">⚠ ${esc(CV2.avisoDeTelefono(tel))}</div>` : '') : `
+      <div class="falta">📞 <b>No tenemos su teléfono.</b> ${r.origen === 'airbnb'
+        ? 'Pedíselo por Airbnb (la bienvenida de abajo se puede pegar ahí) y guardalo acá cuando llegue.'
+        : 'Guardalo acá: queda en la reserva y en su ficha.'}
+        <div class="fila-tel"><input id="nuevoTel" type="tel" inputmode="tel" placeholder="+55 48 …" maxlength="30">
+        <button class="btn btn-primario" id="guardarTel">Guardar</button></div>
+      </div>`}
+  </div>`;
+
+  // ── Plata ──
+  h += `<div class="caja">
+    <h2><span class="material-icons">payments</span> Pagos y estado de cuenta</h2>
+    ${total > 0 ? `<div class="saldo">
+        <span>Total <b>${CV2.fmtMonto(total, mon)}</b></span>
+        <span>Pagado <b>${CV2.fmtMonto(pagado, mon)}</b></span>
+        <span style="color:${saldo > 0.01 ? 'var(--amarillo)' : 'var(--ok)'};">${saldo > 0.01 ? 'Falta <b>' + CV2.fmtMonto(saldo, mon) + '</b>' : '✓ pagada'}</span>
+      </div>`
+      : `<p class="hist" style="margin:0;">${r.origen === 'airbnb'
+          ? 'Reserva de Airbnb: el huésped le paga a Airbnb y Airbnb liquida aparte. No tiene precio cargado acá.'
+          : 'El acuerdo no tiene precio cargado.'}</p>`}
+    ${pagos.length ? '<div style="margin-top:8px;">' + pagos.map((p) => `<div class="fila">
+        <span class="q">${CV2.fmtFecha(p.fecha)} · ${esc({ sena: 'Seña', saldo: 'Saldo' }[p.concepto] ?? 'Pago')} · ${esc(p.metodo ?? '')}${p.nota ? ' <small>· ' + esc(p.nota) + '</small>' : ''}</span>
+        <b>${CV2.fmtMonto(p.monto, p.moneda ?? 'BRL')}</b></div>`).join('') + '</div>'
+      : (total > 0 ? '<p class="hist" style="margin:6px 0 0;">Sin pagos registrados.</p>' : '')}
+    ${grupo?.nota ? `<p class="hist" style="margin:6px 0 0;">📝 ${esc(grupo.nota)}</p>` : ''}
+  </div>`;
+
+  // ── Historia con nosotros ──
+  h += `<div class="caja">
+    <h2><span class="material-icons">history</span> Con nosotros</h2>
+    ${!r.clienteId ? '<p class="hist" style="margin:0;">La reserva no está asociada a una ficha de cliente, así que no se puede saber si ya vino antes.</p>'
+      : otras.length ? `<p style="margin:0 0 4px;"><b>${otras.filter((x) => x.estado !== 'anulada').length}</b> estadía(s) más con nosotros:</p>`
+        + otras.map((x) => `<div class="fila"><span class="q">${CV2.fmtFecha(x.checkIn)} → ${CV2.fmtFecha(x.checkOut)} · ${esc(nombreCab(x.cabanaId, 'es'))}
+            <small>· ${noches(x)} noche(s) · ${x.adultos ?? 0}p</small></span><span class="est ${esc(x.estado)}">${esc(x.estado)}</span></div>`).join('')
+      : '<p style="margin:0;">Es su <b>primera vez</b> con nosotros.</p>'}
+    ${cliente?.notas ? `<p class="hist" style="white-space:pre-wrap;margin:8px 0 0;">📝 ${esc(cliente.notas)}</p>` : ''}
+    ${(r.historial ?? []).length ? `<details style="margin-top:8px;"><summary class="hist" style="cursor:pointer;">Historial de esta reserva (${r.historial.length})</summary>
+      <div class="hist" style="margin-top:4px;">${[...r.historial].sort((a, b) => (b.fecha?.toMillis?.() ?? 0) - (a.fecha?.toMillis?.() ?? 0))
+        .map((x) => `${CV2.fmtFecha(x.fecha)} · ${esc(x.autorNombre ?? '')}: ${esc(x.cambio ?? '')}`).join('<br>')}</div></details>` : ''}
+  </div>`;
+
+  // ── La bienvenida ──
+  h += `<div class="caja">
+    <h2><span class="material-icons">waving_hand</span> Bienvenida</h2>
+    ${env ? `<p style="margin:0 0 8px;color:var(--ok);">✓ Enviada el ${CV2.fmtFecha(env)}${r.bienvenida?.enviadaPor ? ' por ' + esc(r.bienvenida.enviadaPor) : ''}.</p>` : ''}
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+      <label for="idioma" style="margin:0;">Idioma</label>
+      <select id="idioma" style="width:auto;">
+        <option value="es">Español</option><option value="pt">Português</option><option value="en">English</option>
+      </select>
+    </div>
+    <textarea id="texto"></textarea>
+    <div class="acciones">
+      <button class="btn" id="copiar"><span class="material-icons">content_copy</span> Copiar</button>
+      ${tel ? `<a class="btn btn-primario" id="abrirWa" target="_blank" rel="noopener"><span class="material-icons">chat</span> Abrir en WhatsApp</a>` : ''}
+      ${!tel && r.origen === 'airbnb' ? `<a class="btn" href="https://www.airbnb.com/hosting/messages" target="_blank" rel="noopener"><span class="material-icons">open_in_new</span> Abrir Airbnb</a>` : ''}
+      ${env ? '' : '<button class="btn" id="yaMande"><span class="material-icons">done</span> Ya la mandé</button>'}
+    </div>
+    <p class="ayuda">${tel ? '«Abrir en WhatsApp» abre el chat con el huésped y el texto ya escrito: lo revisás y lo mandás vos.' : 'Sin teléfono no se puede abrir el chat: copiá el texto y pegalo donde le escribas.'}
+      Podés cambiar el texto acá antes de mandarlo; eso no cambia la plantilla.</p>
+    <details style="margin-top:8px;"><summary class="hist" style="cursor:pointer;">Cambiar la plantilla de este idioma</summary>
+      <p class="ayuda">Vale para todas las bienvenidas. Las marcas entre llaves se completan solas:
+        ${MARCAS.map((m) => '{' + m + '}').join(' ')}. <b>{llegada}</b> pregunta a qué hora llegan, o lo confirma si ya se sabe.</p>
+      <textarea id="plantilla" style="width:100%;box-sizing:border-box;min-height:160px;font:inherit;font-size:.85rem;padding:8px;border:1px solid var(--linea);border-radius:9px;"></textarea>
+      <div class="acciones">
+        <button class="btn btn-primario" id="guardarPlantilla">Guardar la plantilla</button>
+        <button class="btn" id="volverDefecto">Volver a la original</button>
+      </div>
+    </details>
+  </div>
+
+  <div class="acciones" style="justify-content:center;">
+    <a class="btn" href="./reservas.html?r=${encodeURIComponent(r.id)}"><span class="material-icons">edit</span> Editar o cargar un pago en Reservas</a>
+  </div>`;
+
+  $('todo').innerHTML = h;
+  $('idioma').value = idioma;
+  $('idioma').onchange = () => { idioma = $('idioma').value; editado = false; armarTexto(); };
+  $('texto').oninput = () => { editado = true; actualizarEnlace(); };
+  armarTexto();
+  cablear();
+}
+
+function plantillaDe(lang) { return String(plantillas[lang] || DEFECTO[lang] || DEFECTO.es); }
+
+function armarTexto() {
+  const lang = idioma;
+  const valores = {
+    nombre: (nombreHuesped().split(/\s+/)[0]) || (lang === 'en' ? 'there' : ''),
+    anfitrion: (u.nombre || '').split(/\s+/)[0] || 'Casa Verde',
+    cabana: nombreCab(r.cabanaId, lang),
+    entrada: fechaLarga(r.checkIn, lang),
+    salida: fechaLarga(r.checkOut, lang),
+    noches: String(noches(r)),
+    horaEntrada: r.horaEntrada || '14:00',
+    horaSalida: r.horaSalida || '10:00',
+    llegada: r.llegadaEstimada ? LLEGADA[lang].sabe(r.llegadaEstimada) : LLEGADA[lang].pregunta
+  };
+  const t = plantillaDe(lang).replace(/\{(\w+)\}/g, (m, k) => (k in valores ? valores[k] : m))
+    .replace(/, !/g, '!').replace(/\n{3,}/g, '\n\n');
+  $('texto').value = t;
+  if ($('plantilla')) $('plantilla').value = plantillaDe(lang);
+  actualizarEnlace();
+}
+
+function actualizarEnlace() {
+  const a = $('abrirWa');
+  if (a) a.href = CV2.urlWhatsapp(telefono(), $('texto').value);
+}
+
+const renglon = (cambio) => arrayUnion({ fecha: Timestamp.now(), autorUid: u.uid, autorNombre: u.nombre ?? '', cambio });
+
+function cablear() {
+  $('copiar').onclick = async () => {
+    try { await navigator.clipboard.writeText($('texto').value); CV2.toast('Copiado', 'success'); }
+    catch { $('texto').select(); CV2.toast('Mantené apretado el texto para copiarlo', 'info'); }
+  };
+
+  if ($('yaMande')) $('yaMande').onclick = async () => {
+    try {
+      await updateDoc(doc(db, 'reservas', r.id), {
+        'bienvenida.enviadaEn': CV2.hoyISO(),
+        'bienvenida.enviadaPor': u.nombre ?? '',
+        'bienvenida.idioma': idioma,
+        historial: renglon('bienvenida enviada'),
+        actualizadoEn: serverTimestamp()
+      });
+      r.bienvenida = { ...(r.bienvenida || {}), enviadaEn: CV2.hoyISO(), enviadaPor: u.nombre ?? '' };
+      CV2.toast('Anotado', 'success');
+      pintar();
+    } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+  };
+
+  if ($('guardarTel')) $('guardarTel').onclick = async () => {
+    const v = CV2.telVisible($('nuevoTel').value);
+    const aviso = CV2.avisoDeTelefono(v);
+    if (!v || aviso) { CV2.toast(aviso || 'Escribí el teléfono', 'error'); return; }
+    try {
+      await updateDoc(doc(db, 'reservas', r.id), {
+        'contacto.telefono': v,
+        historial: renglon('teléfono de contacto cargado'),
+        actualizadoEn: serverTimestamp()
+      });
+      // Si su ficha no tiene teléfono, es el mismo huésped: va también ahí.
+      if (cliente && !cliente.telefono) {
+        await updateDoc(doc(db, 'clientes', cliente.id), { telefono: v, actualizadoEn: serverTimestamp() });
+        cliente.telefono = v;
+      }
+      r.contacto = { ...(r.contacto || {}), telefono: v };
+      CV2.toast('Teléfono guardado', 'success');
+      const texto = editado ? $('texto').value : null;
+      pintar();
+      if (texto) { $('texto').value = texto; editado = true; actualizarEnlace(); }
+    } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+  };
+
+  document.querySelectorAll('[data-pedido]').forEach((el) => {
+    el.onchange = async () => {
+      const i = +el.dataset.pedido;
+      const pedidos = (r.pedidos ?? []).map((p) => ({ ...p }));
+      if (!pedidos[i]) return;
+      pedidos[i].estado = el.checked ? 'resuelto' : 'pendiente';
+      try {
+        await updateDoc(doc(db, 'reservas', r.id), {
+          pedidos, historial: renglon(`pedido «${pedidos[i].texto.slice(0, 40)}» → ${pedidos[i].estado}`),
+          actualizadoEn: serverTimestamp()
+        });
+        r.pedidos = pedidos;
+        el.closest('.pedido').classList.toggle('resuelto', el.checked);
+      } catch (e) { el.checked = !el.checked; CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+    };
+  });
+
+  $('guardarPlantilla').onclick = async () => {
+    const t = $('plantilla').value.trim();
+    if (!t) { CV2.toast('La plantilla está vacía', 'error'); return; }
+    try {
+      await setDoc(doc(db, 'config', 'bienvenida'), {
+        [idioma]: t, actualizadoPor: u.nombre ?? '', actualizadoEn: serverTimestamp()
+      }, { merge: true });
+      plantillas[idioma] = t;
+      editado = false; armarTexto();
+      CV2.toast('Plantilla guardada', 'success');
+    } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+  };
+  $('volverDefecto').onclick = () => { $('plantilla').value = DEFECTO[idioma]; };
+}
+
+try { await cargar(); }
+catch (e) {
+  console.error(e);
+  $('todo').innerHTML = `<div class="vacio">No se pudo cargar la reserva (${esc(e.code ?? e.message)}).</div>`;
+}
+</script>
+</body>
+</html>

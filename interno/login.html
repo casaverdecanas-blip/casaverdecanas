@@ -94,7 +94,9 @@ async function entrar() {
     await signInWithEmailAndPassword(auth, email, clave);
     // replace, no href: si entrar dejara login en el historial, el botón
     // Atrás de Android volvería acá con la sesión ya abierta.
-    location.replace('./index.html');
+    // Si se llegó por un enlace (la ficha de llegada por WhatsApp), se vuelve
+    // ahí; si no, a la portada. Ver CV2.destinoTrasLogin.
+    location.replace(CV2.destinoTrasLogin());
   } catch (e) {
     $('error').textContent = 'No se pudo ingresar. Revisá email y contraseña.';
     $('btnEntrar').disabled = false;

@@ -87,6 +87,7 @@ CV2.verificarAuth = async function () {
       if (guardia) clearTimeout(guardia);
       if (quitar) { try { quitar(); } catch { /* ya cortada */ } }
       if (location.pathname.indexOf('login.html') !== -1) return;   // ya estamos ahí
+      if (motivo === 'sesion') CV2.guardarDestino();
       location.replace('./login.html?e=' + encodeURIComponent(motivo));
     };
 
@@ -574,6 +575,34 @@ CV2.traerALaVista = function (el, opts) {
  * de la dirección, o sea de afuera, y un 'volver' que aceptara
  * 'https://otro-sitio' sería un trampolín escrito por nosotros.
  */
+/**
+ * Volver ADONDE SE IBA después de entrar (nucleo-avisos-15, 29-sep-2026).
+ * La ficha de llegada le llega a quien atiende por WhatsApp, como enlace: si
+ * el navegador no tiene la sesión abierta, verificarAuth la manda al login, y
+ * hasta acá el login mandaba siempre a la portada — el enlace se perdía y
+ * había que buscar la reserva a mano. Ahora el destino se anota antes de
+ * salir y el login lo usa. Sólo una página de ESTA carpeta (mismo filtro que
+ * botonVolver: un destino que viene de la dirección es de afuera) y vence a
+ * los diez minutos, para que un enlace viejo no reaparezca días después.
+ */
+CV2._DESTINO = 'cv-destino';
+CV2._destinoValido = (d) => typeof d === 'string'
+  && /^[A-Za-z0-9._-]+\.html(\?[^#]*)?$/.test(d) && !/^login\.html/.test(d);
+CV2.guardarDestino = function () {
+  try {
+    const d = location.pathname.split('/').pop() + location.search;
+    if (CV2._destinoValido(d)) localStorage.setItem(CV2._DESTINO, JSON.stringify({ d, t: Date.now() }));
+  } catch { /* sin almacenamiento: se entra a la portada, como antes */ }
+};
+CV2.destinoTrasLogin = function () {
+  try {
+    const x = JSON.parse(localStorage.getItem(CV2._DESTINO) || 'null');
+    localStorage.removeItem(CV2._DESTINO);
+    if (x && Date.now() - x.t < 600000 && CV2._destinoValido(x.d)) return './' + x.d;
+  } catch { /* nada guardado o ilegible */ }
+  return './index.html';
+};
+
 CV2.botonVolver = function (el, etiqueta) {
   if (!el) return false;
   const v = CV2.pedido().volver;
@@ -1151,7 +1180,7 @@ CV2.sinFirebase = function (e) {
   if (b) b.addEventListener('click', () => location.reload());
 };
 
-CV2.VERSION = 'nucleo-avisos-14';
+CV2.VERSION = 'nucleo-avisos-15';
 
 CV2.NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
 

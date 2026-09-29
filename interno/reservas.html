@@ -343,7 +343,7 @@ CV2.renderNav('reservas');
 // §3.18 · sello de versión. Sin esto, "subí el archivo nuevo" es una creencia:
 // el 31-jul-2026 se buscó el acuerdo en un formulario que era del archivo
 // anterior, y el síntoma parecía un problema de diseño.
-const SELLO = 'reservas-ical-7';
+const SELLO = 'reservas-ical-8';
 
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
@@ -619,6 +619,8 @@ function render() {
             ? `<button class="btn-ico" onclick="agregarCabana('${a.clave}')"><span class="material-icons">add_home</span> Otra cabaña</button>` : ''}
           ${CV2.puede('reservas') && a.rs.length > 1
             ? `<button class="btn-ico" onclick="editarAcuerdo('${a.clave}')"><span class="material-icons">payments</span> Editar el acuerdo</button>` : ''}
+          ${CV2.puede('reservas') && a.rs.some((r) => r.estado !== 'anulada')
+            ? `<a class="btn-ico" style="text-decoration:none;" href="./llegada.html?r=${encodeURIComponent(r0.id)}"><span class="material-icons">waving_hand</span> Llegada</a>` : ''}
           ${CV2.puede('reservas') && a.rs.length === 1
             ? `<button class="btn-ico" onclick="editar('${r0.id}')"><span class="material-icons">edit</span> Editar</button>` : ''}
           ${CV2.puede('reservas') && a.rs.length === 1 && r0.estado !== 'anulada'

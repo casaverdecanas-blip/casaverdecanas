@@ -499,7 +499,10 @@
 //   bebés, mascotas, hora de llegada, contacto y pedidos en reservas.html,
 //   con su eco en calendario.html y en la tarjeta de limpieza de
 //   actividades.html.
-const VERSION = 'cv2-shell-v110';
+// v111 (29-sep-2026) — LA FICHA DE LLEGADA: llegada.html (nueva, llegada-1),
+//   el botón «Llegada» en reservas.html (reservas-ical-8) y el login que
+//   vuelve al enlace que se abrió (nucleo-avisos-15 + login.html).
+const VERSION = 'cv2-shell-v111';
 
 const SHELL = [
   './',
@@ -522,6 +525,7 @@ const SHELL = [
   './calendario.html',
   './agenda.html',
   './clientes.html',
+  './llegada.html',
   './dinero.html',
   './balance.html',
   './fiscal.html',

@@ -739,6 +739,27 @@ googleEventId, notas, historial [{fecha, autorUid, autorNombre, cambio}]`
   desde la ficha, con renglón en el historial. La tarjeta de limpieza de
   `actividades.html` y el día del calendario muestran bebés, mascotas, llegada y
   pedidos pendientes: son lo que cambia cómo se prepara la cabaña.
+· **`bienvenida {avisadaEn, enviadaEn, enviadaPor, idioma}`** (29-sep-2026): `avisadaEn`
+  lo escribe el agente cuando le avisa a quien recibe que llega alguien
+  (`datos/herramientas/reservas.mjs llegadas`); `enviadaEn` lo escribe la ficha de
+  llegada al tocar «Ya la mandé». Fechas 'YYYY-MM-DD'.
+· **La ficha de llegada — `llegada.html?r=<id>`** (`llegada-1`). Lo que abre quien va a
+  recibir, desde el enlace que le llega por WhatsApp: la reserva, el huésped y su
+  contacto, **su historia con nosotros** (las otras reservas de la misma ficha de
+  cliente), los pagos y el saldo del acuerdo, el historial entero de la reserva, y la
+  **bienvenida armada en su idioma** con «Copiar» y «Abrir en WhatsApp» (el chat del
+  huésped con el texto escrito; lo manda una persona). Si falta el teléfono, se guarda
+  desde ahí mismo. **Por qué es una página y no un mensaje con todo:** el enlace viaja
+  por WhatsApp y quien lo intercepte no ve nada — pasa por `verificarAuth` y pide el
+  permiso `reservas`. Y como el que lo abre desde WhatsApp puede no tener la sesión
+  abierta en ese navegador, **el login ahora vuelve al enlace** (`CV2.guardarDestino` /
+  `CV2.destinoTrasLogin`, nucleo-avisos-15): antes mandaba siempre a la portada. Sólo
+  una página de esta carpeta, y vence a los diez minutos.
+  **La plantilla de la bienvenida vive en `config/bienvenida`** (un texto por idioma,
+  `es`/`pt`/`en`, con marcas `{nombre}` `{cabana}` `{entrada}` `{llegada}`…), editable
+  desde la misma ficha. NO en `cabanas/`, que es de lectura pública: una bienvenida
+  termina llevando la dirección y cómo se entra. Sin plantilla guardada, rige la del
+  código.
 · **(derivado)** pagado, saldo, señada, "en casa".
 
 ### `pagos/{id}`
