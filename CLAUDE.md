@@ -133,14 +133,20 @@ verdad después del cambio.
 - **Una colección nueva entra con su regla, en la misma tanda.** Rige el deny
   por defecto, sin catch-all, y **las reglas se suman**: se edita
   `interno/firestore.rules` completo, nunca por fragmentos.
-- **El agente de Claude Code lee la base para compararla con el código**, con
-  un bloque propio (`esAgente()`) y una lista de exclusiones que deja afuera las
-  credenciales, el libro del negocio y los datos de personas. Esa lista está en
-  `interno/firestore.rules` **y** en `selladas` del proyecto `casaverde` de
-  `datos/herramientas/firestore.mjs`: si cambia una, cambia la otra en la misma
-  tanda. El archivo da el mensaje claro, la regla da la garantía. Y es un
-  usuario común, no una cuenta de servicio — una cuenta de servicio saltearía
-  las reglas enteras.
+- **El agente de Claude Code lee la base para ayudar a gestionar y planificar**,
+  con un bloque propio (`esAgente()`) y una lista de exclusiones. Hasta el
+  29-sep-2026 esa lista dejaba afuera las credenciales, el libro del negocio y
+  los datos de personas; ese día Mauro abrió las dos últimas («el agente debería
+  tener acceso a la información para poder ayudar a gestionar, y planificar»).
+  **Queda sellado sólo lo que ABRE algo**: `claves_recuerdos`, `config` entero
+  salvo `config/fiscal` (adentro viven las claves de terceros y las direcciones
+  .ics de Airbnb) y `avisos_contacto` (claves de CallMeBot). Sigue siendo
+  **lectura sola**. Esa lista está en `interno/firestore.rules` **y** en
+  `selladas` del proyecto `casaverde` de `datos/herramientas/firestore.mjs`: si
+  cambia una, cambia la otra en la misma tanda. El archivo da el mensaje claro,
+  la regla da la garantía. Y es un usuario común, no una cuenta de servicio —
+  una cuenta de servicio saltearía las reglas enteras. Lo abierto son datos de
+  personas (LGPD): se leen para trabajar y no se copian enteros a un chat.
 - **Una falla se reporta desde donde se vio** (desde `nucleo-avisos-14`,
   15-sep-2026). Va a `reportes/` de ESTA base, no al panel de Mauro: el panel
   vive en otro proyecto de Firebase y un token sirve para uno solo. La entrada
