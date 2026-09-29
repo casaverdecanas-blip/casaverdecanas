@@ -14,6 +14,12 @@ rules_version = '2';
 //  nunca por fragmentos, y los casos especiales (config/integraciones)
 //  se excluyen a mano del bloque general.
 //
+//  CAMBIO 29-sep-2026, a la tarde · EL AGENTE TAMBIÉN ESCRIBE  [AGENTE-ESCRIBE]
+//  «Quiero que el agente pueda gestionar y editar todo, teniendo respaldos de
+//  los registros para evitar perder datos en caso de un descontrol.» Escribe
+//  lo que lee, menos los 'cierres' (inmutables), y cada cambio deja antes su
+//  copia en '_historial', que el agente puede crear y NUNCA editar ni borrar.
+//
 //  CAMBIO 29-sep-2026 · EL AGENTE LEE PARA GESTIONAR Y PLANIFICAR  [AGENTE]
 //  Pedido de Mauro: «el agente debería tener acceso a la información para
 //  poder ayudar a gestionar, y planificar». Elegido por él: operación,
@@ -252,6 +258,21 @@ service cloud.firestore {
       allow read: if esAgente() && !(coleccion in [
         'claves_recuerdos', 'config', 'avisos_contacto'
       ]);
+      // [AGENTE-ESCRIBE] 29-sep-2026, pedido de Mauro: «que el agente pueda
+      // gestionar y editar todo, teniendo respaldos». Escribe lo mismo que
+      // lee, MENOS los 'cierres' —inmutables para todos: son el registro de
+      // los balances— y el historial, que tiene su propio bloque abajo.
+      allow write: if esAgente() && !(coleccion in [
+        'claves_recuerdos', 'config', 'avisos_contacto', 'cierres', '_historial'
+      ]);
+    }
+    // El historial: antes de cada cambio, la herramienta del agente guarda
+    // acá cómo estaba el documento (datos/herramientas/firestore.mjs,
+    // `anotar`), y si no puede guardarlo, no cambia nada. Se puede CREAR y
+    // nada más: ni el agente edita ni borra sus propias huellas.
+    match /_historial/{id} {
+      allow read: if esAgente() || esAdmin();
+      allow create: if esAgente();
     }
     // El régimen impositivo es plata, no una credencial.
     match /config/fiscal {

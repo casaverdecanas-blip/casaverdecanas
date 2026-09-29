@@ -140,8 +140,13 @@ verdad después del cambio.
   tener acceso a la información para poder ayudar a gestionar, y planificar»).
   **Queda sellado sólo lo que ABRE algo**: `claves_recuerdos`, `config` entero
   salvo `config/fiscal` (adentro viven las claves de terceros y las direcciones
-  .ics de Airbnb) y `avisos_contacto` (claves de CallMeBot). Sigue siendo
-  **lectura sola**. Esa lista está en `interno/firestore.rules` **y** en
+  .ics de Airbnb) y `avisos_contacto` (claves de CallMeBot). **Y desde esa
+  misma tarde también ESCRIBE** («que el agente pueda gestionar y editar todo,
+  teniendo respaldos»): lo mismo que lee, menos los `cierres`, que son
+  inmutables para todos. **Cada cambio deja antes su copia en `_historial/`**
+  —la guarda `anotar` en `datos/herramientas/firestore.mjs`, y sin copia no hay
+  cambio— y la regla deja al agente crear ahí y nunca editar ni borrar.
+  `firestore.mjs casaverde historial` los lista y `deshacer <id>` vuelve atrás. Esa lista está en `interno/firestore.rules` **y** en
   `selladas` del proyecto `casaverde` de `datos/herramientas/firestore.mjs`: si
   cambia una, cambia la otra en la misma tanda. El archivo da el mensaje claro,
   la regla da la garantía. Y es un usuario común, no una cuenta de servicio —
