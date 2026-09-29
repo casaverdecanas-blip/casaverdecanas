@@ -29,6 +29,11 @@
   · El teléfono, si falta (en la reserva y, si su ficha no tiene, en el cliente).
   · «Ya la mandé»: `bienvenida.enviadaEn/enviadaPor` en la reserva, con su
     renglón de historial. Es lo que le dice a la ronda que no vuelva a avisar.
+  · «Mandarle el enlace a …» (llegada-2): el aviso corto —nombre, fecha,
+    este enlace— por el CallMeBot de esa persona, con CV2.enviarWhatsApp, que
+    es el camino de todos los avisos del equipo. Sale del navegador de quien
+    toca el botón, que ya puede leer avisos_contacto: la clave NO pasa por el
+    agente. Anota `bienvenida.avisadaEn/avisadaA`, así la ronda no lo repite.
   · La plantilla de la bienvenida, en `config/bienvenida` (un texto por
     idioma). NO en `cabanas/`, que es de lectura pública: una bienvenida
     termina llevando la dirección y cómo se entra.
@@ -93,7 +98,7 @@ CV2.registrarSW();
 const u = await CV2.verificarAuth();
 CV2.renderNav('reservas');
 
-const SELLO = 'llegada-1';
+const SELLO = 'llegada-2';
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
 $('sello').textContent = 'pantalla: ' + SELLO + ' · motor: ' + (CV2.VERSION ?? 'nucleo viejo');
@@ -146,7 +151,7 @@ const IDIOMA_DE_PAIS = { Brasil: 'pt', Brazil: 'pt', 'Estados Unidos': 'en', 'Un
 
 // ═══ Datos ═════════════════════════════════════════════════
 let r = null, cliente = null, grupo = null, cabanas = [], pagos = [],
-    otras = [], hermanas = [], plantillas = {}, idioma = 'es', editado = false;
+    otras = [], hermanas = [], plantillas = {}, idioma = 'es', editado = false, equipo = [];
 
 const nombreCab = (cid, lang) => {
   const n = cabanas.find((c) => c.id === cid)?.nombre;
@@ -200,6 +205,14 @@ async function cargar() {
     .filter((x) => !deEsteAcuerdo.has(x.id))
     .sort((a, b) => String(b.checkIn).localeCompare(String(a.checkIn))) : [];
   plantillas = (sPlant && sPlant.exists && sPlant.exists()) ? (sPlant.data() || {}) : {};
+  // Quién del equipo recibe avisos por WhatsApp: la misma llave que usa
+  // CV2.avisar (Mis avisos → WhatsApp encendido).
+  try {
+    equipo = (await getDocs(collection(db, 'usuarios'))).docs
+      .map((d) => ({ uid: d.id, ...d.data() }))
+      .filter((x) => x.activo === true && x.notif?.canalWhatsapp === true)
+      .sort((a, b) => String(a.nombre).localeCompare(String(b.nombre)));
+  } catch (e) { console.warn('equipo:', e); equipo = []; }
 
   idioma = r.contacto?.idioma || cliente?.idioma || IDIOMA_DE_PAIS[cliente?.pais] || 'es';
   if (!DEFECTO[idioma]) idioma = 'es';
@@ -320,6 +333,15 @@ function pintar() {
     </details>
   </div>
 
+  <div class="caja">
+    <h2><span class="material-icons">campaign</span> Avisar al equipo</h2>
+    ${r.bienvenida?.avisadaEn ? `<p style="margin:0 0 8px;color:var(--ok);">✓ Avisado el ${CV2.fmtFecha(r.bienvenida.avisadaEn)}${(r.bienvenida.avisadaA ?? []).length ? ' a ' + esc(r.bienvenida.avisadaA.join(', ')) : ''}.</p>` : ''}
+    ${equipo.length ? `<div class="acciones" style="margin-top:0;">${equipo.map((x) =>
+        `<button class="btn" data-avisar="${esc(x.uid)}"><span class="material-icons">send</span> Mandarle el enlace a ${esc(String(x.nombre || '').split(/\s+/)[0])}${x.uid === u.uid ? ' (vos)' : ''}</button>`).join('')}</div>
+      <p class="ayuda">Le llega por WhatsApp (su CallMeBot) un mensaje corto: quién llega, cuándo y el enlace a esta ficha. Lo de acá sólo lo ve entrando con su cuenta.</p>`
+      : '<p class="hist" style="margin:0;">Nadie del equipo tiene WhatsApp encendido en Mis avisos.</p>'}
+  </div>
+
   <div class="acciones" style="justify-content:center;">
     <a class="btn" href="./reservas.html?r=${encodeURIComponent(r.id)}"><span class="material-icons">edit</span> Editar o cargar un pago en Reservas</a>
   </div>`;
@@ -359,9 +381,57 @@ function actualizarEnlace() {
   if (a) a.href = CV2.urlWhatsapp(telefono(), $('texto').value);
 }
 
+// El aviso para quien recibe: nombre, cuándo, cabañas, gente y el enlace.
+// Mismo formato que `avisoDeLlegada` de datos/herramientas/reservas.mjs, que
+// es el que arma la ronda; nada del teléfono ni de la plata.
+function textoAviso() {
+  const rs = [r, ...hermanas];
+  const hoy = CV2.hoyISO();
+  const man = new Date(hoy + 'T12:00:00'); man.setDate(man.getDate() + 1);
+  const cuando = r.checkIn === hoy ? 'hoy' : r.checkIn === CV2.fechaLocal(man) ? 'mañana' : 'el ' + fechaLarga(r.checkIn, 'es');
+  const suma = (k) => rs.reduce((x, y) => x + Number(y[k] || 0), 0);
+  const gente = [suma('adultos') + ' adulto' + (suma('adultos') === 1 ? '' : 's'),
+    suma('ninos') ? suma('ninos') + ' niño' + (suma('ninos') === 1 ? '' : 's') : '',
+    suma('bebes') ? suma('bebes') + ' bebé' + (suma('bebes') === 1 ? '' : 's') : '',
+    rs.some((x) => x.mascotas) ? 'mascota' : ''].filter(Boolean).join(' + ');
+  const n = noches(r);
+  return [
+    '🏡 Casa Verde · llega ' + (nombreHuesped() || 'un huésped') + ' ' + cuando,
+    rs.map((x) => nombreCab(x.cabanaId, 'es')).join(' + ') + ' · ' + n + ' noche' + (n === 1 ? '' : 's') + ' · ' + gente,
+    'Ficha y bienvenida para mandarle (entrá con tu cuenta):',
+    location.origin + location.pathname + '?r=' + encodeURIComponent(r.id)
+  ].join('\n');
+}
+
 const renglon = (cambio) => arrayUnion({ fecha: Timestamp.now(), autorUid: u.uid, autorNombre: u.nombre ?? '', cambio });
 
 function cablear() {
+  document.querySelectorAll('[data-avisar]').forEach((b) => {
+    b.onclick = async () => {
+      const x = equipo.find((y) => y.uid === b.dataset.avisar);
+      if (!x) return;
+      b.disabled = true;
+      const contacto = await CV2.contactoWa(x.uid);
+      if (!contacto) { CV2.toast((x.nombre || 'Esa persona') + ' no cargó su número y su clave en Mis avisos', 'error'); b.disabled = false; return; }
+      const res = await CV2.enviarWhatsApp(textoAviso(), contacto);
+      if (!res.ok) { CV2.toast('No salió: ' + (res.detalle || res.motivo), 'error'); b.disabled = false; return; }
+      try {
+        await updateDoc(doc(db, 'reservas', r.id), {
+          'bienvenida.avisadaEn': CV2.hoyISO(),
+          'bienvenida.avisadaA': arrayUnion(x.nombre || x.uid),
+          historial: renglon('aviso de llegada a ' + (x.nombre || x.uid)),
+          actualizadoEn: serverTimestamp()
+        });
+        r.bienvenida = { ...(r.bienvenida || {}), avisadaEn: CV2.hoyISO(),
+          avisadaA: [...new Set([...(r.bienvenida?.avisadaA ?? []), x.nombre || x.uid])] };
+      } catch (e) { console.warn('anotar aviso:', e); }
+      CV2.toast('Enviado a ' + (x.nombre || ''), 'success');
+      const texto = editado ? $('texto').value : null;
+      pintar();
+      if (texto) { $('texto').value = texto; editado = true; actualizarEnlace(); }
+    };
+  });
+
   $('copiar').onclick = async () => {
     try { await navigator.clipboard.writeText($('texto').value); CV2.toast('Copiado', 'success'); }
     catch { $('texto').select(); CV2.toast('Mantené apretado el texto para copiarlo', 'info'); }

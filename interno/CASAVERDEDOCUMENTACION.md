@@ -739,9 +739,12 @@ googleEventId, notas, historial [{fecha, autorUid, autorNombre, cambio}]`
   desde la ficha, con renglón en el historial. La tarjeta de limpieza de
   `actividades.html` y el día del calendario muestran bebés, mascotas, llegada y
   pedidos pendientes: son lo que cambia cómo se prepara la cabaña.
-· **`bienvenida {avisadaEn, enviadaEn, enviadaPor, idioma}`** (29-sep-2026): `avisadaEn`
-  lo escribe el agente cuando le avisa a quien recibe que llega alguien
-  (`datos/herramientas/reservas.mjs llegadas`); `enviadaEn` lo escribe la ficha de
+· **`bienvenida {avisadaEn, avisadaA, enviadaEn, enviadaPor, idioma}`** (29-sep-2026): `avisadaEn`
+  se escribe cuando se le avisa a quien recibe que llega alguien —desde el botón
+  «Mandarle el enlace a …» de la ficha de llegada (`llegada-2`, que manda por el CallMeBot
+  de esa persona con `CV2.enviarWhatsApp`, desde el navegador de quien lo toca: la clave
+  no pasa por el agente) o desde `datos/herramientas/reservas.mjs llegadas`, que deja el
+  aviso como borrador—; `avisadaA` son los nombres; `enviadaEn` lo escribe la ficha de
   llegada al tocar «Ya la mandé». Fechas 'YYYY-MM-DD'.
 · **La ficha de llegada — `llegada.html?r=<id>`** (`llegada-1`). Lo que abre quien va a
   recibir, desde el enlace que le llega por WhatsApp: la reserva, el huésped y su
