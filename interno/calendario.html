@@ -158,7 +158,7 @@ function renderDia() {
   for (const r of salidas) h += fila(r, 'logout', 'var(--rojo)',
     `<b>${esc(r.clienteNombre)}</b> deja ${esc(nomCab(r.cabanaId))} a las ${r.horaSalida ?? '10:00'}`);
   for (const r of entradas) h += fila(r, 'login', 'var(--ok)',
-    `<b>${esc(r.clienteNombre)}</b> entra a ${esc(nomCab(r.cabanaId))} a las ${r.horaEntrada ?? '14:00'} · ${r.adultos}p`);
+    `<b>${esc(r.clienteNombre)}</b> entra a ${esc(nomCab(r.cabanaId))} a las ${r.horaEntrada ?? '14:00'} · ${r.adultos}p${r.bebes ? ' + ' + r.bebes + ' 👶' : ''}${r.mascotas ? ' · 🐾' : ''}${r.llegadaEstimada ? ' · llega ~' + esc(r.llegadaEstimada) : ''}${(r.pedidos ?? []).some((x) => x.estado !== 'resuelto') ? ' · 📌 pedidos' : ''}`);
   for (const r of encasa) h += fila(r, 'home', 'var(--verde)',
     `${esc(r.clienteNombre)} en ${esc(nomCab(r.cabanaId))} (hasta ${CV2.fmtFecha(r.checkOut)})`);
 

@@ -495,7 +495,11 @@
 //   mezcla de `nucleo.js` nuevo con un `firebase-init.js` viejo llamaría a
 //   `cargarFirebase()`, que ahí no existe, y la app no abriría — que es
 //   justo lo que esta tanda vino a arreglar.
-const VERSION = 'cv2-shell-v109';
+// v110 (29-sep-2026) — LO QUE SABEMOS DEL HUÉSPED (reservas-ical-7):
+//   bebés, mascotas, hora de llegada, contacto y pedidos en reservas.html,
+//   con su eco en calendario.html y en la tarjeta de limpieza de
+//   actividades.html.
+const VERSION = 'cv2-shell-v110';
 
 const SHELL = [
   './',

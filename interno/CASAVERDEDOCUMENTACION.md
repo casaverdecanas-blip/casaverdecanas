@@ -724,6 +724,21 @@ googleEventId, notas, historial [{fecha, autorUid, autorNombre, cambio}]`
   SIN incluir la última.** El día de salida la cabaña ya queda libre para quien entra.
   Vale para el calendario público, la disponibilidad y el conteo de noches: si se
   incluye el último día, se bloquean noches que sí se pueden vender.
+· **Lo que sabemos del huésped** (`reservas-ical-7`, 29-sep-2026, pedido de Mauro):
+  `bebes` (número), `mascotas` (texto corto: «1 perro chico»), `llegadaEstimada`
+  ('HH:MM', la que DIJO el huésped — no es `horaEntrada`, que es la de la casa),
+  `contacto {telefono, canal ('whatsapp'|'airbnb'|'telefono'|'mail'), idioma
+  ('es'|'pt'|'en'|'otro')}` y `pedidos [{texto, estado ('pendiente'|'resuelto'),
+  fuente ('panel'|'whatsapp'|'airbnb'|…), fecha ('YYYY-MM-DD')}]`. Todos opcionales:
+  una reserva de Airbnb llega sin nada de esto y se completa con los mensajes, a mano
+  en el formulario o con `datos/herramientas/reservas.mjs`. Se guardan con
+  `updateDoc`, así que la sincronización de Airbnb —que sólo toca fechas y estado—
+  no los pisa. **El teléfono se busca primero en la reserva y después en la ficha
+  del cliente; si no está en ninguno, la ficha lo DICE («sin teléfono · pedíselo»)**:
+  sin él no hay cómo avisarle nada al huésped fuera de Airbnb. Los pedidos se tildan
+  desde la ficha, con renglón en el historial. La tarjeta de limpieza de
+  `actividades.html` y el día del calendario muestran bebés, mascotas, llegada y
+  pedidos pendientes: son lo que cambia cómo se prepara la cabaña.
 · **(derivado)** pagado, saldo, señada, "en casa".
 
 ### `pagos/{id}`

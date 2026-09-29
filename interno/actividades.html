@@ -1197,6 +1197,13 @@ async function cargarReserva(reservaId) {
       + fila('Sale', CV2.fmtFecha(r.checkOut) + '  ' + (r.horaSalida || '10:00'))
       + fila('Personas', (r.adultos ?? 0) + ' adulto(s)'
           + ((r.ninos ?? 0) ? ' + ' + r.ninos + ' chico(s)' : ''))
+      // Lo que cambia cómo se prepara la cabaña (reservas-7): un bebé pide
+      // cuna, una mascota pide otra limpieza, y la hora de llegada dice
+      // para cuándo tiene que estar lista.
+      + fila('Bebés', r.bebes ? r.bebes + ' 👶' : '')
+      + fila('Mascotas', r.mascotas ? '🐾 ' + r.mascotas : '')
+      + fila('Llega', r.llegadaEstimada ? '~' + r.llegadaEstimada : '')
+      + fila('Pedidos', (r.pedidos ?? []).filter((x) => x.estado !== 'resuelto').map((x) => x.texto).join(' · '))
       + fila('Origen', r.origen)
       + (g && g.total ? '<dt>Acuerdo</dt><dd>' + esc(CV2.fmtMonto(g.total, g.moneda || 'BRL'))
           + (otras.length ? ' · ' + (otras.length + 1) + ' cabañas' : '') + '</dd>' : '')
