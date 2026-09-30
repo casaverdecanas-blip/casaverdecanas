@@ -225,7 +225,7 @@ de Node 24, así que **no hace falta `package.json` ni `node_modules`**):
 
 | Función | Para qué | Variables |
 |---|---|---|
-| `claude-proxy` | leer facturas con Gemini (lo llama `honorarios.html`) | `GEMINI_API_KEY` |
+| `claude-proxy` | **la IA del ecosistema**: Gemini leyendo una imagen. Lee facturas, las boletas de Tiempos (`plata.js`) y, desde el 30-sep-2026, la foto del inventario de remateTaller (`interno/identificar.js` de remate). **v6:** con `buscar: true` enciende la búsqueda de Google y devuelve `fuentes`; sin eso contesta lo mismo que la v5. Está abierta —sin sesión, CORS `*`—: quien conozca la dirección gasta la cuota de Gemini | `GEMINI_API_KEY` |
 | `notify-whatsapp` | avisos por CallMeBot (lo llama `CV2.enviarWhatsApp`) | `CALLMEBOT_PHONE`, `CALLMEBOT_APIKEY` |
 | `ical-cabana` | **publica** nuestra ocupación como `.ics` para que Airbnb la importe | ninguna — lee `disponibilidad`, que es pública |
 | `airbnb-ical` | **lee** el `.ics` de Airbnb (lo llama `RCore.sincronizarAirbnb`) | ninguna |

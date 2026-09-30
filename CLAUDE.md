@@ -26,7 +26,7 @@ valor.
 
 | Variable | Qué hace | Tipo | Dónde vive el valor real | Consumida por | Verificado |
 |---|---|---|---|---|---|
-| `GEMINI_API_KEY` | Lee facturas con Gemini | secreto de infraestructura | Netlify → proyecto `serene-scone-76bd4e` → Environment variables | `netlify/functions/claude-proxy.js` | declarado por Mauro, 2026-09-07 |
+| `GEMINI_API_KEY` | La IA del ecosistema: lee facturas, las boletas de Tiempos y la foto del inventario de remate (desde el 2026-09-30). Es la ÚNICA clave de Gemini: los otros proyectos la usan por `claude-proxy`, sin tener la suya | secreto de infraestructura | Netlify → proyecto `serene-scone-76bd4e` → Environment variables | `netlify/functions/claude-proxy.js` | declarado por Mauro, 2026-09-07 |
 | `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Listan fotos y firman llamadas a Cloudinary para el editor visual | secreto de infraestructura | Netlify → mismo proyecto → Environment variables | `netlify/functions/cloudinary-listar.js` | declarado por Mauro, 2026-09-07 |
 | `CALLMEBOT_PHONE` / `CALLMEBOT_APIKEY` | Aviso por WhatsApp | mixto — ver la ficha de titularidad en el panel | ver índice | `netlify/functions/notify-whatsapp.js` | no verificable desde código, 2026-09-07 |
 

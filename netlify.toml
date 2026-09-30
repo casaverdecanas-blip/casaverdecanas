@@ -27,7 +27,9 @@
 # Node 24—, así que no hace falta package.json ni node_modules.
 #
 # ── LAS CINCO FUNCIONES ─────────────────────────────────────────────
-#   claude-proxy        lee facturas con Gemini            GEMINI_API_KEY
+#   claude-proxy        la IA: facturas, boletas de        GEMINI_API_KEY
+#                       Tiempos, inventario de remate
+#                       (v6: `buscar` = búsqueda Google)
 #   notify-whatsapp     avisos por CallMeBot               CALLMEBOT_PHONE,
 #                                                          CALLMEBOT_APIKEY
 #   ical-cabana         publica NUESTRA ocupación (.ics)   ninguna

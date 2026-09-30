@@ -1,4 +1,9 @@
 // netlify/functions/claude-proxy.js
+// v6 — búsqueda de Google opcional (`buscar: true`) y sus fuentes
+//      (30-sep-2026: la usa el inventario de remateTaller para describir lo
+//      de la foto). Quien no la pide recibe exactamente lo de la v5.
+//      El texto se junta de TODAS las partes —con la búsqueda, Gemini lo
+//      parte en varias— y la clave viaja en la cabecera, no en la URL.
 // v5 — timeout extendido, modelo configurable, diagnóstico de errores mejorado
 
 const CORS = {
@@ -150,11 +155,14 @@ exports.handler = async function(event, context) {
             responseMimeType: 'text/plain'
         }
     };
+    // v6: la búsqueda de Google, sólo si se pide. Sirve para describir algo
+    // con la ficha real de internet y no con lo que el modelo «se acuerda».
+    const buscar = incoming.buscar === true;
+    if (buscar) geminiBody.tools = [{ google_search: {} }];
 
     const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/'
         + modeloGemini
-        + ':generateContent?key='
-        + apiKey;
+        + ':generateContent';
 
     let response;
     try {
@@ -164,7 +172,7 @@ exports.handler = async function(event, context) {
 
         response = await fetch(geminiUrl, {
             method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
             body:    JSON.stringify(geminiBody),
             signal:  controller.signal
         });
@@ -224,13 +232,21 @@ exports.handler = async function(event, context) {
 
     // Extraer texto de la respuesta
     const candidates   = googleData.candidates || [];
-    const textoRespuesta = candidates[0] &&
-                           candidates[0].content &&
-                           candidates[0].content.parts &&
-                           candidates[0].content.parts[0] &&
-                           candidates[0].content.parts[0].text
-                           ? candidates[0].content.parts[0].text
-                           : '';
+    const partesResp   = (candidates[0] && candidates[0].content && candidates[0].content.parts) || [];
+    const textoRespuesta = partesResp.map(function(p) { return (p && p.text) || ''; }).join('');
+
+    // v6: de dónde lo sacó, sólo si se pidió buscar. Sólo https y sin repetir.
+    const extra = {};
+    if (buscar) {
+        const chunks = (candidates[0] && candidates[0].groundingMetadata &&
+                        candidates[0].groundingMetadata.groundingChunks) || [];
+        const vistas = {};
+        extra.fuentes = chunks
+            .map(function(c) { return c && c.web; })
+            .filter(function(w) { return w && typeof w.uri === 'string' && /^https:\/\//.test(w.uri) && !vistas[w.uri] && (vistas[w.uri] = true); })
+            .slice(0, 6)
+            .map(function(w) { return { titulo: String(w.title || w.uri).slice(0, 120), url: w.uri }; });
+    }
 
     // Verificar finish reason
     const finishReason = candidates[0] && candidates[0].finishReason;
@@ -245,7 +261,8 @@ exports.handler = async function(event, context) {
                 role:    'assistant',
                 model:   modeloGemini,
                 content: [{ type: 'text', text: textoRespuesta }],
-                warning: 'Respuesta truncada por límite de tokens. Aumentá max_tokens.'
+                warning: 'Respuesta truncada por límite de tokens. Aumentá max_tokens.',
+                ...extra
             })
         };
     }
@@ -271,7 +288,8 @@ exports.handler = async function(event, context) {
             type:    'message',
             role:    'assistant',
             model:   modeloGemini,
-            content: [{ type: 'text', text: textoRespuesta }]
+            content: [{ type: 'text', text: textoRespuesta }],
+            ...extra
         })
     };
 };
