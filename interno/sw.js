@@ -504,7 +504,9 @@
 //   vuelve al enlace que se abrió (nucleo-avisos-15 + login.html).
 // v112 (29-sep-2026) — llegada-2: «Avisar al equipo» en la ficha de llegada,
 //   el aviso por el CallMeBot de cada uno, desde el navegador de quien lo toca.
-const VERSION = 'cv2-shell-v112';
+// v113 (30-sep-2026) — avisos-6: «Avisos de Claude» en Mis avisos, el
+//   consentimiento para que la ronda diaria le escriba a cada uno por WhatsApp.
+const VERSION = 'cv2-shell-v113';
 
 const SHELL = [
   './',

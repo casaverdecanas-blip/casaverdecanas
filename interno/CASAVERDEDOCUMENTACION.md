@@ -744,7 +744,9 @@ googleEventId, notas, historial [{fecha, autorUid, autorNombre, cambio}]`
   «Mandarle el enlace a …» de la ficha de llegada (`llegada-2`, que manda por el CallMeBot
   de esa persona con `CV2.enviarWhatsApp`, desde el navegador de quien lo toca: la clave
   no pasa por el agente) o desde `datos/herramientas/reservas.mjs llegadas`, que deja el
-  aviso como borrador—; `avisadaA` son los nombres; `enviadaEn` lo escribe la ficha de
+  aviso como borrador — o, desde `reservas-6` (30-sep-2026), con `--enviar --a <nombre>`
+  lo manda la ronda por el CallMeBot de esa persona si encendió «Avisos de Claude», y
+  anota `avisadaPor: 'whatsapp'`—; `avisadaA` son los nombres; `enviadaEn` lo escribe la ficha de
   llegada al tocar «Ya la mandé». Fechas 'YYYY-MM-DD'.
 · **La ficha de llegada — `llegada.html?r=<id>`** (`llegada-1`). Lo que abre quien va a
   recibir, desde el enlace que le llega por WhatsApp: la reserva, el huésped y su
@@ -959,7 +961,7 @@ ultimoAutorNombre, ultimaActividad, creadoPor, creadoNombre, creadoEn`
   llegada de un huésped. Moverlas de día sí; sacarlas, no.
 
 ### `avisos_contacto/{uid}`
-`telefono ('+55...'), apikey (CallMeBot), nombre, actualizadoEn`
+`telefono ('+55...'), apikey (CallMeBot), nombre, actualizadoEn, agente (bool), agenteEn`
 · El teléfono y la clave de CallMeBot de cada persona. **Colección aparte de
   `/usuarios/`** para no mezclarla con el perfil, aunque hoy la lea el mismo grupo.
 · **La lee todo el equipo activo; la escribe solo su dueño y el admin.** La lectura
@@ -971,6 +973,15 @@ ultimoAutorNombre, ultimaActividad, creadoPor, creadoNombre, creadoEn`
   abre ninguna cuenta y su dueño la revoca con `stop`.
 · **El teléfono se guarda con `+` y se manda SIN él**: la URL de ejemplo que entrega el
   propio bot va con el número pelado. Lo saca `CV2.enviarWhatsApp`, en un solo lugar.
+· **`agente` es el consentimiento para los avisos de Claude** (`avisos-6`, 30-sep-2026).
+  Lo enciende la persona en Mis avisos → «Avisos de Claude», y es aparte de la llave de
+  WhatsApp de arriba, que es para los avisos del sistema. **Sin `agente: true` la ronda
+  no le escribe**, aunque el número esté. El agente lee el documento de UNA persona por
+  vez (`allow get: if esAgente()`, bloque `[AGENTE-AVISA]` de las reglas; nunca `list`)
+  y no lo escribe. Los criterios —qué merece un WhatsApp, qué no puede llevar el texto,
+  el tope de tres por día— están en `protocolos/PROTOCOLO-AVISOS.md` del repo `datos`.
+  **Esta misma colección, con esta misma forma, existe desde ese día en CasaYourte y en
+  remate**; Tiempos usa la de acá, porque su gente es la misma.
 
 ### `disponibilidad/{reservaId}`
 `cabanaId, desde, hasta`

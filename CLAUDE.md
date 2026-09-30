@@ -140,7 +140,10 @@ verdad después del cambio.
   tener acceso a la información para poder ayudar a gestionar, y planificar»).
   **Queda sellado sólo lo que ABRE algo**: `claves_recuerdos`, `config` entero
   salvo `config/fiscal` (adentro viven las claves de terceros y las direcciones
-  .ics de Airbnb) y `avisos_contacto` (claves de CallMeBot). **Y desde esa
+  .ics de Airbnb) y `avisos_contacto` (claves de CallMeBot) — de esa última, desde
+  el 30-sep-2026, el agente trae UNA persona por vez (`get`, nunca `list`) para
+  mandarle un aviso de la ronda, y sólo si ella encendió «Avisos de Claude» en Mis
+  avisos. Ver `protocolos/PROTOCOLO-AVISOS.md` de `datos`. **Y desde esa
   misma tarde también ESCRIBE** («que el agente pueda gestionar y editar todo,
   teniendo respaldos»): lo mismo que lee, menos los `cierres`, que son
   inmutables para todos. **Cada cambio deja antes su copia en `_historial/`**

@@ -122,6 +122,28 @@
     <div id="eventos"></div>
   </div>
 
+  <!-- ═══ Avisos de Claude (avisos-6, 30-sep-2026) ═════════
+       La ronda diaria del agente le puede escribir a la persona por este
+       mismo WhatsApp. Es un consentimiento aparte de la llave de arriba
+       —que es para los avisos del sistema— y lo da la persona: el agente
+       no puede escribir este campo (lo niega la regla) y sin él no manda
+       nada. Criterios: protocolos/PROTOCOLO-AVISOS.md del repo 'datos'. -->
+  <div class="tarj">
+    <h2>Avisos de Claude</h2>
+    <div class="fila">
+      <div class="txt">
+        <b>Que Claude me escriba por WhatsApp</b>
+        <small>La ronda diaria de Claude —una IA— te escribe sólo si aparece algo que
+          te toca: una llegada, algo que se rompió, o lo que pediste. Como mucho tres
+          por día, sin teléfonos ni plata en el texto: el detalle se abre con tu cuenta.
+          Usa tu número de acá abajo.</small>
+      </div>
+      <label class="llave">
+        <input type="checkbox" id="kAgente"><span></span>
+      </label>
+    </div>
+  </div>
+
   <!-- ═══ Alta de WhatsApp ════════════════════════════════ -->
   <div class="tarj">
     <h2>Tu WhatsApp</h2>
@@ -313,6 +335,26 @@ $('kWa').addEventListener('change', () => {
   guardarNotif();
   if ($('kWa').checked) {
     CV2.toast('Acordate de dar de alta tu número más abajo');
+  }
+});
+
+// ═══ Avisos de Claude ═════════════════════════════════════
+// Va a avisos_contacto y no a usuarios/notif: es lo que lee el agente, de a
+// una persona, y así no necesita nada más de la ficha que su 'activo'.
+$('kAgente').addEventListener('change', async () => {
+  const on = $('kAgente').checked;
+  try {
+    await setDoc(doc(db, 'avisos_contacto', u.uid), {
+      agente: on, agenteEn: serverTimestamp()
+    }, { merge: true });
+    if (on && !($('inTel').value.trim() && $('inKey').value.trim())) {
+      CV2.toast('Encendido. Falta tu número y tu clave, acá abajo.');
+    } else {
+      CV2.toast(on ? 'Listo: Claude te puede escribir.' : 'Apagado: Claude no te escribe más.');
+    }
+  } catch (e) {
+    $('kAgente').checked = !on;
+    CV2.toast('No se pudo guardar: ' + (e.code ?? e.message), 'error');
   }
 });
 
@@ -628,7 +670,7 @@ $('btnSimularReal').addEventListener('click', () => {
 // ═══ Cargas iniciales — AL FINAL ══════════════════════════
 // El sello dice qué versión de nucleo.js está corriendo de verdad. Si no
 // coincide con la esperada, lo que se probó no es lo que se cree.
-$('sello').textContent = 'pantalla: avisos-5 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
+$('sello').textContent = 'pantalla: avisos-6 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
 // El selector del simulacro sale de la MISMA lista que los interruptores: un
 // evento que no está en CV2.EVENTOS no existe para nadie.
 $('simEvento').innerHTML = CV2.EVENTOS.map((ev) =>
@@ -645,6 +687,7 @@ try {
     const c = snap.data() || {};
     $('inTel').value = c.telefono ?? '';
     $('inKey').value = c.apikey ?? '';
+    $('kAgente').checked = c.agente === true;
     if (c.telefono && c.apikey) {
       decir('Tu número está guardado. Probá el WhatsApp para confirmar que llega.');
     }
