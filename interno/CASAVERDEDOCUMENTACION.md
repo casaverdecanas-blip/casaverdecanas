@@ -6796,6 +6796,13 @@ cabañas ni calendario; sin `fonts.googleapis` cambian las tipografías pero se 
     Netlify**, porque el proyecto no está enganchado a Git. Si el proyecto se rompe o
     alguien suelta un paquete incompleto, no hay de dónde sacarlas. Subir las cinco al
     repositorio.
+    **30-sep-2026: `ical-cabana` y `airbnb-ical` ya están en el repositorio**, bajadas tal
+    cual del sitio de Netlify: como `publish = "."`, el paquete entero se sirve y
+    `…netlify.app/netlify/functions/<nombre>.js` devuelve el código fuente (no trae
+    secretos: los valores están en las variables de entorno). **Queda
+    `cloudinary-listar`**: la publicada y la del repositorio son DISTINTAS —la publicada
+    tiene la lista blanca `PERMITIDAS`— y no se sabe cuál es la buena. El zip del 30-sep
+    lleva la PUBLICADA, para no cambiar nada más que `claude-proxy`.
 17. **`fotos.html` no puede verificar la carpeta de una foto sin la Admin API.** En modo
     Dynamic folders la carpeta no viaja en la URL. La pantalla ya está preparada para
     cruzar contra `cloudinary-listar` en cuanto responda con fotos.
