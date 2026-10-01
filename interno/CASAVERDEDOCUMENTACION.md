@@ -229,6 +229,7 @@ de Node 24, así que **no hace falta `package.json` ni `node_modules`**):
 | `notify-whatsapp` | avisos por CallMeBot (lo llama `CV2.enviarWhatsApp`) | `CALLMEBOT_PHONE`, `CALLMEBOT_APIKEY` |
 | `ical-cabana` | **publica** nuestra ocupación como `.ics` para que Airbnb la importe | ninguna — lee `disponibilidad`, que es pública |
 | `airbnb-ical` | **lee** el `.ics` de Airbnb (lo llama `RCore.sincronizarAirbnb`) | ninguna |
+| `luces-remate` | el puente de luces de **remateTaller** (desde el 1-oct-2026). **Su código vive en `rematetaller/remate`** —`netlify/functions/luces-remate.mjs`, `api/tuya.mjs`, `api/_sesion.mjs`— y viaja en el zip con esas mismas rutas. Se mudó acá porque el proyecto de Vercel no se pudo crear | `TUYA_CLIENT_ID`, `TUYA_CLIENT_SECRET`, `TUYA_REGION`, `TUYA_LUCES`, `ORIGENES_PERMITIDOS` |
 
 **Hubo una tercera, `notify-recuerdo`, y se retiró en julio de 2026.** Estaba muerta
 dos veces: le faltaban sus tres variables de entorno y, sobre todo, **la página que

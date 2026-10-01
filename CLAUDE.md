@@ -6,7 +6,10 @@ Sitio público y panel interno de Casa Verde Canas. Tiene backend: funciones
 de servidor desplegadas en Netlify (el sitio/panel en sí es GitHub Pages).
 Despliegue de las funciones deliberadamente NO conectado a Netlify — se sube
 un .zip a mano (ver comentario en `netlify.toml`); esto no usa GitHub
-Actions.
+Actions. **Este Netlify es el servidor del ecosistema**: además de lo de Casa
+Verde sirve la IA de remate y Tiempos (`claude-proxy`) y, desde el 2026-10-01,
+el puente de luces de remate, cuyo código vive en `rematetaller/remate`. El zip
+tiene que llevar las seis funciones.
 
 ## Documentación técnica
 
@@ -28,6 +31,7 @@ valor.
 |---|---|---|---|---|---|
 | `GEMINI_API_KEY` | La IA del ecosistema: lee facturas, las boletas de Tiempos y la foto del inventario de remate (desde el 2026-09-30). Es la ÚNICA clave de Gemini: los otros proyectos la usan por `claude-proxy`, sin tener la suya | secreto de infraestructura | Netlify → proyecto `serene-scone-76bd4e` → Environment variables | `netlify/functions/claude-proxy.js` | declarado por Mauro, 2026-09-07 |
 | `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Listan fotos y firman llamadas a Cloudinary para el editor visual | secreto de infraestructura | Netlify → mismo proyecto → Environment variables | `netlify/functions/cloudinary-listar.js` | declarado por Mauro, 2026-09-07 |
+| `TUYA_CLIENT_ID` / `TUYA_CLIENT_SECRET` / `TUYA_REGION` / `TUYA_LUCES` / `ORIGENES_PERMITIDOS` | El puente de luces de **remateTaller**, servido desde este Netlify desde el 2026-10-01. El código vive en `rematetaller/remate` y viaja en el zip (ver `netlify.toml`) | secreto de infraestructura (las dos primeras), configuración (el resto) | Netlify → mismo proyecto → Environment variables | `netlify/functions/luces-remate.mjs` de remate | 2026-10-01, sin cargar todavía |
 | `CALLMEBOT_PHONE` / `CALLMEBOT_APIKEY` | Aviso por WhatsApp | mixto — ver la ficha de titularidad en el panel | ver índice | `netlify/functions/notify-whatsapp.js` | no verificable desde código, 2026-09-07 |
 
 Lo que NO está acá y no tiene que estar: ningún valor de las variables de

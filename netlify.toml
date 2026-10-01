@@ -20,13 +20,23 @@
 # (Nota: el candado NO ahorra minutos de construcción, solo evita publicar.
 #  Lo que ahorra los minutos es no tener el repositorio enganchado.)
 #
-# El zip REEMPLAZA todo el proyecto: tiene que llevar SIEMPRE las cinco
+# El zip REEMPLAZA todo el proyecto: tiene que llevar SIEMPRE las SEIS
 # funciones, no solo la que cambió. Una que falte se apaga en silencio.
+#
+# La sexta NO vive en este repositorio: es el puente de luces de remateTaller
+# (desde el 1-oct-2026). Su código está en rematetaller/remate y viaja en el
+# zip con las MISMAS rutas que allá, porque el import es relativo:
+#     netlify/functions/luces-remate.mjs
+#     api/tuya.mjs
+#     api/_sesion.mjs
+# Con publish = "." Netlify sirve también el código fuente de todo el zip
+# (…netlify.app/netlify/functions/<nombre>.js); por eso nada de esto lleva
+# un secreto: los valores están en las variables de entorno.
 #
 # Las funciones no usan librerías externas —solo fetch, que viene con
 # Node 24—, así que no hace falta package.json ni node_modules.
 #
-# ── LAS CINCO FUNCIONES ─────────────────────────────────────────────
+# ── LAS SEIS FUNCIONES ─────────────────────────────────────────────
 #   claude-proxy        la IA: facturas, boletas de        GEMINI_API_KEY
 #                       Tiempos, inventario de remate
 #                       (v6: `buscar` = búsqueda Google)
@@ -36,6 +46,10 @@
 #   airbnb-ical         lee el .ics de Airbnb              ninguna
 #   cloudinary-listar   lista fotos para el editor         CLOUDINARY_API_KEY,
 #                       visual del sitio                   CLOUDINARY_API_SECRET
+#   luces-remate        el puente de luces de remate       TUYA_CLIENT_ID,
+#                       (código en rematetaller/remate)    TUYA_CLIENT_SECRET,
+#                                                          TUYA_REGION, TUYA_LUCES,
+#                                                          ORIGENES_PERMITIDOS
 #
 # notify-recuerdo se retiró en julio de 2026 (estaba muerta: le faltaban las
 # variables y la página pública nunca la llamó). Este zip ya no la lleva.
