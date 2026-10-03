@@ -506,7 +506,10 @@
 //   el aviso por el CallMeBot de cada uno, desde el navegador de quien lo toca.
 // v113 (30-sep-2026) — avisos-6: «Avisos de Claude» en Mis avisos, el
 //   consentimiento para que la ronda diaria le escriba a cada uno por WhatsApp.
-const VERSION = 'cv2-shell-v113';
+// v114 (3-oct-2026) — nucleo-avisos-16: CONSULTA EN VIVO. El reporte o
+//   pedido de la hoja de la cuenta despierta al chat de Claude en el acto,
+//   por la función avisar-claude del Netlify (CV2.avisarClaude).
+const VERSION = 'cv2-shell-v114';
 
 const SHELL = [
   './',

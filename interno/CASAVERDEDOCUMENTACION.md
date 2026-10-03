@@ -220,7 +220,7 @@ en ningún lado.
 La forma más rápida de saber en cuál estás: si `app.netlify.com/projects/serene-scone-76bd4e`
 abre, es la buena.
 
-**Las tres funciones** (`netlify/functions/`, sin librerías externas — solo `fetch`
+**Las funciones** —siete en el zip; ver `netlify.toml`— (`netlify/functions/`, sin librerías externas — solo `fetch`
 de Node 24, así que **no hace falta `package.json` ni `node_modules`**):
 
 | Función | Para qué | Variables |
@@ -230,6 +230,7 @@ de Node 24, así que **no hace falta `package.json` ni `node_modules`**):
 | `ical-cabana` | **publica** nuestra ocupación como `.ics` para que Airbnb la importe | ninguna — lee `disponibilidad`, que es pública |
 | `airbnb-ical` | **lee** el `.ics` de Airbnb (lo llama `RCore.sincronizarAirbnb`) | ninguna |
 | `luces-remate` | el puente de luces de **remateTaller** (desde el 1-oct-2026). **Su código vive en `rematetaller/remate`** —`netlify/functions/luces-remate.mjs`, `api/tuya.mjs`, `api/_sesion.mjs`— y viaja en el zip con esas mismas rutas. Se mudó acá porque el proyecto de Vercel no se pudo crear | `TUYA_CLIENT_ID`, `TUYA_CLIENT_SECRET`, `TUYA_REGION`, `TUYA_LUCES`, `ORIGENES_PERMITIDOS` |
+| `avisar-claude` | despierta al chat de Claude cuando alguien con ficha activa manda una consulta o una falla desde el formulario de cualquier sitio (desde el 3-oct-2026). Verifica el token de Firebase de ESA base (anónimos no) y la ficha con ese mismo token, y manda a la rutina sólo el sitio y el id del reporte — nunca el texto. La llama `CV2.avisarClaude` (acá) y su copia en CasaYourte, remate y Tiempos. Banco: `node netlify/pruebas/avisar-claude.mjs` | `CLAUDE_RUTINA_URL`, `CLAUDE_RUTINA_TOKEN` (`CLAUDE_RUTINA_BETA` opcional) |
 
 **Hubo una tercera, `notify-recuerdo`, y se retiró en julio de 2026.** Estaba muerta
 dos veces: le faltaban sus tres variables de entorno y, sobre todo, **la página que

@@ -967,7 +967,7 @@ CV2._enviarReporte = async function (cerrar) {
     // llamarse sola no debe depender de que alguien haya cargado antes.
     await cargarFirebase();
     const u = CV2.usuario || {};
-    await addDoc(collection(db, 'reportes'), {
+    const ref = await addDoc(collection(db, 'reportes'), {
       uid: u.uid || '',
       nombre: u.nombre || '',
       email: u.email || '',
@@ -981,6 +981,9 @@ CV2._enviarReporte = async function (cerrar) {
       estado: 'nuevo',            // la regla exige que nazca así
       creadoEn: serverTimestamp()
     });
+    // nucleo-avisos-16: despierta al chat de Claude en el acto (ver
+    // CV2.avisarClaude). Si no puede, la ronda diaria lo levanta igual.
+    CV2.avisarClaude('casaverde', ref.id);
     cerrar();
     CV2.toast('Reporte enviado. Gracias.', 'ok');
   } catch (e) {
@@ -989,6 +992,28 @@ CV2._enviarReporte = async function (cerrar) {
     est.textContent = 'No se pudo enviar: ' + (e && e.message ? e.message : e);
     b.disabled = false;
   }
+};
+
+
+/* CONSULTA EN VIVO (nucleo-avisos-16, 3-oct-2026). Pedido de Mauro: que la
+   consulta de alguien registrado despierte al chat de Claude en el momento y
+   no a la mañana siguiente. Manda SÓLO la base y el id del reporte, con el
+   token de la sesión; la función `avisar-claude` del Netlify verifica la
+   ficha y dispara la rutina. Nunca bloquea ni avisa error: el reporte ya
+   quedó guardado y la ronda diaria lo trae igual. La usan los otros sitios
+   con la misma forma (CasaYourte, remate y Tiempos tienen su copia en su
+   núcleo, porque cada uno tiene su propio SDK y su propia sesión). */
+CV2.avisarClaude = async function (base, reporteId) {
+  try {
+    const u = auth && auth.currentUser;
+    if (!u || !reporteId) return;
+    const t = await u.getIdToken();
+    await fetch(CV2.NETLIFY + '/avisar-claude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t },
+      body: JSON.stringify({ base, reporteId })
+    });
+  } catch (e) { /* silencio a propósito: ver arriba */ }
 };
 
 
@@ -1180,7 +1205,7 @@ CV2.sinFirebase = function (e) {
   if (b) b.addEventListener('click', () => location.reload());
 };
 
-CV2.VERSION = 'nucleo-avisos-15';
+CV2.VERSION = 'nucleo-avisos-16';
 
 CV2.NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
 

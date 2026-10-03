@@ -20,7 +20,7 @@
 # (Nota: el candado NO ahorra minutos de construcción, solo evita publicar.
 #  Lo que ahorra los minutos es no tener el repositorio enganchado.)
 #
-# El zip REEMPLAZA todo el proyecto: tiene que llevar SIEMPRE las SEIS
+# El zip REEMPLAZA todo el proyecto: tiene que llevar SIEMPRE las SIETE
 # funciones, no solo la que cambió. Una que falte se apaga en silencio.
 #
 # La sexta NO vive en este repositorio: es el puente de luces de remateTaller
@@ -36,7 +36,7 @@
 # Las funciones no usan librerías externas —solo fetch, que viene con
 # Node 24—, así que no hace falta package.json ni node_modules.
 #
-# ── LAS SEIS FUNCIONES ─────────────────────────────────────────────
+# ── LAS SIETE FUNCIONES ────────────────────────────────────────────
 #   claude-proxy        la IA: facturas, boletas de        GEMINI_API_KEY
 #                       Tiempos, inventario de remate
 #                       (v6: `buscar` = búsqueda Google)
@@ -50,6 +50,10 @@
 #                       (código en rematetaller/remate)    TUYA_CLIENT_SECRET,
 #                                                          TUYA_REGION, TUYA_LUCES,
 #                                                          ORIGENES_PERMITIDOS
+#   avisar-claude       despierta al chat de Claude cuando  CLAUDE_RUTINA_URL,
+#                       alguien del equipo manda una        CLAUDE_RUTINA_TOKEN
+#                       consulta desde un sitio (3-oct;     (CLAUDE_RUTINA_BETA,
+#                       banco: netlify/pruebas/)            opcional)
 #
 # notify-recuerdo se retiró en julio de 2026 (estaba muerta: le faltaban las
 # variables y la página pública nunca la llamó). Este zip ya no la lleva.

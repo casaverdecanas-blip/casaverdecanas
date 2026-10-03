@@ -8,8 +8,10 @@ Despliegue de las funciones deliberadamente NO conectado a Netlify — se sube
 un .zip a mano (ver comentario en `netlify.toml`); esto no usa GitHub
 Actions. **Este Netlify es el servidor del ecosistema**: además de lo de Casa
 Verde sirve la IA de remate y Tiempos (`claude-proxy`) y, desde el 2026-10-01,
-el puente de luces de remate, cuyo código vive en `rematetaller/remate`. El zip
-tiene que llevar las seis funciones.
+el puente de luces de remate, cuyo código vive en `rematetaller/remate`, y desde
+el 2026-10-03 `avisar-claude`, que despierta al chat de Claude cuando alguien
+del equipo manda una consulta desde cualquier sitio. El zip tiene que llevar
+las siete funciones.
 
 ## Documentación técnica
 
@@ -31,7 +33,8 @@ valor.
 |---|---|---|---|---|---|
 | `GEMINI_API_KEY` | La IA del ecosistema: lee facturas, las boletas de Tiempos y la foto del inventario de remate (desde el 2026-09-30). Es la ÚNICA clave de Gemini: los otros proyectos la usan por `claude-proxy`, sin tener la suya | secreto de infraestructura | Netlify → proyecto `serene-scone-76bd4e` → Environment variables | `netlify/functions/claude-proxy.js` | declarado por Mauro, 2026-09-07 |
 | `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Listan fotos y firman llamadas a Cloudinary para el editor visual | secreto de infraestructura | Netlify → mismo proyecto → Environment variables | `netlify/functions/cloudinary-listar.js` | declarado por Mauro, 2026-09-07 |
-| `TUYA_CLIENT_ID` / `TUYA_CLIENT_SECRET` / `TUYA_REGION` / `TUYA_LUCES` / `ORIGENES_PERMITIDOS` | El puente de luces de **remateTaller**, servido desde este Netlify desde el 2026-10-01. El código vive en `rematetaller/remate` y viaja en el zip (ver `netlify.toml`) | secreto de infraestructura (las dos primeras), configuración (el resto) | Netlify → mismo proyecto → Environment variables | `netlify/functions/luces-remate.mjs` de remate | 2026-10-01, sin cargar todavía |
+| `TUYA_CLIENT_ID` / `TUYA_CLIENT_SECRET` / `TUYA_REGION` / `TUYA_LUCES` / `ORIGENES_PERMITIDOS` | El puente de luces de **remateTaller**, servido desde este Netlify desde el 2026-10-01. El código vive en `rematetaller/remate` y viaja en el zip (ver `netlify.toml`) | secreto de infraestructura (las dos primeras), configuración (el resto) | Netlify → mismo proyecto → Environment variables | `netlify/functions/luces-remate.mjs` de remate | cargadas: las luces andan desde el 2026-10-01 (`lucesRegistro` de remate, verificado el 2026-10-03) |
+| `CLAUDE_RUTINA_URL` / `CLAUDE_RUTINA_TOKEN` (y `CLAUDE_RUTINA_BETA`, opcional) | Despiertan la rutina «Consulta en vivo» del chat de Claude cuando alguien con ficha activa manda una consulta o una falla desde un sitio. La función verifica el token de Firebase de ESA base y la ficha, y manda sólo el sitio y el id del reporte | secreto de infraestructura (el token) | Netlify → mismo proyecto → Environment variables. Los da claude.ai/code → Rutinas → la rutina → API; el token se ve una sola vez y lo pega Mauro | `netlify/functions/avisar-claude.mjs` (banco: `node netlify/pruebas/avisar-claude.mjs`, 12 casos) | 2026-10-03, sin cargar todavía |
 | `CALLMEBOT_PHONE` / `CALLMEBOT_APIKEY` | Aviso por WhatsApp | mixto — ver la ficha de titularidad en el panel | ver índice | `netlify/functions/notify-whatsapp.js` | no verificable desde código, 2026-09-07 |
 
 Lo que NO está acá y no tiene que estar: ningún valor de las variables de
