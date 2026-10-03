@@ -131,6 +131,10 @@ export function frenar(uid, ahora = Date.now()) {
   return false;
 }
 
+// Un renglón por pedido en el registro de Netlify. Nada de lo que escribió
+// la persona, ni el token: el sitio, el id y qué pasó.
+const anotar = (t) => { try { console.log("avisar-claude · " + t); } catch (e) {} };
+
 const respuesta = (codigo, origen, cuerpo) => ({
   statusCode: codigo,
   headers: {
@@ -159,9 +163,9 @@ export async function manejar(event, deps = {}) {
   const token = (h.authorization || "").replace(/^Bearer\s+/i, "");
   let quien;
   try { quien = await verificarToken(token, BASES[base].proyecto, deps); }
-  catch (e) { return respuesta(401, origen, { error: e.message }); }
+  catch (e) { anotar(`${base}/${reporteId}: token rechazado (${e.message})`); return respuesta(401, origen, { error: e.message }); }
   const ficha = await fichaActiva(base, quien.uid, token, deps);
-  if (!ficha.ok) return respuesta(403, origen, { error: "sin ficha activa en " + BASES[base].nombre });
+  if (!ficha.ok) { anotar(`${base}/${reporteId}: sin ficha activa`); return respuesta(403, origen, { error: "sin ficha activa en " + BASES[base].nombre }); }
   if (frenar(quien.uid, deps.ahora)) return respuesta(202, origen, { ok: true, frenado: true });
 
   const env = deps.env || process.env;
@@ -179,7 +183,15 @@ export async function manejar(event, deps = {}) {
   });
   // El sitio no muestra esto: el reporte ya quedó guardado y la ronda diaria
   // lo levanta igual. Sólo sirve para mirarlo en el registro de Netlify.
-  if (!r.ok) return respuesta(502, origen, { error: "la rutina contestó " + r.status });
+  if (!r.ok) {
+    // Lo que contestó la rutina va al registro de Netlify (Logs → Functions):
+    // el número y el mensaje de error, nunca el token ni la dirección.
+    let detalle = "";
+    try { detalle = String(await r.text()).slice(0, 300); } catch (e) {}
+    anotar(`${base}/${reporteId}: la rutina contestó ${r.status} ${detalle}`);
+    return respuesta(502, origen, { error: "la rutina contestó " + r.status });
+  }
+  anotar(`${base}/${reporteId}: rutina despertada`);
   return respuesta(200, origen, { ok: true });
 }
 
