@@ -109,8 +109,23 @@ await prueba("un doble toque de la misma persona en un minuto despierta una sola
   const r = await manejar(ev("casaverde", "d2", t), deps());
   assert.equal(r.statusCode, 202); assert.equal(disparos().length, 1);
 });
-await prueba("las cuatro bases con su projectId", () => {
-  assert.deepEqual(Object.keys(BASES), ["casaverde", "casayourte", "remate", "tiempos"]);
+await prueba("las cinco bases con su projectId (el panel, desde el 6-oct)", () => {
+  assert.deepEqual(Object.keys(BASES), ["casaverde", "casayourte", "remate", "tiempos", "panel"]);
+});
+await prueba("un INVITADO del panel: mira personas/ en datos-830f8 y el texto nombra el pendiente", async () => {
+  llamadas = [];
+  const r = await manejar(ev("panel", "harmonia:I1", token("datos-830f8")), deps());
+  assert.equal(r.statusCode, 200);
+  assert.ok(llamadas[0].url.includes("/datos-830f8/") && /\/personas\/uid-/.test(llamadas[0].url));
+  assert.match(JSON.parse(disparos()[0].op.body).text, /^CONSULTA EN VIVO · Panel: pendientes\/harmonia:I1 /);
+});
+await prueba("un invitado PAUSADO no despierta a nadie", async () => {
+  llamadas = [];
+  const r = await manejar(ev("panel", "harmonia:I2", token("datos-830f8")), deps({ activo: { booleanValue: false } }));
+  assert.equal(r.statusCode, 403); assert.equal(disparos().length, 0);
+});
+await prueba("los dos puntos sólo valen como parte de un id: nada de barras ni espacios", () => {
+  assert.ok(idValido("harmonia:I12")); assert.ok(!idValido("a/b")); assert.ok(!idValido("a b")); assert.ok(!idValido("x".repeat(41)));
 });
 
 console.log(`\n${pasadas} pasadas, ${fallidas} fallidas\n`);

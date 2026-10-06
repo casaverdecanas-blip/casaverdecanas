@@ -52,8 +52,10 @@
 #                                                          ORIGENES_PERMITIDOS
 #   avisar-claude       despierta al chat de Claude cuando  CLAUDE_RUTINA_URL,
 #                       alguien del equipo manda una        CLAUDE_RUTINA_TOKEN
-#                       consulta desde un sitio (3-oct;     (CLAUDE_RUTINA_BETA,
-#                       banco: netlify/pruebas/)            opcional)
+#                       consulta desde un sitio (3-oct),    (CLAUDE_RUTINA_BETA,
+#                       o un invitado del panel un pedido   opcional)
+#                       (6-oct, base «panel»).
+#                       Banco: netlify/pruebas/
 #
 # notify-recuerdo se retiró en julio de 2026 (estaba muerta: le faltaban las
 # variables y la página pública nunca la llamó). Este zip ya no la lleva.

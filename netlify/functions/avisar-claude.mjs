@@ -43,6 +43,9 @@ export const BASES = {
   casayourte: { proyecto: "casayourte-mauro", ficha: "usuarios", nombre: "CasaYourte" },
   remate:     { proyecto: "remate-acbc9",     ficha: "usuarios", nombre: "remateTaller" },
   tiempos:    { proyecto: "tiempos-71d42",    ficha: "miembros", nombre: "Tiempos" },
+  // 6-oct-2026 (panel:U2): un INVITADO del panel manda un pedido. Su ficha es
+  // `personas/{uid}` y tiene que estar ACTIVA; el pedido es un pendiente.
+  panel:      { proyecto: "datos-830f8",      ficha: "personas", nombre: "Panel", coleccion: "pendientes" },
 };
 
 // Lista BLANCA de orígenes: un «*» dejaría que cualquier página usara la
@@ -64,12 +67,13 @@ const BETA_POR_DEFECTO = "experimental-cc-routine-2026-04-01";
 
 // Un id de reporte de Firestore: letras y números. Cualquier otra cosa no
 // viaja en el texto de la rutina.
-export const idValido = (s) => typeof s === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(s);
+// Los pendientes del panel se llaman `<proyecto>:<clave>`: por eso los dos puntos.
+export const idValido = (s) => typeof s === "string" && /^[A-Za-z0-9_:-]{1,40}$/.test(s);
 
 // El texto que recibe la rutina. Fijo, sin nada que haya escrito la persona.
 export function textoParaLaRutina(base, reporteId, nombre) {
   const quien = String(nombre || "").replace(/[^\p{L}\p{N} .'-]/gu, "").slice(0, 40);
-  return `CONSULTA EN VIVO · ${BASES[base].nombre}: reportes/${reporteId}` +
+  return `CONSULTA EN VIVO · ${BASES[base].nombre}: ${BASES[base].coleccion || "reportes"}/${reporteId}` +
     (quien ? ` (de ${quien})` : "") + ". Leela de la base y seguí TRASPASO.md § 4 bis.";
 }
 
@@ -116,7 +120,8 @@ export async function fichaActiva(base, uid, idToken, deps = {}) {
   if (!r.ok) return { ok: false };
   const f = (await r.json()).fields || {};
   // Tiempos no tiene `activo`: estar en `miembros/` ES ser de la familia.
-  if (b.ficha === "usuarios" && f.activo?.booleanValue !== true) return { ok: false };
+  // Un invitado del panel, sí: una ficha pausada no despierta a nadie.
+  if ((b.ficha === "usuarios" || b.ficha === "personas") && f.activo?.booleanValue !== true) return { ok: false };
   return { ok: true, nombre: f.nombre?.stringValue || "" };
 }
 
