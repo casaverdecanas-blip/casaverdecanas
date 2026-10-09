@@ -172,6 +172,16 @@ verdad después del cambio.
   `logueado()`, y acá esa diferencia importa más que en los otros dos sitios —
   ver el punto de abajo. El molde está en `REPORTES.md` de remate; acá se copió
   la forma y no el texto.
+- **Los avisos de Claude también van a un BUZÓN, `avisos/`** (9-oct-2026,
+  `tiempos:V10`): lo que Claude le avisa a una persona del equipo que no es
+  de Tiempos (Esteban…) queda ahí, y su **Pizarra** —la app de Android del
+  ecosistema, ahora para todos— lo trae y lo muestra como notificación. Lo
+  lee y lo marca leído sólo su dueño; lo crea el agente
+  (`herramientas/avisos.mjs` de `datos`, avisos-4). Mauro y Florencia lo
+  reciben en el buzón de Tiempos. La tarjeta «📲 Los avisos en tu teléfono»
+  de `avisos.html` lleva a la guía de instalación, que vive en `datos`
+  (`pizarra.html`): **un APK que no viene de Play Store se instala leyendo
+  antes**.
 - **Tener sesión no es permiso.** Desde que existe login anónimo para el muro
   de recuerdos hay sesiones sin ficha en `usuarios/`: "logueado" ya no
   significa "es del equipo".

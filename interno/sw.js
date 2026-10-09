@@ -509,7 +509,7 @@
 // v114 (3-oct-2026) — nucleo-avisos-16: CONSULTA EN VIVO. El reporte o
 //   pedido de la hoja de la cuenta despierta al chat de Claude en el acto,
 //   por la función avisar-claude del Netlify (CV2.avisarClaude).
-const VERSION = 'cv2-shell-v114';
+const VERSION = 'cv2-shell-v115';
 
 const SHELL = [
   './',

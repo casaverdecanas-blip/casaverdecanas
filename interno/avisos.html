@@ -92,6 +92,17 @@
     <br><small id="sello" style="font-size:.72rem;"></small>
   </p>
 
+  <!-- ═══ La app del teléfono (avisos-7, 9-oct-2026, tiempos:V10) ═══════
+       Los avisos de Claude de TODOS los sitios llegan también a la Pizarra,
+       la app de Android del ecosistema, como notificación. Es un APK que no
+       viene de Play Store: el teléfono advierte y pide permisos a mano, y por
+       eso el enlace va a la guía y no directo a la descarga. -->
+  <div class="tarj">
+    <h2>📲 Los avisos en tu teléfono</h2>
+    <p class="aclara">Instalá la <b>Pizarra</b>, la app del equipo para Android: te llegan los avisos de Claude de todos los sitios como notificación, aunque no uses WhatsApp. No viene de Play Store, así que el teléfono te va a advertir: <b>leé la guía antes de instalar</b>.</p>
+    <p style="margin:6px 0 0;"><a href="https://maurogasta-crypto.github.io/datos/pizarra.html" target="_blank" rel="noopener">Cómo se instala, paso a paso →</a></p>
+  </div>
+
   <!-- ═══ Por dónde ═══════════════════════════════════════ -->
   <div class="tarj">
     <h2>¿Por dónde te avisamos?</h2>
@@ -670,7 +681,7 @@ $('btnSimularReal').addEventListener('click', () => {
 // ═══ Cargas iniciales — AL FINAL ══════════════════════════
 // El sello dice qué versión de nucleo.js está corriendo de verdad. Si no
 // coincide con la esperada, lo que se probó no es lo que se cree.
-$('sello').textContent = 'pantalla: avisos-6 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
+$('sello').textContent = 'pantalla: avisos-7 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
 // El selector del simulacro sale de la MISMA lista que los interruptores: un
 // evento que no está en CV2.EVENTOS no existe para nadie.
 $('simEvento').innerHTML = CV2.EVENTOS.map((ev) =>

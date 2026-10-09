@@ -14,6 +14,13 @@ rules_version = '2';
 //  nunca por fragmentos, y los casos especiales (config/integraciones)
 //  se excluyen a mano del bloque general.
 //
+//  CAMBIO 9-oct-2026 · EL BUZÓN DE AVISOS  [BUZON]  (tiempos:V10)
+//  «Pizarra para todos por igual, para que cada quien tenga la opción de
+//  instalar los avisos en su teléfono directamente» (Mauro). Lo que Claude le
+//  avisa a una persona queda en /avisos/, y la Pizarra (la app de Android del
+//  ecosistema) lo trae y lo muestra. Lo lee y lo marca leído SÓLO su dueño;
+//  lo crea el agente (por el comodín de escritura de abajo). Ver el bloque.
+//
 //  CAMBIO 30-sep-2026 · EL AGENTE AVISA POR WHATSAPP  [AGENTE-AVISA]
 //  Pedido de Mauro: que la ronda diaria le pueda escribir por CallMeBot a una
 //  persona del equipo cuando aparezca algo que le concierne. El agente trae
@@ -758,6 +765,16 @@ service cloud.firestore {
       allow read: if activo();
       allow get: if esAgente();
       allow write: if esAdmin() || (logueado() && request.auth.uid == uid);
+    }
+
+    // [BUZON] 9-oct-2026: los avisos de Claude para UNA persona, que trae su
+    // Pizarra. Sólo los suyos —la consulta de la app filtra por su uid, y la
+    // regla lo exige—; sólo puede marcarlos leídos o borrarlos. El agente los
+    // crea por el comodín de escritura de arriba.
+    match /avisos/{id} {
+      allow read, delete: if activo() && resource.data.uid == request.auth.uid;
+      allow update: if activo() && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leido']);
     }
 
 
