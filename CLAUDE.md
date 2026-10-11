@@ -112,6 +112,13 @@ verdad después del cambio.
 
 - **Archivos completos, nunca diffs** — se trabaja desde el teléfono, con
   GitHub web.
+- **Toda contraseña tiene su ojo 👁 para verla mientras se tipea**
+  (`nucleo-avisos-17`, 11-oct-2026, Mauro: «en todos los sitios»):
+  `ojosEnClaves()` al final de `interno/nucleo.js`, que corre solo en toda
+  página que lo importa (login incluido). Es el mismo código en Tiempos,
+  CasaYourte, remate y el panel, y en la Pizarra va en Kotlin: si cambia en uno,
+  cambia en todos en la misma tanda. `diagnostico.html` no lo lleva: no importa
+  el núcleo, a propósito.
 - **El núcleo es `interno/nucleo.js` y no se duplica.** El único contacto con
   el SDK de Firebase es `interno/firebase-init.js`.
 - **El SDK de Firebase se baja DIFERIDO, desde el sello `init-2`**
