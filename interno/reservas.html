@@ -35,8 +35,13 @@
     background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
     padding: 11px 12px; margin: 7px 0; box-shadow: var(--sombra); cursor: pointer;
   }
-  .res .fila1 { display: flex; align-items: center; gap: 8px; }
-  .res .quien { flex: 1; min-width: 0; font-weight: 600; font-size: .95rem; overflow-wrap: anywhere; }
+  /* reservas-ical-13 (18-oct-2026, Mauro: «arreglar la presentación de las
+     reservas con código de Airbnb»). Las etiquetas no se encogían y le dejaban
+     al nombre una columna de dos letras: «Air / bn / b · / HM…». Ahora la fila
+     se parte —las etiquetas bajan— y el nombre nunca baja de 10 letras de ancho. */
+  .res .fila1 { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; }
+  .res .quien { flex: 1 1 10rem; min-width: 10rem; font-weight: 600; font-size: .95rem; overflow-wrap: break-word; }
+  .res .quien .cod { display: block; font-weight: 400; font-size: .72rem; color: var(--gris); letter-spacing: .02em; }
   .res .fila2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     font-size: .8rem; color: var(--gris); margin-top: 4px; }
   .cab { font-size: .72rem; padding: 3px 10px; border-radius: 999px; font-weight: 700; white-space: nowrap; }
@@ -361,7 +366,7 @@ CV2.renderNav('reservas');
 // §3.18 · sello de versión. Sin esto, "subí el archivo nuevo" es una creencia:
 // el 31-jul-2026 se buscó el acuerdo en un formulario que era del archivo
 // anterior, y el síntoma parecía un problema de diseño.
-const SELLO = 'reservas-ical-12';
+const SELLO = 'reservas-ical-13';
 
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
@@ -428,6 +433,14 @@ const enCasa = (r) => r.estado === 'confirmada' && r.checkIn <= CV2.hoyISO() && 
 const registrarCambio = (cambio) => arrayUnion({
   fecha: Timestamp.now(), autorUid: u.uid, autorNombre: u.nombre ?? '', cambio
 });
+
+// El nombre que se muestra: el título de una reserva de Airbnb es
+// «Airbnb · <código> <nombre>» (lo arma el importador y lo completa el agente);
+// en la tarjeta va el nombre, y el código chico debajo. El dato no cambia.
+const nombreVisible = (t) => {
+  const m = /^Airbnb\s*·\s*(HM[A-Z0-9]+)\s*(.*)$/i.exec(String(t || '').trim());
+  return m ? { nombre: m[2].trim() || 'Huésped de Airbnb', codigo: 'Airbnb · ' + m[1].toUpperCase() } : { nombre: String(t || ''), codigo: '' };
+};
 
 // Solapamiento de fechas en la misma cabaña (solo confirmadas)
 const conflicto = (cabanaId, ci, co, ignorarId) =>
@@ -546,11 +559,16 @@ function render() {
 
     let h = `<div class="res${a.clave === resaltada || a.rs.some((r) => r.id === resaltada) ? ' resaltada' : ''}" id="res-${a.clave}" style="border-left:5px solid ${a.esGrupo ? 'var(--verde-osc)' : col};" onclick="abrir('${a.clave}')">
       <div class="fila1">
-        <span class="quien">${r0.clienteId
-          ? `<a class="cv-ir" href="${CV2.hrefDe('cliente', r0.clienteId, { volver: true })}"
-               onclick="event.stopPropagation()">${esc(r0.clienteNombre)}</a>`
-          : esc(r0.clienteNombre)}</span>
-        ${a.esGrupo ? `<span class="est" style="background:var(--verde-claro);color:var(--verde-osc);">acuerdo · ${a.rs.length} cabañas</span>` : ''}
+        <span class="quien">${(() => {
+          // «Airbnb · HMYCFCARCQ Matias» → «Matias», con el código abajo, chico.
+          const n = nombreVisible(r0.clienteNombre);
+          const txt = esc(n.nombre);
+          return (r0.clienteId
+            ? `<a class="cv-ir" href="${CV2.hrefDe('cliente', r0.clienteId, { volver: true })}"
+                 onclick="event.stopPropagation()">${txt}</a>`
+            : txt) + (n.codigo ? `<small class="cod">${esc(n.codigo)}</small>` : '');
+        })()}</span>
+        ${a.esGrupo && a.rs.length > 1 ? `<span class="est" style="background:var(--verde-claro);color:var(--verde-osc);">acuerdo · ${a.rs.length} cabañas</span>` : ''}
         ${algunaEnCasa ? '<span class="encasa">🏠 En casa</span>' : ''}
         ${r0.origen === 'airbnb' ? '<span class="est" style="background:#fde8ec;color:#b0164a;">Airbnb</span>' : ''}
         ${estados.map((e) => `<span class="est ${e}">${e}</span>`).join('')}
@@ -1391,11 +1409,14 @@ if (CV2.puede('reservas')) {
           ? '<br>' + s.cabanasSinCalendario + ' cabaña(s) todavía sin dirección de Airbnb.'
           : '')
         // reservas-ical-11: la IDA — ¿Airbnb bloquea las fechas de nuestras reservas directas?
-        + (s.ida || []).map((x) => '<br>' + (x.faltan.length ? '⚠ ' : '✓ ') + esc(nombreCab(x.cabanaId)) + ': Airbnb bloquea '
-            + x.bloqueadas + ' de ' + x.directas + ' reservas directas'
+        // reservas-ical-13: el 18-oct se vio que Airbnb CIERRA esas fechas pero
+        // no las vuelve a publicar en su .ics, así que lo que no aparece ahí no
+        // prueba que esté abierto. Se dice como dato, no como alarma.
+        + (s.ida || []).map((x) => '<br>' + (x.faltan.length ? 'ℹ ' : '✓ ') + esc(nombreCab(x.cabanaId)) + ': '
+            + x.bloqueadas + ' de ' + x.directas + ' reservas directas figuran en el calendario que publica Airbnb'
             + (x.faltan.length ? ' — faltan: ' + x.faltan.map((f) => esc(f.cliente) + ' ' + esc(CV2.fmtFecha(f.checkIn)) + '→' + esc(CV2.fmtFecha(f.checkOut))
                 + ' (noches sin bloquear: ' + esc((f.noches || []).map((n) => n.slice(8, 10) + '/' + n.slice(5, 7)).join(', ')) + ')').join(', ')
-              + '. Airbnb no está leyendo nuestro calendario de esta cabaña: hacé el paso «1 · Pegá ESTO en Airbnb» de esa cabaña, acá abajo.' : ''))
+              + '. Airbnb no siempre vuelve a publicar lo que toma de nuestro calendario: si en el calendario del anuncio esas noches están tachadas, está bien.' : ''))
           .join('');
     } catch (e) {
       // El mensaje COMPLETO. Los errores de esta sincronización dicen qué pasó

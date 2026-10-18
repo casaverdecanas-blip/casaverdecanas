@@ -228,9 +228,14 @@ verdad después del cambio.
   calendario»). Al sincronizar, `RCore.sincronizarAirbnb` mira si cada noche
   de nuestras reservas DIRECTAS aparece bloqueada («Not available») en el
   `.ics` de Airbnb, lo dice en pantalla por cabaña y lo guarda en
-  `airbnb_estado/{cabaña}` (regla nueva), que la ronda controla. Si falta, esa
-  fecha se puede vender dos veces: el arreglo es el paso «1 · Pegá ESTO en
-  Airbnb» de la cabaña.
+  `airbnb_estado/{cabaña}` (regla nueva), que la ronda controla. **Es un dato,
+  no una alarma** (`reservas-ical-13`): el 18-oct se vio que Airbnb CIERRA las
+  fechas que importa —las de Darío y Ximena estaban tachadas en la app— pero no
+  siempre las vuelve a publicar en su `.ics`. Lo que manda es el calendario del
+  anuncio en Airbnb.
+- **En la tarjeta de una reserva de Airbnb va el NOMBRE, y el código chico
+  debajo** (`reservas-ical-13`, `nombreVisible`): «Airbnb · HMYCFCARCQ Matias»
+  se leía letra por letra en un teléfono. El dato no cambia.
 - **Y lo de Airbnb no vuelve a Airbnb** (18-oct-2026, Mauro: «sí»): el
   calendario de UNA cabaña (`ical-cabana?c=`), que es el que lee Airbnb, publica
   sólo las reservas DIRECTAS; el de todas (sin `?c=`), todo. Si no, una
