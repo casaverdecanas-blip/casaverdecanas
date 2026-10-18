@@ -209,6 +209,17 @@ verdad después del cambio.
   `atendidoEn`. **Publicar lo hace una persona**: eso es lo que no hace
   bloquear la cuenta. Una colección nueva con su regla: hay que
   **publicar `interno/firestore.rules`**.
+- **La ronda completa las reservas sola, y lo que CAMBIA se confirma en
+  Reservas** (`reservas-ical-9`, 18-oct-2026, Mauro: «las actualizaciones
+  que no impliquen modificaciones de los datos preexistentes deben ser sin
+  consulta; advertir cuando haya cambios importantes para confirmar desde la
+  página»). Llenar un dato vacío lo hace el agente (`reservas.mjs
+  completar`); cambiar uno que ya estaba —fechas, cabaña, anular, cuántos
+  son, la hora de llegada— lo PROPONE en `cambios_reserva/` (`reservas.mjs
+  proponer`) y aparece arriba de Reservas, «⚠ cambios para confirmar»: quien
+  tiene el permiso de reservas lo confirma —se aplica con SU sesión, con el
+  renglón en el historial, la disponibilidad y la limpieza— o lo rechaza.
+  La regla deja tocar sólo la decisión. **La plata no se propone**.
 - **Tener sesión no es permiso.** Desde que existe login anónimo para el muro
   de recuerdos hay sesiones sin ficha en `usuarios/`: "logueado" ya no
   significa "es del equipo".

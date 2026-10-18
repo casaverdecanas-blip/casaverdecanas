@@ -10,6 +10,22 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#2d5a27">
 <style>
+  /* reservas-ical-9 (18-oct-2026). Mauro: «la ronda tiene que actualizar
+     automáticamente las reservas, y advertir cuando haya cambios importantes
+     para confirmar desde la página». Lo que llena un dato vacío lo escribe
+     la ronda sola; lo que CAMBIA un dato que ya estaba (fechas, cabaña,
+     anular, cuántos son) lo propone en `cambios_reserva/` y se confirma acá. */
+  .cambios { border: 2px solid #c9862b; background: #fff8ec; border-radius: var(--radio);
+    padding: 10px 12px; margin: 6px 0 12px; }
+  .cambios h3 { margin: 0 0 6px; font-size: .95rem; }
+  .cambio { border-top: 1px solid #ecd9b8; padding: 8px 0; }
+  .cambio:first-of-type { border-top: 0; }
+  .cambio b { overflow-wrap: anywhere; }
+  .cambio ul { margin: 4px 0 4px 18px; padding: 0; font-size: .88rem; }
+  .cambio small { display: block; color: var(--gris); font-size: .76rem; }
+  .cambio .aviso { color: #a33; font-size: .82rem; margin: 4px 0; }
+  .cambio .acc { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .cambio .acc .btn { min-height: 42px; }
   .filtros { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
   .fchip { border: 1px solid var(--linea); background: #fff; border-radius: 999px;
     padding: 6px 14px; font: inherit; font-size: .84rem; cursor: pointer; color: var(--gris); }
@@ -119,6 +135,8 @@
     </button>
   </div>
   <small id="sello" style="display:block;font-size:.7rem;color:var(--gris);margin:2px 0 8px;"></small>
+
+  <div id="cambios" class="cambios oculto"></div>
 
   <div class="filtros" id="filtros">
     <button class="fchip activo" data-f="vigentes">Vigentes</button>
@@ -343,7 +361,7 @@ CV2.renderNav('reservas');
 // §3.18 · sello de versión. Sin esto, "subí el archivo nuevo" es una creencia:
 // el 31-jul-2026 se buscó el acuerdo en un formulario que era del archivo
 // anterior, y el síntoma parecía un problema de diseño.
-const SELLO = 'reservas-ical-8';
+const SELLO = 'reservas-ical-9';
 
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
@@ -1413,6 +1431,90 @@ try {
   }
 }
 
+// ═══ Cambios para confirmar (reservas-ical-9) ═════════════
+// Los propone la ronda (datos/herramientas/reservas.mjs proponer) cuando un
+// mail o un mensaje de Airbnb CAMBIA algo que la reserva ya decía. Acá una
+// persona con el permiso de reservas lo confirma —y se aplica con SU sesión,
+// como si lo hubiera editado ella— o lo rechaza.
+let cambiosPend = [];
+const NOMBRE_CAMPO = { checkIn: 'Entrada', checkOut: 'Salida', cabanaId: 'Cabaña', estado: 'Estado',
+  adultos: 'Adultos', ninos: 'Niños', bebes: 'Bebés', mascotas: 'Mascotas', llegadaEstimada: 'Llegada' };
+const valorCampo = (k, v) => {
+  if (v === undefined || v === null || v === '') return '—';
+  if (k === 'checkIn' || k === 'checkOut') return CV2.fmtFecha(v);
+  if (k === 'cabanaId') { const c = cabanas.find((x) => x.id === v); const n = c && c.nombre; return (n && typeof n === 'object' ? n.es : n) || v; }
+  return String(v);
+};
+
+function pintarCambios() {
+  const caja = $('cambios');
+  if (!caja) return;
+  const vivos = cambiosPend.filter((c) => reservas.some((r) => r.id === c.reservaId));
+  if (!vivos.length) { caja.classList.add('oculto'); caja.innerHTML = ''; return; }
+  const puede = CV2.puede('reservas');
+  caja.classList.remove('oculto');
+  caja.innerHTML = '<h3>⚠ ' + vivos.length + (vivos.length === 1 ? ' cambio para confirmar' : ' cambios para confirmar') + '</h3>'
+    + vivos.map((c) => {
+      const r = reservas.find((x) => x.id === c.reservaId);
+      const lis = Object.entries(c.cambios || {}).map(([k, v]) =>
+        '<li>' + esc(NOMBRE_CAMPO[k] || k) + ': ' + esc(valorCampo(k, r[k])) + ' → <b>' + esc(valorCampo(k, v.despues)) + '</b></li>').join('');
+      const choca = (c.cambios?.checkIn || c.cambios?.checkOut || c.cambios?.cabanaId)
+        ? conflicto(c.cambios?.cabanaId?.despues ?? r.cabanaId, c.cambios?.checkIn?.despues ?? r.checkIn,
+                    c.cambios?.checkOut?.despues ?? r.checkOut, r.id) : null;
+      return '<div class="cambio"><b>' + esc(r.clienteNombre || 'Reserva') + '</b> · ' + esc(valorCampo('cabanaId', r.cabanaId))
+        + '<ul>' + lis + '</ul>'
+        + (choca ? '<div class="aviso">Se superpone con ' + esc(choca.clienteNombre || 'otra reserva') + ' ('
+            + esc(CV2.fmtFecha(choca.checkIn)) + '→' + esc(CV2.fmtFecha(choca.checkOut)) + ').</div>' : '')
+        + '<small>' + esc(c.motivo || '') + (c.fuente ? ' · ' + esc(c.fuente) : '') + '</small>'
+        + (puede ? '<div class="acc"><button class="btn btn-primario" data-cambio-si="' + esc(c.id) + '">Confirmar</button>'
+            + '<button class="btn" data-cambio-no="' + esc(c.id) + '">Rechazar</button></div>'
+          : '<small>Lo confirma quien tenga el permiso de reservas.</small>')
+        + '</div>';
+    }).join('');
+}
+
+// Lo que el agente puede proponer, y nada más: si un documento trajera otro
+// campo, no se aplica.
+const PROPONIBLES = Object.keys(NOMBRE_CAMPO);
+
+async function decidirCambio(id, aplicar) {
+  const c = cambiosPend.find((x) => x.id === id);
+  const r = c && reservas.find((x) => x.id === c.reservaId);
+  if (!c || !r) return;
+  try {
+    if (aplicar) {
+      const datos = {};
+      for (const [k, v] of Object.entries(c.cambios || {})) if (PROPONIBLES.includes(k)) datos[k] = v.despues;
+      const nuevo = { ...r, ...datos };
+      if (!(typeof nuevo.checkIn === 'string' && typeof nuevo.checkOut === 'string' && nuevo.checkIn < nuevo.checkOut)) {
+        CV2.toast('Las fechas no cierran: la salida tiene que ser después de la entrada.', 'error'); return;
+      }
+      const choca = conflicto(nuevo.cabanaId, nuevo.checkIn, nuevo.checkOut, r.id);
+      if (choca && !confirm(`⚠ Se superpone con ${choca.clienteNombre} (${CV2.fmtFecha(choca.checkIn)}→${CV2.fmtFecha(choca.checkOut)}). ¿Confirmar igual?`)) return;
+      if (datos.estado === 'anulada' && !confirm('¿ANULAR esta reserva?')) return;
+      const texto = Object.keys(datos).map((k) => `${NOMBRE_CAMPO[k]} ${valorCampo(k, r[k])} → ${valorCampo(k, datos[k])}`).join(' · ');
+      await updateDoc(doc(db, 'reservas', r.id), {
+        ...datos,
+        historial: registrarCambio(`confirmado (propuesto por Claude: ${c.fuente || 'Airbnb'}): ${texto}`.slice(0, 500)),
+        actualizadoEn: serverTimestamp()
+      });
+      // Lo que cuelga de las fechas y del estado: la disponibilidad pública y la limpieza.
+      try { await RCore.sincronizarLimpiezas([nuevo], cabanas, u); } catch (e2) { console.warn('limpiezas:', e2); }
+    }
+    await updateDoc(doc(db, 'cambios_reserva', c.id), {
+      estado: aplicar ? 'aplicado' : 'rechazado', decididoPor: u.nombre ?? u.email ?? '', decididoEn: serverTimestamp()
+    });
+    CV2.toast(aplicar ? 'Cambio aplicado' : 'Cambio rechazado', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+}
+
+$('cambios')?.addEventListener('click', (e) => {
+  const si = e.target.closest('[data-cambio-si]');
+  const no = e.target.closest('[data-cambio-no]');
+  if (si) decidirCambio(si.dataset.cambioSi, true);
+  else if (no) decidirCambio(no.dataset.cambioNo, false);
+});
+
 // El botón de volver se enciende si se llegó desde otra pantalla, y lleva
 // escrito adónde. Es un enlace común y no history.back(): sigue andando
 // después de editar, de pagar o de anular, y cada una de esas acciones mueve
@@ -1446,10 +1548,18 @@ onSnapshot(query(collection(db, 'pagos')), (snap) => {
   render();
 }, (e) => console.error('pagos:', e));
 
+// Los cambios que propuso la ronda (reservas-ical-9). Si las reglas nuevas no
+// están publicadas, no se ven y nada más: la página anda igual.
+onSnapshot(query(collection(db, 'cambios_reserva'), where('estado', '==', 'pendiente')), (snap) => {
+  cambiosPend = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  pintarCambios();
+}, (e) => console.warn('cambios_reserva:', e));
+
 onSnapshot(query(collection(db, 'reservas')), (snap) => {
   reservas = [];
   snap.forEach((d) => reservas.push({ id: d.id, ...d.data() }));
   reservas.sort((a, b) => (b.checkIn ?? '').localeCompare(a.checkIn ?? ''));
+  pintarCambios();
 
   // Si se llegó desde el calendario pidiendo una reserva, se abre sola y se
   // trae a la vista. UNA sola vez: después el onSnapshot vuelve a correr con

@@ -856,6 +856,21 @@ service cloud.firestore {
     // equipo con ficha activa —Mauro: «para que Florencia y otro usuario
     // logueado llegue a ver»— y marca si lo atendió: el texto, el grupo y el
     // enlace no se tocan, que es lo que dijo esa persona.
+    // Cambios que la ronda PROPONE a una reserva (18-oct-2026, Mauro: «advertir
+    // cuando haya cambios importantes para confirmar desde la página»). Los crea
+    // sólo el agente (por el comodín de esAgente()); quien tiene el permiso de
+    // reservas los confirma o rechaza en reservas.html, y lo único que puede
+    // tocar acá es la decisión. Aplicar el cambio a la reserva va por la regla
+    // de reservas, con la sesión de esa persona.
+    match /cambios_reserva/{id} {
+      allow read: if activo();
+      allow update: if tiene('reservas')
+                    && resource.data.estado == 'pendiente'
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['estado', 'decididoPor', 'decididoEn'])
+                    && request.resource.data.estado in ['aplicado', 'rechazado'];
+    }
+
     match /pedidos_alquiler/{id} {
       allow create: if activo()
                     && request.resource.data.uid == request.auth.uid
