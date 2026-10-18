@@ -189,6 +189,17 @@ verdad después del cambio.
   de `avisos.html` lleva a la guía de instalación, que vive en `datos`
   (`pizarra.html`): **un APK que no viene de Play Store se instala leyendo
   antes**.
+- **Los pedidos de alquiler de Facebook se ven en «Pedidos de alquiler»**
+  (`interno/pedidos-alquiler.html`, 18-oct-2026, Mauro: «para que Florencia y
+  otro usuario logueado llegue a ver»). Lo que la Pizarra del Redmi 13C lee en
+  los grupos de Facebook sobre alquilar en Canasvieiras, en
+  `pedidos_alquiler/`, por fecha y con la respuesta que preparó Claude. **Lo
+  escribe sólo el agente** (`datos/herramientas/facebook.mjs`); quien tenga
+  ficha activa lo lee y marca respondido o descartado, y la regla no deja
+  tocar el texto. **No hay enlace directo a la publicación**: Facebook no lo
+  pone en la notificación, así que el botón busca las palabras de la
+  publicación en Facebook. Una colección nueva con su regla: hay que
+  **publicar `interno/firestore.rules`**.
 - **Tener sesión no es permiso.** Desde que existe login anónimo para el muro
   de recuerdos hay sesiones sin ficha en `usuarios/`: "logueado" ya no
   significa "es del equipo".

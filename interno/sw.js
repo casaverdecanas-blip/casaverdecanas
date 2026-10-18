@@ -511,7 +511,10 @@
 //   por la función avisar-claude del Netlify (CV2.avisarClaude).
 // v116 (11-oct-2026) — nucleo-avisos-17: el ojo 👁 en cada contraseña, para
 //   verla mientras se tipea (ojosEnClaves, el mismo código en los cinco sitios).
-const VERSION = 'cv2-shell-v116';
+// v117 (18-oct-2026) — pedidos-alquiler.html [NUEVO, SHELL]: los pedidos de
+//   alquiler en Canasvieiras de los grupos de Facebook, y su renglón en la
+//   barra (nucleo-avisos-18).
+const VERSION = 'cv2-shell-v117';
 
 const SHELL = [
   './',
@@ -523,6 +526,7 @@ const SHELL = [
   './gestion-sesiones.html',
   './comunicacion.html',
   './avisos.html',
+  './pedidos-alquiler.html',
   './usuarios.html',
   './manual.html',
   './reservas.html',

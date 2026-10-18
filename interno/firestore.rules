@@ -847,6 +847,21 @@ service cloud.firestore {
       allow delete: if esAdmin();
     }
 
+    // ═══ PEDIDOS DE ALQUILER (18-oct-2026) ═══════════════════
+    // Lo que alguien pidió en un grupo de Facebook sobre alquilar en
+    // Canasvieiras, que lee la Pizarra del teléfono de captura. Lo CREA sólo
+    // el agente (por el comodín de esAgente() de arriba). Lo LEE cualquiera
+    // del equipo con ficha activa —Mauro: «para que Florencia y otro usuario
+    // logueado llegue a ver»— y marca si lo atendió: el texto, el grupo y el
+    // enlace no se tocan, que es lo que dijo esa persona.
+    match /pedidos_alquiler/{id} {
+      allow read: if activo();
+      allow update: if activo()
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['estado', 'atendidoPor', 'atendidoEn', 'nota'])
+                    && request.resource.data.estado in ['nuevo', 'respondido', 'descartado'];
+    }
+
     // OJO: las reglas se suman. Este bloque tiene que excluir
     // 'integraciones' y 'fiscal' a mano — si no, anularía a los de arriba y
     // cualquiera del equipo leería la clave de Google o los datos fiscales.

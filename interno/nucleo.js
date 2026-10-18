@@ -422,6 +422,10 @@ CV2.NAV = [
 
   { id: 'reservas', label: 'Reservas', href: './reservas.html', icono: 'king_bed', permiso: 'reservas', grupo: 'alojamiento' },
   { id: 'clientes', label: 'Clientes', href: './clientes.html', icono: 'contacts', permiso: 'reservas', grupo: 'alojamiento' },
+  // 18-oct-2026: los pedidos de alquiler de los grupos de Facebook, para todo
+  // el equipo con sesión activa (Mauro: «para que Florencia y otro usuario
+  // logueado llegue a ver»). Los carga el agente.
+  { id: 'pedidos-alquiler', label: 'Pedidos de alquiler', href: './pedidos-alquiler.html', icono: 'campaign', permiso: null, grupo: 'alojamiento' },
 
   { id: 'dinero', label: 'Dinero', href: './dinero.html', icono: 'savings', permiso: ['dinero', 'finanzas'], grupo: 'plata' },
   { id: 'honorarios', label: 'Cobros', href: './honorarios.html', icono: 'payments', permiso: null, grupo: 'plata' },
@@ -1205,7 +1209,7 @@ CV2.sinFirebase = function (e) {
   if (b) b.addEventListener('click', () => location.reload());
 };
 
-CV2.VERSION = 'nucleo-avisos-17';
+CV2.VERSION = 'nucleo-avisos-18';
 
 CV2.NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
 

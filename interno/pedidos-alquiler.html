@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Pedidos de alquiler</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  /* pedidos-alquiler-1 (18-oct-2026). Mauro: «un registro de todas las
+     notificaciones que se relacionen a alquiler en Canasvieiras con el texto
+     de la publicación y el link para acceder directamente a hacer un
+     comentario. Listadas por fecha … para que Florencia y otro usuario
+     logueado llegue a ver». Lo carga el agente (datos/herramientas/
+     facebook.mjs) desde lo que lee la Pizarra del Redmi 13C. */
+  .filtros { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 10px; }
+  .filtros button { min-height: 40px; padding: 0 14px; border-radius: 999px;
+    border: 1px solid var(--linea); background: #fff; font: inherit; cursor: pointer; }
+  .filtros button.activo { background: var(--verde); border-color: var(--verde); color: #fff; }
+  .dia { margin: 16px 0 6px; font-size: .8rem; font-weight: 700; color: var(--gris);
+    text-transform: uppercase; letter-spacing: .03em; }
+  .ped { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 12px 14px; margin: 8px 0; box-shadow: var(--sombra); }
+  .ped.atendido { opacity: .65; }
+  .ped-cab { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .ped-cab b { font-size: .92rem; overflow-wrap: anywhere; }
+  .ped-cab small { color: var(--gris); font-size: .78rem; flex: 0 0 auto; }
+  .ped-texto { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem;
+    line-height: 1.45; margin: 8px 0; }
+  .ped-resp { background: var(--verde-claro); border-radius: 10px; padding: 9px 11px;
+    font-size: .86rem; white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0; }
+  .ped-resp b { display: block; font-size: .76rem; margin-bottom: 3px; }
+  .ped-acc { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .ped-acc .btn { min-height: 44px; }
+  .ped-quien { font-size: .76rem; color: var(--gris); margin-top: 6px; }
+  .vacio { text-align: center; color: var(--gris); padding: 28px 10px; }
+  .nota { color: var(--gris); font-size: .82rem; margin: -4px 0 8px; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <h1>Pedidos de alquiler</h1>
+  <p class="nota">Lo que alguien pidió en los grupos de Facebook sobre alquilar en Canasvieiras.
+    «Buscar en Facebook» abre la búsqueda con las palabras de la publicación: Facebook no
+    da el enlace exacto, pero casi siempre sale primera.
+    <br><small id="sello" style="font-size:.72rem;"></small></p>
+
+  <div class="filtros" id="filtros">
+    <button data-f="nuevo" class="activo">Sin atender</button>
+    <button data-f="todos">Todos</button>
+  </div>
+
+  <div id="lista"><p class="vacio">Cargando…</p></div>
+</div>
+
+<script type="module">
+// Regla del 2.0 (§3.2): definiciones primero, cargas y suscripciones AL FINAL.
+import {
+  db, collection, doc, query, orderBy, limit, onSnapshot, updateDoc, serverTimestamp
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('pedidos-alquiler');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+let filtro = 'nuevo';
+let pedidos = [];
+
+const ESTADOS = { nuevo: 'Sin atender', respondido: 'Respondido', descartado: 'Descartado' };
+
+function diaDe(ms) {
+  if (!ms) return 'Sin fecha';
+  return new Date(ms).toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+function horaDe(ms) {
+  return ms ? new Date(ms).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : '';
+}
+
+function pintar() {
+  const lista = pedidos.filter((p) => filtro === 'todos' || (p.estado || 'nuevo') === 'nuevo');
+  if (!lista.length) {
+    $('lista').innerHTML = '<p class="vacio">' + (filtro === 'nuevo'
+      ? 'No hay pedidos sin atender.' : 'Todavía no llegó ningún pedido.') + '</p>';
+    return;
+  }
+  let html = '', diaAnterior = '';
+  for (const p of lista) {
+    const dia = diaDe(p.cuando);
+    if (dia !== diaAnterior) { html += '<div class="dia">' + esc(dia) + '</div>'; diaAnterior = dia; }
+    const estado = p.estado || 'nuevo';
+    html += '<div class="ped ' + (estado !== 'nuevo' ? 'atendido' : '') + '">'
+      + '<div class="ped-cab"><b>' + esc(p.grupo || 'Grupo sin nombre') + '</b>'
+      + '<small>' + esc(horaDe(p.cuando)) + '</small></div>'
+      + '<div class="ped-texto">' + esc(p.texto || '') + '</div>'
+      + (p.respuesta ? '<div class="ped-resp"><b>Respuesta sugerida por Claude</b>' + esc(p.respuesta) + '</div>' : '')
+      + '<div class="ped-acc">'
+      + (p.buscar ? '<a class="btn" href="' + esc(p.buscar) + '" target="_blank" rel="noopener">'
+          + '<span class="material-icons">search</span>Buscar en Facebook</a>' : '')
+      + (p.respuesta ? '<button class="btn" data-copiar="' + esc(p.id) + '">'
+          + '<span class="material-icons">content_copy</span>Copiar respuesta</button>' : '')
+      + (estado === 'nuevo'
+          ? '<button class="btn btn-primario" data-estado="respondido" data-id="' + esc(p.id) + '">'
+            + '<span class="material-icons">done</span>Respondido</button>'
+            + '<button class="btn" data-estado="descartado" data-id="' + esc(p.id) + '">Descartar</button>'
+          : '<button class="btn" data-estado="nuevo" data-id="' + esc(p.id) + '">Volver a sin atender</button>')
+      + '</div>'
+      + (estado !== 'nuevo' ? '<div class="ped-quien">' + esc(ESTADOS[estado] || estado)
+          + (p.atendidoPor ? ' por ' + esc(p.atendidoPor) : '') + '</div>' : '')
+      + '</div>';
+  }
+  $('lista').innerHTML = html;
+}
+
+// Sólo estos campos: la regla de pedidos_alquiler no deja tocar el texto.
+async function marcar(id, estado) {
+  try {
+    await updateDoc(doc(db, 'pedidos_alquiler', id), {
+      estado,
+      atendidoPor: estado === 'nuevo' ? '' : (CV2.usuario?.nombre || u?.email || ''),
+      atendidoEn: serverTimestamp(),
+    });
+  } catch (e) {
+    CV2.toast('No se pudo guardar: ' + (e.code ?? e.message), 'error');
+  }
+}
+
+$('filtros').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-f]');
+  if (!b) return;
+  filtro = b.dataset.f;
+  for (const x of $('filtros').querySelectorAll('button')) x.classList.toggle('activo', x === b);
+  pintar();
+});
+
+$('lista').addEventListener('click', async (e) => {
+  const est = e.target.closest('[data-estado]');
+  if (est) { await marcar(est.dataset.id, est.dataset.estado); return; }
+  const cop = e.target.closest('[data-copiar]');
+  if (cop) {
+    const p = pedidos.find((x) => x.id === cop.dataset.copiar);
+    try { await navigator.clipboard.writeText(p?.respuesta || ''); CV2.toast('Copiada. Pegala en Facebook.', 'ok'); }
+    catch { CV2.toast('No se pudo copiar: mantené apretado el texto.', 'error'); }
+  }
+});
+
+$('sello').textContent = 'pantalla: pedidos-alquiler-1 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
+
+// ═══ Carga: en vivo, los más nuevos primero ═══════════════
+onSnapshot(query(collection(db, 'pedidos_alquiler'), orderBy('cuando', 'desc'), limit(300)),
+  (snap) => { pedidos = snap.docs.map((d) => ({ id: d.id, ...d.data() })); pintar(); },
+  (err) => {
+    $('lista').innerHTML = '<p class="vacio">No se pudieron leer los pedidos ('
+      + esc(err.code || err.message) + '). Si dice «permission-denied», faltan publicar las reglas nuevas.</p>';
+  });
+</script>
+</body>
+</html>
