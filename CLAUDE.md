@@ -198,9 +198,16 @@ verdad después del cambio.
   la forma exacta que deja la regla (pizarra-36), o el agente
   (`datos/herramientas/facebook.mjs`), que además deja la `respuesta` en la
   ronda; quien tenga ficha activa lo lee y marca respondido o descartado, y la
-  regla no deja tocar el texto. **No hay enlace directo a la publicación**: Facebook no lo
-  pone en la notificación, así que el botón busca las palabras de la
-  publicación en Facebook. Una colección nueva con su regla: hay que
+  regla no deja tocar el texto. **Desde `pedidos-alquiler-2` se llega
+  directo a lo que hay que contestar** (Mauro: «simplificar y no tener que
+  escrolear»): arriba cuántos hay, primero los que ya tienen respuesta, y UN
+  botón, «Copiar y abrir». **No hay enlace exacto desde la web**: Facebook no
+  lo pone en la notificación, así que se abre una búsqueda con las palabras
+  de la publicación (o `enlace`, si algún día llega). El camino más corto es
+  el 13C: la Pizarra avisa la respuesta y abre la publicación exacta
+  (pizarra-37), y marca respondido con sólo `estado`, `atendidoPor` y
+  `atendidoEn`. **Publicar lo hace una persona**: eso es lo que no hace
+  bloquear la cuenta. Una colección nueva con su regla: hay que
   **publicar `interno/firestore.rules`**.
 - **Tener sesión no es permiso.** Desde que existe login anónimo para el muro
   de recuerdos hay sesiones sin ficha en `usuarios/`: "logueado" ya no

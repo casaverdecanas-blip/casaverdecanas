@@ -15,7 +15,23 @@
      de la publicación y el link para acceder directamente a hacer un
      comentario. Listadas por fecha … para que Florencia y otro usuario
      logueado llegue a ver». Lo carga el agente (datos/herramientas/
-     facebook.mjs) desde lo que lee la Pizarra del Redmi 13C. */
+     facebook.mjs) desde lo que lee la Pizarra del Redmi 13C.
+     pedidos-alquiler-2 (18-oct-2026). Mauro: «simplificar y no tener que
+     escrolear… llegar lo más directamente posible al mensaje en cuestión a
+     responder». Arriba, cuántos hay; primero los que ya tienen la respuesta;
+     el texto en cuatro renglones (un toque lo abre); y UN botón, «Copiar y
+     abrir», que copia la respuesta y abre la publicación. Publicar lo hace
+     la persona, en Facebook: eso es lo que no hace bloquear la cuenta. */
+  .cuenta { display: flex; gap: 10px; margin: 4px 0 10px; }
+  .cuenta div { flex: 1; background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 10px 12px; text-align: center; }
+  .cuenta b { display: block; font-size: 1.6rem; color: var(--verde); line-height: 1.1; }
+  .cuenta small { color: var(--gris); font-size: .76rem; }
+  .ped-texto.corto { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+    overflow: hidden; cursor: pointer; }
+  .ped-pregunta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px;
+    font-size: .86rem; }
+  .ped-espera { font-size: .8rem; color: var(--gris); margin: 6px 0 0; }
   .filtros { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 10px; }
   .filtros button { min-height: 40px; padding: 0 14px; border-radius: 999px;
     border: 1px solid var(--linea); background: #fff; font: inherit; cursor: pointer; }
@@ -46,13 +62,14 @@
 
 <div class="contenedor">
   <h1>Pedidos de alquiler</h1>
-  <p class="nota">Lo que alguien pidió en los grupos de Facebook sobre alquilar en Canasvieiras.
-    «Buscar en Facebook» abre la búsqueda con las palabras de la publicación: Facebook no
-    da el enlace exacto, pero casi siempre sale primera.
+  <div class="cuenta" id="cuenta"></div>
+  <p class="nota">«Copiar y abrir» copia la respuesta de Claude y abre la publicación: en Facebook,
+    Comentar → mantener apretado → Pegar. En el Redmi 13C es más corto todavía: el aviso de la Pizarra
+    hace lo mismo y abre la publicación exacta.
     <br><small id="sello" style="font-size:.72rem;"></small></p>
 
   <div class="filtros" id="filtros">
-    <button data-f="nuevo" class="activo">Sin atender</button>
+    <button data-f="nuevo" class="activo">Por responder</button>
     <button data-f="todos">Todos</button>
   </div>
 
@@ -75,7 +92,7 @@ const esc = CV2.esc;
 let filtro = 'nuevo';
 let pedidos = [];
 
-const ESTADOS = { nuevo: 'Sin atender', respondido: 'Respondido', descartado: 'Descartado' };
+const ESTADOS = { nuevo: 'Por responder', respondido: 'Respondido', descartado: 'Descartado' };
 
 function diaDe(ms) {
   if (!ms) return 'Sin fecha';
@@ -85,37 +102,68 @@ function horaDe(ms) {
   return ms ? new Date(ms).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : '';
 }
 
+const sinAtender = (p) => (p.estado || 'nuevo') === 'nuevo';
+const destino = (p) => p.enlace || p.buscar || '';
+let preguntando = '';   // el pedido que se abrió con «Copiar y abrir» y espera el «¿la publicaste?»
+
+function pintarCuenta() {
+  const nuevos = pedidos.filter(sinAtender);
+  const listos = nuevos.filter((p) => p.respuesta).length;
+  $('cuenta').innerHTML = '<div><b>' + nuevos.length + '</b><small>por responder</small></div>'
+    + '<div><b>' + listos + '</b><small>con la respuesta lista</small></div>';
+}
+
+function tarjeta(p) {
+  const estado = p.estado || 'nuevo';
+  const id = esc(p.id);
+  let acc = '';
+  if (estado === 'nuevo') {
+    acc = (p.respuesta
+        ? '<button class="btn btn-primario" data-abrir="' + id + '"><span class="material-icons">content_copy</span>Copiar y abrir</button>'
+        : (destino(p) ? '<a class="btn" href="' + esc(destino(p)) + '" target="_blank" rel="noopener"><span class="material-icons">open_in_new</span>Abrir en Facebook</a>' : ''))
+      + '<button class="btn" data-estado="descartado" data-id="' + id + '">Descartar</button>';
+  } else {
+    acc = '<button class="btn" data-estado="nuevo" data-id="' + id + '">Volver a por responder</button>';
+  }
+  return '<div class="ped ' + (estado !== 'nuevo' ? 'atendido' : '') + '">'
+    + '<div class="ped-cab"><b>' + esc(p.grupo || 'Grupo sin nombre') + '</b>'
+    + '<small>' + esc(diaCorto(p.cuando)) + '</small></div>'
+    + '<div class="ped-texto corto" data-abre>' + esc(p.texto || '') + '</div>'
+    + (p.respuesta ? '<div class="ped-resp"><b>Respuesta de Claude</b>' + esc(p.respuesta) + '</div>'
+        : (estado === 'nuevo' ? '<p class="ped-espera">La respuesta la prepara Claude en la próxima ronda.</p>' : ''))
+    + (preguntando === p.id && estado === 'nuevo'
+        ? '<div class="ped-pregunta">¿La publicaste?'
+          + '<button class="btn btn-primario" data-estado="respondido" data-id="' + id + '">Sí, respondido</button>'
+          + '<button class="btn" data-todavia>Todavía no</button></div>'
+        : '<div class="ped-acc">' + acc + '</div>')
+    + (estado !== 'nuevo' ? '<div class="ped-quien">' + esc(ESTADOS[estado] || estado)
+        + (p.atendidoPor ? ' por ' + esc(p.atendidoPor) : '') + '</div>' : '')
+    + '</div>';
+}
+
+function diaCorto(ms) {
+  if (!ms) return '';
+  const d = new Date(ms);
+  const hoy = new Date();
+  return (d.toDateString() === hoy.toDateString() ? 'hoy' : d.toLocaleDateString('es', { day: 'numeric', month: 'short' }))
+    + ' ' + horaDe(ms);
+}
+
 function pintar() {
-  const lista = pedidos.filter((p) => filtro === 'todos' || (p.estado || 'nuevo') === 'nuevo');
-  if (!lista.length) {
-    $('lista').innerHTML = '<p class="vacio">' + (filtro === 'nuevo'
-      ? 'No hay pedidos sin atender.' : 'Todavía no llegó ningún pedido.') + '</p>';
+  pintarCuenta();
+  if (filtro === 'nuevo') {
+    // Primero lo que ya se puede contestar, y dentro de cada grupo lo más nuevo arriba.
+    const lista = pedidos.filter(sinAtender)
+      .sort((a, b) => (b.respuesta ? 1 : 0) - (a.respuesta ? 1 : 0) || (b.cuando || 0) - (a.cuando || 0));
+    $('lista').innerHTML = lista.length ? lista.map(tarjeta).join('') : '<p class="vacio">No hay pedidos por responder.</p>';
     return;
   }
+  if (!pedidos.length) { $('lista').innerHTML = '<p class="vacio">Todavía no llegó ningún pedido.</p>'; return; }
   let html = '', diaAnterior = '';
-  for (const p of lista) {
+  for (const p of pedidos) {
     const dia = diaDe(p.cuando);
     if (dia !== diaAnterior) { html += '<div class="dia">' + esc(dia) + '</div>'; diaAnterior = dia; }
-    const estado = p.estado || 'nuevo';
-    html += '<div class="ped ' + (estado !== 'nuevo' ? 'atendido' : '') + '">'
-      + '<div class="ped-cab"><b>' + esc(p.grupo || 'Grupo sin nombre') + '</b>'
-      + '<small>' + esc(horaDe(p.cuando)) + '</small></div>'
-      + '<div class="ped-texto">' + esc(p.texto || '') + '</div>'
-      + (p.respuesta ? '<div class="ped-resp"><b>Respuesta sugerida por Claude</b>' + esc(p.respuesta) + '</div>' : '')
-      + '<div class="ped-acc">'
-      + (p.buscar ? '<a class="btn" href="' + esc(p.buscar) + '" target="_blank" rel="noopener">'
-          + '<span class="material-icons">search</span>Buscar en Facebook</a>' : '')
-      + (p.respuesta ? '<button class="btn" data-copiar="' + esc(p.id) + '">'
-          + '<span class="material-icons">content_copy</span>Copiar respuesta</button>' : '')
-      + (estado === 'nuevo'
-          ? '<button class="btn btn-primario" data-estado="respondido" data-id="' + esc(p.id) + '">'
-            + '<span class="material-icons">done</span>Respondido</button>'
-            + '<button class="btn" data-estado="descartado" data-id="' + esc(p.id) + '">Descartar</button>'
-          : '<button class="btn" data-estado="nuevo" data-id="' + esc(p.id) + '">Volver a sin atender</button>')
-      + '</div>'
-      + (estado !== 'nuevo' ? '<div class="ped-quien">' + esc(ESTADOS[estado] || estado)
-          + (p.atendidoPor ? ' por ' + esc(p.atendidoPor) : '') + '</div>' : '')
-      + '</div>';
+    html += tarjeta(p);
   }
   $('lista').innerHTML = html;
 }
@@ -143,16 +191,26 @@ $('filtros').addEventListener('click', (e) => {
 
 $('lista').addEventListener('click', async (e) => {
   const est = e.target.closest('[data-estado]');
-  if (est) { await marcar(est.dataset.id, est.dataset.estado); return; }
-  const cop = e.target.closest('[data-copiar]');
-  if (cop) {
-    const p = pedidos.find((x) => x.id === cop.dataset.copiar);
-    try { await navigator.clipboard.writeText(p?.respuesta || ''); CV2.toast('Copiada. Pegala en Facebook.', 'ok'); }
-    catch { CV2.toast('No se pudo copiar: mantené apretado el texto.', 'error'); }
+  if (est) { preguntando = ''; await marcar(est.dataset.id, est.dataset.estado); return; }
+  if (e.target.closest('[data-todavia]')) { preguntando = ''; pintar(); return; }
+  const ab = e.target.closest('[data-abrir]');
+  if (ab) {
+    const p = pedidos.find((x) => x.id === ab.dataset.abrir);
+    if (!p) return;
+    // Se copia con la página todavía al frente y la ventana se abre en el mismo toque
+    // (después de un await el navegador puede bloquearla).
+    const copia = navigator.clipboard.writeText(p.respuesta || '');
+    if (destino(p)) window.open(destino(p), '_blank', 'noopener');
+    try { await copia; CV2.toast('Copiada. En Facebook: Comentar → mantené apretado → Pegar.', 'ok'); }
+    catch { CV2.toast('No se pudo copiar: mantené apretada la respuesta y copiala.', 'error'); }
+    preguntando = p.id; pintar();
+    return;
   }
+  const t = e.target.closest('[data-abre]');
+  if (t) t.classList.toggle('corto');
 });
 
-$('sello').textContent = 'pantalla: pedidos-alquiler-1 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
+$('sello').textContent = 'pantalla: pedidos-alquiler-2 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
 
 // ═══ Carga: en vivo, los más nuevos primero ═══════════════
 onSnapshot(query(collection(db, 'pedidos_alquiler'), orderBy('cuando', 'desc'), limit(300)),
