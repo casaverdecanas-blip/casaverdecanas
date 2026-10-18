@@ -361,7 +361,7 @@ CV2.renderNav('reservas');
 // §3.18 · sello de versión. Sin esto, "subí el archivo nuevo" es una creencia:
 // el 31-jul-2026 se buscó el acuerdo en un formulario que era del archivo
 // anterior, y el síntoma parecía un problema de diseño.
-const SELLO = 'reservas-ical-11';
+const SELLO = 'reservas-ical-12';
 
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
@@ -1393,7 +1393,8 @@ if (CV2.puede('reservas')) {
         // reservas-ical-11: la IDA — ¿Airbnb bloquea las fechas de nuestras reservas directas?
         + (s.ida || []).map((x) => '<br>' + (x.faltan.length ? '⚠ ' : '✓ ') + esc(nombreCab(x.cabanaId)) + ': Airbnb bloquea '
             + x.bloqueadas + ' de ' + x.directas + ' reservas directas'
-            + (x.faltan.length ? ' — faltan: ' + x.faltan.map((f) => esc(f.cliente) + ' ' + esc(CV2.fmtFecha(f.checkIn)) + '→' + esc(CV2.fmtFecha(f.checkOut))).join(', ')
+            + (x.faltan.length ? ' — faltan: ' + x.faltan.map((f) => esc(f.cliente) + ' ' + esc(CV2.fmtFecha(f.checkIn)) + '→' + esc(CV2.fmtFecha(f.checkOut))
+                + ' (noches sin bloquear: ' + esc((f.noches || []).map((n) => n.slice(8, 10) + '/' + n.slice(5, 7)).join(', ')) + ')').join(', ')
               + '. Airbnb no está leyendo nuestro calendario de esta cabaña: hacé el paso «1 · Pegá ESTO en Airbnb» de esa cabaña, acá abajo.' : ''))
           .join('');
     } catch (e) {

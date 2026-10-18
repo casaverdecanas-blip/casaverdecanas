@@ -195,17 +195,25 @@ RCore.sincronizarAirbnb = async (reservas, cabanas, u) => {
     const hoyIda = hoyISO();
     const directas = reservas.filter((r) => r.cabanaId === cab.id && r.estado === 'confirmada'
       && r.origen !== 'airbnb' && typeof r.checkIn === 'string' && typeof r.checkOut === 'string' && r.checkOut > hoyIda);
+    // reservas-ical-12: las NOCHES exactas que faltan. El 18-oct la primera
+    // comprobación marcó tres reservas y el calendario de Airbnb las mostraba
+    // cerradas; con las noches a la vista se sabe si falta una punta o todo.
+    const nochesSin = {};
     const faltan = directas.filter((r) => {
-      for (let d = r.checkIn < hoyIda ? hoyIda : r.checkIn; d < r.checkOut; d = sumarDias(d, 1)) if (!bloqueadas.has(d)) return true;
-      return false;
+      const sin = [];
+      for (let d = r.checkIn < hoyIda ? hoyIda : r.checkIn; d < r.checkOut; d = sumarDias(d, 1)) if (!bloqueadas.has(d)) sin.push(d);
+      if (sin.length) nochesSin[r.id] = sin;
+      return sin.length > 0;
     });
+    const cuantosBloqueos = todos.filter((e) => /not available|no disponible/i.test(e.summary || '')).length;
     stats.ida = stats.ida || [];
     stats.ida.push({ cabanaId: cab.id, directas: directas.length, bloqueadas: directas.length - faltan.length,
-      faltan: faltan.map((r) => ({ id: r.id, checkIn: r.checkIn, checkOut: r.checkOut, cliente: r.clienteNombre || '' })) });
+      faltan: faltan.map((r) => ({ id: r.id, checkIn: r.checkIn, checkOut: r.checkOut, cliente: r.clienteNombre || '', noches: nochesSin[r.id] })) });
     try {
       await setDoc(doc(db, 'airbnb_estado', cab.id), {
         directas: directas.length, bloqueadas: directas.length - faltan.length,
-        faltan: faltan.map((r) => ({ id: r.id, checkIn: r.checkIn, checkOut: r.checkOut })),
+        faltan: faltan.map((r) => ({ id: r.id, checkIn: r.checkIn, checkOut: r.checkOut, noches: nochesSin[r.id].slice(0, 31) })),
+        eventosAirbnb: todos.length, bloqueosAirbnb: cuantosBloqueos,
         revisadoEn: serverTimestamp(), revisadoPor: u.nombre ?? ''
       });
     } catch (e) { console.warn('airbnb_estado:', e); }
