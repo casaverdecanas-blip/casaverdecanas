@@ -871,6 +871,15 @@ service cloud.firestore {
                     && request.resource.data.estado in ['aplicado', 'rechazado'];
     }
 
+    // La IDA hacia Airbnb (reservas-ical-11, 18-oct-2026): al sincronizar,
+    // cuántas de nuestras reservas directas aparecen bloqueadas en el .ics de
+    // Airbnb, por cabaña. Lo escribe quien sincroniza; lo lee el equipo y el
+    // agente (comodín), que lo controla en la ronda.
+    match /airbnb_estado/{cab} {
+      allow read: if activo();
+      allow write: if tiene('reservas');
+    }
+
     match /pedidos_alquiler/{id} {
       allow create: if activo()
                     && request.resource.data.uid == request.auth.uid

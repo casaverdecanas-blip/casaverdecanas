@@ -179,10 +179,41 @@ RCore.sincronizarAirbnb = async (reservas, cabanas, u) => {
         + ((data && data.motivo) || 'no se pudo leer'));
     }
 
+    // ── LA IDA (18-oct-2026, Mauro: «confirmar si Airbnb está tomando la
+    // ocupación de nuestro calendario»). Airbnb importa nuestro .ics
+    // (ical-cabana) y lo que importa lo devuelve en SU .ics como bloqueo «Not
+    // available». Así que si cada noche de nuestras reservas DIRECTAS aparece
+    // bloqueada en el .ics de Airbnb, Airbnb nos está leyendo; si no, una
+    // reserva directa se puede vender dos veces. Se guarda en airbnb_estado/
+    // para que lo vea la ronda. Un bloqueo puesto a mano también cuenta: lo
+    // que importa es que esa noche no se pueda reservar.
+    const todos = leerICS(data.ics);
+    const bloqueadas = new Set();
+    for (const b of todos.filter((e) => /not available|no disponible/i.test(e.summary || '') && e.hasta)) {
+      for (let d = b.desde; d < b.hasta; d = sumarDias(d, 1)) bloqueadas.add(d);
+    }
+    const hoyIda = hoyISO();
+    const directas = reservas.filter((r) => r.cabanaId === cab.id && r.estado === 'confirmada'
+      && r.origen !== 'airbnb' && typeof r.checkIn === 'string' && typeof r.checkOut === 'string' && r.checkOut > hoyIda);
+    const faltan = directas.filter((r) => {
+      for (let d = r.checkIn < hoyIda ? hoyIda : r.checkIn; d < r.checkOut; d = sumarDias(d, 1)) if (!bloqueadas.has(d)) return true;
+      return false;
+    });
+    stats.ida = stats.ida || [];
+    stats.ida.push({ cabanaId: cab.id, directas: directas.length, bloqueadas: directas.length - faltan.length,
+      faltan: faltan.map((r) => ({ id: r.id, checkIn: r.checkIn, checkOut: r.checkOut, cliente: r.clienteNombre || '' })) });
+    try {
+      await setDoc(doc(db, 'airbnb_estado', cab.id), {
+        directas: directas.length, bloqueadas: directas.length - faltan.length,
+        faltan: faltan.map((r) => ({ id: r.id, checkIn: r.checkIn, checkOut: r.checkOut })),
+        revisadoEn: serverTimestamp(), revisadoPor: u.nombre ?? ''
+      });
+    } catch (e) { console.warn('airbnb_estado:', e); }
+
     // 'Not available' son bloqueos que puso el anfitrión, no reservas: si se
     // importaran, cada fecha bloqueada a mano en Airbnb aparecería acá como
     // una reserva fantasma.
-    const eventos = leerICS(data.ics).filter((e) =>
+    const eventos = todos.filter((e) =>
       !/not available|no disponible/i.test(e.summary || '')
       && e.hasta && e.desde >= timeMin.slice(0, 10));
 

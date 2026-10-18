@@ -361,7 +361,7 @@ CV2.renderNav('reservas');
 // §3.18 · sello de versión. Sin esto, "subí el archivo nuevo" es una creencia:
 // el 31-jul-2026 se buscó el acuerdo en un formulario que era del archivo
 // anterior, y el síntoma parecía un problema de diseño.
-const SELLO = 'reservas-ical-10';
+const SELLO = 'reservas-ical-11';
 
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
@@ -1389,7 +1389,13 @@ if (CV2.puede('reservas')) {
         + ' con cambios, ' + s.anuladas + ' cancelada(s).'
         + (s.cabanasSinCalendario
           ? '<br>' + s.cabanasSinCalendario + ' cabaña(s) todavía sin dirección de Airbnb.'
-          : '');
+          : '')
+        // reservas-ical-11: la IDA — ¿Airbnb bloquea las fechas de nuestras reservas directas?
+        + (s.ida || []).map((x) => '<br>' + (x.faltan.length ? '⚠ ' : '✓ ') + esc(nombreCab(x.cabanaId)) + ': Airbnb bloquea '
+            + x.bloqueadas + ' de ' + x.directas + ' reservas directas'
+            + (x.faltan.length ? ' — faltan: ' + x.faltan.map((f) => esc(f.cliente) + ' ' + esc(CV2.fmtFecha(f.checkIn)) + '→' + esc(CV2.fmtFecha(f.checkOut))).join(', ')
+              + '. Airbnb no está leyendo nuestro calendario de esta cabaña: hacé el paso «1 · Pegá ESTO en Airbnb» de esa cabaña, acá abajo.' : ''))
+          .join('');
     } catch (e) {
       // El mensaje COMPLETO. Los errores de esta sincronización dicen qué pasó
       // —Airbnb rechazó con tal código, la dirección no existe, la cabaña no
@@ -1438,10 +1444,15 @@ try {
 // como si lo hubiera editado ella— o lo rechaza.
 let cambiosPend = [];
 const NOMBRE_CAMPO = { checkIn: 'Entrada', checkOut: 'Salida', cabanaId: 'Cabaña', estado: 'Estado',
-  adultos: 'Adultos', ninos: 'Niños', bebes: 'Bebés', mascotas: 'Mascotas', llegadaEstimada: 'Llegada' };
+  adultos: 'Adultos', ninos: 'Niños', bebes: 'Bebés', mascotas: 'Mascotas', llegadaEstimada: 'Llegada',
+  total: 'Importe (lo que cobra Casa Verde)' };
+// reservas-ical-11: el importe es del ACUERDO (grupos/{grupoId}), no de la reserva.
+const DEL_ACUERDO = ['total'];
+const actual = (r, k) => DEL_ACUERDO.includes(k) ? grupos[r.grupoId]?.[k] : r[k];
 const valorCampo = (k, v) => {
   if (v === undefined || v === null || v === '') return '—';
   if (k === 'checkIn' || k === 'checkOut') return CV2.fmtFecha(v);
+  if (k === 'total') return String(v);
   if (k === 'cabanaId') { const c = cabanas.find((x) => x.id === v); const n = c && c.nombre; return (n && typeof n === 'object' ? n.es : n) || v; }
   return String(v);
 };
@@ -1457,7 +1468,7 @@ function pintarCambios() {
     + vivos.map((c) => {
       const r = reservas.find((x) => x.id === c.reservaId);
       const lis = Object.entries(c.cambios || {}).map(([k, v]) =>
-        '<li>' + esc(NOMBRE_CAMPO[k] || k) + ': ' + esc(valorCampo(k, r[k])) + ' → <b>' + esc(valorCampo(k, v.despues)) + '</b></li>').join('');
+        '<li>' + esc(NOMBRE_CAMPO[k] || k) + ': ' + esc(valorCampo(k, actual(r, k))) + ' → <b>' + esc(valorCampo(k, v.despues)) + '</b></li>').join('');
       const choca = (c.cambios?.checkIn || c.cambios?.checkOut || c.cambios?.cabanaId)
         ? conflicto(c.cambios?.cabanaId?.despues ?? r.cabanaId, c.cambios?.checkIn?.despues ?? r.checkIn,
                     c.cambios?.checkOut?.despues ?? r.checkOut, r.id) : null;
@@ -1483,8 +1494,12 @@ async function decidirCambio(id, aplicar) {
   if (!c || !r) return;
   try {
     if (aplicar) {
-      const datos = {};
-      for (const [k, v] of Object.entries(c.cambios || {})) if (PROPONIBLES.includes(k)) datos[k] = v.despues;
+      const datos = {}, acuerdo = {};
+      for (const [k, v] of Object.entries(c.cambios || {})) {
+        if (DEL_ACUERDO.includes(k)) acuerdo[k] = Number(v.despues);
+        else if (PROPONIBLES.includes(k)) datos[k] = v.despues;
+      }
+      if (Object.keys(acuerdo).length && !r.grupoId) { CV2.toast('Esta reserva no tiene acuerdo: el importe no tiene dónde ir.', 'error'); return; }
       const nuevo = { ...r, ...datos };
       if (!(typeof nuevo.checkIn === 'string' && typeof nuevo.checkOut === 'string' && nuevo.checkIn < nuevo.checkOut)) {
         CV2.toast('Las fechas no cierran: la salida tiene que ser después de la entrada.', 'error'); return;
@@ -1492,7 +1507,11 @@ async function decidirCambio(id, aplicar) {
       const choca = conflicto(nuevo.cabanaId, nuevo.checkIn, nuevo.checkOut, r.id);
       if (choca && !confirm(`⚠ Se superpone con ${choca.clienteNombre} (${CV2.fmtFecha(choca.checkIn)}→${CV2.fmtFecha(choca.checkOut)}). ¿Confirmar igual?`)) return;
       if (datos.estado === 'anulada' && !confirm('¿ANULAR esta reserva?')) return;
-      const texto = Object.keys(datos).map((k) => `${NOMBRE_CAMPO[k]} ${valorCampo(k, r[k])} → ${valorCampo(k, datos[k])}`).join(' · ');
+      const texto = [...Object.keys(datos), ...Object.keys(acuerdo)].map((k) =>
+        `${NOMBRE_CAMPO[k]} ${valorCampo(k, actual(r, k))} → ${valorCampo(k, datos[k] ?? acuerdo[k])}`).join(' · ');
+      if (Object.keys(acuerdo).length) {
+        await updateDoc(doc(db, 'grupos', r.grupoId), { ...acuerdo, actualizadoEn: serverTimestamp() });
+      }
       await updateDoc(doc(db, 'reservas', r.id), {
         ...datos,
         historial: registrarCambio(`confirmado (propuesto por Claude: ${c.fuente || 'Airbnb'}): ${texto}`.slice(0, 500)),

@@ -219,7 +219,18 @@ verdad después del cambio.
   proponer`) y aparece arriba de Reservas, «⚠ cambios para confirmar»: quien
   tiene el permiso de reservas lo confirma —se aplica con SU sesión, con el
   renglón en el historial, la disponibilidad y la limpieza— o lo rechaza.
-  La regla deja tocar sólo la decisión. **La plata no se propone**.
+  La regla deja tocar sólo la decisión. **La plata sólo se propone desde el
+  mail de Airbnb** (`reservas-ical-11`, 18-oct, Mauro: «que la ronda proponga
+  el importe del mail»): el «GANAS» de la reserva confirmada va al `total`
+  del ACUERDO, y se aplica sólo al confirmar.
+- **La IDA hacia Airbnb se comprueba sola** (`reservas-ical-11`, 18-oct,
+  Mauro: «confirmar si Airbnb está tomando la ocupación de nuestro
+  calendario»). Al sincronizar, `RCore.sincronizarAirbnb` mira si cada noche
+  de nuestras reservas DIRECTAS aparece bloqueada («Not available») en el
+  `.ics` de Airbnb, lo dice en pantalla por cabaña y lo guarda en
+  `airbnb_estado/{cabaña}` (regla nueva), que la ronda controla. Si falta, esa
+  fecha se puede vender dos veces: el arreglo es el paso «1 · Pegá ESTO en
+  Airbnb» de la cabaña.
 - **Tener sesión no es permiso.** Desde que existe login anónimo para el muro
   de recuerdos hay sesiones sin ficha en `usuarios/`: "logueado" ya no
   significa "es del equipo".
