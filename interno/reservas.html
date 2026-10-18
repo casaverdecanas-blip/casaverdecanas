@@ -361,7 +361,7 @@ CV2.renderNav('reservas');
 // §3.18 · sello de versión. Sin esto, "subí el archivo nuevo" es una creencia:
 // el 31-jul-2026 se buscó el acuerdo en un formulario que era del archivo
 // anterior, y el síntoma parecía un problema de diseño.
-const SELLO = 'reservas-ical-9';
+const SELLO = 'reservas-ical-10';
 
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
@@ -1499,7 +1499,14 @@ async function decidirCambio(id, aplicar) {
         actualizadoEn: serverTimestamp()
       });
       // Lo que cuelga de las fechas y del estado: la disponibilidad pública y la limpieza.
-      try { await RCore.sincronizarLimpiezas([nuevo], cabanas, u); } catch (e2) { console.warn('limpiezas:', e2); }
+      // reservas-ical-10: si falla, se DICE. El 18-oct Florencia confirmó el
+      // cambio de Natalia, la reserva cambió y la limpieza y la disponibilidad
+      // pública se quedaron en las fechas viejas sin un solo aviso.
+      try { await RCore.sincronizarLimpiezas([nuevo], cabanas, u); }
+      catch (e2) {
+        console.warn('limpiezas:', e2);
+        CV2.toast('La reserva cambió, pero la limpieza y la disponibilidad no se movieron (' + (e2.code ?? e2.message) + '). Abrí Reservas de nuevo.', 'error');
+      }
     }
     await updateDoc(doc(db, 'cambios_reserva', c.id), {
       estado: aplicar ? 'aplicado' : 'rechazado', decididoPor: u.nombre ?? u.email ?? '', decididoEn: serverTimestamp()
@@ -1593,7 +1600,7 @@ onSnapshot(query(collection(db, 'reservas')), (snap) => {
     materializado = true;
     RCore.materializarPendientes(reservas, cabanas, u)
       .then((r) => { if (r.creadas) CV2.toast('🧹 ' + r.creadas + ' limpieza(s)/control(es) programados', 'info'); })
-      .catch((e) => console.warn('materializar:', e));
+      .catch((e) => { console.warn('materializar:', e); CV2.toast('No se pudieron poner al día las limpiezas: ' + (e.code ?? e.message), 'error'); });
   }
 }, (e) => { console.error(e); CV2.toast('No se pudieron cargar las reservas', 'error'); });
 </script>
