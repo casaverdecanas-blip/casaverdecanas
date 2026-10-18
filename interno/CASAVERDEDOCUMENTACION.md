@@ -985,6 +985,30 @@ ultimoAutorNombre, ultimaActividad, creadoPor, creadoNombre, creadoEn`
   **Esta misma colección, con esta misma forma, existe desde ese día en CasaYourte y en
   remate**; Tiempos usa la de acá, porque su gente es la misma.
 
+### `pedidos_alquiler/{id}` (18-oct-2026)
+`grupo, texto, cuando (ms), fecha, buscar, enlace?, estado ('nuevo'|'respondido'|'descartado'), fuente ('pizarra'|'mail'), uid?, respuesta?, atendidoPor?, atendidoEn?, nota?, creadoEn`
+· Lo que alguien pidió en un grupo de Facebook sobre alquilar en Canasvieiras, o un
+  comentario en una publicación de Casa Verde. Lo crea la **Pizarra del Redmi 13C** con la
+  cuenta de Casa Verde de ese teléfono (forma fija: `hasOnly`, `estado: 'nuevo'`, `uid`
+  propio) o el **agente** (`datos/herramientas/facebook.mjs`, por el comodín de
+  `esAgente()`), que además deja la `respuesta` en la ronda. El id es la huella del
+  mensaje (o `mail-<hilo>`): el mismo pedido visto dos veces es un solo documento.
+· Quien tiene ficha activa lo lee y marca `estado`/`atendidoPor`/`atendidoEn`/`nota`; el
+  texto no se toca. Pantalla: `pedidos-alquiler.html`. **Contestar es de una persona, en
+  Facebook.**
+
+### `cambios_reserva/{id}` (18-oct-2026)
+`reservaId, clienteNombre, cabanaId, checkIn, cambios {campo: {antes, despues}}, fuente, motivo, choca?, estado ('pendiente'|'aplicado'|'rechazado'), creadoEn, decididoPor?, decididoEn?`
+· Un cambio a lo que una reserva YA dice —fechas, cabaña, `estado: 'anulada'`, cuántos
+  son, la hora de llegada— que la ronda sacó de Airbnb (mail o aviso) y no aplica sola.
+  Lo crea sólo el agente (`reservas.mjs proponer`); el id sale de la reserva y lo
+  propuesto, así que proponer dos veces lo mismo es un documento.
+· Aparece arriba de `reservas.html` («⚠ cambios para confirmar»). Quien tiene el permiso
+  `reservas` lo **confirma** —se aplica a la reserva con SU sesión, con el renglón del
+  historial, la disponibilidad y la limpieza (`RCore.sincronizarLimpiezas`)— o lo
+  **rechaza**. La regla deja tocar sólo `estado`, `decididoPor`, `decididoEn`, y una sola
+  vez. **La plata nunca se propone.**
+
 ### `disponibilidad/{reservaId}`
 `cabanaId, desde, hasta`
 · **Espejo público de ocupación**, mantenido por `reservas-core.js`. Existe para que el
