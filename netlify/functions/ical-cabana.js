@@ -16,6 +16,16 @@
 // presupuesto no bloquea una fecha. Decisión del administrador, ago-2026 —
 // bloquear presupuestos en Airbnb taparía fechas que quizás no se concreten.
 //
+// LO DE AIRBNB NO VUELVE A AIRBNB (18-oct-2026, Mauro). El calendario de UNA
+// cabaña (?c=) es el que importa Airbnb, y ahí van sólo nuestras reservas
+// DIRECTAS: las de Airbnb, Airbnb ya las conoce. Si las publicábamos, una
+// cancelación o un cambio de fechas hecho en Airbnb quedaba bloqueado por
+// NUESTRO calendario hasta que alguien sincronizara Casa Verde —pasó con
+// Natalia: el 20–22 de noviembre siguió cerrado una semana—. El calendario de
+// todas juntas (sin ?c=) es para uso propio y sigue con todo. Lo que dice de
+// dónde vino es `origen` en 'disponibilidad' (lo escribe reservas-core.js); un
+// documento viejo sin `origen` se publica, por las dudas.
+//
 // ⚠ ESTA DIRECCIÓN ES PÚBLICA. Quien la tenga ve qué días están ocupados.
 // No ve quién, ni cuánto, ni por qué: cada evento dice "Ocupado" y nada más.
 // Es exactamente lo mismo que ya muestra el sitio público.
@@ -107,7 +117,7 @@ exports.handler = async function (event) {
     var cabanas = [];
     try { cabanas = await leer('cabanas'); } catch (e) { /* el nombre es un lujo */ }
 
-    if (cab) ocupaciones = ocupaciones.filter(function (o) { return o.cabanaId === cab; });
+    if (cab) ocupaciones = ocupaciones.filter(function (o) { return o.cabanaId === cab && o.origen !== 'airbnb'; });
 
     var nombre = 'Casa Verde Canas';
     if (cab) {

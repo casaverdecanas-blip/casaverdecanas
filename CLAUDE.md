@@ -231,6 +231,14 @@ verdad después del cambio.
   `airbnb_estado/{cabaña}` (regla nueva), que la ronda controla. Si falta, esa
   fecha se puede vender dos veces: el arreglo es el paso «1 · Pegá ESTO en
   Airbnb» de la cabaña.
+- **Y lo de Airbnb no vuelve a Airbnb** (18-oct-2026, Mauro: «sí»): el
+  calendario de UNA cabaña (`ical-cabana?c=`), que es el que lee Airbnb, publica
+  sólo las reservas DIRECTAS; el de todas (sin `?c=`), todo. Si no, una
+  cancelación o un cambio de fechas hecho en Airbnb quedaba bloqueado por
+  nuestro calendario hasta sincronizar —pasó con Natalia—. Lo dice `origen` en
+  `disponibilidad/` (`espejarDisponibilidad`; un documento sin `origen` se
+  publica, por las dudas). Banco: `node netlify/pruebas/ical-cabana.mjs`.
+  **Cambiar una función es subir el zip a Netlify a mano** (ver `netlify.toml`).
 - **Tener sesión no es permiso.** Desde que existe login anónimo para el muro
   de recuerdos hay sesiones sin ficha en `usuarios/`: "logueado" ya no
   significa "es del equipo".

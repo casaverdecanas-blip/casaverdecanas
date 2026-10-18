@@ -1971,6 +1971,22 @@ juntas**, para uso propio. Solo **confirmadas**: un presupuesto no bloquea una f
 *(decisión del administrador, ago-2026 — bloquear presupuestos taparía fechas que
 quizás no se concreten)*.
 
+**Y desde el 18-oct-2026, en el de una cabaña, sólo lo DIRECTO.** El `?c=` es el
+que importa Airbnb, y ahí no van las reservas que vinieron de Airbnb: Airbnb ya las
+tiene, y publicarlas hacía que una cancelación o un cambio de fechas hecho en
+Airbnb quedara bloqueado por nuestro calendario hasta que alguien sincronizara Casa
+Verde (pasó con Natalia, una semana). Lo decide `origen` (`airbnb` o `directa`) en
+`disponibilidad`, que escribe `espejarDisponibilidad`; un documento sin `origen` se
+publica igual. El de todas juntas sigue con todo.
+
+**Y se comprueba que Airbnb lo lea** (reservas-ical-11): al sincronizar, cada noche
+de una reserva directa tiene que aparecer como «Not available» en el `.ics` de
+Airbnb; el resultado va a `airbnb_estado/{cabaña}` y lo mira la ronda. Comprobado
+el 18-oct: Airbnb tiene vinculados `ical-cabana?c=c1`, `?c=c2` y `?c=c3` en sus
+tres anuncios y los releyó ese día. El formato se revisó ese día contra lo que
+piden los lectores estrictos (CRLF, DTSTAMP, UID, fechas de día entero, renglones de
+hasta 75 octetos): sin un problema.
+
 **Lo que leemos** — `airbnb-ical?u=<dirección>` trae el `.ics` y lo devuelve.
 El campo `calendarId` de la cabaña guarda ahora **la dirección `.ics` de Airbnb**, no
 un ID de Google Calendar. El identificador de cada evento pasa de `googleEventId` a

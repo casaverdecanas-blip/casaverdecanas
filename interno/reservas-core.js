@@ -344,8 +344,12 @@ async function espejarDisponibilidad(r) {
     && typeof r.checkIn === 'string' && typeof r.checkOut === 'string';
   try {
     if (ocupa) {
+      // `origen` (18-oct-2026): ical-cabana no le devuelve a Airbnb lo que vino
+      // de Airbnb. Dice de dónde vino, no de quién: el espejo sigue sin datos
+      // de personas.
       await setDoc(ref, {
         cabanaId: r.cabanaId, desde: r.checkIn, hasta: r.checkOut,
+        origen: r.origen === 'airbnb' ? 'airbnb' : 'directa',
         actualizadoEn: serverTimestamp()
       });
     } else {
