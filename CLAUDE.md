@@ -194,9 +194,11 @@ verdad después del cambio.
   otro usuario logueado llegue a ver»). Lo que la Pizarra del Redmi 13C lee en
   los grupos de Facebook sobre alquilar en Canasvieiras, en
   `pedidos_alquiler/`, por fecha y con la respuesta que preparó Claude. **Lo
-  escribe sólo el agente** (`datos/herramientas/facebook.mjs`); quien tenga
-  ficha activa lo lee y marca respondido o descartado, y la regla no deja
-  tocar el texto. **No hay enlace directo a la publicación**: Facebook no lo
+  crea la Pizarra** del 13C con la cuenta de Casa Verde de ese teléfono y con
+  la forma exacta que deja la regla (pizarra-36), o el agente
+  (`datos/herramientas/facebook.mjs`), que además deja la `respuesta` en la
+  ronda; quien tenga ficha activa lo lee y marca respondido o descartado, y la
+  regla no deja tocar el texto. **No hay enlace directo a la publicación**: Facebook no lo
   pone en la notificación, así que el botón busca las palabras de la
   publicación en Facebook. Una colección nueva con su regla: hay que
   **publicar `interno/firestore.rules`**.
