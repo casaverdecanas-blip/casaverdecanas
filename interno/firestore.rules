@@ -14,6 +14,13 @@ rules_version = '2';
 //  nunca por fragmentos, y los casos especiales (config/integraciones)
 //  se excluyen a mano del bloque general.
 //
+//  CAMBIO 19-oct-2026 · TODAS LAS NOTIFICACIONES  [NOTIFICACIONES]  (pizarra-42)
+//  Mauro: «que lea todo… y que la ronda lo clasifique y descarte». La Pizarra
+//  del teléfono de captura crea /notificaciones/ con la cuenta de Casa Verde
+//  de ese teléfono, con forma fija y los códigos de verificación tapados.
+//  NADIE del equipo lo lee desde un sitio: sólo el agente, por su comodín, que
+//  lo clasifica y borra lo que no sirve. Ver el bloque.
+//
 //  CAMBIO 9-oct-2026 · EL BUZÓN DE AVISOS  [BUZON]  (tiempos:V10)
 //  «Pizarra para todos por igual, para que cada quien tenga la opción de
 //  instalar los avisos en su teléfono directamente» (Mauro). Lo que Claude le
@@ -893,6 +900,29 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys()
                          .hasOnly(['estado', 'atendidoPor', 'atendidoEn', 'nota'])
                     && request.resource.data.estado in ['nuevo', 'respondido', 'descartado'];
+    }
+
+    // [NOTIFICACIONES] (pizarra-42, 19-oct-2026). Toda notificación del
+    // teléfono de captura, para que la ronda la clasifique: un respaldo por si
+    // el filtro de Airbnb o de Facebook deja pasar algo. Son mensajes de
+    // terceros (LGPD): la persona de ese teléfono sólo CREA, con la forma
+    // exacta (`cuerpoNotificacion` de la Pizarra) y sin pisar; no lee, no
+    // edita, no borra. No hay `read` para el equipo, a propósito. El agente
+    // lee, marca y borra por el comodín de esAgente(), sin copia en el
+    // historial (`efimeras` de datos/herramientas/firestore.mjs).
+    match /notificaciones/{id} {
+      allow create: if activo()
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.keys().hasOnly(['app', 'titulo', 'texto', 'lineas',
+                         'cuando', 'fecha', 'telefono', 'uid', 'creadoEn'])
+                    && request.resource.data.app is string
+                    && request.resource.data.app.size() <= 120
+                    && request.resource.data.titulo is string
+                    && request.resource.data.titulo.size() <= 200
+                    && request.resource.data.texto is string
+                    && request.resource.data.texto.size() <= 4000
+                    && request.resource.data.lineas is list
+                    && request.resource.data.lineas.size() <= 20;
     }
 
     // OJO: las reglas se suman. Este bloque tiene que excluir

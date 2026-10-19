@@ -209,6 +209,14 @@ verdad después del cambio.
   `atendidoEn`. **Publicar lo hace una persona**: eso es lo que no hace
   bloquear la cuenta. Una colección nueva con su regla: hay que
   **publicar `interno/firestore.rules`**.
+- **El 13C manda TODAS sus notificaciones a `notificaciones/`** (pizarra-42,
+  19-oct-2026, Mauro: «que lea todo… y que la ronda lo clasifique y descarte»).
+  WhatsApp incluido, con los códigos de verificación tapados en el teléfono. La
+  regla deja a la persona de ese teléfono sólo CREAR, con forma fija; **nadie
+  del equipo lo lee desde un sitio, ni el admin**: sólo el agente, que lo
+  clasifica en la ronda (`datos/herramientas/notificaciones.mjs`), usa lo que
+  sirve y borra lo demás, sin copia en `_historial`. Vence a los 7 días. Colección
+  nueva con su regla: hay que **publicar `interno/firestore.rules`**.
 - **La ronda completa las reservas sola, y lo que CAMBIA se confirma en
   Reservas** (`reservas-ical-9`, 18-oct-2026, Mauro: «las actualizaciones
   que no impliquen modificaciones de los datos preexistentes deben ser sin

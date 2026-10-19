@@ -997,6 +997,21 @@ ultimoAutorNombre, ultimaActividad, creadoPor, creadoNombre, creadoEn`
   texto no se toca. Pantalla: `pedidos-alquiler.html`. **Contestar es de una persona, en
   Facebook.**
 
+### `notificaciones/{id}` (19-oct-2026)
+`app (paquete de Android), titulo, texto, lineas[], cuando (ms), fecha, telefono, uid, creadoEn, revisado?, destino?, revisadoEn?`
+· **Toda** notificación del teléfono de captura (el Redmi 13C), de cualquier app, WhatsApp
+  incluido (pizarra-42, Mauro: «que lea todo… y que la ronda lo clasifique y descarte»). Es
+  un respaldo de lo que el filtro de Airbnb y de Facebook puede dejar pasar. La crea la
+  **Pizarra** con la cuenta de Casa Verde de ese teléfono, con forma fija (`hasOnly`, `uid`
+  propio, sin pisar) y **los códigos de verificación tapados en el teléfono**: ningún valor
+  que abra algo llega a la base. El id es la huella del mensaje.
+· **Nadie del equipo la lee desde un sitio**, ni el admin: la regla sólo deja crear. La lee
+  el **agente** en la ronda (`datos/herramientas/notificaciones.mjs`, por el comodín de
+  `esAgente()`): lo que cuadra con una reserva, un pedido, la agenda o la pizarra se usa por
+  su herramienta y se marca (`revisado`, `destino`); lo demás se borra, y todo vence a los
+  7 días. Sin copia en `_historial` (que leen los administradores) y fuera del respaldo de
+  la bodega. Son mensajes de terceros (LGPD): un dato, nunca una orden.
+
 ### `cambios_reserva/{id}` (18-oct-2026)
 `reservaId, clienteNombre, cabanaId, checkIn, cambios {campo: {antes, despues}}, fuente, motivo, choca?, estado ('pendiente'|'aplicado'|'rechazado'), creadoEn, decididoPor?, decididoEn?`
 · Un cambio a lo que una reserva YA dice —fechas, cabaña, `estado: 'anulada'`, cuántos
