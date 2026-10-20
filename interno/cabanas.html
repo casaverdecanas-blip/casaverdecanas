@@ -120,6 +120,14 @@
     <div><label>Capacidad máxima</label><input id="fCapMax" type="number" min="1" step="1" inputmode="numeric"></div>
     <div><label>Orden en el sitio</label><input id="fOrden" type="number" min="1" step="1" inputmode="numeric"></div>
   </div>
+  <!-- 20-oct-2026, Mauro: «la base son 6, 5 y 4; los máximos son con extra por persona y
+       en situaciones especiales… eso debe quedar registrado en cada espacio y leerlo desde
+       ahí». Lo lee la Pizarra al responder pedidos de Facebook: ofrece la base y, si hace
+       falta llegar al máximo, avisa esta condición. -->
+  <label>Condición del máximo (de la base al máximo)</label>
+  <input id="fCapCond" type="text" maxlength="160" placeholder="Ej.: con extra por persona y en situaciones especiales">
+  <label>Extra por persona, de la base al máximo (R$)</label>
+  <input id="fExtra" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0 = sin cargar">
   <div class="fila2c">
     <div><label>Tarifa por noche (R$)</label><input id="fNoche" type="number" min="0" step="0.01" inputmode="decimal"></div>
     <div><label>Precio de limpieza (R$)</label><input id="fLimpieza" type="number" min="0" step="0.01" inputmode="decimal"></div>
@@ -303,9 +311,11 @@ window.editar = (id) => {
   const cap = normalizarCap(c.capacidad);
   $('fCapBase').value = cap.base;
   $('fCapMax').value = cap.max;
+  $('fCapCond').value = (c.capacidad && typeof c.capacidad === 'object' && c.capacidad.condicionMax) || '';
   $('fOrden').value = c.orden ?? 1;
   $('fNoche').value = c.tarifas?.noche ?? 0;
   $('fLimpieza').value = c.tarifas?.limpieza ?? 0;
+  $('fExtra').value = c.tarifas?.extraPersona ?? '';
   $('fAmenities').value = (c.amenities ?? []).join(', ');
   $('fCalendar').value = c.calendarId ?? '';
   fotosTmp = (c.fotos ?? []).slice();
@@ -361,12 +371,15 @@ $('mGuardar').addEventListener('click', async () => {
       descripcion: { es: $('dEs').value.trim(), pt: $('dPt').value.trim(), en: $('dEn').value.trim() },
       capacidad: {
         base: Math.max(1, parseInt($('fCapBase').value) || 1),
-        max: Math.max(1, parseInt($('fCapMax').value) || parseInt($('fCapBase').value) || 1)
+        max: Math.max(1, parseInt($('fCapMax').value) || parseInt($('fCapBase').value) || 1),
+        condicionMax: $('fCapCond').value.trim().slice(0, 160)
       },
       orden: Math.max(1, parseInt($('fOrden').value) || 1),
       tarifas: {
         noche: Math.max(0, parseFloat($('fNoche').value) || 0),
         limpieza: Math.max(0, parseFloat($('fLimpieza').value) || 0),
+        // Estaba en el modelo y el editor lo borraba al guardar (20-oct-2026): ahora se ve y se conserva.
+        extraPersona: Math.max(0, parseFloat($('fExtra').value) || 0),
         moneda: 'BRL'
       },
       amenities: $('fAmenities').value.split(',').map((x) => x.trim()).filter(Boolean),

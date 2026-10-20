@@ -826,9 +826,14 @@ cuentas [{cuenta, moneda, calculado, real, ajuste}], cobrosSaldados [], nota`
   REAL. Desde ahí arrancan los próximos registros.
 
 ### `cabanas/{c1|c2|c3}`
-`nombre {es,pt,en}, descripcion {es,pt,en}, capacidad {base, max}, orden, activa,
+`nombre {es,pt,en}, descripcion {es,pt,en}, capacidad {base, max, condicionMax}, orden, activa,
 tarifas {noche, limpieza, extraPersona, moneda}, amenities [], fotos [url], calendarId,
 airbnbUrl, notaEspecial {es,pt,en}, inventarioBase []`
+· **La base es lo que se ofrece; el máximo, con su condición** (20-oct-2026, Mauro: «la base
+  son 6 para la 1, 5 para el Loft y 4 para el depto; los máximos son con extra por persona y
+  en situaciones especiales… debe quedar registrado en cada espacio y leerlo desde ahí»).
+  `condicionMax` y `tarifas.extraPersona` se editan en Cabañas (`extraPersona` estaba en el
+  modelo y el editor lo borraba al guardar). La Pizarra lo lee al responder pedidos.
 · **Nunca renderizar `nombre` crudo**: resolver `nombre.es` con respaldos.
 · Es la fuente del sitio público (Fase 4); se lee sin sesión.
 · **`fotos[]` guarda siempre la URL de entrega de Cloudinary**, con las

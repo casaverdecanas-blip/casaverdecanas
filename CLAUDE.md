@@ -228,7 +228,9 @@ verdad después del cambio.
   «Comentar» en una publicación, ésa entra con su respuesta y la respuesta queda
   copiada para pegar desde el teclado. Desde pizarra-49 esa respuesta mira `disponibilidad/`
   (una vez por sesión de Facebook), y desde pizarra-51, con las fechas
-  ocupadas, ofrece lo que sí hay (otras fechas, una parte, o para cuántos).
+  ocupadas, ofrece lo que sí hay (otras fechas, una parte, o para cuántos). La capacidad la
+  lee de cada espacio (`cabanas/`: `capacidad.base`, `max`, `condicionMax`, editables en
+  Cabañas): ofrece la base, y el máximo sólo con extra por persona.
 - **El 13C manda TODAS sus notificaciones a `notificaciones/`** (pizarra-42,
   19-oct-2026, Mauro: «que lea todo… y que la ronda lo clasifique y descarte»).
   WhatsApp incluido, con los códigos de verificación tapados en el teléfono. La
