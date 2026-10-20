@@ -223,8 +223,10 @@ verdad después del cambio.
   (Mauro: «Copiar y abrir no lleva al lugar en el que se responde… las
   notificaciones flotantes en el escroleo son paralizantes»): sin enlace exacto
   el botón es «Copiar» y no abre nada —la búsqueda de Facebook, en el teléfono,
-  termina en el inicio—, y mientras se recorre no sale ningún aviso flotante: la
-  Pizarra copia sola la respuesta del ÚNICO pedido a la vista.
+  termina en el inicio—, y mientras se recorre no sale ningún aviso flotante.
+  **Desde pizarra-48 la lista guarda sólo lo que se elige responder**: al tocar
+  «Comentar» en una publicación, ésa entra con su respuesta y la respuesta queda
+  copiada para pegar desde el teclado.
 - **El 13C manda TODAS sus notificaciones a `notificaciones/`** (pizarra-42,
   19-oct-2026, Mauro: «que lea todo… y que la ronda lo clasifique y descarte»).
   WhatsApp incluido, con los códigos de verificación tapados en el teléfono. La

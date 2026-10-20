@@ -511,13 +511,14 @@
 //   por la función avisar-claude del Netlify (CV2.avisarClaude).
 // v116 (11-oct-2026) — nucleo-avisos-17: el ojo 👁 en cada contraseña, para
 //   verla mientras se tipea (ojosEnClaves, el mismo código en los cinco sitios).
+// v127 (20-oct-2026) — pedidos-alquiler-5: la nota dice cómo responde ahora el 13C (pizarra-48).
 // v126 (20-oct-2026) — pedidos-alquiler-4: sin enlace exacto el botón es «Copiar», no abre la búsqueda.
 // v125 (20-oct-2026) — pedidos-alquiler.html (pedidos-alquiler-3): «🔎 Qué busco ahora»,
 //   en pedidos_busqueda/actual, para la Pizarra del 13C y para Claude.
 // v117 (18-oct-2026) — pedidos-alquiler.html [NUEVO, SHELL]: los pedidos de
 //   alquiler en Canasvieiras de los grupos de Facebook, y su renglón en la
 //   barra (nucleo-avisos-18).
-const VERSION = 'cv2-shell-v126';
+const VERSION = 'cv2-shell-v127';
 
 const SHELL = [
   './',

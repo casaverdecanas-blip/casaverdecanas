@@ -28,7 +28,9 @@
      Facebook por la pantalla, y Claude al responder.
      pedidos-alquiler-4 (20-oct-2026). Mauro: «Copiar y abrir no lleva al lugar en
      el que se responde». La búsqueda de Facebook, en el teléfono, termina en el
-     inicio: sin enlace exacto el botón es «Copiar» y nada más. */
+     inicio: sin enlace exacto el botón es «Copiar» y nada más.
+     pedidos-alquiler-5 (20-oct-2026): la nota dice cómo responde ahora el 13C
+     (pizarra-48: sólo lo que se elige, con la respuesta copiada al tocar Comentar). */
   .cuenta { display: flex; gap: 10px; margin: 4px 0 10px; }
   .cuenta div { flex: 1; background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
     padding: 10px 12px; text-align: center; }
@@ -88,9 +90,9 @@
 <div class="contenedor">
   <h1>Pedidos de alquiler</h1>
   <div class="cuenta" id="cuenta"></div>
-  <p class="nota">Lo más corto es responder mientras recorrés el grupo en el Redmi 13C: cuando hay un
-    pedido a la vista, la Pizarra copia sola su respuesta, y basta con Comentar → mantener apretado →
-    Pegar. Desde acá, «Copiar» copia la respuesta (y «Copiar y abrir» abre la publicación cuando hay
+  <p class="nota">Lo más corto es responder mientras recorrés el grupo en el Redmi 13C: al tocar
+    «Comentar» en una publicación, la Pizarra la guarda acá y copia su respuesta; el teclado te la
+    ofrece arriba y la pegás con un toque. Desde acá, «Copiar» copia la respuesta (y «Copiar y abrir» abre la publicación cuando hay
     enlace exacto, como los que llegan por mail).
     <br><small id="sello" style="font-size:.72rem;"></small></p>
 
@@ -344,7 +346,7 @@ $('busco-guardar').addEventListener('click', async () => {
   }
 });
 
-$('sello').textContent = 'pantalla: pedidos-alquiler-4 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
+$('sello').textContent = 'pantalla: pedidos-alquiler-5 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
 
 // ═══ Carga: en vivo, los más nuevos primero ═══════════════
 onSnapshot(doc(db, 'pedidos_busqueda', 'actual'),
