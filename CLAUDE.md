@@ -227,7 +227,8 @@ verdad después del cambio.
   **Desde pizarra-48 la lista guarda sólo lo que se elige responder**: al tocar
   «Comentar» en una publicación, ésa entra con su respuesta y la respuesta queda
   copiada para pegar desde el teclado. Desde pizarra-49 esa respuesta mira `disponibilidad/`
-  (una vez por sesión de Facebook): con las fechas ocupadas no ofrece nada.
+  (una vez por sesión de Facebook), y desde pizarra-51, con las fechas
+  ocupadas, ofrece lo que sí hay (otras fechas, una parte, o para cuántos).
 - **El 13C manda TODAS sus notificaciones a `notificaciones/`** (pizarra-42,
   19-oct-2026, Mauro: «que lea todo… y que la ronda lo clasifique y descarte»).
   WhatsApp incluido, con los códigos de verificación tapados en el teléfono. La
