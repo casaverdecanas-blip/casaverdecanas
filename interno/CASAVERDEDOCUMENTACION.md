@@ -986,7 +986,7 @@ ultimoAutorNombre, ultimaActividad, creadoPor, creadoNombre, creadoEn`
   remate**; Tiempos usa la de acá, porque su gente es la misma.
 
 ### `pedidos_alquiler/{id}` (18-oct-2026)
-`grupo, texto, cuando (ms), fecha, buscar, enlace?, estado ('nuevo'|'respondido'|'descartado'), fuente ('pizarra'|'mail'), uid?, respuesta?, atendidoPor?, atendidoEn?, nota?, creadoEn`
+`grupo, texto, cuando (ms), fecha, buscar, enlace?, estado ('nuevo'|'respondido'|'descartado'), fuente ('pizarra'|'mail'|'pantalla'), uid?, respuesta?, atendidoPor?, atendidoEn?, nota?, creadoEn`
 · Lo que alguien pidió en un grupo de Facebook sobre alquilar en Canasvieiras, o un
   comentario en una publicación de Casa Verde. Lo crea la **Pizarra del Redmi 13C** con la
   cuenta de Casa Verde de ese teléfono (forma fija: `hasOnly`, `estado: 'nuevo'`, `uid`
@@ -996,6 +996,21 @@ ultimoAutorNombre, ultimaActividad, creadoPor, creadoNombre, creadoEn`
 · Quien tiene ficha activa lo lee y marca `estado`/`atendidoPor`/`atendidoEn`/`nota`; el
   texto no se toca. Pantalla: `pedidos-alquiler.html`. **Contestar es de una persona, en
   Facebook.**
+· Desde pizarra-46 (20-oct-2026) la Pizarra también lo crea desde lo que **lee en la
+  pantalla de Facebook** (`fuente: 'pantalla'`), cuando la publicación cuadra con
+  `pedidos_busqueda/actual`, y lo crea **con su `respuesta`** (la rápida que arma al verlo,
+  siempre con casaverdecanas.com.br): la regla deja ese campo al crear, de texto y de hasta
+  3000. Avisa en el acto en el 13C, con la publicación todavía en pantalla.
+
+### `pedidos_busqueda/actual` (20-oct-2026)
+`tipos[] ('diaria'|'mensual'|'anual'), personasMax (1–40), publico[] ('familias'|'parejas'|'jovenes'|'grupos'; vacío = cualquiera), zonas[] ('canasvieiras'|'norte'|'florianopolis'), nota, activa, actualizadoPor, actualizadoEn`
+· «🔎 Qué busco ahora», arriba de `pedidos-alquiler.html`. Mauro: «una configuración de los
+  parámetros que yo estoy queriendo buscar en ese momento… temporada diaria, mensual o
+  anual, para tantas personas… si es grupo de jóvenes o familias». Lo cambia quien tiene
+  el permiso de **reservas**; lo lee cualquiera con ficha activa —la Pizarra del 13C lo
+  trae cada hora y al encender el lector— y el agente, que lo respeta al responder. Un
+  solo documento (`actual`), con la forma fija de la regla. Las cabañas suman unas 20
+  personas: por eso los atajos «1 cabaña (7) / 2 (12) / las 3 (20)».
 
 ### `notificaciones/{id}` (19-oct-2026)
 `app (paquete de Android), titulo, texto, lineas[], cuando (ms), fecha, telefono, uid, creadoEn, revisado?, destino?, revisadoEn?`

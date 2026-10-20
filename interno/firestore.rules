@@ -14,6 +14,15 @@ rules_version = '2';
 //  nunca por fragmentos, y los casos especiales (config/integraciones)
 //  se excluyen a mano del bloque general.
 //
+//  CAMBIO 20-oct-2026 · QUÉ BUSCO EN FACEBOOK  [BUSQUEDA]  (pizarra-46)
+//  Mauro: «una configuración de los parámetros que yo estoy queriendo buscar
+//  en ese momento… temporada diaria, mensual o anual, para tantas personas,
+//  si es grupo de jóvenes o familias». /pedidos_busqueda/actual lo escribe
+//  quien tiene el permiso de reservas, desde «Pedidos de alquiler»; lo lee
+//  cualquiera con ficha activa (la Pizarra del teléfono de captura) y el
+//  agente. Y un pedido puede nacer con su `respuesta`: la que la Pizarra arma
+//  al verlo en pantalla, para que se pueda contestar en el acto.
+//
 //  CAMBIO 19-oct-2026 · TODAS LAS NOTIFICACIONES  [NOTIFICACIONES]  (pizarra-42)
 //  Mauro: «que lea todo… y que la ronda lo clasifique y descarte». La Pizarra
 //  del teléfono de captura crea /notificaciones/ con la cuenta de Casa Verde
@@ -892,14 +901,35 @@ service cloud.firestore {
                     && request.resource.data.uid == request.auth.uid
                     && request.resource.data.estado == 'nuevo'
                     && request.resource.data.keys().hasOnly(['grupo', 'texto', 'cuando', 'fecha',
-                         'buscar', 'estado', 'fuente', 'uid', 'creadoEn'])
+                         'buscar', 'estado', 'fuente', 'uid', 'creadoEn', 'respuesta'])
                     && request.resource.data.texto is string
-                    && request.resource.data.texto.size() <= 4000;
+                    && request.resource.data.texto.size() <= 4000
+                    && (!('respuesta' in request.resource.data)
+                        || (request.resource.data.respuesta is string
+                            && request.resource.data.respuesta.size() <= 3000));
       allow read: if activo();
       allow update: if activo()
                     && request.resource.data.diff(resource.data).affectedKeys()
                          .hasOnly(['estado', 'atendidoPor', 'atendidoEn', 'nota'])
                     && request.resource.data.estado in ['nuevo', 'respondido', 'descartado'];
+    }
+
+    // [BUSQUEDA] (pizarra-46, 20-oct-2026). Qué pedidos de alquiler se buscan
+    // ahora en Facebook: un solo documento, `actual`. Lo cambia quien tiene el
+    // permiso de reservas; lo lee el equipo (la Pizarra lo usa al leer la
+    // pantalla) y el agente, por su comodín.
+    match /pedidos_busqueda/{id} {
+      allow read: if activo();
+      allow write: if tiene('reservas') && id == 'actual'
+                   && request.resource.data.keys().hasOnly(['tipos', 'personasMax', 'publico',
+                        'zonas', 'nota', 'activa', 'actualizadoPor', 'actualizadoEn'])
+                   && request.resource.data.tipos is list && request.resource.data.tipos.size() <= 3
+                   && request.resource.data.publico is list && request.resource.data.publico.size() <= 6
+                   && request.resource.data.zonas is list && request.resource.data.zonas.size() <= 10
+                   && request.resource.data.personasMax is int
+                   && request.resource.data.personasMax >= 1 && request.resource.data.personasMax <= 40
+                   && request.resource.data.nota is string && request.resource.data.nota.size() <= 500
+                   && request.resource.data.activa is bool;
     }
 
     // [NOTIFICACIONES] (pizarra-42, 19-oct-2026). Toda notificación del

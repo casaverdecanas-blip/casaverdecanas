@@ -21,7 +21,11 @@
      responder». Arriba, cuántos hay; primero los que ya tienen la respuesta;
      el texto en cuatro renglones (un toque lo abre); y UN botón, «Copiar y
      abrir», que copia la respuesta y abre la publicación. Publicar lo hace
-     la persona, en Facebook: eso es lo que no hace bloquear la cuenta. */
+     la persona, en Facebook: eso es lo que no hace bloquear la cuenta.
+     pedidos-alquiler-3 (20-oct-2026). Mauro: «una configuración de los
+     parámetros que yo estoy queriendo buscar en ese momento». Arriba, «🔎 Qué
+     busco ahora» (pedidos_busqueda/actual): la Pizarra del 13C lo usa al leer
+     Facebook por la pantalla, y Claude al responder. */
   .cuenta { display: flex; gap: 10px; margin: 4px 0 10px; }
   .cuenta div { flex: 1; background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
     padding: 10px 12px; text-align: center; }
@@ -54,6 +58,24 @@
   .ped-quien { font-size: .76rem; color: var(--gris); margin-top: 6px; }
   .vacio { text-align: center; color: var(--gris); padding: 28px 10px; }
   .nota { color: var(--gris); font-size: .82rem; margin: -4px 0 8px; }
+  /* pedidos-alquiler-3 (20-oct-2026): «Qué busco ahora». */
+  .busco { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    margin: 0 0 10px; box-shadow: var(--sombra); }
+  .busco summary { padding: 11px 14px; cursor: pointer; font-weight: 600; font-size: .92rem; list-style: none; }
+  .busco summary small { display: block; font-weight: 400; color: var(--gris); font-size: .8rem; margin-top: 2px; }
+  .busco-cuerpo { padding: 0 14px 12px; }
+  .busco-cuerpo h3 { font-size: .8rem; color: var(--gris); margin: 10px 0 6px; text-transform: uppercase; letter-spacing: .03em; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chips button { min-height: 38px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--linea);
+    background: #fff; font: inherit; font-size: .86rem; cursor: pointer; }
+  .chips button.activo { background: var(--verde); border-color: var(--verde); color: #fff; }
+  .busco-personas { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .busco-personas input { width: 78px; min-height: 40px; font: inherit; font-size: 1rem; text-align: center;
+    border: 1px solid var(--linea); border-radius: 10px; }
+  .busco-cuerpo textarea { width: 100%; min-height: 56px; font: inherit; font-size: .88rem; border: 1px solid var(--linea);
+    border-radius: 10px; padding: 8px; box-sizing: border-box; }
+  .busco-pie { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+  .busco-pie small { color: var(--gris); font-size: .76rem; }
 </style>
 </head>
 <body>
@@ -68,6 +90,46 @@
     hace lo mismo y abre la publicación exacta.
     <br><small id="sello" style="font-size:.72rem;"></small></p>
 
+  <details class="busco" id="busco">
+    <summary>🔎 Qué busco ahora<small id="busco-resumen">Cargando…</small></summary>
+    <div class="busco-cuerpo">
+      <h3>Alquiler</h3>
+      <div class="chips" data-campo="tipos">
+        <button data-v="diaria">Temporada por días</button>
+        <button data-v="mensual">Por mes</button>
+        <button data-v="anual">Anual</button>
+      </div>
+      <h3>Hasta cuántas personas</h3>
+      <div class="busco-personas">
+        <input type="number" id="busco-max" min="1" max="40" inputmode="numeric">
+        <div class="chips" id="busco-cabanas">
+          <button data-max="7">1 cabaña (7)</button>
+          <button data-max="12">2 cabañas (12)</button>
+          <button data-max="20">Las 3 (20)</button>
+        </div>
+      </div>
+      <h3>Para quién <small style="text-transform:none;font-weight:400;">(ninguno = cualquiera)</small></h3>
+      <div class="chips" data-campo="publico">
+        <button data-v="familias">Familias</button>
+        <button data-v="parejas">Parejas</button>
+        <button data-v="jovenes">Jóvenes</button>
+        <button data-v="grupos">Grupos grandes</button>
+      </div>
+      <h3>Dónde</h3>
+      <div class="chips" data-campo="zonas">
+        <button data-v="canasvieiras">Canasvieiras</button>
+        <button data-v="norte">Norte de la isla (Ingleses, Jurerê…)</button>
+        <button data-v="florianopolis">Cualquier lugar de Floripa</button>
+      </div>
+      <h3>Algo más para Claude</h3>
+      <textarea id="busco-nota" maxlength="500" placeholder="Ej.: tengo libre la cabaña 3 del 10 al 20 de enero"></textarea>
+      <div class="busco-pie">
+        <button class="btn btn-primario" id="busco-guardar">Guardar</button>
+        <small id="busco-quien"></small>
+      </div>
+    </div>
+  </details>
+
   <div class="filtros" id="filtros">
     <button data-f="nuevo" class="activo">Por responder</button>
     <button data-f="todos">Todos</button>
@@ -79,7 +141,7 @@
 <script type="module">
 // Regla del 2.0 (§3.2): definiciones primero, cargas y suscripciones AL FINAL.
 import {
-  db, collection, doc, query, orderBy, limit, onSnapshot, updateDoc, serverTimestamp
+  db, collection, doc, query, orderBy, limit, onSnapshot, updateDoc, setDoc, serverTimestamp
 } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
 
@@ -129,7 +191,7 @@ function tarjeta(p) {
     + '<div class="ped-cab"><b>' + esc(p.grupo || 'Grupo sin nombre') + '</b>'
     + '<small>' + esc(diaCorto(p.cuando)) + '</small></div>'
     + '<div class="ped-texto corto" data-abre>' + esc(p.texto || '') + '</div>'
-    + (p.respuesta ? '<div class="ped-resp"><b>Respuesta de Claude</b>' + esc(p.respuesta) + '</div>'
+    + (p.respuesta ? '<div class="ped-resp"><b>' + (p.fuente === 'pantalla' ? 'Respuesta rápida (la armó la Pizarra al verlo)' : 'Respuesta de Claude') + '</b>' + esc(p.respuesta) + '</div>'
         : (estado === 'nuevo' ? '<p class="ped-espera">La respuesta la prepara Claude en la próxima ronda.</p>' : ''))
     + (preguntando === p.id && estado === 'nuevo'
         ? '<div class="ped-pregunta">¿La publicaste?'
@@ -210,9 +272,76 @@ $('lista').addEventListener('click', async (e) => {
   if (t) t.classList.toggle('corto');
 });
 
-$('sello').textContent = 'pantalla: pedidos-alquiler-2 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
+// ═══ Qué busco ahora (pedidos-alquiler-3, 20-oct-2026) ═══════
+// Mauro: «una configuración de los parámetros que yo estoy queriendo buscar en
+// ese momento… temporada diaria o mensual o anual, para tantas personas, si es
+// grupo de jóvenes o familias». Vive en pedidos_busqueda/actual: la Pizarra del
+// teléfono de captura lo usa al leer Facebook, y Claude al responder. Lo cambia
+// quien tiene el permiso de reservas; los demás lo ven.
+const BUSCA_BASE = { activa: true, tipos: ['diaria'], personasMax: 20, publico: [], zonas: ['canasvieiras', 'norte'], nota: '' };
+const NOMBRES_BUSCA = { diaria: 'por días', mensual: 'por mes', anual: 'anual', familias: 'familias', parejas: 'parejas',
+  jovenes: 'jóvenes', grupos: 'grupos grandes', canasvieiras: 'Canasvieiras', norte: 'norte de la isla', florianopolis: 'toda Floripa' };
+let busca = { ...BUSCA_BASE };
+const puedeBuscar = CV2.puede('reservas');
+
+function resumenBusca(b) {
+  const l = (xs) => xs.map((x) => NOMBRES_BUSCA[x] || x).join(', ');
+  return 'Alquiler ' + (l(b.tipos) || '—') + ' · hasta ' + b.personasMax + ' personas · '
+    + (b.publico.length ? l(b.publico) : 'cualquiera') + ' · ' + (l(b.zonas) || 'cualquier lugar');
+}
+function pintarBusca() {
+  $('busco-resumen').textContent = resumenBusca(busca);
+  for (const g of document.querySelectorAll('#busco .chips[data-campo]')) {
+    for (const b of g.querySelectorAll('button')) {
+      b.classList.toggle('activo', (busca[g.dataset.campo] || []).includes(b.dataset.v));
+      b.disabled = !puedeBuscar;
+    }
+  }
+  for (const b of $('busco-cabanas').querySelectorAll('button')) {
+    b.classList.toggle('activo', Number(b.dataset.max) === busca.personasMax); b.disabled = !puedeBuscar;
+  }
+  $('busco-max').value = busca.personasMax; $('busco-max').disabled = !puedeBuscar;
+  $('busco-nota').value = busca.nota || ''; $('busco-nota').disabled = !puedeBuscar;
+  $('busco-guardar').hidden = !puedeBuscar;
+  $('busco-quien').textContent = (busca.actualizadoPor ? 'Lo cambió ' + busca.actualizadoPor : '')
+    + (puedeBuscar ? '' : ' · cambiarlo pide el permiso de reservas');
+}
+$('busco').addEventListener('click', (e) => {
+  const ch = e.target.closest('.chips[data-campo] button');
+  if (ch && puedeBuscar) {
+    const campo = ch.closest('.chips').dataset.campo, v = ch.dataset.v;
+    const xs = busca[campo] || [];
+    busca = { ...busca, [campo]: xs.includes(v) ? xs.filter((x) => x !== v) : [...xs, v] };
+    pintarBusca(); return;
+  }
+  const cab = e.target.closest('#busco-cabanas button');
+  if (cab && puedeBuscar) { busca = { ...busca, personasMax: Number(cab.dataset.max) }; pintarBusca(); }
+});
+$('busco-max').addEventListener('change', () => {
+  const n = Math.round(Number($('busco-max').value));
+  busca = { ...busca, personasMax: Math.min(40, Math.max(1, n || 1)) }; pintarBusca();
+});
+$('busco-guardar').addEventListener('click', async () => {
+  if (!busca.tipos.length) { CV2.toast('Elegí al menos un tipo de alquiler.', 'error'); return; }
+  try {
+    await setDoc(doc(db, 'pedidos_busqueda', 'actual'), {
+      tipos: busca.tipos, personasMax: busca.personasMax, publico: busca.publico, zonas: busca.zonas,
+      nota: $('busco-nota').value.trim().slice(0, 500), activa: true,
+      actualizadoPor: CV2.usuario?.nombre || u?.email || '', actualizadoEn: serverTimestamp(),
+    });
+    CV2.toast('Guardado. La Pizarra del 13C lo toma en unos minutos.', 'ok');
+    $('busco').open = false;
+  } catch (e) {
+    CV2.toast('No se pudo guardar: ' + (e.code ?? e.message) + (e.code === 'permission-denied' ? ' (¿se publicaron las reglas nuevas?)' : ''), 'error');
+  }
+});
+
+$('sello').textContent = 'pantalla: pedidos-alquiler-3 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
 
 // ═══ Carga: en vivo, los más nuevos primero ═══════════════
+onSnapshot(doc(db, 'pedidos_busqueda', 'actual'),
+  (d) => { busca = { ...BUSCA_BASE, ...(d.exists() ? d.data() : {}) }; pintarBusca(); },
+  () => { $('busco-resumen').textContent = 'No se pudo leer (¿faltan publicar las reglas?). ' + resumenBusca(busca); pintarBusca(); });
 onSnapshot(query(collection(db, 'pedidos_alquiler'), orderBy('cuando', 'desc'), limit(300)),
   (snap) => { pedidos = snap.docs.map((d) => ({ id: d.id, ...d.data() })); pintar(); },
   (err) => {

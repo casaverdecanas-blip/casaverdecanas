@@ -209,6 +209,17 @@ verdad después del cambio.
   `atendidoEn`. **Publicar lo hace una persona**: eso es lo que no hace
   bloquear la cuenta. Una colección nueva con su regla: hay que
   **publicar `interno/firestore.rules`**.
+- **«🔎 Qué busco ahora» manda qué pedidos busca el lector de Facebook**
+  (`pedidos-alquiler-3`, pizarra-46, 20-oct-2026, Mauro: «una configuración de
+  los parámetros que yo estoy queriendo buscar en ese momento… temporada
+  diaria, mensual o anual, para tantas personas… jóvenes o familias»). Vive en
+  `pedidos_busqueda/actual` (regla nueva: la cambia quien tiene reservas, la
+  lee el equipo). La Pizarra del 13C, que lee Facebook POR LA PANTALLA mientras
+  alguien lo recorre, carga en «Pedidos de alquiler» lo que cuadra, **con una
+  respuesta rápida que siempre sugiere casaverdecanas.com.br**, y avisa en el
+  acto para pegarla en la publicación que todavía está a la vista. Hasta 20
+  personas, en varias cabañas a la vez. Hay que **publicar
+  `interno/firestore.rules`**.
 - **El 13C manda TODAS sus notificaciones a `notificaciones/`** (pizarra-42,
   19-oct-2026, Mauro: «que lea todo… y que la ronda lo clasifique y descarte»).
   WhatsApp incluido, con los códigos de verificación tapados en el teléfono. La
