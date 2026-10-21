@@ -30,7 +30,19 @@
      el que se responde». La búsqueda de Facebook, en el teléfono, termina en el
      inicio: sin enlace exacto el botón es «Copiar» y nada más.
      pedidos-alquiler-5 (20-oct-2026): la nota dice cómo responde ahora el 13C
-     (pizarra-48: sólo lo que se elige, con la respuesta copiada al tocar Comentar). */
+     (pizarra-48: sólo lo que se elige, con la respuesta copiada al tocar Comentar).
+     pedidos-alquiler-6 (21-oct-2026, pizarra-56). Mauro: «el sitio luego advierta
+     qué publicaciones llenan los huecos libres en la ocupación de la cabaña, para
+     poder hacer una oferta» y «desde aquí el botón debería copiar el texto para
+     hacer la búsqueda de la publicación, y cuando hago clic en Comentar se pone
+     directamente por Pizarra el texto en el portapapeles». Cada pedido con fechas
+     se cruza con disponibilidad/ y cabanas/ (CV2.huecoDelPedido): «🟢 cae en
+     fechas libres» y el filtro «Llenan huecos». El botón principal copia unas
+     palabras de la publicación para buscarla en el grupo; la respuesta la pone
+     la Pizarra al tocar Comentar («Copiar respuesta» queda al lado). */
+  .ped-hueco { background: #e7f4e4; border: 1px solid #9cc79a; border-radius: 10px; padding: 7px 10px;
+    font-size: .84rem; margin: 6px 0 0; }
+  .ped-hueco.mes { background: #fbf4dc; border-color: #e2cf8a; }
   .cuenta { display: flex; gap: 10px; margin: 4px 0 10px; }
   .cuenta div { flex: 1; background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
     padding: 10px 12px; text-align: center; }
@@ -92,8 +104,9 @@
   <div class="cuenta" id="cuenta"></div>
   <p class="nota">Lo más corto es responder mientras recorrés el grupo en el Redmi 13C: al tocar
     «Comentar» en una publicación, la Pizarra la guarda acá y copia su respuesta; el teclado te la
-    ofrece arriba y la pegás con un toque. Desde acá, «Copiar» copia la respuesta (y «Copiar y abrir» abre la publicación cuando hay
-    enlace exacto, como los que llegan por mail).
+    ofrece arriba y la pegás con un toque. Desde acá, «Copiar para buscar» copia unas palabras de la
+    publicación: en el grupo tocás 🔍 y pegás, y al tocar «Comentar» la Pizarra te deja la respuesta.
+    🟢 = cae en fechas libres de Casa Verde: conviene ofrecer.
     <br><small id="sello" style="font-size:.72rem;"></small></p>
 
   <details class="busco" id="busco">
@@ -138,6 +151,7 @@
 
   <div class="filtros" id="filtros">
     <button data-f="nuevo" class="activo">Por responder</button>
+    <button data-f="huecos">🟢 Llenan huecos</button>
     <button data-f="todos">Todos</button>
   </div>
 
@@ -159,6 +173,19 @@ const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
 let filtro = 'nuevo';
 let pedidos = [];
+let ocupadas = [], cabanas = [];
+const hoyIso = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const hueco = (p) => CV2.huecoDelPedido ? CV2.huecoDelPedido(p, ocupadas, cabanas, hoyIso()) : null;
+
+// Unas palabras de la publicación para pegarlas en el buscador del grupo: las de
+// la búsqueda que armó la Pizarra si hay, si no las primeras del texto, sin
+// signos. Pocas y seguidas, que es lo que Facebook encuentra.
+function textoParaBuscar(p) {
+  let q = '';
+  try { q = p.buscar && p.buscar.includes('q=') ? decodeURIComponent(p.buscar.split('q=')[1].split('&')[0]) : ''; } catch { q = ''; }
+  if (!q) q = String(p.texto || '');
+  return q.replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean).slice(0, 7).join(' ');
+}
 
 const ESTADOS = { nuevo: 'Por responder', respondido: 'Respondido', descartado: 'Descartado' };
 
@@ -176,8 +203,10 @@ let preguntando = '';   // el pedido que se abrió con «Copiar y abrir» y espe
 function pintarCuenta() {
   const nuevos = pedidos.filter(sinAtender);
   const listos = nuevos.filter((p) => p.respuesta).length;
+  const huecos = nuevos.filter((p) => hueco(p)).length;
   $('cuenta').innerHTML = '<div><b>' + nuevos.length + '</b><small>por responder</small></div>'
-    + '<div><b>' + listos + '</b><small>con la respuesta lista</small></div>';
+    + '<div><b>' + listos + '</b><small>con la respuesta lista</small></div>'
+    + '<div><b>' + huecos + '</b><small>llenan huecos</small></div>';
 }
 
 function tarjeta(p) {
@@ -185,10 +214,13 @@ function tarjeta(p) {
   const id = esc(p.id);
   let acc = '';
   if (estado === 'nuevo') {
-    acc = (p.respuesta
-        ? '<button class="btn btn-primario" data-abrir="' + id + '"><span class="material-icons">content_copy</span>'
-          + (p.enlace ? 'Copiar y abrir' : 'Copiar') + '</button>'
-        : (p.enlace ? '<a class="btn" href="' + esc(p.enlace) + '" target="_blank" rel="noopener"><span class="material-icons">open_in_new</span>Abrir en Facebook</a>' : ''))
+    // pedidos-alquiler-6: con enlace exacto se abre; sin él, se copian palabras para
+    // buscarla en el grupo, y la respuesta la deja la Pizarra al tocar Comentar.
+    acc = (p.enlace
+        ? (p.respuesta ? '<button class="btn btn-primario" data-abrir="' + id + '"><span class="material-icons">content_copy</span>Copiar y abrir</button>'
+            : '<a class="btn" href="' + esc(p.enlace) + '" target="_blank" rel="noopener"><span class="material-icons">open_in_new</span>Abrir en Facebook</a>')
+        : '<button class="btn btn-primario" data-buscar="' + id + '"><span class="material-icons">search</span>Copiar para buscar</button>'
+          + (p.respuesta ? '<button class="btn" data-abrir="' + id + '"><span class="material-icons">content_copy</span>Copiar respuesta</button>' : ''))
       + '<button class="btn" data-estado="descartado" data-id="' + id + '">Descartar</button>';
   } else {
     acc = '<button class="btn" data-estado="nuevo" data-id="' + id + '">Volver a por responder</button>';
@@ -197,6 +229,7 @@ function tarjeta(p) {
     + '<div class="ped-cab"><b>' + esc(p.grupo || 'Grupo sin nombre') + '</b>'
     + '<small>' + esc(diaCorto(p.cuando)) + '</small></div>'
     + '<div class="ped-texto corto" data-abre>' + esc(p.texto || '') + '</div>'
+    + ((h) => h ? '<div class="ped-hueco' + (h.tipo === 'mes' ? ' mes' : '') + '">' + (h.tipo === 'mes' ? '🟡 ' : '🟢 ') + esc(h.texto) + '</div>' : '')(estado === 'nuevo' ? hueco(p) : null)
     + (p.respuesta ? '<div class="ped-resp"><b>' + (p.fuente === 'pantalla' ? 'Respuesta rápida (la armó la Pizarra al verlo)' : 'Respuesta de Claude') + '</b>' + esc(p.respuesta) + '</div>'
         : (estado === 'nuevo' ? '<p class="ped-espera">La respuesta la prepara Claude en la próxima ronda.</p>' : ''))
     + (preguntando === p.id && estado === 'nuevo'
@@ -219,11 +252,12 @@ function diaCorto(ms) {
 
 function pintar() {
   pintarCuenta();
-  if (filtro === 'nuevo') {
+  if (filtro === 'nuevo' || filtro === 'huecos') {
     // Primero lo que ya se puede contestar, y dentro de cada grupo lo más nuevo arriba.
-    const lista = pedidos.filter(sinAtender)
+    const lista = pedidos.filter(sinAtender).filter((p) => filtro === 'nuevo' || hueco(p))
       .sort((a, b) => (b.respuesta ? 1 : 0) - (a.respuesta ? 1 : 0) || (b.cuando || 0) - (a.cuando || 0));
-    $('lista').innerHTML = lista.length ? lista.map(tarjeta).join('') : '<p class="vacio">No hay pedidos por responder.</p>';
+    $('lista').innerHTML = lista.length ? lista.map(tarjeta).join('')
+      : '<p class="vacio">' + (filtro === 'huecos' ? 'Ningún pedido por responder cae en fechas libres.' : 'No hay pedidos por responder.') + '</p>';
     return;
   }
   if (!pedidos.length) { $('lista').innerHTML = '<p class="vacio">Todavía no llegó ningún pedido.</p>'; return; }
@@ -261,6 +295,16 @@ $('lista').addEventListener('click', async (e) => {
   const est = e.target.closest('[data-estado]');
   if (est) { preguntando = ''; await marcar(est.dataset.id, est.dataset.estado); return; }
   if (e.target.closest('[data-todavia]')) { preguntando = ''; pintar(); return; }
+  const bu = e.target.closest('[data-buscar]');
+  if (bu) {
+    const p = pedidos.find((x) => x.id === bu.dataset.buscar);
+    if (!p) return;
+    try { await navigator.clipboard.writeText(textoParaBuscar(p));
+      CV2.toast('Copiado para buscar. En el grupo de ' + (p.grupo || 'Facebook') + ': 🔍 → pegar. Al tocar «Comentar», la Pizarra te deja la respuesta.', 'ok'); }
+    catch { CV2.toast('No se pudo copiar.', 'error'); }
+    preguntando = p.id; pintar();
+    return;
+  }
   const ab = e.target.closest('[data-abrir]');
   if (ab) {
     const p = pedidos.find((x) => x.id === ab.dataset.abrir);
@@ -273,7 +317,7 @@ $('lista').addEventListener('click', async (e) => {
     // en el que se responde»), así que sin enlace sólo se copia.
     if (p.enlace) window.open(p.enlace, '_blank', 'noopener');
     try { await copia; CV2.toast(p.enlace ? 'Copiada. En Facebook: Comentar → mantené apretado → Pegar.'
-      : 'Copiada. Buscá la publicación de ' + (p.grupo || 'esa persona') + ' en el grupo, y Comentar → mantené apretado → Pegar.', 'ok'); }
+      : 'Respuesta copiada. Comentar → mantené apretado → Pegar.', 'ok'); }
     catch { CV2.toast('No se pudo copiar: mantené apretada la respuesta y copiala.', 'error'); }
     preguntando = p.id; pintar();
     return;
@@ -346,12 +390,15 @@ $('busco-guardar').addEventListener('click', async () => {
   }
 });
 
-$('sello').textContent = 'pantalla: pedidos-alquiler-5 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
+$('sello').textContent = 'pantalla: pedidos-alquiler-6 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
 
 // ═══ Carga: en vivo, los más nuevos primero ═══════════════
 onSnapshot(doc(db, 'pedidos_busqueda', 'actual'),
   (d) => { busca = { ...BUSCA_BASE, ...(d.exists() ? d.data() : {}) }; pintarBusca(); },
   () => { $('busco-resumen').textContent = 'No se pudo leer (¿faltan publicar las reglas?). ' + resumenBusca(busca); pintarBusca(); });
+// pedidos-alquiler-6: la ocupación y la capacidad, para decir qué pedido llena un hueco.
+onSnapshot(collection(db, 'disponibilidad'), (snap) => { ocupadas = snap.docs.map((d) => d.data()); pintar(); }, () => {});
+onSnapshot(collection(db, 'cabanas'), (snap) => { cabanas = snap.docs.map((d) => ({ id: d.id, ...d.data() })); pintar(); }, () => {});
 onSnapshot(query(collection(db, 'pedidos_alquiler'), orderBy('cuando', 'desc'), limit(300)),
   (snap) => { pedidos = snap.docs.map((d) => ({ id: d.id, ...d.data() })); pintar(); },
   (err) => {

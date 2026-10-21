@@ -1209,7 +1209,90 @@ CV2.sinFirebase = function (e) {
   if (b) b.addEventListener('click', () => location.reload());
 };
 
-CV2.VERSION = 'nucleo-avisos-18';
+// ═══ HUECOS ═══ (nucleo-avisos-19, 21-oct-2026, pizarra-56) ═══════════════
+// Mauro: «guarda los registros de todas las publicaciones y el sitio luego
+// advierta qué publicaciones llenan los huecos libres en la ocupación de la
+// cabaña, para poder hacer una oferta». La Pizarra del 13C guarda con cada
+// pedido lo que leyó de él (`desde`/`hasta`, `mes`, `personas`); esto lo cruza
+// con `disponibilidad/` y la capacidad de cada espacio (`cabanas/`: base y
+// max), con la MISMA cuenta que `lugarPara` de Disponibilidad.kt: primero la
+// base —una cabaña si entra, si no varias—, y el máximo sólo si no alcanza
+// («con un adicional por persona»). Pura: no toca Firebase, y el banco
+// `netlify/pruebas/huecos.mjs` la corre sacándola de este archivo, entre esta
+// marca y la de FIN HUECOS. Si cambia la cuenta de la Pizarra, cambia acá.
+function huecoDelPedido(p, ocupadas, cabanas, hoy) {
+  const DIA = /^\d{4}-\d{2}-\d{2}$/, MES = /^\d{4}-\d{2}$/;
+  const capDe = (c) => {
+    if (c && typeof c === 'object') { const b = Number(c.base) || 1; return { base: b, max: Math.max(b, Number(c.max) || b) }; }
+    const n = Number(c) || 4; return { base: n, max: n };
+  };
+  const nombreDe = (c) => (c.nombre && typeof c.nombre === 'object' ? (c.nombre.es || c.nombre.pt) : c.nombre) || c.id;
+  const cabs = (cabanas || []).filter((c) => c && c.activa !== false)
+    .map((c) => ({ id: c.id, nombre: nombreDe(c), orden: Number(c.orden) || 0, ...capDe(c.capacidad) }))
+    .sort((a, b) => a.orden - b.orden);
+  if (!p || !cabs.length) return null;
+  const n = Number(p.personas) || 0;
+  const choca = (id, d, h) => (ocupadas || []).some((o) => o.cabanaId === id && o.desde < h && o.hasta > d);
+  // El grupo más chico de cabañas libres que entra con `campo`; a igual tamaño, el más justo.
+  const juntar = (libres, campo) => {
+    if (!libres.length) return null;
+    if (!n) return [libres[0]];
+    let mejor = null;
+    const k = libres.length;
+    for (let m = 1; m < (1 << k); m++) {
+      const g = libres.filter((_, i) => m & (1 << i));
+      const suma = g.reduce((t, c) => t + c[campo], 0);
+      if (suma < n) continue;
+      if (!mejor || g.length < mejor.g.length || (g.length === mejor.g.length && suma < mejor.suma)) mejor = { g, suma };
+    }
+    return mejor && mejor.g;
+  };
+  const elegir = (libres) => {
+    const b = juntar(libres, 'base');
+    if (b) return { cabanas: b, conExtra: false };
+    const x = juntar(libres, 'max');
+    return x ? { cabanas: x, conExtra: true } : null;
+  };
+  const corto = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
+  const nombres = (g) => g.map((c) => c.nombre).join(' + ');
+  if (DIA.test(p.desde || '') && DIA.test(p.hasta || '') && p.desde < p.hasta) {
+    if (p.hasta <= hoy) return null;
+    const e = elegir(cabs.filter((c) => !choca(c.id, p.desde, p.hasta)));
+    if (!e) return null;
+    return { tipo: 'fechas', ...e, ids: e.cabanas.map((c) => c.id),
+      texto: 'Cae en fechas libres: ' + nombres(e.cabanas) + ' del ' + corto(p.desde) + ' al ' + corto(p.hasta)
+        + (n ? ', para ' + n : '') + (e.conExtra ? ' (con un adicional por persona)' : '') };
+  }
+  if (MES.test(p.mes || '')) {
+    const [a, m] = p.mes.split('-').map(Number);
+    const fin = new Date(Date.UTC(a, m, 1)).toISOString().slice(0, 10);
+    let dia = p.mes + '-01';
+    if (dia < hoy) dia = hoy;
+    if (dia >= fin) return null;
+    // Por cabaña, la tirada más larga de noches libres de ese mes que queda por delante.
+    const tiradas = cabs.map((c) => {
+      let larga = null, desde = null, d = dia;
+      while (d < fin) {
+        const sig = new Date(Date.parse(d + 'T00:00:00Z') + 864e5).toISOString().slice(0, 10);
+        if (!choca(c.id, d, sig)) { if (!desde) desde = d; if (!larga || Date.parse(sig) - Date.parse(desde) > Date.parse(larga.hasta) - Date.parse(larga.desde)) larga = { desde, hasta: sig }; }
+        else desde = null;
+        d = sig;
+      }
+      return { c, larga, noches: larga ? Math.round((Date.parse(larga.hasta) - Date.parse(larga.desde)) / 864e5) : 0 };
+    }).filter((t) => t.noches >= 3);
+    const e = elegir(tiradas.map((t) => t.c));
+    if (!e) return null;
+    const t = tiradas.find((x) => x.c.id === e.cabanas[0].id);
+    return { tipo: 'mes', ...e, ids: e.cabanas.map((c) => c.id), noches: t.noches,
+      texto: 'En ese mes hay lugar: ' + nombres(e.cabanas) + ', hasta ' + t.noches + ' noches seguidas libres (del '
+        + corto(t.larga.desde) + ' al ' + corto(t.larga.hasta) + ')' + (e.conExtra ? ', con un adicional por persona' : '') };
+  }
+  return null;
+}
+// ═══ FIN HUECOS ═══
+CV2.huecoDelPedido = huecoDelPedido;
+
+CV2.VERSION = 'nucleo-avisos-19';
 
 CV2.NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
 

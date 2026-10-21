@@ -991,7 +991,7 @@ ultimoAutorNombre, ultimaActividad, creadoPor, creadoNombre, creadoEn`
   remate**; Tiempos usa la de acá, porque su gente es la misma.
 
 ### `pedidos_alquiler/{id}` (18-oct-2026)
-`grupo, texto, cuando (ms), fecha, buscar, enlace?, estado ('nuevo'|'respondido'|'descartado'), fuente ('pizarra'|'mail'|'pantalla'), uid?, respuesta?, atendidoPor?, atendidoEn?, nota?, creadoEn`
+`grupo, texto, cuando (ms), fecha, buscar, enlace?, estado ('nuevo'|'respondido'|'descartado'), fuente ('pizarra'|'mail'|'pantalla'), uid?, respuesta?, desde? hasta? ('aaaa-mm-dd'), mes? ('aaaa-mm'), personas? (1–60), atendidoPor?, atendidoEn?, nota?, creadoEn`
 · Lo que alguien pidió en un grupo de Facebook sobre alquilar en Canasvieiras, o un
   comentario en una publicación de Casa Verde. Lo crea la **Pizarra del Redmi 13C** con la
   cuenta de Casa Verde de ese teléfono (forma fija: `hasOnly`, `estado: 'nuevo'`, `uid`
@@ -1006,6 +1006,18 @@ ultimoAutorNombre, ultimaActividad, creadoPor, creadoNombre, creadoEn`
   `pedidos_busqueda/actual`, y lo crea **con su `respuesta`** (la rápida que arma al verlo,
   siempre con casaverdecanas.com.br): la regla deja ese campo al crear, de texto y de hasta
   3000. Avisa en el acto en el 13C, con la publicación todavía en pantalla.
+· Desde pizarra-56 (21-oct-2026, Mauro: «guarda los registros de todas las publicaciones y
+  el sitio luego advierta qué publicaciones llenan los huecos libres»): la Pizarra registra
+  en silencio CADA pedido de alojamiento que pasa por la pantalla al recorrer (no sólo el
+  que se elige) y le pone lo que leyó: `desde`/`hasta`, o `mes`, y `personas`, con forma
+  fija en la regla. `CV2.huecoDelPedido` (nucleo-avisos-19; banco
+  `node netlify/pruebas/huecos.mjs`) los cruza con `disponibilidad/` y la capacidad de
+  `cabanas/` —base primero, máximo con adicional, como la Pizarra— y la lista los marca
+  «🟢 cae en fechas libres» (filtro «Llenan huecos») y el Inicio los muestra en «Pedidos que
+  caen en fechas libres». Los pedidos de antes no tienen esos campos y no se marcan. El
+  botón principal de la lista es «Copiar para buscar» (pedidos-alquiler-6): unas palabras
+  de la publicación para el buscador del grupo; la respuesta la copia la Pizarra al tocar
+  «Comentar».
 
 ### `pedidos_busqueda/actual` (20-oct-2026)
 `tipos[] ('diaria'|'mensual'|'anual'), personasMax (1–40), publico[] ('familias'|'parejas'|'jovenes'|'grupos'; vacío = cualquiera), zonas[] ('canasvieiras'|'norte'|'florianopolis'), nota, activa, actualizadoPor, actualizadoEn`

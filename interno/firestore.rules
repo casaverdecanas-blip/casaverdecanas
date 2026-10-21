@@ -14,6 +14,14 @@ rules_version = '2';
 //  nunca por fragmentos, y los casos especiales (config/integraciones)
 //  se excluyen a mano del bloque general.
 //
+//  CAMBIO 21-oct-2026 · FECHAS DEL PEDIDO  [HUECOS]  (pizarra-56)
+//  Mauro: «guarda los registros de todas las publicaciones y el sitio luego
+//  advierta qué publicaciones llenan los huecos libres en la ocupación».
+//  Un pedido de alquiler puede nacer con lo que la Pizarra leyó de él:
+//  `desde`/`hasta` (aaaa-mm-dd), `mes` (aaaa-mm) y `personas` (1 a 60). Son
+//  opcionales y con forma fija; con ellos Casa Verde dice cuáles caen en
+//  fechas libres. Nada más cambia.
+//
 //  CAMBIO 20-oct-2026 · QUÉ BUSCO EN FACEBOOK  [BUSQUEDA]  (pizarra-46)
 //  Mauro: «una configuración de los parámetros que yo estoy queriendo buscar
 //  en ese momento… temporada diaria, mensual o anual, para tantas personas,
@@ -901,12 +909,26 @@ service cloud.firestore {
                     && request.resource.data.uid == request.auth.uid
                     && request.resource.data.estado == 'nuevo'
                     && request.resource.data.keys().hasOnly(['grupo', 'texto', 'cuando', 'fecha',
-                         'buscar', 'estado', 'fuente', 'uid', 'creadoEn', 'respuesta'])
+                         'buscar', 'estado', 'fuente', 'uid', 'creadoEn', 'respuesta',
+                         'desde', 'hasta', 'mes', 'personas'])
                     && request.resource.data.texto is string
                     && request.resource.data.texto.size() <= 4000
                     && (!('respuesta' in request.resource.data)
                         || (request.resource.data.respuesta is string
-                            && request.resource.data.respuesta.size() <= 3000));
+                            && request.resource.data.respuesta.size() <= 3000))
+                    && (!('desde' in request.resource.data)
+                        || (request.resource.data.desde is string
+                            && request.resource.data.desde.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
+                    && (!('hasta' in request.resource.data)
+                        || (request.resource.data.hasta is string
+                            && request.resource.data.hasta.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
+                    && (!('mes' in request.resource.data)
+                        || (request.resource.data.mes is string
+                            && request.resource.data.mes.matches('^[0-9]{4}-[0-9]{2}$')))
+                    && (!('personas' in request.resource.data)
+                        || (request.resource.data.personas is int
+                            && request.resource.data.personas >= 1
+                            && request.resource.data.personas <= 60));
       allow read: if activo();
       allow update: if activo()
                     && request.resource.data.diff(resource.data).affectedKeys()

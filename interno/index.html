@@ -629,6 +629,33 @@ if (CV2.puede('contenido')) {
   } catch (e) { console.warn('recuerdos', e); }
 }
 
+// ── 8 · Pedidos de Facebook que caen en fechas libres ────────
+// pizarra-56 (21-oct-2026). Mauro: «cuando se encuentra una publicación que
+// llena un hueco libre se deja una notificación en el sitio». La Pizarra del
+// 13C registra cada pedido con sus fechas; CV2.huecoDelPedido lo cruza con
+// disponibilidad/ y la capacidad de cada espacio. Sólo los por responder.
+try {
+  const [sp, sd, sc] = await Promise.all([
+    getDocs(query(collection(db, 'pedidos_alquiler'), where('estado', '==', 'nuevo'))),
+    getDocs(collection(db, 'disponibilidad')),
+    getDocs(collection(db, 'cabanas')),
+  ]);
+  const ocup = sd.docs.map((d) => d.data());
+  const cabs = sc.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const conHueco = sp.docs.map((d) => ({ id: d.id, ...d.data() }))
+    .map((p) => ({ p, h: CV2.huecoDelPedido(p, ocup, cabs, hoy) }))
+    .filter((x) => x.h)
+    .sort((a, b) => (a.h.tipo === 'fechas' ? 0 : 1) - (b.h.tipo === 'fechas' ? 0 : 1) || (b.p.cuando || 0) - (a.p.cuando || 0));
+  agregar('pedidos-alquiler', 'Pedidos que caen en fechas libres', 'event_available', './pedidos-alquiler.html',
+    recortar(conHueco.map(({ p, h }) => ({
+      icono: h.tipo === 'fechas' ? 'event_available' : 'date_range',
+      titulo: (p.grupo || 'Facebook') + ': ' + (p.texto || '').slice(0, 60),
+      detalle: h.texto, tono: h.tipo === 'fechas' ? 'aviso' : 'neutro',
+      href: './pedidos-alquiler.html', nuevo: (p.cuando || 0) > visitaPrevia,
+      cuando: p.cuando ? haceCuanto({ toMillis: () => p.cuando }) : ''
+    })), 5, './pedidos-alquiler.html'));
+} catch (e) { console.warn('pedidos con hueco', e); }
+
 // ── Render ───────────────────────────────────────────────────
 // El orden lo manda CV2.NAV: la portada se lee igual que el menú.
 // Dentro de una misma sección mandan las atrasadas: el sort de JS es
