@@ -1195,6 +1195,11 @@ await cargarTodo(); aplicarIdioma(); pintarCal(); },
   };
 }
 
+// 22-oct-2026: el SDK se espera ACÁ, antes de la carga. Desde init-2 (14-sep) esta
+// espera había quedado sólo adentro de `recargar()` del editor, así que sin editor
+// `collection` y `doc` valían undefined, la carga fallaba en su catch y el sitio
+// público salía sin cabañas ni fotos. Si no baja, se sigue con los textos del HTML.
+try { await cargarFirebase(); } catch (e) { console.warn('Firebase no bajó:', e && e.message); }
 await cargarTodo();
 aplicarIdioma();
 pintarCal();
