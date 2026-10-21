@@ -39,7 +39,11 @@
      se cruza con disponibilidad/ y cabanas/ (CV2.huecoDelPedido): «🟢 cae en
      fechas libres» y el filtro «Llenan huecos». El botón principal copia unas
      palabras de la publicación para buscarla en el grupo; la respuesta la pone
-     la Pizarra al tocar Comentar («Copiar respuesta» queda al lado). */
+     la Pizarra al tocar Comentar («Copiar respuesta» queda al lado).
+     pedidos-alquiler-7 (21-oct-2026). Mauro: «copia y me manda a Facebook en un
+     clic»: el mismo toque copia las palabras y abre Facebook (la app, en el
+     teléfono). Se abre la búsqueda: en una computadora busca la publicación; en
+     el teléfono la app termina en el inicio, y ahí 🔍 → pegar. */
   .ped-hueco { background: #e7f4e4; border: 1px solid #9cc79a; border-radius: 10px; padding: 7px 10px;
     font-size: .84rem; margin: 6px 0 0; }
   .ped-hueco.mes { background: #fbf4dc; border-color: #e2cf8a; }
@@ -104,8 +108,8 @@
   <div class="cuenta" id="cuenta"></div>
   <p class="nota">Lo más corto es responder mientras recorrés el grupo en el Redmi 13C: al tocar
     «Comentar» en una publicación, la Pizarra la guarda acá y copia su respuesta; el teclado te la
-    ofrece arriba y la pegás con un toque. Desde acá, «Copiar para buscar» copia unas palabras de la
-    publicación: en el grupo tocás 🔍 y pegás, y al tocar «Comentar» la Pizarra te deja la respuesta.
+    ofrece arriba y la pegás con un toque. Desde acá, «Copiar y abrir Facebook» copia unas palabras de la
+    publicación y abre Facebook: tocás 🔍 y pegás, y al tocar «Comentar» la Pizarra te deja la respuesta.
     🟢 = cae en fechas libres de Casa Verde: conviene ofrecer.
     <br><small id="sello" style="font-size:.72rem;"></small></p>
 
@@ -219,7 +223,7 @@ function tarjeta(p) {
     acc = (p.enlace
         ? (p.respuesta ? '<button class="btn btn-primario" data-abrir="' + id + '"><span class="material-icons">content_copy</span>Copiar y abrir</button>'
             : '<a class="btn" href="' + esc(p.enlace) + '" target="_blank" rel="noopener"><span class="material-icons">open_in_new</span>Abrir en Facebook</a>')
-        : '<button class="btn btn-primario" data-buscar="' + id + '"><span class="material-icons">search</span>Copiar para buscar</button>'
+        : '<button class="btn btn-primario" data-buscar="' + id + '"><span class="material-icons">search</span>Copiar y abrir Facebook</button>'
           + (p.respuesta ? '<button class="btn" data-abrir="' + id + '"><span class="material-icons">content_copy</span>Copiar respuesta</button>' : ''))
       + '<button class="btn" data-estado="descartado" data-id="' + id + '">Descartar</button>';
   } else {
@@ -299,8 +303,12 @@ $('lista').addEventListener('click', async (e) => {
   if (bu) {
     const p = pedidos.find((x) => x.id === bu.dataset.buscar);
     if (!p) return;
-    try { await navigator.clipboard.writeText(textoParaBuscar(p));
-      CV2.toast('Copiado para buscar. En el grupo de ' + (p.grupo || 'Facebook') + ': 🔍 → pegar. Al tocar «Comentar», la Pizarra te deja la respuesta.', 'ok'); }
+    // Se copia con la página al frente y la ventana se abre en el mismo toque
+    // (después de un await el navegador puede bloquearla).
+    const copia = navigator.clipboard.writeText(textoParaBuscar(p));
+    window.open(p.buscar && p.buscar.startsWith('https://www.facebook.com/') ? p.buscar : 'https://www.facebook.com/', '_blank', 'noopener');
+    try { await copia;
+      CV2.toast('Copiado. En Facebook: 🔍 → pegar. Al tocar «Comentar», la Pizarra te deja la respuesta.', 'ok'); }
     catch { CV2.toast('No se pudo copiar.', 'error'); }
     preguntando = p.id; pintar();
     return;
@@ -390,7 +398,7 @@ $('busco-guardar').addEventListener('click', async () => {
   }
 });
 
-$('sello').textContent = 'pantalla: pedidos-alquiler-6 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
+$('sello').textContent = 'pantalla: pedidos-alquiler-7 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
 
 // ═══ Carga: en vivo, los más nuevos primero ═══════════════
 onSnapshot(doc(db, 'pedidos_busqueda', 'actual'),

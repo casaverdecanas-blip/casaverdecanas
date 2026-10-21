@@ -511,6 +511,7 @@
 //   por la función avisar-claude del Netlify (CV2.avisarClaude).
 // v116 (11-oct-2026) — nucleo-avisos-17: el ojo 👁 en cada contraseña, para
 //   verla mientras se tipea (ojosEnClaves, el mismo código en los cinco sitios).
+// v130 (21-oct-2026) — pedidos-alquiler-7: «Copiar y abrir Facebook» en un toque.
 // v129 (21-oct-2026) — pedidos-alquiler-6 y nucleo-avisos-19 (pizarra-56): qué pedidos de
 //   Facebook caen en fechas libres (CV2.huecoDelPedido), en la lista y en Inicio, y el
 //   botón «Copiar para buscar». index.html suma su bloque.
@@ -522,7 +523,7 @@
 // v117 (18-oct-2026) — pedidos-alquiler.html [NUEVO, SHELL]: los pedidos de
 //   alquiler en Canasvieiras de los grupos de Facebook, y su renglón en la
 //   barra (nucleo-avisos-18).
-const VERSION = 'cv2-shell-v129';
+const VERSION = 'cv2-shell-v130';
 
 const SHELL = [
   './',

@@ -1015,7 +1015,7 @@ ultimoAutorNombre, ultimaActividad, creadoPor, creadoNombre, creadoEn`
   `cabanas/` —base primero, máximo con adicional, como la Pizarra— y la lista los marca
   «🟢 cae en fechas libres» (filtro «Llenan huecos») y el Inicio los muestra en «Pedidos que
   caen en fechas libres». Los pedidos de antes no tienen esos campos y no se marcan. El
-  botón principal de la lista es «Copiar para buscar» (pedidos-alquiler-6): unas palabras
+  botón principal de la lista es «Copiar y abrir Facebook» (pedidos-alquiler-6/7): en un toque copia unas palabras
   de la publicación para el buscador del grupo; la respuesta la copia la Pizarra al tocar
   «Comentar».
 

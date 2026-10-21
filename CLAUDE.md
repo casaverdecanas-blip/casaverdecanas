@@ -239,8 +239,8 @@ verdad después del cambio.
   «Comentar» ya no manda una notificación: un cartel que se va solo. El sitio los
   cruza con la ocupación (`CV2.huecoDelPedido` de `nucleo.js`, banco `node
   netlify/pruebas/huecos.mjs`): «🟢 cae en fechas libres» en la lista, filtro
-  «Llenan huecos», y un bloque en Inicio. El botón de la lista es «Copiar para
-  buscar»: las palabras para el buscador del grupo; la respuesta la pone la
+  «Llenan huecos», y un bloque en Inicio. El botón de la lista es «Copiar y
+  abrir Facebook» (`pedidos-alquiler-7`): copia las palabras para el buscador y abre Facebook en el mismo toque; la respuesta la pone la
   Pizarra al tocar «Comentar».
 - **El 13C manda TODAS sus notificaciones a `notificaciones/`** (pizarra-42,
   19-oct-2026, Mauro: «que lea todo… y que la ronda lo clasifique y descarte»).
