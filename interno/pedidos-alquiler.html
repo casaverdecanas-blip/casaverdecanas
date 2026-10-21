@@ -208,7 +208,8 @@ function pintarCuenta() {
   const nuevos = pedidos.filter(sinAtender);
   const listos = nuevos.filter((p) => p.respuesta).length;
   const huecos = nuevos.filter((p) => hueco(p)).length;
-  $('cuenta').innerHTML = '<div><b>' + nuevos.length + '</b><small>por responder</small></div>'
+  // pedidos-alquiler-8 (Mauro, 21-oct: «debería decir búsquedas de Facebook que coinciden»).
+  $('cuenta').innerHTML = '<div><b>' + nuevos.length + '</b><small>búsquedas de Facebook que coinciden</small></div>'
     + '<div><b>' + listos + '</b><small>con la respuesta lista</small></div>'
     + '<div><b>' + huecos + '</b><small>llenan huecos</small></div>';
 }
@@ -398,7 +399,7 @@ $('busco-guardar').addEventListener('click', async () => {
   }
 });
 
-$('sello').textContent = 'pantalla: pedidos-alquiler-7 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
+$('sello').textContent = 'pantalla: pedidos-alquiler-8 · motor: ' + (CV2.VERSION ?? 'DESCONOCIDA — nucleo.js viejo');
 
 // ═══ Carga: en vivo, los más nuevos primero ═══════════════
 onSnapshot(doc(db, 'pedidos_busqueda', 'actual'),
