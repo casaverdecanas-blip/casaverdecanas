@@ -38,7 +38,7 @@ import { BASES, ORIGENES, verificarToken, fichaActiva } from "./avisar-claude.mj
 
 export const PROYECTO_AVISOS = "avisos-23b6a";
 // Qué puede cambiar. Lo demás no viaja.
-export const QUE = ["mensajes", "tareas", "agenda", "alertas", "avisos", "reservas", "pedidos", "plata", "todo"];
+export const QUE = ["mensajes", "tareas", "agenda", "alertas", "avisos", "reservas", "pedidos", "plata", "llamadas", "todo"];
 // El panel no tiene Pizarras: sus invitados no despiertan a nadie.
 export const BASES_PIZARRA = Object.keys(BASES).filter((b) => b !== "panel");
 export const temaDe = (base) => `pizarra-${base}`;

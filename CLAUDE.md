@@ -12,8 +12,9 @@ el puente de luces de remate, cuyo código vive en `rematetaller/remate`, y desd
 el 2026-10-03 `avisar-claude`, que despierta al chat de Claude cuando alguien
 del equipo manda una consulta desde cualquier sitio, y desde el 2026-10-24
 `despertar`, que despierta a las Pizarras en el acto cuando alguien guarda algo
-(Firebase Cloud Messaging, `general:C1`). El zip tiene que llevar las ocho
-funciones.
+(Firebase Cloud Messaging, `general:C1`), y `hielo`, que da los servidores de
+conexión para las llamadas entre Pizarras (`general:C2`). El zip tiene que
+llevar las nueve funciones.
 
 ## Documentación técnica
 
@@ -38,6 +39,7 @@ valor.
 | `TUYA_CLIENT_ID` / `TUYA_CLIENT_SECRET` / `TUYA_REGION` / `TUYA_LUCES` / `ORIGENES_PERMITIDOS` | El puente de luces de **remateTaller**, servido desde este Netlify desde el 2026-10-01. El código vive en `rematetaller/remate` y viaja en el zip (ver `netlify.toml`) | secreto de infraestructura (las dos primeras), configuración (el resto) | Netlify → mismo proyecto → Environment variables | `netlify/functions/luces-remate.mjs` de remate | cargadas: las luces andan desde el 2026-10-01 (`lucesRegistro` de remate, verificado el 2026-10-03) |
 | `CLAUDE_RUTINA_URL` / `CLAUDE_RUTINA_TOKEN` (y `CLAUDE_RUTINA_BETA`, opcional) | Despiertan la rutina «Consulta en vivo» del chat de Claude cuando alguien con ficha activa manda una consulta o una falla desde un sitio. La función verifica el token de Firebase de ESA base y la ficha, y manda sólo el sitio y el id del reporte | secreto de infraestructura (el token) | Netlify → mismo proyecto → Environment variables. Los da claude.ai/code → Rutinas → la rutina → API; el token se ve una sola vez y lo pega Mauro | `netlify/functions/avisar-claude.mjs` (banco: `node netlify/pruebas/avisar-claude.mjs`, 15 casos; desde el 6-oct también los INVITADOS del panel, base `datos-830f8`, ficha `personas/`) | 2026-10-03, sin cargar todavía |
 | `FCM_CUENTA` | Despierta a las Pizarras: con ella `despertar` pide el token para mandar por Firebase Cloud Messaging un aviso SIN contenido al tema `pizarra-<base>`. Antes verifica el token de Firebase de esa base y la ficha activa (lo mismo que `avisar-claude`) | secreto de infraestructura: el JSON de la clave de la cuenta de servicio `despertar-pizarras` del proyecto `avisos-23b6a`, que no tiene ninguna base, con un solo rol (Firebase Cloud Messaging API Admin) | Netlify → mismo proyecto → Environment variables. La crea y la pega Mauro; nunca un chat | `netlify/functions/despertar.mjs` (banco: `node netlify/pruebas/despertar.mjs`, 8 casos) | 2026-10-24, sin cargar todavía |
+| `TURN_URLS` / `TURN_USUARIO` / `TURN_CLAVE` | El servidor puente (TURN) para que una llamada entre Pizarras conecte cuando los dos están en 4G. Opcionales: sin ellas `hielo` da sólo STUN (gratis) | secreto de infraestructura (la clave), configuración (el resto). Tiene que ser un TURN de **cupo fijo sin tarjeta** (`PROTOCOLO-DESARROLLO.md` § 13 de `datos`) | Netlify → mismo proyecto → Environment variables. Las da el proveedor; las pega Mauro | `netlify/functions/hielo.mjs` (banco: `node netlify/pruebas/hielo.mjs`, 3 casos) | 2026-10-24, sin cargar todavía |
 | `CALLMEBOT_PHONE` / `CALLMEBOT_APIKEY` | Aviso por WhatsApp | mixto — ver la ficha de titularidad en el panel | ver índice | `netlify/functions/notify-whatsapp.js` | no verificable desde código, 2026-09-07 |
 
 Lo que NO está acá y no tiene que estar: ningún valor de las variables de

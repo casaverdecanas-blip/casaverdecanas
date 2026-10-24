@@ -20,7 +20,7 @@
 # (Nota: el candado NO ahorra minutos de construcción, solo evita publicar.
 #  Lo que ahorra los minutos es no tener el repositorio enganchado.)
 #
-# El zip REEMPLAZA todo el proyecto: tiene que llevar SIEMPRE las OCHO
+# El zip REEMPLAZA todo el proyecto: tiene que llevar SIEMPRE las NUEVE
 # funciones, no solo la que cambió. Una que falte se apaga en silencio.
 #
 # La sexta NO vive en este repositorio: es el puente de luces de remateTaller
@@ -36,7 +36,7 @@
 # Las funciones no usan librerías externas —solo fetch, que viene con
 # Node 24—, así que no hace falta package.json ni node_modules.
 #
-# ── LAS OCHO FUNCIONES ────────────────────────────────────────────
+# ── LAS NUEVE FUNCIONES ────────────────────────────────────────────
 #   claude-proxy        la IA: facturas, boletas de        GEMINI_API_KEY
 #                       Tiempos, inventario de remate
 #                       (v6: `buscar` = búsqueda Google)
@@ -62,6 +62,11 @@
 #                       por Firebase Cloud Messaging al   avisos-23b6a, con
 #                       tema pizarra-<base>.              sólo el rol de
 #                       Banco: netlify/pruebas/despertar  mandar avisos)
+#   hielo               los servidores de conexión para   TURN_URLS, TURN_USUARIO,
+#                       las llamadas entre Pizarras        TURN_CLAVE (opcionales:
+#                       (24-oct, general:C2): STUN gratis  sin ellas, sólo STUN).
+#                       siempre, TURN sólo con sesión.     El TURN, de cupo fijo
+#                       Banco: netlify/pruebas/hielo       sin tarjeta (§ 13)
 #
 # notify-recuerdo se retiró en julio de 2026 (estaba muerta: le faltaban las
 # variables y la página pública nunca la llamó). Este zip ya no la lleva.
