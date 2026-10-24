@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 //  CASAVERDE 2.0 — firebase-init.js
-//  Sello: init-2 (14-sep-2026)
+//  Sello: init-3 (24-oct-2026)
 //  Punto ÚNICO de contacto con el SDK de Firebase.
 //  Regla: ninguna página importa de gstatic directamente;
 //  todo pasa por este módulo. La versión del SDK vive SOLO acá.
@@ -118,6 +118,9 @@ export function cargarFirebase() {
        serverTimestamp, Timestamp, increment, arrayUnion, arrayRemove,
        deleteField, writeBatch, runTransaction,
        terminate, clearIndexedDbPersistence } = modFs);
+    // init-3: guardar algo que muestra la Pizarra la despierta (ver abajo).
+    ({ setDoc, addDoc, updateDoc, deleteDoc, writeBatch } =
+      envolverEscrituras({ setDoc, addDoc, updateDoc, deleteDoc, writeBatch }, () => db, () => auth));
 
     app = _initializeApp(firebaseConfig);
 
@@ -169,3 +172,59 @@ export async function crearCuentaAuth(email, clave) {
 // pico de nombres. Ahora todos están declarados arriba como `export let` y
 // los rellena `cargarFirebase()`: una segunda exportación del mismo nombre
 // sería un error de sintaxis, y además una segunda lista que mantener.
+
+// ── DESPERTAR A LAS PIZARRAS (init-3, 24-oct-2026, general:C1 fase 2) ─────
+// Mauro: «una conexión en tiempo real entre todos los integrantes». Cuando
+// una escritura de ESTA base sale bien y es de algo que la Pizarra muestra,
+// se le pide a la función `despertar` de este mismo Netlify un aviso SIN
+// contenido al tema de Casa Verde; las Pizarras se ponen al día solas, con su
+// sesión. Va acá, en las funciones de escritura, y no en cada página: así
+// ninguna de las treinta y una se olvida. Es el MISMO mecanismo que
+// `envolverEscrituras` de firebase-init.js de Tiempos. Nunca bloquea ni
+// falla: si no llega, la Pizarra lo trae a los 10 minutos. Una sesión
+// anónima (el muro de recuerdos) no despierta a nadie.
+export const DESPERTAR = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions/despertar';
+export const QUE_DE_COLECCION = {
+  reservas: 'reservas', cambios_reserva: 'reservas', pedidos_alquiler: 'pedidos',
+  actividades: 'tareas', estado_usuario: 'agenda', avisos: 'avisos',
+};
+/** Qué cambió, según la ruta de lo escrito; null si la Pizarra no lo muestra. */
+export function queCambio(ruta) {
+  const c = String(ruta || '').split('/')[0];
+  return Object.prototype.hasOwnProperty.call(QUE_DE_COLECCION, c) ? QUE_DE_COLECCION[c] : null;
+}
+const _pendientes = new Map();
+function _despertarLuego(que, getAuth) {
+  // Varias cosas guardadas seguidas despiertan una vez.
+  clearTimeout(_pendientes.get(que));
+  _pendientes.set(que, setTimeout(async () => {
+    _pendientes.delete(que);
+    try {
+      const u = getAuth() && getAuth().currentUser;
+      if (!u || u.isAnonymous) return;
+      const t = await u.getIdToken();
+      await fetch(DESPERTAR, { method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t },
+        body: JSON.stringify({ base: 'casaverde', que }) });
+    } catch (e) { /* silencio a propósito: lo guardado ya quedó */ }
+  }, 2000));
+}
+export function envolverEscrituras(F, getDb, getAuth) {
+  const avisar = (ref) => {
+    try {
+      if (!ref || ref.firestore !== getDb()) return;
+      const que = queCambio(ref.path);
+      if (que) _despertarLuego(que, getAuth);
+    } catch (e) { /* nunca rompe una escritura */ }
+  };
+  const tras = (fn) => (ref, ...resto) => fn(ref, ...resto).then((r) => { avisar(ref); return r; });
+  const G = { setDoc: tras(F.setDoc), addDoc: tras(F.addDoc), updateDoc: tras(F.updateDoc), deleteDoc: tras(F.deleteDoc) };
+  G.writeBatch = (...a) => {
+    const b = F.writeBatch(...a), refs = [];
+    for (const m of ['set', 'update', 'delete']) { const o = b[m].bind(b); b[m] = (ref, ...r) => { refs.push(ref); o(ref, ...r); return b; }; }
+    const commit = b.commit.bind(b);
+    b.commit = () => commit().then((r) => { refs.forEach(avisar); return r; });
+    return b;
+  };
+  return G;
+}

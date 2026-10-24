@@ -288,6 +288,16 @@ verdad después del cambio.
   `disponibilidad/` (`espejarDisponibilidad`; un documento sin `origen` se
   publica, por las dudas). Banco: `node netlify/pruebas/ical-cabana.mjs`.
   **Cambiar una función es subir el zip a Netlify a mano** (ver `netlify.toml`).
+- **Guardar despierta a las Pizarras en el acto** (`init-3` de
+  `interno/firebase-init.js`, 24-oct-2026, `general:C1` fase 2): `setDoc`,
+  `addDoc`, `updateDoc`, `deleteDoc` y `writeBatch` salen ENVUELTOS
+  (`envolverEscrituras`, el mismo de Tiempos). Si la escritura es de esta base,
+  sale bien y es de algo que la Pizarra muestra (`QUE_DE_COLECCION`: reservas,
+  cambios de reserva, pedidos de alquiler, actividades, la agenda de cada uno,
+  avisos), se le pide a `despertar` un aviso SIN contenido al tema de Casa
+  Verde, uno por «qué» cada 2 s. Una sesión anónima no despierta a nadie.
+  Banco: `node netlify/pruebas/despertar-cliente.mjs`. Si la Pizarra empieza a
+  mostrar otra colección, se suma ahí.
 - **Tener sesión no es permiso.** Desde que existe login anónimo para el muro
   de recuerdos hay sesiones sin ficha en `usuarios/`: "logueado" ya no
   significa "es del equipo".

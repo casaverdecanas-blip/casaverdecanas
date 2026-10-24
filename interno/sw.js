@@ -524,7 +524,7 @@
 // v117 (18-oct-2026) — pedidos-alquiler.html [NUEVO, SHELL]: los pedidos de
 //   alquiler en Canasvieiras de los grupos de Facebook, y su renglón en la
 //   barra (nucleo-avisos-18).
-const VERSION = 'cv2-shell-v131';
+const VERSION = 'cv2-shell-v132';
 
 const SHELL = [
   './',
