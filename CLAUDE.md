@@ -113,6 +113,12 @@ verdad después del cambio.
 > qué ramas quedan sin mergear, con el nombre exacto.** Contestada una vez, no
 > se vuelve a preguntar en esa sesión. Está en `PROTOCOLO-GENERAL.md` § 6.0.
 
+- **Ningún desarrollo pasa de los cupos gratuitos** (24-oct-2026, Mauro: «es
+  una condición para el desarrollo hoy día»). Cada cuenta en un plan que no
+  puede cobrar (Firebase Spark, Gemini sin facturación, Netlify y Cloudinary
+  gratis), y cada tanda que agrega uso dice cuánto, para 10 personas, contra
+  el cupo; lo que exige facturación no se hace. `PROTOCOLO-DESARROLLO.md` § 13
+  de `datos`.
 - **Archivos completos, nunca diffs** — se trabaja desde el teléfono, con
   GitHub web.
 - **Toda contraseña tiene su ojo 👁 para verla mientras se tipea**
