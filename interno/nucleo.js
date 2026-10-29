@@ -1292,7 +1292,7 @@ function huecoDelPedido(p, ocupadas, cabanas, hoy) {
 // ═══ FIN HUECOS ═══
 CV2.huecoDelPedido = huecoDelPedido;
 
-CV2.VERSION = 'nucleo-avisos-20';
+CV2.VERSION = 'nucleo-avisos-21';
 
 CV2.NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
 
@@ -1355,60 +1355,16 @@ CV2.miNotif = function () {
 CV2._ultimoWa = {};
 CV2.WA_ESPERA = 60000;
 
-/**
- * Lee la respuesta de CallMeBot DE VERDAD.
- *
- * POR QUÉ EXISTE ESTA FUNCIÓN: CallMeBot contesta HTTP 200 aunque rechace
- * el pedido, y mete el error como HTML rojo dentro del cuerpo. Mirar solo
- * el código de estado da un "salió bien" cuando no salió nada — que fue
- * exactamente lo que pasó la primera vez que probamos esto (jul-2026): la
- * pantalla dijo "aceptado" y la cuenta estaba en pausa.
- *
- * Devuelve { ok, motivo, detalle } con el texto ya limpio de etiquetas.
- */
-CV2._leerRespuestaWa = function (txt) {
-  const crudo = String(txt || '');
-  const plano = crudo.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-  const b = plano.toLowerCase();
-
-  if (b.indexOf('paused') !== -1 || b.indexOf('pausada') !== -1) {
-    // El número del bot lo dice la propia respuesta y CAMBIA con el tiempo:
-    // por eso se extrae de acá y no se escribe fijo en ningún lado.
-    const tel = plano.match(/\+\s?\d[\d\s]{7,}/);
-    return {
-      ok: false, motivo: 'pausada',
-      detalle: 'La cuenta de CallMeBot de ese número está EN PAUSA. Hay que mandarle '
-        + 'la palabra "resume" por WhatsApp al bot'
-        + (tel ? ' (' + tel[0].trim() + ')' : '') + ' desde ese mismo teléfono.'
-    };
-  }
-  if (b.indexOf('apikey') !== -1
-      && (b.indexOf('not valid') !== -1 || b.indexOf('invalid') !== -1
-       || b.indexOf('missing') !== -1 || b.indexOf('wrong') !== -1)) {
-    return {
-      ok: false, motivo: 'clave',
-      detalle: 'CallMeBot no acepta esa clave. Mandale "Recover APIKey" al bot desde '
-        + 'ese teléfono y te devuelve la que corresponde.'
-    };
-  }
-  if (b.indexOf('not found') !== -1 || b.indexOf('no registrado') !== -1
-      || b.indexOf('not registered') !== -1) {
-    return {
-      ok: false, motivo: 'sin_alta',
-      detalle: 'Ese número no está dado de alta en CallMeBot.'
-    };
-  }
-  if (b.indexOf('limit') !== -1 || b.indexOf('too many') !== -1) {
-    return {
-      ok: false, motivo: 'limite',
-      detalle: 'CallMeBot frenó el envío por límite de uso. Probá de nuevo en un rato.'
-    };
-  }
-  // Marca genérica: el servicio pinta sus errores de rojo.
-  if (crudo.toLowerCase().indexOf('color:red') !== -1) {
-    return { ok: false, motivo: 'rechazado', detalle: plano.slice(0, 240) };
-  }
-  return { ok: true, motivo: '', detalle: plano.slice(0, 240) };
+/* Leer la respuesta de CallMeBot (contesta 200 aunque rechace, con el error
+   en rojo adentro). Desde nucleo-avisos-21 (29-oct-2026, `general:C7`) NO vive acá: es
+   `callmebot.js` del panel (`maurogasta-crypto/datos`), la ÚNICA copia del
+   ecosistema, que además tapa los números de teléfono que CallMeBot repite.
+   Se pide recién al usarla, diferida y con catch: si no baja, se dice que no
+   se pudo leer —nunca un «salió bien» inventado—. Banco: `node
+   pruebas/callmebot.mjs` de `datos`. */
+CV2._leerRespuestaWa = async function (txt) {
+  try { return (await import('https://maurogasta-crypto.github.io/datos/callmebot.js')).leerRespuestaWa(txt); }
+  catch (e) { return { ok: false, motivo: 'sin_leer', detalle: 'No pude leer la respuesta de CallMeBot: fijate si te llegó el WhatsApp.' }; }
 };
 
 /**
@@ -1455,14 +1411,14 @@ CV2.enviarWhatsApp = function (texto, contacto) {
     body: JSON.stringify(cuerpo)
   })
     .then((r) => r.json())
-    .then((d) => {
+    .then(async (d) => {
       // La función de Netlify ya falló por su cuenta (falta una variable, el
       // teléfono mal formado): eso viene con ok:false y su propio error.
       if (!d || d.ok !== true) {
         return { ok: false, motivo: 'servidor', detalle: (d && d.error) ?? 'sin detalle' };
       }
       // Llegó a CallMeBot. Ahora sí, leer lo que contestó.
-      const r = CV2._leerRespuestaWa(d.respuesta);
+      const r = await CV2._leerRespuestaWa(d.respuesta);
       return { ok: r.ok, motivo: r.motivo, detalle: r.detalle };
     })
     .catch((e) => ({ ok: false, motivo: 'red', detalle: e.message }));

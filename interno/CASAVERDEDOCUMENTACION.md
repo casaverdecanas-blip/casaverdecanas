@@ -551,7 +551,10 @@ CallMeBot devuelve **HTTP 200 aunque rechace el pedido**, y mete el error como H
 rojo dentro del cuerpo. Mirar solo el código de estado da un "salió bien" cuando no
 salió nada — y esa es la peor falla posible, la que parece un éxito.
 
-Quien lo lee de verdad es `CV2._leerRespuestaWa` en `nucleo.js`: limpia las
+Quien lo lee de verdad es `CV2._leerRespuestaWa` en `nucleo.js` —que desde
+`nucleo-avisos-21` (29-oct-2026, `general:C7`) pide la lectura a `callmebot.js`
+de `maurogasta-crypto/datos`, la única copia del ecosistema, y si no baja dice
+que no pudo leerla—: limpia las
 etiquetas, busca las marcas conocidas (cuenta en pausa, clave inválida, número sin
 alta, límite de uso) y traduce cada una a una frase entendible.
 
