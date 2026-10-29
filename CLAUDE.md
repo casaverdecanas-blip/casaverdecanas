@@ -124,12 +124,15 @@ verdad después del cambio.
 - **Archivos completos, nunca diffs** — se trabaja desde el teléfono, con
   GitHub web.
 - **Toda contraseña tiene su ojo 👁 para verla mientras se tipea**
-  (`nucleo-avisos-17`, 11-oct-2026, Mauro: «en todos los sitios»):
-  `ojosEnClaves()` al final de `interno/nucleo.js`, que corre solo en toda
-  página que lo importa (login incluido). Es el mismo código en Tiempos,
-  CasaYourte, remate y el panel, y en la Pizarra va en Kotlin: si cambia en uno,
-  cambia en todos en la misma tanda. `diagnostico.html` no lo lleva: no importa
-  el núcleo, a propósito.
+  (`nucleo-avisos-17`, 11-oct-2026, Mauro: «en todos los sitios»), en toda
+  página que importa `interno/nucleo.js` (login incluido). `diagnostico.html`
+  no lo lleva: no importa el núcleo, a propósito.
+  **Desde el 29-oct-2026 (`general:C7`) es UNA copia para los cinco sitios**:
+  `ojos.js` del panel (`maurogasta-crypto/datos`), que este sitio pide con
+  `import("https://maurogasta-crypto.github.io/datos/ojos.js").catch(…)` —
+  diferido y con catch, nunca estático: si no baja, la contraseña anda igual,
+  sin ojo—. Cambiarlo es cambiar ese archivo (banco `node pruebas/ojos.mjs` de
+  `datos`), y cambia en todos a la vez. En la Pizarra va en Kotlin.
 - **El núcleo es `interno/nucleo.js` y no se duplica.** El único contacto con
   el SDK de Firebase es `interno/firebase-init.js`.
 - **El SDK de Firebase se baja DIFERIDO, desde el sello `init-2`**
