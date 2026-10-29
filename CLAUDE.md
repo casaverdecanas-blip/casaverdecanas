@@ -133,6 +133,9 @@ verdad después del cambio.
   diferido y con catch, nunca estático: si no baja, la contraseña anda igual,
   sin ojo—. Cambiarlo es cambiar ese archivo (banco `node pruebas/ojos.mjs` de
   `datos`), y cambia en todos a la vez. En la Pizarra va en Kotlin.
+  **Y lo mismo, ese día, con las causas de los errores** (`errores.js` de
+  `datos`, PROTOCOLO-INTERFAZ § 7.2): se pide al cargar, este sitio le suma
+  sólo sus causas propias, y si no bajó se ve el código como antes.
 - **El núcleo es `interno/nucleo.js` y no se duplica.** El único contacto con
   el SDK de Firebase es `interno/firebase-init.js`.
 - **El SDK de Firebase se baja DIFERIDO, desde el sello `init-2`**

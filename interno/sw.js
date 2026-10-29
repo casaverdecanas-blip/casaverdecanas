@@ -511,6 +511,8 @@
 //   por la función avisar-claude del Netlify (CV2.avisarClaude).
 // v116 (11-oct-2026) — nucleo-avisos-17: el ojo 👁 en cada contraseña, para
 //   verla mientras se tipea (ojosEnClaves, el mismo código en los cinco sitios).
+// v135 (29-oct-2026) — nucleo-avisos-22 (general:C7): CV2.explicar, los errores con
+//   palabras de errores.js de datos (los avisos de fotos mostraban el código).
 // v134 (29-oct-2026) — nucleo-avisos-21 (general:C7): leer la respuesta de CallMeBot
 //   deja de ser una copia: CV2._leerRespuestaWa (ahora async) pide callmebot.js de datos.
 // v133 (29-oct-2026) — nucleo-avisos-20 (general:C7): el ojo 👁 deja de ser una copia: lo
@@ -528,7 +530,7 @@
 // v117 (18-oct-2026) — pedidos-alquiler.html [NUEVO, SHELL]: los pedidos de
 //   alquiler en Canasvieiras de los grupos de Facebook, y su renglón en la
 //   barra (nucleo-avisos-18).
-const VERSION = 'cv2-shell-v134';
+const VERSION = 'cv2-shell-v135';
 
 const SHELL = [
   './',

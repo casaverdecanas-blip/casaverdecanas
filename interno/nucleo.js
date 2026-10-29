@@ -230,7 +230,7 @@ CV2.cambiarMiFoto = async function () {
     CV2.toast('Foto actualizada', 'success');
     return true;
   } catch (e) {
-    CV2.toast('No se pudo guardar la foto: ' + (e.code ?? e.message), 'error');
+    CV2.toast('No se pudo guardar la foto: ' + CV2.explicar(e), 'error');
     return false;
   }
 };
@@ -244,7 +244,7 @@ CV2.quitarMiFoto = async function () {
     CV2._refrescarAvatar();
     CV2.toast('Foto quitada', 'success');
   } catch (e) {
-    CV2.toast('No se pudo quitar: ' + (e.code ?? e.message), 'error');
+    CV2.toast('No se pudo quitar: ' + CV2.explicar(e), 'error');
   }
 };
 
@@ -1021,6 +1021,17 @@ CV2.avisarClaude = async function (base, reporteId) {
 };
 
 
+// ── Errores con palabras ─────────────────────────────────────
+/* PROTOCOLO-INTERFAZ § 7.2: un error muestra la causa, no el código. Desde
+   nucleo-avisos-22 (29-oct-2026, `general:C7`) las palabras salen de
+   `errores.js` del panel (`maurogasta-crypto/datos`), la tabla ÚNICA del
+   ecosistema; hasta ese día los avisos de fotos mostraban el código pelado.
+   Se pide al cargar, diferida y con catch: si no bajó, se ve el código o el
+   mensaje como antes, nunca peor. */
+let _errores = null;
+import('https://maurogasta-crypto.github.io/datos/errores.js').then((m) => { _errores = m; }).catch(() => {});
+CV2.explicar = (e) => (_errores ? _errores.explicar(e) : ((e && (e.code || e.message)) || String(e)));
+
 // ── Helpers de texto y formato ───────────────────────────────
 CV2.esc = (s) => String(s ?? '')
   .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -1292,7 +1303,7 @@ function huecoDelPedido(p, ocupadas, cabanas, hoy) {
 // ═══ FIN HUECOS ═══
 CV2.huecoDelPedido = huecoDelPedido;
 
-CV2.VERSION = 'nucleo-avisos-21';
+CV2.VERSION = 'nucleo-avisos-22';
 
 CV2.NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
 
@@ -1895,7 +1906,7 @@ CV2.elegirYSubirImagen = async function (opciones) {
     const url = await CV2.subirImagen(file, o.carpeta);
     return url;
   } catch (e) {
-    CV2.toast('No se pudo subir la foto: ' + (e.code ?? e.message), 'error');
+    CV2.toast('No se pudo subir la foto: ' + CV2.explicar(e), 'error');
     return null;
   }
 };
