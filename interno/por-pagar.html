@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Por pagar</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<style>
+  .kpis { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
+  .kpi { background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+         padding: 10px 16px; box-shadow: var(--sombra); min-width: 130px; }
+  .kpi b { display: block; font-size: 1.1rem; }
+  .kpi span { font-size: .78rem; color: var(--gris); }
+  .kpi.rojo b { color: var(--rojo); }
+  .filtros { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 10px; }
+  .filtros button { border: 1px solid var(--linea); background: #fff; border-radius: 999px;
+    padding: 5px 12px; font: inherit; font-size: .82rem; cursor: pointer; }
+  .filtros button.activo { background: var(--verde); border-color: var(--verde); color: #fff; }
+  .grupo-t { margin: 16px 0 4px; font-size: .9rem; color: var(--verde-osc); font-weight: 600; }
+  .pago {
+    display: flex; align-items: center; gap: 10px; background: #fff;
+    border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 10px 12px; margin: 6px 0; box-shadow: var(--sombra); font-size: .9rem;
+  }
+  .pago.vencido { border-left: 4px solid var(--rojo); }
+  .pago.pronto { border-left: 4px solid #d9a21b; }
+  .pago > .material-icons { color: var(--gris); font-size: 20px; }
+  .pago .info { flex: 1; min-width: 0; }
+  .pago .info small { display: block; color: var(--gris); font-size: .76rem; }
+  .pago .monto { font-weight: 700; white-space: nowrap; text-align: right; }
+  .pago .monto small { display: block; font-weight: 400; color: var(--gris); font-size: .72rem; }
+  .btn-mini { border: 1px solid var(--linea); background: #fff; border-radius: 7px;
+    padding: 5px 9px; font: inherit; font-size: .8rem; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .btn-mini.pagar { border-color: var(--ok); color: var(--ok); }
+  .btn-mini .material-icons { font-size: 15px; }
+  .vacio { text-align: center; color: var(--gris); padding: 30px 10px; }
+  dialog { border: 0; border-radius: 14px; padding: 16px; width: min(440px, 92vw);
+    box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(20,30,18,.45); }
+  .fila2 { display: flex; gap: 10px; }
+  .fila2 > div { flex: 1; min-width: 0; }
+  .check-linea { display: flex; align-items: flex-start; gap: 9px; margin: 14px 0 0; }
+  .check-linea input { width: auto; flex: none; margin-top: 3px; }
+  .check-linea small { display: block; color: var(--gris); font-size: .76rem; }
+  .botones { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <h1>Por pagar</h1>
+  <p class="texto-gris" style="margin-top:-6px;">Todo lo que el negocio tiene que pagar, en una
+  lista: lo que se carga acá (IPTU, tasas, devoluciones, servicios) y lo que ya está en
+  <a class="cv-ir" href="./honorarios.html">Cobros</a>, <a class="cv-ir" href="./dinero.html">Dinero</a>
+  e <a class="cv-ir" href="./fiscal.html">Impuestos</a>, que se paga allá.</p>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <button class="btn btn-primario" id="nuevo"><span class="material-icons">add</span> Agregar un pago</button>
+  </div>
+  <div class="filtros" id="filtros"></div>
+
+  <div id="lista"><div class="vacio">Cargando…</div></div>
+
+  <details style="margin-top:22px;" id="cajaPagados">
+    <summary class="texto-gris">Pagados (los últimos cargados acá)</summary>
+    <div id="pagados"></div>
+  </details>
+</div>
+
+<dialog id="mEdit">
+  <h2 style="margin:0 0 4px;" id="meTitulo">Agregar un pago</h2>
+  <label>Qué es</label>
+  <input id="meConcepto" maxlength="120" placeholder="IPTU 2027, devolver la seña a…, taxa de lixo">
+  <div class="fila2">
+    <div><label>Tipo</label><select id="meTipo"></select></div>
+    <div><label>A quién</label><input id="meA" maxlength="80" placeholder="Prefeitura, Florencia…"></div>
+  </div>
+  <div class="fila2">
+    <div><label>Monto</label><input id="meMonto" type="number" min="0" step="0.01" inputmode="decimal"></div>
+    <div><label>Moneda</label>
+      <select id="meMoneda"><option>BRL</option><option>UYU</option><option>USD</option></select></div>
+  </div>
+  <div class="fila2">
+    <div><label>Vence</label><input id="meVence" type="date"></div>
+    <div><label>Se repite</label><select id="meRepite"></select></div>
+  </div>
+  <label>Nota</label>
+  <textarea id="meNota" rows="2" maxlength="500" placeholder="Cuota, número de guía, cómo se paga…"></textarea>
+  <div class="botones">
+    <button class="btn btn-peligro" id="meBorrar" hidden><span class="material-icons">delete</span> Borrar</button>
+    <span style="flex:1"></span>
+    <button class="btn" id="meCancelar">Cancelar</button>
+    <button class="btn btn-primario" id="meGuardar"><span class="material-icons">save</span> Guardar</button>
+  </div>
+</dialog>
+
+<dialog id="mPagar">
+  <h2 style="margin:0 0 4px;">Marcar pagado</h2>
+  <p class="texto-gris" id="mpQue" style="margin:0 0 6px;"></p>
+  <div class="fila2">
+    <div><label>Monto pagado</label><input id="mpMonto" type="number" min="0" step="0.01" inputmode="decimal"></div>
+    <div><label>Fecha del pago</label><input id="mpFecha" type="date"></div>
+  </div>
+  <label>¿De qué cuenta sale?</label>
+  <select id="mpCuenta"></select>
+  <label class="check-linea">
+    <input id="mpDinero" type="checkbox" checked>
+    <span>Registrar la salida en Dinero
+      <small id="mpDineroDet">Crea el movimiento de salida en el libro del negocio.</small></span>
+  </label>
+  <p class="texto-gris" id="mpRepite" style="margin:10px 0 0;font-size:.82rem;"></p>
+  <div class="botones">
+    <button class="btn" id="mpCancelar">Cancelar</button>
+    <button class="btn btn-primario" id="mpConfirmar"><span class="material-icons">paid</span> Pagado</button>
+  </div>
+</dialog>
+
+<script type="module">
+// Regla del 2.0: definiciones primero, suscripción AL FINAL.
+//
+// Lo propio de esta pantalla vive en /por_pagar/. Lo demás (honorarios,
+// reponer en Dinero, DARF) se LEE y se paga en su pantalla: la lista lo junta
+// con CV2.pagosPorHacer, que prueba netlify/pruebas/por-pagar.mjs.
+//
+// Pagar uno de acá hace lo mismo que Cobros con un honorario: puede crear su
+// salida en Dinero (movimientoId ↔ refId, así dos toques no pagan dos veces),
+// y si se repite, deja anotado el próximo vencimiento.
+import {
+  db, collection, onSnapshot, getDocs, doc, addDoc, updateDoc, deleteDoc, serverTimestamp
+} from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+CV2.renderNav('por-pagar');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+if (!CV2.puede('finanzas')) {
+  $('lista').innerHTML = '<div class="vacio">Esta pantalla es de quien lleva las finanzas.</div>';
+  $('nuevo').hidden = true; $('cajaPagados').hidden = true;
+  throw new Error('sin permiso');
+}
+
+const TIPO = Object.fromEntries(CV2.TIPOS_PAGO.map((t) => [t.id, t]));
+const REPITE_TXT = { no: 'No', mensual: 'Cada mes', trimestral: 'Cada 3 meses', anual: 'Cada año' };
+$('meTipo').innerHTML = CV2.TIPOS_PAGO.map((t) => `<option value="${t.id}">${esc(t.label)}</option>`).join('');
+$('meRepite').innerHTML = Object.keys(CV2.REPITE_PAGO)
+  .map((k) => `<option value="${k}">${REPITE_TXT[k] ?? k}</option>`).join('');
+
+const fuentes = { propios: [], honorarios: [], movimientos: [], liquidaciones: [] };
+let propiosTodos = [];
+let filtro = 'todo';
+
+const FILTROS = [
+  ['todo', 'Todo'], ['vencido', 'Vencido'], ['semana', 'Esta semana'],
+  ['impuesto', 'Impuestos'], ['devolucion', 'Devoluciones'], ['honorario', 'Honorarios']
+];
+const pasa = (r) => filtro === 'todo' ? true
+  : filtro === 'vencido' ? r.estado === 'vencido'
+  : filtro === 'semana' ? (r.estado === 'vencido' || r.estado === 'pronto')
+  : r.tipo === filtro;
+
+const fmtTotales = (t) => {
+  const ks = Object.keys(t);
+  return ks.length ? ks.map((m) => CV2.fmtMonto(t[m], m)).join(' + ') : CV2.fmtMonto(0);
+};
+
+function render() {
+  const hoy = CV2.hoyISO();
+  const lista = CV2.pagosPorHacer(fuentes, hoy);
+  const venc = lista.filter((r) => r.estado === 'vencido');
+  $('kpis').innerHTML = `
+    <div class="kpi${venc.length ? ' rojo' : ''}"><b>${fmtTotales(CV2.totalesPorMoneda(lista, (r) => r.estado === 'vencido'))}</b>
+      <span>Vencido (${venc.length})</span></div>
+    <div class="kpi"><b>${fmtTotales(CV2.totalesPorMoneda(lista, (r) => r.estado === 'pronto'))}</b>
+      <span>Vence en 7 días</span></div>
+    <div class="kpi"><b>${fmtTotales(CV2.totalesPorMoneda(lista))}</b><span>Todo lo pendiente</span></div>`;
+
+  $('filtros').innerHTML = FILTROS.map(([k, t]) => {
+    const n = lista.filter((r) => { const f = filtro; filtro = k; const s = pasa(r); filtro = f; return s; }).length;
+    return `<button data-f="${k}" class="${filtro === k ? 'activo' : ''}">${t} · ${n}</button>`;
+  }).join('');
+
+  const vis = lista.filter(pasa);
+  if (!vis.length) {
+    $('lista').innerHTML = `<div class="vacio">${lista.length ? 'Nada en este filtro.'
+      : 'No hay nada por pagar.<br>Cargá el IPTU, una tasa o una devolución con «Agregar un pago».'}</div>`;
+  } else {
+    const titulos = { vencido: 'Vencido', pronto: 'Esta semana', 'en fecha': 'Más adelante', 'sin fecha': 'Sin fecha' };
+    let html = '', grupo = '';
+    for (const r of vis) {
+      if (r.estado !== grupo) { grupo = r.estado; html += `<div class="grupo-t">${titulos[grupo]}</div>`; }
+      html += fila(r);
+    }
+    $('lista').innerHTML = html;
+  }
+
+  const pag = propiosTodos.filter((p) => p.estado === 'pagado')
+    .sort((a, b) => (b.pagadoFecha || '').localeCompare(a.pagadoFecha || '')).slice(0, 30);
+  $('pagados').innerHTML = pag.length ? pag.map((p) => `<div class="pago">
+      <span class="material-icons">${TIPO[p.tipo]?.icono ?? 'paid'}</span>
+      <div class="info">${esc(p.concepto)}<small>${p.a ? esc(p.a) + ' · ' : ''}pagado el ${CV2.fmtFecha(p.pagadoFecha)}${p.movimientoId ? ' · en Dinero' : ''}</small></div>
+      <span class="monto">${CV2.fmtMonto(p.pagadoMonto ?? p.monto, p.moneda || 'BRL')}</span>
+    </div>`).join('') : '<div class="vacio">Todavía nada.</div>';
+}
+
+function fila(r) {
+  const t = TIPO[r.tipo] ?? TIPO.otro;
+  const cuando = r.vence ? 'vence el ' + CV2.fmtFecha(r.vence)
+    : r.desde ? 'desde el ' + CV2.fmtFecha(r.desde) : '';
+  const de = { honorarios: 'en Cobros', dinero: 'en Dinero', fiscal: 'en Impuestos' }[r.origen];
+  const detalle = [r.a, cuando, r.repite && r.repite !== 'no' ? REPITE_TXT[r.repite].toLowerCase() : '', de]
+    .filter(Boolean).map(esc).join(' · ');
+  const acciones = r.origen === 'propio'
+    ? `<button class="btn-mini" onclick="editar('${r.id}')" title="Editar"><span class="material-icons">edit</span></button>
+       <button class="btn-mini pagar" onclick="pagar('${r.id}')"><span class="material-icons">paid</span> Pagado</button>`
+    : `<a class="btn-mini" href="${r.href}">Ir <span class="material-icons">arrow_forward</span></a>`;
+  return `<div class="pago ${r.estado === 'vencido' ? 'vencido' : r.estado === 'pronto' ? 'pronto' : ''}">
+    <span class="material-icons">${t.icono}</span>
+    <div class="info">${esc(r.concepto)}<small>${detalle}</small>
+      ${r.nota ? `<small style="font-style:italic;">📝 ${esc(r.nota)}</small>` : ''}</div>
+    <span class="monto">${r.monto == null ? '<small>ver en Impuestos</small>' : CV2.fmtMonto(r.monto, r.moneda)}</span>
+    ${acciones}
+  </div>`;
+}
+
+$('filtros').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-f]');
+  if (!b) return;
+  filtro = b.dataset.f; render();
+});
+
+// ═══ Agregar / editar ═════════════════════════════════════
+let editId = null;
+function abrirEdicion(p) {
+  editId = p?.id ?? null;
+  $('meTitulo').textContent = p ? 'Editar el pago' : 'Agregar un pago';
+  $('meConcepto').value = p?.concepto ?? '';
+  $('meTipo').value = p?.tipo ?? 'impuesto';
+  $('meA').value = p?.a ?? '';
+  $('meMonto').value = p?.monto ?? '';
+  $('meMoneda').value = p?.moneda ?? 'BRL';
+  $('meVence').value = p?.vence ?? '';
+  $('meRepite').value = p?.repite ?? 'no';
+  $('meNota').value = p?.nota ?? '';
+  $('meBorrar').hidden = !p;
+  $('mEdit').showModal();
+}
+$('nuevo').addEventListener('click', () => abrirEdicion(null));
+window.editar = (id) => abrirEdicion(propiosTodos.find((x) => x.id === id));
+$('meCancelar').addEventListener('click', () => $('mEdit').close());
+
+$('meGuardar').addEventListener('click', async () => {
+  const concepto = $('meConcepto').value.trim();
+  if (!concepto) { CV2.toast('Falta qué es', 'error'); return; }
+  const datos = {
+    concepto, tipo: $('meTipo').value, a: $('meA').value.trim() || null,
+    monto: Math.max(0, parseFloat($('meMonto').value) || 0), moneda: $('meMoneda').value,
+    vence: $('meVence').value || null, repite: $('meRepite').value,
+    nota: $('meNota').value.trim() || null, actualizadoEn: serverTimestamp()
+  };
+  if (datos.repite !== 'no' && !datos.vence) { CV2.toast('Para que se repita hace falta la fecha de vencimiento', 'error'); return; }
+  $('meGuardar').disabled = true;
+  try {
+    if (editId) await updateDoc(doc(db, 'por_pagar', editId), datos);
+    else await addDoc(collection(db, 'por_pagar'), {
+      ...datos, estado: 'pendiente', creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? ''
+    });
+    $('mEdit').close();
+    CV2.toast('Guardado', 'success');
+  } catch (e) { CV2.toast(CV2.explicar ? CV2.explicar(e) : 'No se pudo: ' + (e.code ?? e.message), 'error'); }
+  finally { $('meGuardar').disabled = false; }
+});
+
+$('meBorrar').addEventListener('click', async () => {
+  const p = propiosTodos.find((x) => x.id === editId);
+  if (!p || !confirm(`¿Borrar «${p.concepto}»? No se paga: desaparece de la lista.`)) return;
+  try { await deleteDoc(doc(db, 'por_pagar', editId)); $('mEdit').close(); CV2.toast('Borrado', 'success'); }
+  catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
+});
+
+// ═══ Pagar ════════════════════════════════════════════════
+async function cargarCuentas(sel) {
+  const set = new Set();
+  for (const m of fuentes.movimientos) if (m.cuenta) set.add(m.cuenta);
+  sel.innerHTML = '<option value="">(sin definir)</option>'
+    + [...set].sort().map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('')
+    + '<option value="__nueva">➕ Agregar nueva…</option>';
+}
+$('mpCuenta').addEventListener('change', () => {
+  if ($('mpCuenta').value !== '__nueva') return;
+  const nombre = (prompt('Nombre de la cuenta de donde sale el pago:') ?? '').trim();
+  if (!nombre) { $('mpCuenta').value = ''; return; }
+  const opt = document.createElement('option');
+  opt.value = nombre; opt.textContent = nombre; opt.selected = true;
+  $('mpCuenta').insertBefore(opt, $('mpCuenta').lastElementChild);
+});
+
+let pagarId = null;
+window.pagar = async (id) => {
+  const p = propiosTodos.find((x) => x.id === id);
+  if (!p) return;
+  pagarId = id;
+  const t = TIPO[p.tipo] ?? TIPO.otro;
+  $('mpQue').textContent = p.concepto + (p.a ? ' · ' + p.a : '');
+  $('mpMonto').value = Number(p.monto ?? 0).toFixed(2);
+  $('mpFecha').value = CV2.hoyISO();
+  $('mpDinero').checked = !p.movimientoId;
+  $('mpDinero').disabled = !!p.movimientoId;
+  $('mpDineroDet').textContent = `Crea la salida en el libro del negocio, categoría ${t.categoria}, en ${p.moneda || 'BRL'}, desde la cuenta elegida.`;
+  const sig = CV2.siguienteVencimiento(p.vence, p.repite);
+  $('mpRepite').textContent = sig ? `Se repite: queda anotado el próximo, que vence el ${CV2.fmtFecha(sig)}.` : '';
+  await cargarCuentas($('mpCuenta'));
+  $('mPagar').showModal();
+};
+$('mpCancelar').addEventListener('click', () => $('mPagar').close());
+
+$('mpConfirmar').addEventListener('click', async () => {
+  const p = propiosTodos.find((x) => x.id === pagarId);
+  if (!p) return;
+  const monto = Math.max(0, parseFloat($('mpMonto').value) || 0);
+  const fecha = $('mpFecha').value || CV2.hoyISO();
+  const moneda = p.moneda || 'BRL';
+  $('mpConfirmar').disabled = true;
+  try {
+    let movimientoId = p.movimientoId ?? null;
+    if ($('mpDinero').checked && !movimientoId) {
+      const ref = await addDoc(collection(db, 'movimientos'), {
+        fecha, tipo: 'salio', monto, moneda,
+        montoBRL: moneda === 'BRL' ? monto : 0,      // como dinero.html: sin conversión
+        categoria: (TIPO[p.tipo] ?? TIPO.otro).categoria,
+        cuenta: $('mpCuenta').value || null,
+        uid: null, nombre: p.a ?? '',
+        detalle: p.concepto, comprobanteUrl: null, pendiente: null,
+        refTipo: 'por_pagar', refId: p.id,
+        creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? '',
+        actualizadoEn: serverTimestamp()
+      });
+      movimientoId = ref.id;
+    }
+    await updateDoc(doc(db, 'por_pagar', p.id), {
+      estado: 'pagado', pagadoFecha: fecha, pagadoMonto: monto, pagadoPor: u.nombre ?? '',
+      movimientoId, actualizadoEn: serverTimestamp()
+    });
+    const sig = CV2.siguienteVencimiento(p.vence, p.repite);
+    if (sig) {
+      await addDoc(collection(db, 'por_pagar'), {
+        concepto: p.concepto, tipo: p.tipo, a: p.a ?? null, monto: Number(p.monto) || 0, moneda,
+        vence: sig, repite: p.repite, nota: p.nota ?? null, estado: 'pendiente', anteriorId: p.id,
+        creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? '', actualizadoEn: serverTimestamp()
+      });
+    }
+    $('mPagar').close();
+    CV2.toast((movimientoId ? '✓ Pagado y en Dinero' : '✓ Pagado') + (sig ? ' · el próximo vence el ' + CV2.fmtFecha(sig) : ''), 'success');
+  } catch (e) {
+    CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error');
+  } finally { $('mpConfirmar').disabled = false; }
+});
+
+// ═══ Suscripción — AL FINAL ═══════════════════════════════
+// Cuatro escuchas: lo propio y las tres pantallas que ya tienen deudas.
+// Si una no contesta, la lista sale igual con las otras y se dice cuál falta.
+const escuchar = (col, clave, alCambiar) => onSnapshot(collection(db, col), (snap) => {
+  const a = []; snap.forEach((d) => a.push({ id: d.id, ...d.data() }));
+  fuentes[clave] = a; alCambiar?.(a); render();
+}, (e) => { console.error(col, e); CV2.toast('No se pudo leer ' + col + ': la lista puede estar incompleta', 'error'); });
+
+escuchar('por_pagar', 'propios', (a) => { propiosTodos = a; });
+escuchar('honorarios', 'honorarios');
+escuchar('movimientos', 'movimientos');
+escuchar('liquidaciones', 'liquidaciones');
+</script>
+</body>
+</html>

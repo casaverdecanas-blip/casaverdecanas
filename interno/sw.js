@@ -511,6 +511,9 @@
 //   por la función avisar-claude del Netlify (CV2.avisarClaude).
 // v116 (11-oct-2026) — nucleo-avisos-17: el ojo 👁 en cada contraseña, para
 //   verla mientras se tipea (ojosEnClaves, el mismo código en los cinco sitios).
+// v147 (23-nov-2026) — por-pagar-1 y nucleo-avisos-27: «Por pagar» [NUEVO, SHELL], la lista de
+//   lo que el negocio tiene que pagar (IPTU, impuestos, devoluciones, honorarios), con
+//   finanzas. index.html suma su bloque. ⚠ Hay que publicar firestore.rules (por_pagar/).
 // v139 (7-nov-2026) — reservas-ical-16: la lista de Reservas va por fecha de llegada, de la
 //   más cercana a la más lejana; lo que ya terminó, después.
 // v138 (3-nov-2026) — nucleo-avisos-23: CV2.pasajerosSimultaneos, los huéspedes de un
@@ -548,7 +551,7 @@
 //   guía y sus fotos, y la categoría del inventario se conserva. actividades.html: el control de entrada
 //   muestra lo que va a leer el huésped. llegada.html (llegada-4): la bienvenida de WhatsApp nombra Casa
 //   Verde Canas. recuerdos.html del panel: el QR apunta a la-casa.html.
-const VERSION = 'cv2-shell-v146';
+const VERSION = 'cv2-shell-v147';
 
 const SHELL = [
   './',
@@ -576,6 +579,7 @@ const SHELL = [
   './dinero.html',
   './balance.html',
   './fiscal.html',
+  './por-pagar.html',
   './reservas-core.js',
   './horas-stats.html',
   './recuerdos.html',

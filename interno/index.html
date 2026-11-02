@@ -571,6 +571,29 @@ if (CV2.puede('finanzas')) {
 
     agregar('fiscal', 'Impuestos', 'account_balance', './fiscal.html', recortar(items, 6, './fiscal.html'));
   } catch (e) { console.warn('fiscal', e); }
+
+  // ── 6c · Por pagar (IPTU, tasas, devoluciones…) ─────────────
+  // Sólo lo cargado a mano en por-pagar.html: honorarios, reponer y DARF ya
+  // tienen su aviso arriba, y repetirlos sería decir dos veces la misma deuda.
+  // Lo vencido y lo que vence en 7 días; lo de más adelante, en la pantalla.
+  try {
+    const snap = await getDocs(collection(db, 'por_pagar'));
+    const ps = [];
+    snap.forEach((d) => {
+      const p = d.data();
+      if (p.estado === 'pagado') return;
+      const est = CV2.estadoDelPago(p.vence, hoy);
+      if (est === 'vencido' || est === 'pronto') ps.push({ ...p, est });
+    });
+    ps.sort((a, b) => (a.vence || '').localeCompare(b.vence || ''));
+    const items = ps.map((p) => ({
+      icono: p.est === 'vencido' ? 'event_busy' : 'event',
+      titulo: (p.est === 'vencido' ? 'Vencido · ' : 'Vence ' + CV2.fmtFecha(p.vence) + ' · ') + (p.concepto || 'pago'),
+      detalle: CV2.fmtMonto(p.monto, p.moneda || 'BRL') + (p.a ? ' · ' + p.a : ''),
+      tono: p.est === 'vencido' ? 'urgente' : 'aviso', href: './por-pagar.html'
+    }));
+    agregar('por-pagar', 'Por pagar', 'event_busy', './por-pagar.html', recortar(items, 5, './por-pagar.html'));
+  } catch (e) { console.warn('por_pagar', e); }
 }
 
 // ── 7 · Recuerdos esperando moderación ───────────────────────

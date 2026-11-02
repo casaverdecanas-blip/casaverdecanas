@@ -428,6 +428,9 @@ CV2.NAV = [
 
   { id: 'dinero', label: 'Dinero', href: './dinero.html', icono: 'savings', permiso: ['dinero', 'finanzas'], grupo: 'plata' },
   { id: 'honorarios', label: 'Cobros', href: './honorarios.html', icono: 'payments', permiso: null, grupo: 'plata' },
+  // 2-nov-2026: todo lo que el negocio tiene que pagar, en una lista (IPTU,
+  // impuestos, devoluciones, honorarios). Con 'finanzas': es plata del negocio.
+  { id: 'por-pagar', label: 'Por pagar', href: './por-pagar.html', icono: 'event_busy', permiso: 'finanzas', grupo: 'plata' },
   { id: 'sesiones', label: 'Sesiones', href: './gestion-sesiones.html', icono: 'schedule', permiso: null, grupo: 'plata' },
   { id: 'horas', label: 'Horas', href: './horas-stats.html', icono: 'insights', permiso: 'horas', grupo: 'plata' },
   // Impuestos va con 'finanzas' y no con 'dinero': 'dinero' carga gastos y ve
@@ -1333,7 +1336,125 @@ function huecoDelPedido(p, ocupadas, cabanas, hoy) {
 CV2.huecoDelPedido = huecoDelPedido;
 CV2.pasajerosSimultaneos = pasajerosSimultaneos;
 
-CV2.VERSION = 'nucleo-avisos-26';
+// ═══ POR PAGAR ═══
+// 2-nov-2026, Mauro: «una lista de los pagos pendientes a hacer como ser el
+// IPTU, pagos de impuestos, devoluciones a gente que haya hecho algún avance
+// de dinero, honorarios, etc.», siempre a mano para quien tiene finanzas.
+//
+// UNA lista, DOS clases de renglón, y no se mezclan al guardar:
+//  · lo que se carga a mano (IPTU, tasas, una devolución que no pasó por
+//    Dinero, un servicio): vive en /por_pagar/ y se paga desde por-pagar.html;
+//  · lo que YA existe en otra pantalla —honorarios pendientes, lo que hay que
+//    reponerle a alguien en Dinero, los DARF sin pagar— se LEE de su lugar y
+//    se paga allá. Copiarlo acá sería tener la misma deuda en dos lugares.
+// Las funciones son puras (sin Firebase) para que las pruebe
+// netlify/pruebas/por-pagar.mjs; se sacan de entre esta marca y FIN POR PAGAR.
+const TIPOS_PAGO = [
+  { id: 'impuesto', label: 'Impuesto o tasa', icono: 'account_balance', categoria: 'Impuestos' },
+  { id: 'devolucion', label: 'Devolución', icono: 'currency_exchange', categoria: 'Otros' },
+  { id: 'honorario', label: 'Honorario', icono: 'payments', categoria: 'Honorarios' },
+  { id: 'servicio', label: 'Servicio o cuenta', icono: 'receipt', categoria: 'Servicios' },
+  { id: 'otro', label: 'Otro', icono: 'more_horiz', categoria: 'Otros' }
+];
+const REPITE_PAGO = { no: 0, mensual: 1, trimestral: 3, anual: 12 };
+
+/** El vencimiento siguiente. El día 31 en un mes de 30 cae en el 30. */
+function siguienteVencimiento(iso, repite) {
+  const meses = REPITE_PAGO[repite] || 0;
+  if (!meses || !/^\d{4}-\d{2}-\d{2}$/.test(iso || '')) return null;
+  const [a, m, d] = iso.split('-').map(Number);
+  const total = a * 12 + (m - 1) + meses;
+  const na = Math.floor(total / 12), nm = total % 12 + 1;
+  const ultimo = new Date(Date.UTC(na, nm, 0)).getUTCDate();
+  const dos = (n) => String(n).padStart(2, '0');
+  return na + '-' + dos(nm) + '-' + dos(Math.min(d, ultimo));
+}
+
+/** vencido · pronto (hasta 7 días) · en fecha · sin fecha. */
+function estadoDelPago(vence, hoy) {
+  if (!vence) return 'sin fecha';
+  if (vence < hoy) return 'vencido';
+  const lim = new Date(hoy + 'T12:00:00Z');
+  lim.setUTCDate(lim.getUTCDate() + 7);
+  return vence <= lim.toISOString().slice(0, 10) ? 'pronto' : 'en fecha';
+}
+
+/**
+ * Junta todo lo que hay que pagar. Cada renglón:
+ * {origen, id, tipo, concepto, a, monto, moneda, vence, estado, href}.
+ * Primero lo vencido, después por fecha; lo sin fecha al final.
+ */
+function pagosPorHacer({ propios = [], honorarios = [], movimientos = [], liquidaciones = [] }, hoy) {
+  const out = [];
+  for (const p of propios) {
+    if (p.estado === 'pagado') continue;
+    out.push({ origen: 'propio', id: p.id, tipo: p.tipo || 'otro', concepto: p.concepto || '(sin concepto)',
+      a: p.a || '', monto: Number(p.monto) || 0, moneda: p.moneda || 'BRL', vence: p.vence || null,
+      repite: p.repite || 'no', nota: p.nota || '', href: null });
+  }
+  // Honorarios: uno por persona, la deuda junta (se pagan de a uno en Cobros).
+  const hon = {};
+  for (const h of honorarios) {
+    if (h.estado === 'pagado') continue;
+    const k = h.uid || h.nombre || '?';
+    (hon[k] ??= { a: h.nombre || '', monto: 0, n: 0 });
+    hon[k].monto += Number(h.monto) || 0; hon[k].n++;
+  }
+  for (const [k, g] of Object.entries(hon)) {
+    out.push({ origen: 'honorarios', id: 'hon-' + k, tipo: 'honorario',
+      concepto: 'Honorarios' + (g.n > 1 ? ' (' + g.n + ')' : ''), a: g.a, monto: g.monto,
+      moneda: 'BRL', vence: null, href: './honorarios.html' });
+  }
+  // Dinero: lo que alguien adelantó y hay que reponerle, por persona y moneda.
+  // La misma cuenta que pendientesVivos() de dinero.html y el Inicio.
+  const rep = {};
+  for (const m of movimientos) {
+    if (m.cierreId || !m.pendiente || m.pendiente.saldado || m.pendiente.cierreId) continue;
+    if ((m.pendiente.clase ?? 'reponer') !== 'reponer') continue;
+    const mon = m.moneda || 'BRL';
+    const k = (m.pendiente.uid ?? m.uid ?? m.nombre ?? '?') + '|' + mon;
+    (rep[k] ??= { a: m.nombre || '', moneda: mon, monto: 0, desde: m.fecha || null });
+    rep[k].monto += Number(m.monto) || 0;
+    if (m.fecha && (!rep[k].desde || m.fecha < rep[k].desde)) rep[k].desde = m.fecha;
+  }
+  for (const [k, g] of Object.entries(rep)) {
+    out.push({ origen: 'dinero', id: 'rep-' + k, tipo: 'devolucion', concepto: 'Reponer lo que adelantó',
+      a: g.a, monto: g.monto, moneda: g.moneda, vence: null, desde: g.desde, href: './dinero.html' });
+  }
+  // DARF: vence el día del cobro de Airbnb.
+  for (const l of liquidaciones) {
+    if (l.darf?.pagado) continue;
+    // El monto lo calcula Impuestos con el régimen de config/fiscal: acá no
+    // se repite esa cuenta, se muestra «ver en Impuestos» y no suma.
+    out.push({ origen: 'fiscal', id: 'darf-' + (l.id || l.fecha), tipo: 'impuesto',
+      concepto: 'DARF del cobro de Airbnb del ' + (l.fecha || '?'), a: 'Receita Federal',
+      monto: null, moneda: l.moneda || 'BRL', vence: l.fecha || null, href: './fiscal.html' });
+  }
+  for (const r of out) r.estado = estadoDelPago(r.vence, hoy);
+  const orden = { vencido: 0, pronto: 1, 'en fecha': 2, 'sin fecha': 3 };
+  out.sort((x, y) => orden[x.estado] - orden[y.estado]
+    || (x.vence || '').localeCompare(y.vence || '') || x.concepto.localeCompare(y.concepto));
+  return out;
+}
+
+/** Totales por moneda: nunca se suman reales con dólares. */
+function totalesPorMoneda(lista, filtro) {
+  const t = {};
+  for (const r of lista) {
+    if (r.monto == null || (filtro && !filtro(r))) continue;
+    t[r.moneda] = (t[r.moneda] || 0) + r.monto;
+  }
+  return t;
+}
+// ═══ FIN POR PAGAR ═══
+CV2.TIPOS_PAGO = TIPOS_PAGO;
+CV2.REPITE_PAGO = REPITE_PAGO;
+CV2.siguienteVencimiento = siguienteVencimiento;
+CV2.estadoDelPago = estadoDelPago;
+CV2.pagosPorHacer = pagosPorHacer;
+CV2.totalesPorMoneda = totalesPorMoneda;
+
+CV2.VERSION = 'nucleo-avisos-27';
 
 // El Netlify PROPIO de Casa Verde: lo que es sólo de este sitio (las fotos del
 // editor, los calendarios de Airbnb).

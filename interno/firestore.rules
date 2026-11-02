@@ -14,6 +14,13 @@ rules_version = '2';
 //  nunca por fragmentos, y los casos especiales (config/integraciones)
 //  se excluyen a mano del bloque general.
 //
+//  CAMBIO 2-nov-2026 · POR PAGAR  [POR-PAGAR]  (por-pagar-1)
+//  Mauro: «una lista de los pagos pendientes a hacer como ser el IPTU, pagos
+//  de impuestos, devoluciones… honorarios», para quien tiene finanzas.
+//  /por_pagar/ es lo que se carga a mano en por-pagar.html; lo lee, crea,
+//  edita y borra sólo 'finanzas' (el admin siempre). Lo demás de esa lista
+//  (honorarios, reponer, DARF) se lee de sus colecciones de siempre.
+//
 //  CAMBIO 21-oct-2026 · FECHAS DEL PEDIDO  [HUECOS]  (pizarra-56)
 //  Mauro: «guarda los registros de todas las publicaciones y el sitio luego
 //  advierta qué publicaciones llenan los huecos libres en la ocupación».
@@ -506,6 +513,13 @@ service cloud.firestore {
       // ingreso se rechaza y Dinero queda incompleto.
       allow create: if tiene('dinero') || tiene('finanzas') || tiene('reservas');
       allow update, delete: if tiene('finanzas') && !movSellado();
+    }
+
+    // [POR-PAGAR] Lo que el negocio tiene que pagar y no pasa por otra
+    // pantalla: IPTU, tasas, devoluciones, servicios. Plata del negocio:
+    // sólo 'finanzas'. Pagarlo crea su salida en /movimientos/ (refId).
+    match /por_pagar/{id} {
+      allow read, create, update, delete: if tiene('finanzas');
     }
 
     // Cobros de Airbnb: cada transferencia de la plataforma, con las reservas

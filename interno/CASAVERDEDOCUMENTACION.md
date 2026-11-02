@@ -918,6 +918,27 @@ fecha?, por?}, nota, creadoEn, creadoPor, creadoNombre, actualizadoEn`
   régimen (límite anual, sin DARF por cobro): la propuesta de cómo rehacerla está en
   `casaverde:A9` del panel. Hasta que se decida, no se borra.
 
+### `por_pagar/{id}` — lo que el negocio tiene que pagar (2-nov-2026, por-pagar-1)
+`concepto, tipo (impuesto|devolucion|honorario|servicio|otro), a, monto, moneda (BRL|UYU|USD),
+vence (aaaa-mm-dd), repite (no|mensual|trimestral|anual), nota, estado (pendiente|pagado),
+pagadoFecha, pagadoMonto, pagadoPor, movimientoId, anteriorId, creadoEn, creadoPor, creadoNombre`
+· Pedido de Mauro: «una lista de los pagos pendientes a hacer como ser el IPTU, pagos de
+  impuestos, devoluciones a gente que haya hecho algún avance de dinero, honorarios», siempre a
+  mano para quien es administrador o tiene `finanzas`. Pantalla: `por-pagar.html` («Por pagar»,
+  grupo plata del menú). La regla deja leer y escribir sólo a `finanzas`.
+· **Es UNA lista y no copia nada**: muestra lo cargado acá y, al lado, lo que ya vive en otra
+  pantalla —honorarios pendientes (uno por persona), lo que hay que reponerle a alguien en
+  `movimientos` (`pendiente.clase: 'reponer'`, por persona y moneda) y los DARF sin pagar de
+  `liquidaciones`—, que se paga en su pantalla con «Ir». La cuenta es `CV2.pagosPorHacer` de
+  `nucleo.js` (banco: `node netlify/pruebas/por-pagar.mjs`), la misma que `pendientesVivos()` de
+  Dinero para lo de reponer. **El DARF no lleva monto acá**: lo calcula Impuestos con el régimen.
+· **Pagar** uno propio lo marca pagado y, si se deja la casilla, crea su salida en `movimientos`
+  (categoría según el tipo: Impuestos, Servicios, Honorarios u Otros; `refTipo: 'por_pagar'`,
+  `refId`), como Cobros con un honorario: `movimientoId` impide pagarlo dos veces. Si se repite,
+  nace el siguiente con `siguienteVencimiento` (el 31 en un mes corto cae en su último día).
+· Los totales van por moneda y nunca se suman. Inicio muestra lo vencido y lo que vence en 7
+  días (sólo lo propio: lo demás ya tiene su aviso).
+
 ### `cabanas/{c1|c2|c3}`
 `nombre {es,pt,en}, descripcion {es,pt,en}, capacidad {base, max, condicionMax}, orden, activa,
 tarifas {noche, limpieza, extraPersona, moneda}, amenities [], fotos [url], calendarId,
