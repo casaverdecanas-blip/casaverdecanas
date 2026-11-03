@@ -23,8 +23,13 @@
   `cabanas/`. NO ESCRIBE NADA: es una vista.
 
   ── LO QUE LLEVA Y LO QUE NO ─────────────────────────────────────────────────
-  · El nombre del huésped, cuántos son, la cabaña o las cabañas, la entrada y
-    la salida con su hora, las noches y el estado.
+  · El nombre de quien reserva, la cabaña o las cabañas, la entrada y la
+    salida con su hora, las noches y el estado. La estadía de arriba es la del
+    acuerdo entero: de la primera entrada a la última salida.
+  · NO lleva cuántas personas son (comprobante-2, Mauro: «no es necesario que
+    figure ninguna cantidad… sólo el nombre de la persona que reserva»): en un
+    acuerdo con cabañas en fechas distintas sumarlas daba gente que nunca
+    estuvo junta (Darío: 14 adultos y 4 niños).
   · Los IMPORTES sólo si se marca «Incluir importes»: el comprobante NO es un
     recibo, y la cláusula del pie lo dice. Arranca apagado a propósito.
   · Ni teléfono ni mail del huésped: el documento sale de la casa y viaja.
@@ -92,6 +97,7 @@
     #hoja { position: absolute; left: 0; top: 0; margin: 0; box-shadow: none; width: 210mm; min-height: 297mm;
       -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .hoja-marco { overflow: visible; }
+    #hoja { zoom: 1 !important; }
   }
 </style>
 </head>
@@ -119,7 +125,7 @@ CV2.registrarSW();
 const u = await CV2.verificarAuth();
 CV2.renderNav('reservas');
 
-const SELLO = 'comprobante-1';
+const SELLO = 'comprobante-2';
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
 $('sello').textContent = 'pantalla: ' + SELLO + ' · motor: ' + (CV2.VERSION ?? 'nucleo viejo');
@@ -130,21 +136,18 @@ $('volver').href = id ? './reservas.html?r=' + encodeURIComponent(id) : './reser
 // ═══ Los textos, en los tres idiomas de la casa ═══════════
 const T = {
   es: { titulo: 'Comprobante de reserva', ref: 'Reserva', emitido: 'Emitido el', huesped: 'Huésped', nombre: 'Nombre',
-        personas: 'Personas', adultos: (n) => n + (n === 1 ? ' adulto' : ' adultos'), ninos: (n) => n + (n === 1 ? ' niño' : ' niños'),
         alojamiento: 'Alojamiento', cabana: 'Cabaña', estadia: 'Estadía', entrada: 'Entrada', salida: 'Salida', noches: 'Noches',
         desde: 'desde las', hasta: 'hasta las', estado: 'Estado', importes: 'Importes (informativos)', total: 'Valor del acuerdo',
         pagado: 'Pagos registrados', saldo: 'Saldo', airbnb: 'Reserva de Airbnb',
         estados: { presupuesto: 'Presupuesto: reserva NO confirmada', confirmada: 'Confirmada', finalizada: 'Finalizada', anulada: 'Reserva ANULADA' },
         clausula: 'Este documento sólo confirma los datos de la reserva y de la estadía. No es una factura ni un comprobante fiscal, no acredita pagos y no tiene valor tributario. Casa Verde no asume con él responsabilidad fiscal ni monetaria alguna. Los importes que figuren son informativos: valen los registros de pago y los documentos fiscales que correspondan, emitidos por separado.' },
   pt: { titulo: 'Comprovante de reserva', ref: 'Reserva', emitido: 'Emitido em', huesped: 'Hóspede', nombre: 'Nome',
-        personas: 'Pessoas', adultos: (n) => n + (n === 1 ? ' adulto' : ' adultos'), ninos: (n) => n + (n === 1 ? ' criança' : ' crianças'),
         alojamiento: 'Hospedagem', cabana: 'Cabana', estadia: 'Estadia', entrada: 'Check-in', salida: 'Check-out', noches: 'Noites',
         desde: 'a partir das', hasta: 'até as', estado: 'Situação', importes: 'Valores (informativos)', total: 'Valor do acordo',
         pagado: 'Pagamentos registrados', saldo: 'Saldo', airbnb: 'Reserva do Airbnb',
         estados: { presupuesto: 'Orçamento: reserva NÃO confirmada', confirmada: 'Confirmada', finalizada: 'Finalizada', anulada: 'Reserva CANCELADA' },
         clausula: 'Este documento apenas confirma os dados da reserva e da estadia. Não é nota fiscal nem comprovante fiscal, não comprova pagamentos e não tem valor tributário. A Casa Verde não assume com ele nenhuma responsabilidade fiscal ou monetária. Os valores que constarem são informativos: valem os registros de pagamento e os documentos fiscais correspondentes, emitidos separadamente.' },
   en: { titulo: 'Booking confirmation', ref: 'Booking', emitido: 'Issued on', huesped: 'Guest', nombre: 'Name',
-        personas: 'Guests', adultos: (n) => n + (n === 1 ? ' adult' : ' adults'), ninos: (n) => n + (n === 1 ? ' child' : ' children'),
         alojamiento: 'Accommodation', cabana: 'Cabin', estadia: 'Stay', entrada: 'Check-in', salida: 'Check-out', noches: 'Nights',
         desde: 'from', hasta: 'until', estado: 'Status', importes: 'Amounts (for information only)', total: 'Agreed price',
         pagado: 'Payments recorded', saldo: 'Balance', airbnb: 'Airbnb booking',
@@ -201,8 +204,12 @@ function pintar() {
   const lang = $('idioma').value, t = T[lang];
   document.documentElement.lang = lang;
   const todas = [r, ...hermanas];
-  const adultos = todas.reduce((x, y) => x + (Number(y.adultos) || 0), 0);
-  const ninos = todas.reduce((x, y) => x + (Number(y.ninos) || 0), 0);
+  // La estadía del ACUERDO entero: de la primera entrada a la última salida.
+  // Con cabañas en fechas distintas (Darío: 20→28 y 28→30), mostrar sólo las
+  // de la reserva que se abrió diría una salida que no es la última.
+  const entra = todas.reduce((m, x) => (x.checkIn < m.checkIn ? x : m), r);
+  const sale = todas.reduce((m, x) => (x.checkOut > m.checkOut ? x : m), r);
+  const rango = { checkIn: entra.checkIn, checkOut: sale.checkOut };
   const cod = codigoAirbnb();
   const mon = grupo?.moneda || r.moneda || 'BRL';
   const total = Number(grupo?.total ?? r.total ?? r.totalBRL ?? 0) || 0;
@@ -221,15 +228,14 @@ function pintar() {
     <h2>${esc(t.huesped)}</h2>
     <dl>
       <dt>${esc(t.nombre)}</dt><dd>${esc(nombreHuesped() || '—')}</dd>
-      ${adultos || ninos ? `<dt>${esc(t.personas)}</dt><dd>${esc([adultos ? t.adultos(adultos) : '', ninos ? t.ninos(ninos) : ''].filter(Boolean).join(' · '))}</dd>` : ''}
       <dt>${esc(t.estado)}</dt><dd>${esc(t.estados[est] || est)}</dd>
     </dl>
 
     <h2>${esc(t.estadia)}</h2>
     <div class="fechas">
-      <div><small>${esc(t.entrada)}</small><b>${esc(fechaLarga(r.checkIn, lang))}</b><span>${esc(t.desde)} ${esc(r.horaEntrada || '14:00')}</span></div>
-      <div><small>${esc(t.salida)}</small><b>${esc(fechaLarga(r.checkOut, lang))}</b><span>${esc(t.hasta)} ${esc(r.horaSalida || '10:00')}</span></div>
-      <div><small>${esc(t.noches)}</small><b>${noches(r)}</b></div>
+      <div><small>${esc(t.entrada)}</small><b>${esc(fechaLarga(rango.checkIn, lang))}</b><span>${esc(t.desde)} ${esc(entra.horaEntrada || '14:00')}</span></div>
+      <div><small>${esc(t.salida)}</small><b>${esc(fechaLarga(rango.checkOut, lang))}</b><span>${esc(t.hasta)} ${esc(sale.horaSalida || '10:00')}</span></div>
+      <div><small>${esc(t.noches)}</small><b>${noches(rango)}</b></div>
     </div>
 
     <h2>${esc(t.alojamiento)}</h2>
@@ -253,11 +259,22 @@ function pintar() {
   </div>`;
   $('todo').innerHTML = h;
   document.title = 'Casa Verde · ' + t.titulo + ' · ' + (nombreHuesped() || r.id);
+  ajustar();
+}
+
+// En el teléfono la hoja A4 (210 mm) no entra: en pantalla se achica para que
+// se vea entera; al imprimir vuelve a su tamaño (zoom: 1 en @media print).
+function ajustar() {
+  const h = $('hoja'); if (!h) return;
+  h.style.zoom = '';
+  const libre = $('todo').clientWidth;
+  if (libre && h.offsetWidth > libre) h.style.zoom = String(libre / h.offsetWidth);
 }
 
 $('imprimir').onclick = () => window.print();
 $('idioma').onchange = () => r && pintar();
 $('importes').onchange = () => r && pintar();
+addEventListener('resize', () => r && ajustar());
 
 try { if (await cargar()) pintar(); }
 catch (e) { $('todo').innerHTML = `<div class="vacio">${esc(CV2.explicar ? CV2.explicar(e) : (e.code ?? e.message))}</div>`; }

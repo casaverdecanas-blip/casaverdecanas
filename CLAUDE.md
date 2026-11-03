@@ -284,8 +284,9 @@ verdad después del cambio.
 - **Cada reserva tiene su COMPROBANTE para imprimir o guardar en PDF**
   (`interno/comprobante.html?r=<id>`, `comprobante-1`, 3-nov-2026, pedido de Mauro):
   «📄 Comprobante» en la tarjeta de Reservas (`reservas-ical-14`) lo abre en otra
-  pestaña. Hoja A4 con la identidad de Casa Verde, las fechas de entrada y salida, las
-  cabañas del acuerdo y la cláusula de que no es documento fiscal ni acredita pagos. Lee
+  pestaña. Hoja A4 con la identidad de Casa Verde, sólo el nombre de quien reserva (ninguna
+  cantidad de personas, `comprobante-2`), la entrada y la salida del acuerdo entero, las
+  cabañas y la cláusula de que no es documento fiscal ni acredita pagos. Lee
   y no escribe (permiso `reservas`); los importes, sólo si se marca «Incluir importes»;
   sin teléfono ni mail del huésped. Si cambia la cláusula, cambia en los tres idiomas
   (`T` de la página).

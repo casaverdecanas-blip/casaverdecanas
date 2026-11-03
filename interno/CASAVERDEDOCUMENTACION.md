@@ -754,9 +754,11 @@ googleEventId, notas, historial [{fecha, autorUid, autorNombre, cambio}]`
   anota `avisadaPor: 'whatsapp'`—; `avisadaA` son los nombres; `enviadaEn` lo escribe la ficha de
   llegada al tocar «Ya la mandé». Fechas 'YYYY-MM-DD'.
 · **El comprobante de reserva — `comprobante.html?r=<id>`** (`comprobante-1`, 3-nov-2026,
-  pedido de Mauro). Una hoja A4 formal para imprimir o guardar en PDF y mandarle al
+  pedido de Mauro; `comprobante-2` el mismo día). Una hoja A4 formal para imprimir o guardar en PDF y mandarle al
   huésped: logo, colores selva y terracota, la referencia (el código de Airbnb o el id),
-  el huésped y cuántos son, la entrada y la salida con su hora, las noches, las cabañas
+  el nombre de quien reserva —**ninguna cantidad de personas**: en un acuerdo con cabañas
+  en fechas distintas sumarlas daba un número falso (Mauro: «sólo el nombre de la persona
+  que reserva»)—, la entrada más temprana y la salida más tardía del acuerdo con su hora, las noches, las cabañas
   del mismo acuerdo y, **al pie, la cláusula: no es factura ni comprobante fiscal, no
   acredita pagos y Casa Verde no asume con él responsabilidad fiscal ni monetaria**. Se
   abre con «📄 Comprobante» de cada tarjeta de Reservas, en una pestaña nueva. Molde de
