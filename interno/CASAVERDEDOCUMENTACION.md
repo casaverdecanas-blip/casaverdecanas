@@ -753,6 +753,19 @@ googleEventId, notas, historial [{fecha, autorUid, autorNombre, cambio}]`
   lo manda la ronda por el CallMeBot de esa persona si encendió «Avisos de Claude», y
   anota `avisadaPor: 'whatsapp'`—; `avisadaA` son los nombres; `enviadaEn` lo escribe la ficha de
   llegada al tocar «Ya la mandé». Fechas 'YYYY-MM-DD'.
+· **El comprobante de reserva — `comprobante.html?r=<id>`** (`comprobante-1`, 3-nov-2026,
+  pedido de Mauro). Una hoja A4 formal para imprimir o guardar en PDF y mandarle al
+  huésped: logo, colores selva y terracota, la referencia (el código de Airbnb o el id),
+  el huésped y cuántos son, la entrada y la salida con su hora, las noches, las cabañas
+  del mismo acuerdo y, **al pie, la cláusula: no es factura ni comprobante fiscal, no
+  acredita pagos y Casa Verde no asume con él responsabilidad fiscal ni monetaria**. Se
+  abre con «📄 Comprobante» de cada tarjeta de Reservas, en una pestaña nueva. Molde de
+  la ficha de llegada: `verificarAuth`, permiso `reservas`, lee `reservas`, `grupos`,
+  `cabanas` (y `clientes` y `pagos`), **no escribe nada**. Los importes salen sólo si se
+  marca «Incluir importes» (arranca apagado: no es un recibo); teléfono y mail del huésped
+  no salen nunca. En español, portugués o inglés, el del huésped por defecto. Una reserva
+  en presupuesto o anulada lo dice arriba, en grande. «Imprimir / Guardar en PDF» es
+  `window.print()`, y `@media print` deja sólo la hoja.
 · **La ficha de llegada — `llegada.html?r=<id>`** (`llegada-1`). Lo que abre quien va a
   recibir, desde el enlace que le llega por WhatsApp: la reserva, el huésped y su
   contacto, **su historia con nosotros** (las otras reservas de la misma ficha de

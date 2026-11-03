@@ -281,6 +281,14 @@ verdad después del cambio.
   fechas que importa —las de Darío y Ximena estaban tachadas en la app— pero no
   siempre las vuelve a publicar en su `.ics`. Lo que manda es el calendario del
   anuncio en Airbnb.
+- **Cada reserva tiene su COMPROBANTE para imprimir o guardar en PDF**
+  (`interno/comprobante.html?r=<id>`, `comprobante-1`, 3-nov-2026, pedido de Mauro):
+  «📄 Comprobante» en la tarjeta de Reservas (`reservas-ical-14`) lo abre en otra
+  pestaña. Hoja A4 con la identidad de Casa Verde, las fechas de entrada y salida, las
+  cabañas del acuerdo y la cláusula de que no es documento fiscal ni acredita pagos. Lee
+  y no escribe (permiso `reservas`); los importes, sólo si se marca «Incluir importes»;
+  sin teléfono ni mail del huésped. Si cambia la cláusula, cambia en los tres idiomas
+  (`T` de la página).
 - **En la tarjeta de una reserva de Airbnb va el NOMBRE, y el código chico
   debajo** (`reservas-ical-13`, `nombreVisible`): «Airbnb · HMYCFCARCQ Matias»
   se leía letra por letra en un teléfono. El dato no cambia.

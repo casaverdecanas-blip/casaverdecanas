@@ -511,6 +511,8 @@
 //   por la función avisar-claude del Netlify (CV2.avisarClaude).
 // v116 (11-oct-2026) — nucleo-avisos-17: el ojo 👁 en cada contraseña, para
 //   verla mientras se tipea (ojosEnClaves, el mismo código en los cinco sitios).
+// v136 (3-nov-2026) — comprobante-1: comprobante.html [NUEVO, SHELL], la hoja A4 de una
+//   reserva para imprimir o guardar en PDF, y su botón «📄 Comprobante» (reservas-ical-14).
 // v135 (29-oct-2026) — nucleo-avisos-22 (general:C7): CV2.explicar, los errores con
 //   palabras de errores.js de datos (los avisos de fotos mostraban el código).
 // v134 (29-oct-2026) — nucleo-avisos-21 (general:C7): leer la respuesta de CallMeBot
@@ -530,7 +532,7 @@
 // v117 (18-oct-2026) — pedidos-alquiler.html [NUEVO, SHELL]: los pedidos de
 //   alquiler en Canasvieiras de los grupos de Facebook, y su renglón en la
 //   barra (nucleo-avisos-18).
-const VERSION = 'cv2-shell-v135';
+const VERSION = 'cv2-shell-v136';
 
 const SHELL = [
   './',
@@ -555,6 +557,7 @@ const SHELL = [
   './agenda.html',
   './clientes.html',
   './llegada.html',
+  './comprobante.html',
   './dinero.html',
   './balance.html',
   './fiscal.html',
