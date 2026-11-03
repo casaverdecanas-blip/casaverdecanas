@@ -366,7 +366,7 @@ CV2.renderNav('reservas');
 // §3.18 · sello de versión. Sin esto, "subí el archivo nuevo" es una creencia:
 // el 31-jul-2026 se buscó el acuerdo en un formulario que era del archivo
 // anterior, y el síntoma parecía un problema de diseño.
-const SELLO = 'reservas-ical-14';
+const SELLO = 'reservas-ical-15';
 
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
@@ -578,7 +578,7 @@ function render() {
           ? `<span>${a.rs.map((r) => esc(nombreCab(r.cabanaId))).join(' + ')}</span>`
           : `<span class="cab" style="background:${CV2.pastelDe(col)};color:${col};">${esc(nombreCab(r0.cabanaId))}</span>`}
         <span>${CV2.fmtFecha(rango.desde)} → ${CV2.fmtFecha(rango.hasta)}${a.esGrupo ? '' : ` · ${noches(r0)} noche(s)`}</span>
-        <span>👤 ${a.rs.reduce((x, r) => x + (r.adultos ?? 0), 0)}${a.rs.reduce((x, r) => x + (r.ninos ?? 0), 0) ? ' + ' + a.rs.reduce((x, r) => x + (r.ninos ?? 0), 0) + ' 🧒' : ''}${marcasHuesped(a.rs)}</span>
+        <span title="El máximo de huéspedes a la vez, no la suma de las cabañas">👤 ${((p) => p.adultos + (p.ninos ? ' + ' + p.ninos + ' 🧒' : ''))(CV2.pasajerosSimultaneos(a.rs))}${marcasHuesped(a.rs)}</span>
         <span><b>${CV2.fmtMonto(total, mon)}</b></span>
         ${(() => {
           if (pagado <= 0) return estados.every((e) => e === 'presupuesto') ? '' : '<span style="color:var(--rojo);">sin pagos</span>';

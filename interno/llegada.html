@@ -98,7 +98,7 @@ CV2.registrarSW();
 const u = await CV2.verificarAuth();
 CV2.renderNav('reservas');
 
-const SELLO = 'llegada-2';
+const SELLO = 'llegada-3';
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
 $('sello').textContent = 'pantalla: ' + SELLO + ' · motor: ' + (CV2.VERSION ?? 'nucleo viejo');
@@ -389,7 +389,9 @@ function textoAviso() {
   const hoy = CV2.hoyISO();
   const man = new Date(hoy + 'T12:00:00'); man.setDate(man.getDate() + 1);
   const cuando = r.checkIn === hoy ? 'hoy' : r.checkIn === CV2.fechaLocal(man) ? 'mañana' : 'el ' + fechaLarga(r.checkIn, 'es');
-  const suma = (k) => rs.reduce((x, y) => x + Number(y[k] || 0), 0);
+  // El máximo de gente a la vez, no la suma de las cabañas (nucleo-avisos-23).
+  const pax = CV2.pasajerosSimultaneos(rs);
+  const suma = (k) => pax[k] || 0;
   const gente = [suma('adultos') + ' adulto' + (suma('adultos') === 1 ? '' : 's'),
     suma('ninos') ? suma('ninos') + ' niño' + (suma('ninos') === 1 ? '' : 's') : '',
     suma('bebes') ? suma('bebes') + ' bebé' + (suma('bebes') === 1 ? '' : 's') : '',

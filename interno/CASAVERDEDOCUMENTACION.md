@@ -753,6 +753,13 @@ googleEventId, notas, historial [{fecha, autorUid, autorNombre, cambio}]`
   lo manda la ronda por el CallMeBot de esa persona si encendió «Avisos de Claude», y
   anota `avisadaPor: 'whatsapp'`—; `avisadaA` son los nombres; `enviadaEn` lo escribe la ficha de
   llegada al tocar «Ya la mandé». Fechas 'YYYY-MM-DD'.
+· **Cuántos son en un acuerdo — `CV2.pasajerosSimultaneos(rs)`** (nucleo-avisos-23, 3-nov-2026,
+  pedido de Mauro). Los huéspedes de un acuerdo de varias cabañas son el MÁXIMO que está en
+  la casa a la vez: se mira cada día en que entra alguien y se suma lo que duerme esa noche.
+  Sumar todas las cabañas contaba dos veces a quien se muda de cabaña a mitad de la estadía.
+  Lo usan la tarjeta de Reservas (reservas-ical-15) y el aviso de la ficha de llegada
+  (llegada-3); la ronda hace la misma cuenta en `avisoDeLlegada` de `datos`. Una cabaña
+  anulada no cuenta. Banco: `node netlify/pruebas/pasajeros.mjs`.
 · **El comprobante de reserva — `comprobante.html?r=<id>`** (`comprobante-1`, 3-nov-2026,
   pedido de Mauro; `comprobante-2` el mismo día). Una hoja A4 formal para imprimir o guardar en PDF y mandarle al
   huésped: logo, colores selva y terracota, la referencia (el código de Airbnb o el id),

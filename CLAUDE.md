@@ -290,6 +290,13 @@ verdad después del cambio.
   y no escribe (permiso `reservas`); los importes, sólo si se marca «Incluir importes»;
   sin teléfono ni mail del huésped. Si cambia la cláusula, cambia en los tres idiomas
   (`T` de la página).
+- **Los huéspedes de un ACUERDO son el máximo A LA VEZ, no la suma de las cabañas**
+  (`CV2.pasajerosSimultaneos` de `nucleo.js`, nucleo-avisos-23, 3-nov-2026, Mauro: «se debe
+  contemplar como cantidad de pasajeros el máximo en un mismo periodo de tiempo»). Una
+  familia que cambia de cabaña a mitad de la estadía se sumaba dos veces (Darío: «14 + 4»
+  en vez de 8 + 2). Lo usan la tarjeta de Reservas y el aviso de la ficha de llegada, y
+  `avisoDeLlegada` de `datos/herramientas/reservas.mjs` hace la misma cuenta: si cambia
+  una, cambia la otra. Banco: `node netlify/pruebas/pasajeros.mjs`.
 - **En la tarjeta de una reserva de Airbnb va el NOMBRE, y el código chico
   debajo** (`reservas-ical-13`, `nombreVisible`): «Airbnb · HMYCFCARCQ Matias»
   se leía letra por letra en un teléfono. El dato no cambia.

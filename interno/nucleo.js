@@ -1220,6 +1220,36 @@ CV2.sinFirebase = function (e) {
   if (b) b.addEventListener('click', () => location.reload());
 };
 
+// ═══ PASAJEROS ═══ (nucleo-avisos-23, 3-nov-2026) ═══════════════════════════
+// Cuántos huéspedes tiene un ACUERDO de varias cabañas. Mauro, 3-nov: «se debe
+// contemplar como cantidad de pasajeros el máximo en un mismo periodo de
+// tiempo». Sumar todas las cabañas daba un número que nunca estuvo junto: en el
+// acuerdo de Darío, 4 + (4 y 2 niños) del 20 al 28 y la misma familia
+// redistribuida (6 y 2 niños) del 28 al 30 sumaban «14 + 4». El máximo de gente
+// a la vez cae siempre en el día en que entra alguien, así que se mira cada
+// entrada y se suma lo que está en la casa esa noche; gana la noche con más
+// gente (en un empate, la primera). Sin fechas, la suma de siempre. Pura: el
+// banco `netlify/pruebas/pasajeros.mjs` la corre sacándola de entre estas marcas.
+function pasajerosSimultaneos(rs) {
+  const n = (v) => Number(v || 0) || 0;
+  const todas = (rs || []).filter(Boolean);
+  const vivas = todas.filter((r) => r.estado !== 'anulada');
+  const lista = vivas.length ? vivas : todas;
+  const conFechas = lista.filter((r) => r.checkIn && r.checkOut && r.checkOut > r.checkIn);
+  const sumar = (xs) => xs.reduce((t, r) => ({ adultos: t.adultos + n(r.adultos),
+    ninos: t.ninos + n(r.ninos), bebes: t.bebes + n(r.bebes) }), { adultos: 0, ninos: 0, bebes: 0 });
+  if (!conFechas.length) return sumar(lista);
+  let mejor = null;
+  for (const d of [...new Set(conFechas.map((r) => r.checkIn))].sort()) {
+    const t = sumar(conFechas.filter((r) => r.checkIn <= d && d < r.checkOut));
+    const tot = t.adultos + t.ninos + t.bebes;
+    if (!mejor || tot > mejor.tot) mejor = { ...t, tot };
+  }
+  const { tot, ...res } = mejor;
+  return res;
+}
+// ═══ FIN PASAJEROS ═══
+
 // ═══ HUECOS ═══ (nucleo-avisos-19, 21-oct-2026, pizarra-56) ═══════════════
 // Mauro: «guarda los registros de todas las publicaciones y el sitio luego
 // advierta qué publicaciones llenan los huecos libres en la ocupación de la
@@ -1302,8 +1332,9 @@ function huecoDelPedido(p, ocupadas, cabanas, hoy) {
 }
 // ═══ FIN HUECOS ═══
 CV2.huecoDelPedido = huecoDelPedido;
+CV2.pasajerosSimultaneos = pasajerosSimultaneos;
 
-CV2.VERSION = 'nucleo-avisos-22';
+CV2.VERSION = 'nucleo-avisos-23';
 
 CV2.NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
 
