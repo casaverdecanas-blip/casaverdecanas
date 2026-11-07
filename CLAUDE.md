@@ -297,6 +297,11 @@ verdad después del cambio.
   en vez de 8 + 2). Lo usan la tarjeta de Reservas y el aviso de la ficha de llegada, y
   `avisoDeLlegada` de `datos/herramientas/reservas.mjs` hace la misma cuenta: si cambia
   una, cambia la otra. Banco: `node netlify/pruebas/pasajeros.mjs`.
+- **La lista de Reservas va por FECHA DE LLEGADA** (`reservas-ical-16`,
+  7-nov-2026, Mauro: «ordenalas por fecha de llegada»): primero lo que todavía no
+  terminó, de la llegada más cercana a la más lejana; después lo que ya pasó, de
+  lo más reciente a lo más viejo (`agrupar`). Antes iba de la más lejana a la más
+  cercana y la próxima en llegar quedaba abajo.
 - **En la tarjeta de una reserva de Airbnb va el NOMBRE, y el código chico
   debajo** (`reservas-ical-13`, `nombreVisible`): «Airbnb · HMYCFCARCQ Matias»
   se leía letra por letra en un teléfono. El dato no cambia.

@@ -366,7 +366,7 @@ CV2.renderNav('reservas');
 // §3.18 · sello de versión. Sin esto, "subí el archivo nuevo" es una creencia:
 // el 31-jul-2026 se buscó el acuerdo en un formulario que era del archivo
 // anterior, y el síntoma parecía un problema de diseño.
-const SELLO = 'reservas-ical-15';
+const SELLO = 'reservas-ical-16';
 
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
@@ -479,8 +479,19 @@ function agrupar(lista) {
   out.forEach((a) => a.rs.sort((x, y) =>
     (x.checkIn ?? '').localeCompare(y.checkIn ?? '')
     || (x.cabanaId ?? '').localeCompare(y.cabanaId ?? '')));
-  // Mismo criterio que antes: lo más próximo primero.
-  out.sort((a, b) => (b.rs[0].checkIn ?? '').localeCompare(a.rs[0].checkIn ?? ''));
+  // reservas-ical-16 (7-nov-2026, Mauro: «ordenalas por fecha de llegada»):
+  // primero lo que todavía no terminó, de la llegada más cercana a la más
+  // lejana; después lo que ya pasó, de lo más reciente a lo más viejo.
+  // Hasta acá iba todo de la llegada más lejana a la más cercana, así que la
+  // próxima en llegar quedaba abajo de las de marzo.
+  const hoy = CV2.hoyISO();
+  const fin = (a) => a.rs.map((r) => r.checkOut ?? '').sort().slice(-1)[0] ?? '';
+  const llega = (a) => a.rs[0].checkIn ?? '';
+  out.sort((a, b) => {
+    const pa = fin(a) < hoy, pb = fin(b) < hoy;
+    if (pa !== pb) return pa ? 1 : -1;
+    return pa ? llega(b).localeCompare(llega(a)) : llega(a).localeCompare(llega(b));
+  });
   return out;
 }
 

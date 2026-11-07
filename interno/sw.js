@@ -511,6 +511,8 @@
 //   por la función avisar-claude del Netlify (CV2.avisarClaude).
 // v116 (11-oct-2026) — nucleo-avisos-17: el ojo 👁 en cada contraseña, para
 //   verla mientras se tipea (ojosEnClaves, el mismo código en los cinco sitios).
+// v139 (7-nov-2026) — reservas-ical-16: la lista de Reservas va por fecha de llegada, de la
+//   más cercana a la más lejana; lo que ya terminó, después.
 // v138 (3-nov-2026) — nucleo-avisos-23: CV2.pasajerosSimultaneos, los huéspedes de un
 //   acuerdo son el máximo a la vez (reservas-ical-15, llegada-3), no la suma de las cabañas.
 // v137 (3-nov-2026) — comprobante-2: sin cantidades de personas (sólo quien reserva),
@@ -536,7 +538,7 @@
 // v117 (18-oct-2026) — pedidos-alquiler.html [NUEVO, SHELL]: los pedidos de
 //   alquiler en Canasvieiras de los grupos de Facebook, y su renglón en la
 //   barra (nucleo-avisos-18).
-const VERSION = 'cv2-shell-v138';
+const VERSION = 'cv2-shell-v139';
 
 const SHELL = [
   './',
