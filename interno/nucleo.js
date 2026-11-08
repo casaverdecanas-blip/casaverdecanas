@@ -1012,7 +1012,7 @@ CV2.avisarClaude = async function (base, reporteId) {
     const u = auth && auth.currentUser;
     if (!u || !reporteId) return;
     const t = await u.getIdToken();
-    await fetch(CV2.NETLIFY + '/avisar-claude', {
+    await fetch(CV2.SERVIDOR + '/avisar-claude', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t },
       body: JSON.stringify({ base, reporteId })
@@ -1334,9 +1334,15 @@ function huecoDelPedido(p, ocupadas, cabanas, hoy) {
 CV2.huecoDelPedido = huecoDelPedido;
 CV2.pasajerosSimultaneos = pasajerosSimultaneos;
 
-CV2.VERSION = 'nucleo-avisos-23';
+CV2.VERSION = 'nucleo-avisos-24';
 
+// El Netlify PROPIO de Casa Verde: lo que es sólo de este sitio (las fotos del
+// editor, los calendarios de Airbnb).
 CV2.NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
+// El servidor del ECOSISTEMA (nucleo-avisos-24, 8-nov-2026, plan «Timón»):
+// avisar a Claude y los avisos por WhatsApp. Es la misma dirección que
+// servidor-1.js de datos; si el servidor se muda, cambia allá y acá.
+CV2.SERVIDOR = 'https://timon-servidor.netlify.app/.netlify/functions';
 
 // Identificadores públicos por diseño, igual que la apiKey de Firebase: el
 // navegador los necesita para hablar con EmailJS. Los nombres de los
@@ -1442,7 +1448,7 @@ CV2.enviarWhatsApp = function (texto, contacto) {
     cuerpo.phone = String(c.telefono).replace(/[^\d]/g, '');
     cuerpo.apikey = c.apikey;
   }
-  return fetch(CV2.NETLIFY + '/notify-whatsapp', {
+  return fetch(CV2.SERVIDOR + '/notify-whatsapp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     // keepalive: el aviso sale SIN await y la persona puede cambiar de página

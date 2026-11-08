@@ -644,7 +644,7 @@ $('quitarFoto').addEventListener('click', () => {
 //
 // NADA de esto puede hacer fracasar el recuerdo: se llama sin await, después
 // de que el documento ya está guardado, y cada envío se traga su propio error.
-const NETLIFY = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions';
+const SERVIDOR = 'https://timon-servidor.netlify.app/.netlify/functions';   // el servidor del ecosistema (8-nov-2026)
 const EMAILJS = {
   serviceId: 'Mailcasaverde',
   templateId: 'template_txtqg87',
@@ -660,7 +660,7 @@ function avisarAlEquipo(nombre, texto, etiqueta) {
     + '\n"' + corto + '"'
     + '\nEntrá al panel, Recuerdos, para publicarlo.';
 
-  fetch(NETLIFY + '/notify-whatsapp', {
+  fetch(SERVIDOR + '/notify-whatsapp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text: cuerpo })

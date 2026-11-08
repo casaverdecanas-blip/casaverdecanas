@@ -332,6 +332,14 @@ verdad después del cambio.
   **las reglas del negocio viven en el motor, no en una pantalla**: desde `core-2`
   el control de salida lo abre `Core` al cerrar la limpieza de entrada, por
   cualquier camino (banco `netlify/pruebas/control-salida.mjs`).
+- **Las funciones del ECOSISTEMA ya no se llaman en este Netlify** (8-nov-2026,
+  plan «Timón»): avisar a Claude, los avisos por WhatsApp y despertar a las
+  Pizarras van a `timon-servidor` (`CV2.SERVIDOR`, `DESPERTAR` de
+  `firebase-init.js` init-4, `recuerdos.html`), cuyo código vive en `servidor/`
+  de `datos` y se despliega desde Termux. `CV2.NETLIFY` sigue siendo este
+  Netlify, para lo que es sólo de Casa Verde (las fotos del editor y los
+  calendarios de Airbnb). Las funciones del ecosistema siguen también acá hasta
+  que la Pizarra cambie de servidor; después se sacan del zip.
 - **Tener sesión no es permiso.** Desde que existe login anónimo para el muro
   de recuerdos hay sesiones sin ficha en `usuarios/`: "logueado" ya no
   significa "es del equipo".

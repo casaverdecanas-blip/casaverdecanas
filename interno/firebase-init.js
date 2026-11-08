@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 //  CASAVERDE 2.0 — firebase-init.js
-//  Sello: init-3 (24-oct-2026)
+//  Sello: init-4 (8-nov-2026: despertar va a timon-servidor)
 //  Punto ÚNICO de contacto con el SDK de Firebase.
 //  Regla: ninguna página importa de gstatic directamente;
 //  todo pasa por este módulo. La versión del SDK vive SOLO acá.
@@ -183,7 +183,7 @@ export async function crearCuentaAuth(email, clave) {
 // `envolverEscrituras` de firebase-init.js de Tiempos. Nunca bloquea ni
 // falla: si no llega, la Pizarra lo trae a los 10 minutos. Una sesión
 // anónima (el muro de recuerdos) no despierta a nadie.
-export const DESPERTAR = 'https://serene-scone-76bd4e.netlify.app/.netlify/functions/despertar';
+export const DESPERTAR = 'https://timon-servidor.netlify.app/.netlify/functions/despertar';   // init-4: el servidor del ecosistema (timon-servidor)
 export const QUE_DE_COLECCION = {
   reservas: 'reservas', cambios_reserva: 'reservas', pedidos_alquiler: 'pedidos',
   actividades: 'tareas', estado_usuario: 'agenda', avisos: 'avisos',
