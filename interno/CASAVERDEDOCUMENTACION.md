@@ -1839,8 +1839,10 @@ todas las pantallas que lo mencionan** (§7.9).
 ### F1 · Limpieza y control por reserva
 
 **Qué lo dispara**
-Una reserva **confirmada** cuyo `checkIn` entra en la ventana de 7 días. Lo hace
+Una reserva **confirmada**, apenas se confirma (aunque falten meses). Lo hace
 `RCore.sincronizarLimpiezas`, que corre al abrir Reservas, al confirmar y al editar.
+La que está lejos queda **latente** (`Core.limpiezaLatente`): existe en la base y no
+se muestra hasta 7 días antes del check-in.
 **No lo dispara la salida ni el paso del tiempo.**
 
 **Qué crea**
@@ -1852,8 +1854,8 @@ proj-limpiezas
          └─ falta-<reservaId>   FALTANTES · solo si los hubo
 ```
 
-`limp-` nace una semana antes del check-in, con `fechaInicio` un día antes para que el
-semáforo se ponga rojo a tiempo. **`checkout-` no nace por fecha**: lo crea la acción
+`limp-` nace al confirmar la reserva y aparece en las listas una semana antes del
+check-in, con `fechaInicio` un día antes para que el semáforo se ponga rojo a tiempo. **`checkout-` no nace por fecha**: lo crea la acción
 de terminar la limpieza, así existe solo si hubo limpieza real.
 
 **Quién lo ve** — todo el equipo activo. Las actividades de limpieza son de alcance
@@ -1869,6 +1871,16 @@ Hasta agosto de 2026 **solo el primer camino lo hacía**: cerrar con el reloj sa
 las dos condiciones y el `checkout-` no nacía nunca. La regla estaba escrita en un solo
 lugar de los dos. Ahora vive en `abrirControlDeSalida()` y `faltaControlEntrada()`, y
 la llaman ambos. *(Lo encontró la primera corrida de `pruebas.html`.)*
+
+**Y desde `core-2` (8-nov-2026) el control de salida lo abre el MOTOR.** Había un
+tercer camino: Tiempos cierra las actividades de Casa Verde con `Core.tildar` y
+`Core.finalizar`, que no pasan por la pantalla. La limpieza de la reserva de
+Leonardo se cerró así el 2-nov y su `checkout-` no nació. Ahora lo crea
+`Core.abrirControlDeSalida`, llamado desde el cierre de ciclo (`_cerrarCiclo`), y la
+pantalla sólo avisa (`r.controlSalida`). **El inventario de entrada sigue siendo una
+condición de la pantalla y no del motor**, a propósito: exigirlo en el motor
+trabaría el cierre desde Tiempos, que no tiene ese botón. Banco:
+`node netlify/pruebas/control-salida.mjs`.
 
 **Frenar el reloj no es terminar la tarea**
 El Stop **siempre** pregunta si quedó terminada, sea recurrente o no. Antes esa

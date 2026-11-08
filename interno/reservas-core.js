@@ -396,7 +396,8 @@ RCore.materializarPendientes = async (reservas, cabanas, u) => {
  * Se crea apenas la reserva está confirmada, aunque falten meses; las que
  * están lejos quedan latentes y no se muestran (Core.limpiezaLatente).
  * El CONTROL de salida (checkout-<id>) no nace acá: lo crea "terminar la
- * limpieza" en actividades.html.
+ * limpieza" en el motor: Core._cerrarCiclo, actividades-core.js (core-2),
+ * así que lo cumple también Tiempos.
  * Idempotente (IDs deterministas + merge). Anular borra lo no hecho.
  * Mantiene el nombre sincronizarLimpiezas por compatibilidad de llamadas.
  */

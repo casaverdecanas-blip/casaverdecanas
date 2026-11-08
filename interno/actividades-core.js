@@ -4,10 +4,11 @@
 //  ciclo con reprogramación de recurrentes y HONORARIOS
 //  PROPORCIONALES. Diseño heredado del v5.2 del sistema viejo,
 //  reescrito limpio. Fuente única: /sesiones/ y /honorarios/.
+//  Sello: core-2 (8-nov-2026) — el control de salida nace ACÁ.
 // ═══════════════════════════════════════════════════════════════
 
 import {
-  db, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
+  db, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   collection, query, where, limit, or, and,
   getAggregateFromServer, sum,
   serverTimestamp, Timestamp
@@ -61,6 +62,54 @@ Core.limpiezaLatente = (it) => {
   const ini = it.fechaInicio || it.fechaVencimiento;
   if (!ini) return false;
   return ini > sumarDias(hoyISO(), Core.HORIZONTE_LIMPIEZA);
+};
+
+// ── Control de salida (core-2, 8-nov-2026) ───────────────────
+// Terminar la limpieza de ENTRADA de una reserva abre su control de salida,
+// checkout-<reservaId>, colgando de ella. Hasta core-1 lo hacía la pantalla
+// de Actividades y no el motor, así que cerrarla por otro camino —Tiempos
+// usa Core.tildar y Core.finalizar— lo salteaba sin aviso: pasó con la
+// reserva de Leonardo, cerrada el 2-nov sin control. Ahora vive en el
+// cierre de ciclo y lo cumple cualquiera que cierre.
+// Lo que NO está acá, a propósito: exigir el inventario de entrada antes
+// de cerrar. Eso sigue siendo de la pantalla (faltaControlEntrada).
+Core.esLimpiezaEntrada = (it) => !!(it && it.reservaId && it.fase === 'entrada');
+
+// ═══ DATOS CONTROL DE SALIDA (puro, lo prueba netlify/pruebas/control-salida.mjs)
+function datosControlDeSalida(act, actId, u, hoy) {
+  const nom = act.titulo
+    ? act.titulo.replace(/^Limpieza\s+/, '').replace(/\s+·\s+entrada.*$/, '')
+    : (act.cabanaId || '');
+  return {
+    titulo: 'Check-out ' + nom,
+    detalle: 'Control de salida — inventario y faltantes',
+    parentId: actId,
+    tipo: 'normal', alcance: 'equipo', competencias: [],
+    cabanaId: act.cabanaId ?? null, reservaId: act.reservaId, fase: 'salida',
+    prioridad: 'rojo', recurrenciaDias: 0, monto: 0,
+    fechaInicio: hoy, fechaVencimiento: '',
+    esCompra: false, hecho: false, estado: 'pendiente',
+    sesionActualId: null, ultimoCierreEn: null, orden: 0,
+    creadoPor: u.uid, creadoNombre: u.nombre ?? ''
+  };
+}
+// ═══ FIN DATOS CONTROL DE SALIDA
+Core.datosControlDeSalida = datosControlDeSalida;
+
+const hoyLocal = () => {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
+    + '-' + String(d.getDate()).padStart(2, '0');
+};
+
+Core.abrirControlDeSalida = async (act, actId, u) => {
+  if (!Core.esLimpiezaEntrada(act)) return false;
+  await setDoc(doc(db, 'actividades', 'checkout-' + act.reservaId), {
+    ...datosControlDeSalida(act, actId, u, hoyLocal()),
+    creadoEn: serverTimestamp(),
+    actualizadoEn: serverTimestamp()
+  }, { merge: true });
+  return true;
 };
 
 // ── Sesión activa del usuario (en cualquier actividad) ───────
@@ -148,8 +197,9 @@ Core.finalizar = async (actId, u, terminada = true) => {
   const actSnap = await getDoc(actRef);
   if (!actSnap.exists()) return { horas, terminada };
 
+  let controlSalida = false;
   if (terminada) {
-    await _cerrarCiclo(actId, actSnap.data(), u, true);
+    controlSalida = await _cerrarCiclo(actId, actSnap.data(), u, true);
   } else {
     await updateDoc(actRef, {
       estado: 'pendiente',
@@ -157,7 +207,7 @@ Core.finalizar = async (actId, u, terminada = true) => {
       actualizadoEn: serverTimestamp()
     });
   }
-  return { horas, terminada };
+  return { horas, terminada, controlSalida };
 };
 
 // ── ✔ Tildar (realizada sin cronómetro) ──────────────────────
@@ -185,9 +235,9 @@ Core.tildar = async (actId, u) => {
     actualizadoEn: ahora
   });
 
-  await _cerrarCiclo(actId, act, u, false);
+  const controlSalida = await _cerrarCiclo(actId, act, u, false);
   const ciclo = act.recurrenciaDias ?? 0;
-  return { recurrente: ciclo > 0, proxima: ciclo > 0 ? sumarDias(hoyISO(), ciclo) : null };
+  return { recurrente: ciclo > 0, proxima: ciclo > 0 ? sumarDias(hoyISO(), ciclo) : null, controlSalida };
 };
 
 // ── Cierre de ciclo (interno) ────────────────────────────────
@@ -291,6 +341,10 @@ async function _cerrarCiclo(actId, act, u, conCrono) {
       hechoEn: ahora
     });
   }
+
+  // 3) La limpieza de entrada abre su control de salida (core-2).
+  //    Devuelve true si lo abrió, para que la pantalla lo diga.
+  return Core.abrirControlDeSalida(act, actId, u);
 }
 
 // ── Recalcular honorarios tras editar/borrar sesiones ────────

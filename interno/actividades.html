@@ -934,8 +934,7 @@ window.cronoStop = async (id) => {
     crono = null;
     delete horasCache[id];
 
-    if (terminada && esLimpiezaEntrada(it)) {
-      await abrirControlDeSalida(it, id);
+    if (r.controlSalida) {
       render();
       CV2.toast(CV2.fmtHM(r.horas) + ' registradas · se abrió el control de check-out', 'success');
       return;
@@ -986,7 +985,7 @@ document.addEventListener('visibilitychange', () => {
 // misma acción y la regla escrita en uno solo — lo encontró la primera
 // corrida de pruebas.html (ago-2026). Ahora está en un lugar y lo llaman
 // los dos.
-const esLimpiezaEntrada = (it) => !!(it && it.reservaId && it.fase === 'entrada');
+const esLimpiezaEntrada = Core.esLimpiezaEntrada;
 
 function faltaControlEntrada(it) {
   if (!esLimpiezaEntrada(it) || it.controlEntradaHecho) return false;
@@ -994,26 +993,8 @@ function faltaControlEntrada(it) {
   return true;
 }
 
-// Crea checkout-<reservaId> colgando de la limpieza. No depende de fechas:
-// nace de la acción de terminarla, así existe solo si hubo limpieza real.
-async function abrirControlDeSalida(it, id) {
-  const nom = it.titulo
-    ? it.titulo.replace(/^Limpieza\s+/, '').replace(/\s+·\s+entrada.*$/, '')
-    : (it.cabanaId || '');
-  await setDoc(doc(db, 'actividades', 'checkout-' + it.reservaId), {
-    titulo: 'Check-out ' + nom,
-    detalle: 'Control de salida — inventario y faltantes',
-    parentId: id,                 // hijo de la limpieza de entrada
-    tipo: 'normal', alcance: 'equipo', competencias: [],
-    cabanaId: it.cabanaId, reservaId: it.reservaId, fase: 'salida',
-    prioridad: 'rojo', recurrenciaDias: 0, monto: 0,
-    fechaInicio: CV2.hoyISO(), fechaVencimiento: '',
-    esCompra: false, hecho: false, estado: 'pendiente',
-    sesionActualId: null, ultimoCierreEn: null, orden: 0,
-    creadoEn: serverTimestamp(), creadoPor: u.uid, creadoNombre: u.nombre ?? '',
-    actualizadoEn: serverTimestamp()
-  }, { merge: true });
-}
+// El control de salida (checkout-<reservaId>) lo abre el MOTOR al cerrar la
+// limpieza de entrada (Core, core-2): acá sólo se avisa.
 
 window.realizada = async (id) => {
   const it = byId[id];
@@ -1021,8 +1002,7 @@ window.realizada = async (id) => {
   try {
     const r = await Core.tildar(id, u);
     delete horasCache[id];
-    if (esLimpiezaEntrada(it)) {
-      await abrirControlDeSalida(it, id);
+    if (r.controlSalida) {
       CV2.toast('✔ Limpieza terminada · se abrió el control de check-out', 'success');
       return;
     }
