@@ -323,6 +323,15 @@ verdad después del cambio.
   Verde, uno por «qué» cada 2 s. Una sesión anónima no despierta a nadie.
   Banco: `node netlify/pruebas/despertar-cliente.mjs`. Si la Pizarra empieza a
   mostrar otra colección, se suma ahí.
+- **Otra app entra a Casa Verde SÓLO por `interno/conector-1.js`** (8-nov-2026,
+  plan «Timón», Mauro: «que casa verde sea una app del ecosistema… independizar
+  estas estructuras»). Es un CONTRATO con número: lo que lista `OFRECE` no se saca
+  ni cambia de forma mientras exista conector-1 (banco `node
+  netlify/pruebas/conector.mjs`); un cambio incompatible es un `conector-2.js`
+  nuevo, al lado. Tiempos lo usa y su banco falla si toca algo que no esté ahí. Y
+  **las reglas del negocio viven en el motor, no en una pantalla**: desde `core-2`
+  el control de salida lo abre `Core` al cerrar la limpieza de entrada, por
+  cualquier camino (banco `netlify/pruebas/control-salida.mjs`).
 - **Tener sesión no es permiso.** Desde que existe login anónimo para el muro
   de recuerdos hay sesiones sin ficha en `usuarios/`: "logueado" ya no
   significa "es del equipo".
