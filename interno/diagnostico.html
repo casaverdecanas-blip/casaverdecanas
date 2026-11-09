@@ -65,7 +65,6 @@
     <nav class="hub">
     <a class="aqui" href="./diagnostico.html"><span class="material-icons">healing</span>Sistema</a>
     <a href="./revisar-reservas.html"><span class="material-icons">fact_check</span>Revisar reservas</a>
-    <a href="./migrar-reservas.html"><span class="material-icons">build</span>Migrar</a>
     <a href="./pruebas.html"><span class="material-icons">science</span>Pruebas guiadas</a>
   </nav>
 <div class="tarj"><h2>1 · Este navegador</h2><div id="s1">Mirando…</div></div>
@@ -264,7 +263,6 @@ const ARCHIVOS = [
     que: 'Mis avisos' },
   { f: 'sw.js', marca: "self.addEventListener('install'", sello: /VERSION\s*=\s*'([^']+)'/,
     que: 'el service worker' },
-  { f: 'comunicacion.html', marca: 'CV2.avisar', que: 'el chat que dispara los avisos' },
   { f: 'calendario.html', marca: 'verReserva', que: 'el calendario que lleva a la reserva' },
   { f: 'reservas-core.js', marca: 'leerICS', que: 'el motor de limpiezas y el lector de iCal' },
   { f: 'firebase-init.js', marca: 'signInWithEmailAndPassword', que: 'la conexión con Firebase' },
@@ -457,7 +455,7 @@ const COLECCIONES = [
   { c: 'actividades', filtro: ['alcance', '==', 'equipo'],
     nota: 'con filtro de alcance, como lo hace la app' },
   { c: 'sesiones' }, { c: 'honorarios' }, { c: 'movimientos' },
-  { c: 'comunicaciones' }, { c: 'avisos_contacto' },
+  { c: 'avisos_contacto' },
   { c: 'disponibilidad' }, { c: 'chequeos' }
 ];
 

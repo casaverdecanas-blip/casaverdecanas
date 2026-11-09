@@ -418,7 +418,6 @@ CV2.NAV = [
   // uno y sale de las actividades. Por eso el Calendario pasa a decir
   // "Ocupación" en la barra: dos cosas con el mismo nombre no se distinguen.
   { id: 'agenda', label: 'Agenda', corto: 'Agenda', href: './agenda.html', icono: 'event_note', permiso: null, grupo: 'directo' },
-  { id: 'comunicacion', label: 'Chat', corto: 'Chat', href: './comunicacion.html', icono: 'forum', permiso: null, grupo: 'directo' },
 
   { id: 'reservas', label: 'Reservas', href: './reservas.html', icono: 'king_bed', permiso: 'reservas', grupo: 'alojamiento' },
   { id: 'clientes', label: 'Clientes', href: './clientes.html', icono: 'contacts', permiso: 'reservas', grupo: 'alojamiento' },
@@ -437,7 +436,6 @@ CV2.NAV = [
 
   { id: 'cabanas', label: 'Cabañas', href: './cabanas.html', icono: 'cottage', permiso: 'contenido', grupo: 'sitio' },
   { id: 'espacios', label: 'Espacios', href: './espacios.html', icono: 'deck', permiso: 'contenido', grupo: 'sitio' },
-  { id: 'recuerdos', label: 'Recuerdos', href: './recuerdos.html', icono: 'photo_library', permiso: 'contenido', grupo: 'sitio' },
   // Opiniones ≠ Recuerdos, y por eso son dos pantallas: los recuerdos son
   // fotos que suben los huéspedes DESPUÉS de la estadía; las opiniones son
   // palabra ajena que se lee ANTES de decidir. Juntarlas mezclaría dos
@@ -1334,7 +1332,7 @@ function huecoDelPedido(p, ocupadas, cabanas, hoy) {
 CV2.huecoDelPedido = huecoDelPedido;
 CV2.pasajerosSimultaneos = pasajerosSimultaneos;
 
-CV2.VERSION = 'nucleo-avisos-24';
+CV2.VERSION = 'nucleo-avisos-25';
 
 // El Netlify PROPIO de Casa Verde: lo que es sólo de este sitio (las fotos del
 // editor, los calendarios de Airbnb).
@@ -1360,8 +1358,8 @@ CV2.EMAILJS = {
 // (§7: no se anota como hecho lo que no se hizo). Hoy hay uno.
 CV2.EVENTOS = [
   {
-    id: 'mensaje', label: 'Mensajes del chat', icono: 'forum',
-    detalle: 'Cuando alguien escribe en un tema que te toca.'
+    id: 'mensaje', label: 'Avisos del equipo', icono: 'forum',
+    detalle: 'Cuando alguien carga horas a mano para que se revisen (el chat interno se retiró el 9-nov-2026).'
   },
   {
     id: 'actividad_mia', label: 'Actividades que te asignan', icono: 'assignment_ind',

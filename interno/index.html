@@ -412,40 +412,7 @@ if (CV2.puede('reservas')) {
   } catch (e) { console.warn('reservas', e); }
 }
 
-// ── 3 · Chat: lo que no leíste ───────────────────────────────
-try {
-  const convs = [];
-  // Colaborador: SOLO temas de equipo o donde participa. La regla nueva
-  // rechaza el listado sin filtrar (incluiría temas dirigidos ajenos).
-  // Admin: los ve todos.
-  const snap = CV2.esAdmin()
-    ? await getDocs(collection(db, 'comunicaciones'))
-    : await getDocs(query(collection(db, 'comunicaciones'),
-        or(where('audiencia', '==', 'equipo'),
-           where('participantes', 'array-contains', u.uid))));
-  snap.forEach((d) => convs.push({ id: d.id, ...d.data() }));
-  let vistos = {};
-  try {
-    const lec = await getDoc(doc(db, 'comunicaciones_lecturas', u.uid));
-    if (lec.exists()) vistos = leerVistos(lec.data());
-  } catch { /* primera vez */ }
-  // Sin leer = actividad más nueva que mi última lectura, cuyo último
-  // mensaje no lo escribí yo, y que no borré de mi lista (ocultoPara).
-  const sinLeer = convs.filter((c) =>
-    ms(c.ultimaActividad) > (vistos[c.id] || 0) && c.ultimoAutorUid !== u.uid
-    && (c.ocultoPara || []).indexOf(u.uid) === -1);
-  // El puntito rojo sobre la pestaña Chat. El Inicio es el único lugar que
-  // tiene la cuenta hecha, así que es el que lo enciende. Estaba escrito el
-  // encendedor (CV2.marcarNovedad) y el estilo (.cv-tab.con-novedad), pero
-  // nadie lo llamaba: el manual prometía un punto que no existía.
-  CV2.marcarNovedad('comunicacion', sinLeer.length > 0);
-  agregar('comunicacion', 'Mensajes sin leer', 'forum', './comunicacion.html',
-    sinLeer.slice(0, 6).map((c) => ({
-      icono: 'chat_bubble', titulo: c.titulo || 'Conversación',
-      detalle: c.ultimoMensaje || '', tono: 'aviso', href: './comunicacion.html',
-      nuevo: true, cuando: haceCuanto(c.ultimaActividad)
-    })));
-} catch (e) { console.warn('comunicaciones', e); }
+// ── 3 · (el chat interno se retiró el 9-nov-2026: lo reemplaza la charla de las Pizarras)
 
 // ── 4 · Tu cronómetro andando ────────────────────────────────
 try {
@@ -606,28 +573,7 @@ if (CV2.puede('finanzas')) {
   } catch (e) { console.warn('fiscal', e); }
 }
 
-// ── 7 · Recuerdos esperando moderación ───────────────────────
-// Un recuerdo pendiente NO se ve en el sitio hasta que alguien lo aprueba.
-// Sin este bloque, la única forma de enterarse era entrar a Recuerdos a
-// mirar — y algo que hay que ir a buscar, tarde o temprano no se busca.
-if (CV2.puede('contenido')) {
-  try {
-    // Un solo where de igualdad: sin orderBy no hace falta índice compuesto.
-    const snap = await getDocs(query(collection(db, 'recuerdos'),
-      where('estado', '==', 'pendiente')));
-    const pend = [];
-    snap.forEach((d) => pend.push({ id: d.id, ...d.data() }));
-    pend.sort((a, b) => ms(b.creadoEn) - ms(a.creadoEn));
-    agregar('recuerdos', 'Recuerdos por revisar', 'auto_stories', './recuerdos.html',
-      recortar(pend.map((r) => ({
-        icono: 'rate_review',
-        titulo: (r.nombre || 'Un huésped') + ' dejó un recuerdo',
-        detalle: (r.texto || '').slice(0, 90),
-        tono: 'aviso', href: './recuerdos.html',
-        nuevo: esNuevo(r.creadoEn), cuando: haceCuanto(r.creadoEn)
-      })), 5, './recuerdos.html'));
-  } catch (e) { console.warn('recuerdos', e); }
-}
+// ── 7 · (los recuerdos por QR se retiraron el 9-nov-2026)
 
 // ── 8 · Pedidos de Facebook que caen en fechas libres ────────
 // pizarra-56 (21-oct-2026). Mauro: «cuando se encuentra una publicación que

@@ -8,6 +8,26 @@ conocimiento. Antes eran `CONVENCIONES.md`, `GUIA-SITIO-PUBLICO.md` y
 
 ---
 
+## Retiros del 9-nov-2026 (revisión de arquitectura)
+
+Mauro aprobó retirar las ramas con mucho código y casi ningún uso (revisión
+«Casa Verde, revisada con criterios de diseño», 2.ª versión). Retirar es
+sacarlo del sitio y del menú: el código queda en la historia de git y los datos
+siguen en la base y en el respaldo de la bodega.
+
+- **Chat interno** (`comunicacion.html`, 5 conversaciones, la última en agosto):
+  lo reemplaza la charla de las Pizarras. El aviso de «horas cargadas a mano»
+  pasó a `CV2.avisar`. Lo que este documento cuenta del chat es histórico.
+- **Recuerdos por QR** (`recuerdos.html` público e interno, 1 recuerdo desde
+  julio): `recuerdos.html` quedó como una redirección a la portada, para que un
+  QR impreso no termine en un error. Lo que este documento cuenta de los
+  recuerdos, `huespedes` y el ingreso anónimo es histórico.
+- **Migrar reservas** (`migrar-reservas.html`): la migración terminó.
+- **Liquidaciones**: ver abajo, en la misma tanda.
+
+Las reglas de esas colecciones siguen publicadas hasta la próxima tanda de
+reglas; no las usa ninguna pantalla.
+
 ## Por dónde empezar, según lo que haya que hacer
 
 | Si vas a… | Andá a |

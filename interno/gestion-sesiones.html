@@ -287,31 +287,17 @@ async function recalcularSiCorresponde(actividadId) {
 }
 
 // ═══ Aviso de horas cargadas a mano ═══════════════════════
-// Cuando alguien SIN permiso de horas carga tiempo a mano, queda un
-// mensaje en el Chat para que quien gobierna las sesiones lo revise.
-// Se usa la conversación que ya existe (ID fijo, regla 3.5): un solo
-// hilo que crece, en vez de un tema nuevo por cada registro.
-const HILO_HORAS = 'horas-manuales';
-
+// Cuando alguien SIN permiso de horas carga tiempo a mano, se avisa al equipo
+// por sus avisos (WhatsApp, mail o buzón, según eligió cada uno) para que quien
+// gobierna las sesiones lo revise. Hasta el 9-nov-2026 quedaba un mensaje en el
+// chat interno, que se retiró.
 async function avisarHorasManuales(actividadTitulo, horas, fecha, nota) {
   const texto = '📝 ' + (u.nombre ?? 'Alguien') + ' cargó ' + CV2.fmtHM(horas) +
     ' a mano en "' + actividadTitulo + '" (' + CV2.fmtFecha(fecha) + ')' +
     (nota ? ' — ' + nota : '') + '. Revisalo en el Gestor de Sesiones.';
   try {
-    // Crea el hilo si no existe y actualiza su encabezado en un solo gesto.
-    await setDoc(doc(db, 'comunicaciones', HILO_HORAS), {
-      titulo: '📝 Horas cargadas a mano',
-      audiencia: 'equipo',
-      ultimoMensaje: texto.slice(0, 120),
-      ultimoAutorUid: u.uid,
-      ultimoAutorNombre: u.nombre ?? '',
-      ultimaActividad: serverTimestamp(),
-      creadoPor: u.uid,
-      creadoNombre: u.nombre ?? ''
-    }, { merge: true });
-    await addDoc(collection(db, 'comunicaciones', HILO_HORAS, 'mensajes'), {
-      texto, autorUid: u.uid, autorNombre: u.nombre ?? '', creadoEn: serverTimestamp()
-    });
+    CV2.avisar({ evento: 'mensaje', asunto: 'Casa Verde · Horas cargadas a mano',
+      texto, para: 'todos', excluir: u.uid, enlace: './gestion-sesiones.html' });
   } catch (e) {
     // El aviso nunca debe hacer fracasar el registro de horas.
     console.warn('aviso de horas:', e);
