@@ -1,6 +1,6 @@
 # CASA VERDE CANAS — Documentación del sistema
 
-**Edición del 31 de julio de 2026 · cierre de la tanda 11.23**
+**Edición del 9 de noviembre de 2026** (la última reescritura entera fue la del 31 de julio, tanda 11.23; desde ahí se corrige por partes: ver «Retiros del 9-nov-2026» y cada sección con su fecha)
 
 Los tres documentos del proyecto en un solo archivo, para subirlo de una vez al
 conocimiento. Antes eran `CONVENCIONES.md`, `GUIA-SITIO-PUBLICO.md` y
@@ -872,6 +872,22 @@ cuentas [{cuenta, moneda, calculado, real, ajuste}], cobrosSaldados [], nota`
 · **El cero**: al cerrar se sellan las líneas del período con `cierreId` y cada cuenta
   recibe una línea de apertura (categoría `Balance`, `esApertura:true`) con su saldo
   REAL. Desde ahí arrancan los próximos registros.
+
+### `liquidaciones/{id}` — los cobros de Airbnb y su DARF
+`fecha, bruto, neto, moneda ('BRL'), reservas [ids], movimientoId, darf {pagado,
+fecha?, por?}, nota, creadoEn, creadoPor, creadoNombre, actualizadoEn`
+· **Una por transferencia que manda Airbnb**, con las reservas que cubre. La crea
+  `fiscal.html` («Registrar cobro»), que en el mismo acto crea el ingreso en
+  `movimientos/` (`refTipo: 'liquidacion'`) y cierra el vínculo en los dos sentidos
+  (`movimientoId` acá, `refId` allá). Una reserva cubierta no se ofrece de nuevo.
+· **Es colección propia y no un campo del movimiento** porque el movimiento se sella
+  al entrar en un cierre y el DARF se paga después: ahí quedaría «pendiente» para
+  siempre. Marcar el DARF pagado cambia sólo `darf`.
+· Regla: lee y escribe quien tiene `finanzas`. Al 9-nov-2026 tiene **0 documentos**.
+· **Ojo, está armada para el caso del CPF de no residente (15 % por cobro).** Desde
+  noviembre de 2026 los cobros de Airbnb van a Esteban como MEI, y eso es otro
+  régimen (límite anual, sin DARF por cobro): la propuesta de cómo rehacerla está en
+  `casaverde:A9` del panel. Hasta que se decida, no se borra.
 
 ### `cabanas/{c1|c2|c3}`
 `nombre {es,pt,en}, descripcion {es,pt,en}, capacidad {base, max, condicionMax}, orden, activa,
