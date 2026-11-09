@@ -23,7 +23,10 @@ siguen en la base y en el respaldo de la bodega.
   QR impreso no termine en un error. Lo que este documento cuenta de los
   recuerdos, `huespedes` y el ingreso anónimo es histórico.
 - **Migrar reservas** (`migrar-reservas.html`): la migración terminó.
-- **Liquidaciones**: ver abajo, en la misma tanda.
+- **Liquidaciones NO se retiran** (corrección del mismo día): la revisión las
+  describió mal como pagos al equipo. Son los cobros de Airbnb con su DARF (el
+  impuesto que vence el día del cobro) y son el centro de `fiscal.html`. Tienen
+  0 registros, pero retirarlas es una decisión de impuestos y la toma Mauro.
 
 Las reglas de esas colecciones siguen publicadas hasta la próxima tanda de
 reglas; no las usa ninguna pantalla.
