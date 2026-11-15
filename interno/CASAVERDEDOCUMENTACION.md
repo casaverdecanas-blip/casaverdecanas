@@ -18,10 +18,12 @@ siguen en la base y en el respaldo de la bodega.
 - **Chat interno** (`comunicacion.html`, 5 conversaciones, la última en agosto):
   lo reemplaza la charla de las Pizarras. El aviso de «horas cargadas a mano»
   pasó a `CV2.avisar`. Lo que este documento cuenta del chat es histórico.
-- **Recuerdos por QR** (`recuerdos.html` público e interno, 1 recuerdo desde
-  julio): `recuerdos.html` quedó como una redirección a la portada, para que un
-  QR impreso no termine en un error. Lo que este documento cuenta de los
-  recuerdos, `huespedes` y el ingreso anónimo es histórico.
+- **Recuerdos por QR: se retiraron el 9-nov y VOLVIERON el 15-nov-2026** (Mauro:
+  «no llegamos a implementarlos, pero nos interesa tenerlos»). Vuelven
+  `recuerdos.html` (público, con el QR de cada cabaña), `interno/recuerdos.html`
+  (la moderación), el aviso «Recuerdos por revisar» del Inicio, la pestaña de
+  Recuerdos en el menú y su capítulo del manual. No hubo que tocar reglas ni
+  colecciones: nunca se sacaron. `nucleo-avisos-26`, `cv2-shell-v143`.
 - **Migrar reservas** (`migrar-reservas.html`): la migración terminó.
 - **Liquidaciones NO se retiran** (corrección del mismo día): la revisión las
   describió mal como pagos al equipo. Son los cobros de Airbnb con su DARF (el

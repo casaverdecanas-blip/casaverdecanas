@@ -573,7 +573,28 @@ if (CV2.puede('finanzas')) {
   } catch (e) { console.warn('fiscal', e); }
 }
 
-// ── 7 · (los recuerdos por QR se retiraron el 9-nov-2026)
+// ── 7 · Recuerdos esperando moderación ───────────────────────
+// Un recuerdo pendiente NO se ve en el sitio hasta que alguien lo aprueba.
+// Sin este bloque, la única forma de enterarse era entrar a Recuerdos a
+// mirar — y algo que hay que ir a buscar, tarde o temprano no se busca.
+if (CV2.puede('contenido')) {
+  try {
+    // Un solo where de igualdad: sin orderBy no hace falta índice compuesto.
+    const snap = await getDocs(query(collection(db, 'recuerdos'),
+      where('estado', '==', 'pendiente')));
+    const pend = [];
+    snap.forEach((d) => pend.push({ id: d.id, ...d.data() }));
+    pend.sort((a, b) => ms(b.creadoEn) - ms(a.creadoEn));
+    agregar('recuerdos', 'Recuerdos por revisar', 'auto_stories', './recuerdos.html',
+      recortar(pend.map((r) => ({
+        icono: 'rate_review',
+        titulo: (r.nombre || 'Un huésped') + ' dejó un recuerdo',
+        detalle: (r.texto || '').slice(0, 90),
+        tono: 'aviso', href: './recuerdos.html',
+        nuevo: esNuevo(r.creadoEn), cuando: haceCuanto(r.creadoEn)
+      })), 5, './recuerdos.html'));
+  } catch (e) { console.warn('recuerdos', e); }
+}
 
 // ── 8 · Pedidos de Facebook que caen en fechas libres ────────
 // pizarra-56 (21-oct-2026). Mauro: «cuando se encuentra una publicación que

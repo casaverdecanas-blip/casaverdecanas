@@ -436,6 +436,7 @@ CV2.NAV = [
 
   { id: 'cabanas', label: 'Cabañas', href: './cabanas.html', icono: 'cottage', permiso: 'contenido', grupo: 'sitio' },
   { id: 'espacios', label: 'Espacios', href: './espacios.html', icono: 'deck', permiso: 'contenido', grupo: 'sitio' },
+  { id: 'recuerdos', label: 'Recuerdos', href: './recuerdos.html', icono: 'photo_library', permiso: 'contenido', grupo: 'sitio' },
   // Opiniones ≠ Recuerdos, y por eso son dos pantallas: los recuerdos son
   // fotos que suben los huéspedes DESPUÉS de la estadía; las opiniones son
   // palabra ajena que se lee ANTES de decidir. Juntarlas mezclaría dos
@@ -1332,7 +1333,7 @@ function huecoDelPedido(p, ocupadas, cabanas, hoy) {
 CV2.huecoDelPedido = huecoDelPedido;
 CV2.pasajerosSimultaneos = pasajerosSimultaneos;
 
-CV2.VERSION = 'nucleo-avisos-25';
+CV2.VERSION = 'nucleo-avisos-26';
 
 // El Netlify PROPIO de Casa Verde: lo que es sólo de este sitio (las fotos del
 // editor, los calendarios de Airbnb).
