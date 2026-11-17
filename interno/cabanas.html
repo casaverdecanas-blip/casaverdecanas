@@ -46,7 +46,10 @@
   <p class="texto-gris" style="margin:8px 0 0;">Todo lo que se ve en
   <b>casaverdecanas.com.br</b>: las cabañas con sus fotos y descripciones, los espacios
   comunes, los textos de la portada y el WhatsApp que recibe las consultas.</p>
-  <h2 style="font-size:1.05rem;margin:18px 0 6px;">Cabañas</h2>
+  <div style="display:flex;align-items:center;gap:10px;margin:18px 0 6px;">
+    <h2 style="font-size:1.05rem;margin:0 auto 0 0;">Cabañas</h2>
+    <button class="btn btn-primario" id="btnAgregar"><span class="material-icons">add</span> Agregar</button>
+  </div>
   <div id="lista"><div class="vacio">Cargando…</div></div>
 </div>
 
@@ -302,6 +305,20 @@ $('btnInvAgregar').addEventListener('click', () => {
   $('invNombre').focus();
 });
 
+// Alta de una cabaña/apartamento nuevo: abre el mismo formulario vacío.
+// El id es el siguiente libre (c4, c5…) y el orden va al final.
+$('btnAgregar').addEventListener('click', () => {
+  editId = null;
+  $('mTit').textContent = 'Agregar cabaña';
+  ['nEs','nPt','nEn','dEs','dPt','dEn','fCapCond','fExtra','fAmenities','fCalendar'].forEach((i) => { $(i).value = ''; });
+  $('fCapBase').value = 2; $('fCapMax').value = 2;
+  $('fOrden').value = cabanas.reduce((m, c) => Math.max(m, Number(c.orden) || 0), 0) + 1;
+  $('fNoche').value = 0; $('fLimpieza').value = 0;
+  fotosTmp = []; invTmp = [];
+  renderFotosEdit(); renderInvEdit();
+  $('modal').showModal();
+});
+
 window.editar = (id) => {
   const c = cabanas.find((x) => x.id === id);
   editId = id;
@@ -366,7 +383,13 @@ $('mGuardar').addEventListener('click', async () => {
   if (!es) { CV2.toast('Falta el nombre en español', 'error'); return; }
   $('mGuardar').disabled = true;
   try {
-    await updateDoc(doc(db, 'cabanas', editId), {
+    let ref = editId;
+    if (!ref) {
+      let n = cabanas.length + 1;
+      while (cabanas.some((x) => x.id === 'c' + n)) n++;
+      ref = 'c' + n;
+    }
+    const datos = {
       nombre: { es, pt: $('nPt').value.trim() || es, en: $('nEn').value.trim() || es },
       descripcion: { es: $('dEs').value.trim(), pt: $('dPt').value.trim(), en: $('dEn').value.trim() },
       capacidad: {
@@ -387,9 +410,11 @@ $('mGuardar').addEventListener('click', async () => {
       calendarId: $('fCalendar').value.trim() || null,
       fotos: fotosTmp,
       actualizadoEn: serverTimestamp()
-    });
+    };
+    if (editId) await updateDoc(doc(db, 'cabanas', ref), datos);
+    else await setDoc(doc(db, 'cabanas', ref), { ...datos, activa: true, creadoEn: serverTimestamp() });
     $('modal').close();
-    CV2.toast('Guardada', 'success');
+    CV2.toast(editId ? 'Guardada' : '✓ Cabaña agregada', 'success');
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
   finally { $('mGuardar').disabled = false; }
 });
