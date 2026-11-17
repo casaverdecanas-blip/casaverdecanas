@@ -154,6 +154,9 @@
   .cab{background:#fff;border:1px solid var(--linea);border-radius:18px;overflow:hidden;
     box-shadow:var(--sombra);margin-bottom:26px}
   @media(min-width:760px){ .cab{display:grid;grid-template-columns:1.05fr 1fr} }
+  /* 17-nov-2026: el enlace directo a un espacio (?c=c3) lo deja a la vista y marcado. */
+  .cab{scroll-margin-top:84px}
+  .cab.elegida{box-shadow:0 0 0 3px var(--selva),var(--sombra)}
   .slider{position:relative;background:var(--crema);aspect-ratio:4/3;overflow:hidden}
   .slider img{width:100%;height:100%;object-fit:cover;display:none}
   .slider img.on{display:block}
@@ -673,6 +676,10 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
 // Antes estaba acá y el panel no lo conocía — ver textos-sitio.js.
 let lang = (navigator.language || 'es').slice(0, 2);
 if (!T[lang]) lang = 'es';
+// 17-nov-2026 (Mauro: «el link mostrando directamente el apartamento»): `?c=<espacio>` abre la
+// portada parada en ese espacio, marcado; `?lang=pt|es|en` elige el idioma del enlace.
+const PARAMS = new URLSearchParams(location.search);
+if (T[PARAMS.get('lang')]) lang = PARAMS.get('lang');
 // Prioridad: lo editado en el panel → el diccionario por defecto → la clave.
 const t = (k) => (TEXTOS[lang] && TEXTOS[lang][k])
   || (T[lang] && T[lang][k]) || T.pt[k] || k;
@@ -797,7 +804,7 @@ function pintarCabanas() {
     // no se puede tocar, y el carrusel desplegado las muestra todas juntas.
     const ed = (campo) => EDITAR ? ' data-edit="cabanas/' + esc(c.id) + ':' + campo + '"' : '';
     return `
-    <article class="cab">
+    <article class="cab${PARAMS.get('c') === c.id ? ' elegida' : ''}" id="cab-${esc(c.id)}">
       <div class="slider" data-s="${i}">
         ${fotos.length
           ? fotos.map((f, j) => `<img src="${esc(f)}" class="${j === 0 ? 'on' : ''}"${EDITAR ? ` data-edit-img="cabanas/${esc(c.id)}:fotos.${j}"` : ' loading="lazy"'} alt="">`).join('')
@@ -1203,6 +1210,10 @@ try { await cargarFirebase(); } catch (e) { console.warn('Firebase no bajó:', e
 await cargarTodo();
 aplicarIdioma();
 pintarCal();
+{ // el enlace directo a un espacio: ir a él cuando ya está dibujado
+  const el = PARAMS.get('c') && document.getElementById('cab-' + PARAMS.get('c'));
+  if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'auto', block: 'start' }));
+}
 </script>
 </body>
 </html>
