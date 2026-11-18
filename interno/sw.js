@@ -538,7 +538,10 @@
 // v117 (18-oct-2026) — pedidos-alquiler.html [NUEVO, SHELL]: los pedidos de
 //   alquiler en Canasvieiras de los grupos de Facebook, y su renglón en la
 //   barra (nucleo-avisos-18).
-const VERSION = 'cv2-shell-v144';
+// v145 (18-nov-2026) — core-3: las compras (itemsDeCompra, compradosDe, tildarCompra) pasan
+//   al motor y el conector-1 las ofrece: Timón las muestra en su solapa Compras. Una
+//   compra con sólo el título es una cosa (antes no aparecía en la vista de Compras).
+const VERSION = 'cv2-shell-v145';
 
 const SHELL = [
   './',

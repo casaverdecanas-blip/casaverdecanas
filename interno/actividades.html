@@ -796,13 +796,14 @@ function render() {
 let proveedores = [];
 
 // Los ítems salen del texto, sin guardarse aparte: el texto ES el dato.
-const itemsDe = (it) => String(it.detalle || '').split('\n')
-  .map((l) => l.trim()).filter((l) => l !== '');
+// core-3 (18-nov-2026): la cuenta vive en el motor, porque Timón la usa igual.
+// Una compra sin líneas es una cosa sola: su título.
+const itemsDe = (it) => Core.itemsDeCompra(it);
 
 // Lo comprado se guarda POR TEXTO y no por posición: si alguien edita una
 // línea, se destilda sola —cambió de cosa— y eso es predecible. Por índice,
 // agregar una línea arriba habría corrido todas las marcas una posición.
-const compradosDe = (it) => new Set(Array.isArray(it.comprados) ? it.comprados : []);
+const compradosDe = (it) => new Set(Core.compradosDe(it));
 
 function pintarProveedores(sel) {
   const s = $('fProveedor');
@@ -1579,10 +1580,7 @@ async function tildarItem(actId, txt, tildado) {
   const it = byId[actId];
   if (!it) return;
   try {
-    await updateDoc(doc(db, 'actividades', actId), {
-      comprados: tildado ? arrayUnion(txt) : arrayRemove(txt),
-      actualizadoEn: serverTimestamp()
-    });
+    await Core.tildarCompra(actId, txt, tildado);
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
 }
 

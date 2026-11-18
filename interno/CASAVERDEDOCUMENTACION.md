@@ -960,7 +960,12 @@ ultimoAutorNombre, ultimaActividad, creadoPor, creadoNombre, creadoEn`
 · **`detalle` ES LA LISTA.** Cuando `esCompra` está en `true`, cada salto de línea de
   `detalle` es un ítem. **No hay array de ítems**: el texto es el dato. Un formulario
   con un botón "agregar ítem" por cada cosa para comprar no lo llena nadie, y una lista
-  que no se llena no sirve.
+  que no se llena no sirve. **Sin líneas, la compra es UNA cosa: su título** (core-3,
+  18-nov-2026; antes quedaba afuera de la vista de Compras).
+· **La cuenta vive en el motor** (`Core.itemsDeCompra`, `Core.compradosDe`,
+  `Core.tildarCompra`, core-3) y el `conector-1` la ofrece: **Timón muestra estas mismas
+  compras en su solapa Compras** y tilda por el mismo camino. Se leen y se escriben en
+  la actividad de ACÁ; Timón no guarda copia.
 · **`comprados`** — array con el **TEXTO** de los ítems ya comprados. Por texto y no por
   posición: si alguien edita una línea, se destilda sola —cambió de cosa— y eso es
   predecible. Por índice, agregar una línea arriba habría corrido todas las marcas.

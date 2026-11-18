@@ -28,9 +28,11 @@ export const CONTRATO = 'conector-1';
 
 /* Lo que una app de afuera puede usar. Si se agrega un nombre, se agrega
    acá y en el banco; si se quiere sacar uno, es conector-2. */
+// 18-nov-2026: itemsDeCompra, compradosDe y tildarCompra (las compras de las
+// actividades, para la solapa Compras de Timón). Se agregaron: sigue siendo conector-1.
 export const OFRECE = Object.freeze({
   Core: Object.freeze(['consultaActividades', 'limpiezaLatente', 'esLimpiezaEntrada',
-    'iniciar', 'finalizar', 'tildar']),
+    'iniciar', 'finalizar', 'tildar', 'itemsDeCompra', 'compradosDe', 'tildarCompra']),
   CV2: Object.freeze(['subirImagen', 'comprimirImagen', 'NETLIFY'])
 });
 

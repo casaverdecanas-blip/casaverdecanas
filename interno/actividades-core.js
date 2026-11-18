@@ -4,14 +4,15 @@
 //  ciclo con reprogramación de recurrentes y HONORARIOS
 //  PROPORCIONALES. Diseño heredado del v5.2 del sistema viejo,
 //  reescrito limpio. Fuente única: /sesiones/ y /honorarios/.
-//  Sello: core-2 (8-nov-2026) — el control de salida nace ACÁ.
+//  Sello: core-3 (18-nov-2026) — las compras, en el motor (las lee Timón).
+//  core-2 (8-nov-2026) — el control de salida nace ACÁ.
 // ═══════════════════════════════════════════════════════════════
 
 import {
   db, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   collection, query, where, limit, or, and,
   getAggregateFromServer, sum,
-  serverTimestamp, Timestamp
+  serverTimestamp, Timestamp, arrayUnion, arrayRemove
 } from './firebase-init.js';
 
 export const Core = {};
@@ -32,6 +33,33 @@ Core.consultaActividades = (u, esAdmin) => {
     and(where('alcance', '==', 'asignados'), where('creadoPor', '==', u.uid))
   ));
 };
+
+// ── Compras (core-3, 18-nov-2026) ────────────────────────────
+// Una actividad con «Es una compra» lleva su lista en la descripción, una
+// cosa por línea, y lo comprado en `comprados` POR TEXTO (no por posición:
+// editar una línea la destilda, que es lo predecible). Vivía sólo en
+// actividades.html; pasó al motor porque Timón la muestra en su solapa
+// Compras (Mauro, 18-nov: «en Timón no logro ver las compras que se
+// registraron en Casa Verde») y tildar desde allá tiene que ser lo mismo
+// que tildar acá.
+// Una compra SIN líneas es una cosa sola: su título. Hasta core-2 quedaba
+// afuera de la vista de Compras («la lista está vacía») — pasó con cinco
+// compras cargadas el 18-nov con el nombre y nada más.
+Core.itemsDeCompra = (it) => {
+  const lineas = String(it?.detalle || '').split('\n').map((l) => l.trim()).filter((l) => l !== '');
+  if (lineas.length) return lineas;
+  const t = String(it?.titulo || '').trim();
+  return it?.esCompra && t ? [t] : [];
+};
+
+Core.compradosDe = (it) => (Array.isArray(it?.comprados) ? it.comprados.slice() : []);
+
+// arrayUnion/arrayRemove y no reescribir el array: dos personas tildando
+// cosas distintas al mismo tiempo no se pisan.
+Core.tildarCompra = (actId, txt, tildado) => updateDoc(doc(db, 'actividades', actId), {
+  comprados: tildado ? arrayUnion(txt) : arrayRemove(txt),
+  actualizadoEn: serverTimestamp()
+});
 
 // ── Utilidades ───────────────────────────────────────────────
 const hoyISO = () => new Date().toISOString().slice(0, 10);
