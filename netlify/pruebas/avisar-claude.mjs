@@ -96,6 +96,14 @@ await prueba("el texto de la rutina no lleva nada que la persona haya podido esc
   assert.ok(!/[<>\n]/.test(t)); assert.ok(t.length < 200);
   assert.match(t, /TRASPASO\.md § 4 bis/);
 });
+await prueba("un token o una URL con saltos de línea o espacios (pegados del celular) se limpian antes de llamar", async () => {
+  llamadas = [];
+  const d = deps(); d.env = { CLAUDE_RUTINA_URL: " https://rutina.invalido/fire\n", CLAUDE_RUTINA_TOKEN: "sk-ant-oat01-ABC\n  DEF \r\nGHI\n" };
+  const r = await manejar(ev("casaverde", "a2", token("casaverde-20")), d);
+  assert.equal(r.statusCode, 200);
+  assert.equal(disparos()[0].url, "https://rutina.invalido/fire");
+  assert.equal(disparos()[0].op.headers.Authorization, "Bearer sk-ant-oat01-ABCDEFGHI");
+});
 await prueba("sin la rutina configurada en Netlify contesta 503 y no rompe", async () => {
   llamadas = [];
   const d = deps(); d.env = {};
