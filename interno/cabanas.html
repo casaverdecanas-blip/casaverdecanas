@@ -40,6 +40,7 @@
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
     <h1 style="margin-right:auto;">Contenido del sitio</h1>
     <a class="btn" href="./espacios.html"><span class="material-icons">deck</span> Espacios</a>
+    <a class="btn" href="./editar.html" title="El lavarropas, los espacios de todos, el acuerdo de convivencia y los horarios se editan en la página «La casa»"><span class="material-icons">edit_note</span> Editar «La casa»</a>
     <button class="btn btn-primario" id="btnSitio">
       <span class="material-icons">tune</span> Textos y contacto</button>
   </div>
@@ -148,6 +149,18 @@
       <span class="material-icons">add</span></button>
   </div>
 
+  <!-- 23-nov-2026, Mauro: lo que lee el huésped al escanear el QR de SU alojamiento (la-casa.html?k=…):
+       consejos de este lugar (las ventanas viejas, el aire) con sus fotos, además del inventario de arriba.
+       Lo general —lavarropas, espacios de todos, reglas— está en «La casa» (botón de arriba). -->
+  <label style="margin-top:12px;">Guía para el huésped <span class="texto-gris" style="font-weight:400;font-size:.8rem;">— lo que lee al escanear el QR de este alojamiento. Una línea en blanco separa párrafos; «# » al empezar una línea la vuelve subtítulo.</span></label>
+  <div class="idioma"><span>🇪🇸 es</span><textarea id="gEs" rows="6" maxlength="3000"></textarea></div>
+  <div class="idioma"><span>🇧🇷 pt</span><textarea id="gPt" rows="6" maxlength="3000"></textarea></div>
+  <div class="idioma"><span>🇬🇧 en</span><textarea id="gEn" rows="6" maxlength="3000"></textarea></div>
+  <label>Fotos de la guía <span class="texto-gris" style="font-weight:400;font-size:.8rem;">— salen debajo del texto, con su pie en cada idioma</span></label>
+  <div id="guiaFotosEdit"></div>
+  <div style="margin-top:8px;"><button class="btn" id="btnGuiaFoto" style="font-size:.84rem;">
+    <span class="material-icons">add_photo_alternate</span> Subir foto de la guía</button></div>
+
   <label style="margin-top:12px;">Google Calendar ID (sync Airbnb — se conecta en la próxima tanda)</label>
   <input id="fCalendar" style="font-family:monospace;font-size:.8rem;" placeholder="xxxx@group.calendar.google.com">
 
@@ -188,6 +201,8 @@ let cabanas = [];
 let editId = null;
 let fotosTmp = [];
 let invTmp = [];   // [{item, cantidad}] mientras se edita la cabaña
+let abrirDeUrl = false;   // ?editar=<id> se atiende una sola vez
+let guiaFotosTmp = [];   // [{url, pie:{es,pt,en}}] las fotos de la guía del huésped
 
 // Normaliza el inventario venga como lista de strings (formato viejo
 // migrado) o como lista de {item, cantidad} (formato nuevo).
@@ -209,7 +224,7 @@ function normalizarInventario(inv) {
   if (!Array.isArray(inv)) return [];
   return inv.map((x) => typeof x === 'string'
     ? { item: x, cantidad: 0 }
-    : { item: String(x.item ?? ''), cantidad: Number(x.cantidad) || 0 })
+    : { item: String(x.item ?? x.nombre ?? ''), cantidad: Number(x.cantidad ?? x.cantidadBase) || 0, ...(x.categoria ? { categoria: String(x.categoria) } : {}) })
     .filter((x) => x.item);
 }
 
@@ -282,6 +297,32 @@ function renderFotosEdit() {
 }
 window.quitarFoto = (i) => { fotosTmp.splice(i, 1); renderFotosEdit(); };
 
+// ── Fotos de la guía (cada una con su pie en los tres idiomas) ─
+function renderGuiaFotos() {
+  $('guiaFotosEdit').innerHTML = guiaFotosTmp.map((f, i) => `
+    <div class="fotoedit" style="align-items:flex-start;">
+      <img src="${esc(f.url)}">
+      <div style="flex:1;display:grid;gap:4px;min-width:0;">
+        <input placeholder="Pie · es" value="${esc(f.pie?.es ?? '')}" oninput="guiaPie(${i},'es',this.value)">
+        <input placeholder="Pie · pt" value="${esc(f.pie?.pt ?? '')}" oninput="guiaPie(${i},'pt',this.value)">
+        <input placeholder="Pie · en" value="${esc(f.pie?.en ?? '')}" oninput="guiaPie(${i},'en',this.value)">
+      </div>
+      <button class="btn-ico" onclick="quitarGuiaFoto(${i})"><span class="material-icons" style="color:var(--rojo)">delete_outline</span></button>
+    </div>`).join('') || '<p class="texto-gris" style="margin:4px 0 0;">Sin fotos de la guía.</p>';
+}
+window.guiaPie = (i, l, v) => { guiaFotosTmp[i].pie = { ...(guiaFotosTmp[i].pie || {}), [l]: v }; };
+window.quitarGuiaFoto = (i) => { guiaFotosTmp.splice(i, 1); renderGuiaFotos(); };
+$('btnGuiaFoto').addEventListener('click', async () => {
+  $('btnGuiaFoto').disabled = true;
+  try {
+    const url = await CV2.elegirYSubirImagen({ titulo: 'Foto de la guía', carpeta: editId || 'sitio' });
+    if (!url) return;
+    guiaFotosTmp.push({ url, pie: { es: '', pt: '', en: '' } });
+    renderGuiaFotos();
+    CV2.toast('✓ Foto subida: escribile el pie', 'success');
+  } finally { $('btnGuiaFoto').disabled = false; }
+});
+
 // ── Inventario editable ──────────────────────────────────────
 function renderInvEdit() {
   $('invEdit').innerHTML = invTmp.length
@@ -310,12 +351,12 @@ $('btnInvAgregar').addEventListener('click', () => {
 $('btnAgregar').addEventListener('click', () => {
   editId = null;
   $('mTit').textContent = 'Agregar cabaña';
-  ['nEs','nPt','nEn','dEs','dPt','dEn','fCapCond','fExtra','fAmenities','fCalendar'].forEach((i) => { $(i).value = ''; });
+  ['nEs','nPt','nEn','dEs','dPt','dEn','gEs','gPt','gEn','fCapCond','fExtra','fAmenities','fCalendar'].forEach((i) => { $(i).value = ''; });
   $('fCapBase').value = 2; $('fCapMax').value = 2;
   $('fOrden').value = cabanas.reduce((m, c) => Math.max(m, Number(c.orden) || 0), 0) + 1;
   $('fNoche').value = 0; $('fLimpieza').value = 0;
-  fotosTmp = []; invTmp = [];
-  renderFotosEdit(); renderInvEdit();
+  fotosTmp = []; invTmp = []; guiaFotosTmp = [];
+  renderFotosEdit(); renderInvEdit(); renderGuiaFotos();
   $('modal').showModal();
 });
 
@@ -337,8 +378,11 @@ window.editar = (id) => {
   $('fCalendar').value = c.calendarId ?? '';
   fotosTmp = (c.fotos ?? []).slice();
   invTmp = normalizarInventario(c.inventarioBase);
+  $('gEs').value = c.guia?.es ?? ''; $('gPt').value = c.guia?.pt ?? ''; $('gEn').value = c.guia?.en ?? '';
+  guiaFotosTmp = (c.guiaFotos ?? []).filter((f) => f && f.url).map((f) => ({ url: f.url, pie: { es: f.pie?.es ?? '', pt: f.pie?.pt ?? '', en: f.pie?.en ?? '' } }));
   renderFotosEdit();
   renderInvEdit();
+  renderGuiaFotos();
   $('modal').showModal();
 };
 
@@ -406,9 +450,12 @@ $('mGuardar').addEventListener('click', async () => {
         moneda: 'BRL'
       },
       amenities: $('fAmenities').value.split(',').map((x) => x.trim()).filter(Boolean),
-      inventarioBase: invTmp.filter((x) => x.item).map((x) => ({ item: x.item, cantidad: Number(x.cantidad) || 0 })),
+      // La categoría (Cocina, Ropa blanca…) se conserva: la guía del huésped agrupa por ella.
+      inventarioBase: invTmp.filter((x) => x.item).map((x) => ({ item: x.item, cantidad: Number(x.cantidad) || 0, ...(x.categoria ? { categoria: x.categoria } : {}) })),
       calendarId: $('fCalendar').value.trim() || null,
       fotos: fotosTmp,
+      guia: { es: $('gEs').value.trim(), pt: $('gPt').value.trim(), en: $('gEn').value.trim() },
+      guiaFotos: guiaFotosTmp.map((f) => ({ url: f.url, pie: { es: (f.pie?.es ?? '').trim(), pt: (f.pie?.pt ?? '').trim(), en: (f.pie?.en ?? '').trim() } })),
       actualizadoEn: serverTimestamp()
     };
     if (editId) await updateDoc(doc(db, 'cabanas', ref), datos);
@@ -554,6 +601,13 @@ onSnapshot(collection(db, 'cabanas'), (snap) => {
   snap.forEach((d) => cabanas.push({ id: d.id, ...d.data() }));
   cabanas.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
   render();
+  // 23-nov-2026: el control de entrada (actividades.html) manda acá con ?editar=<id> para revisar
+  // la guía y el inventario base de ESA cabaña antes de que llegue el huésped. Se abre una sola vez.
+  if (!abrirDeUrl) {
+    abrirDeUrl = true;
+    const id = new URLSearchParams(location.search).get('editar');
+    if (id && cabanas.some((c) => c.id === id)) window.editar(id);
+  }
 }, (e) => { console.error(e); CV2.toast('No se pudieron cargar las cabañas (' + (e.code ?? e.message) + ')', 'error'); });
 </script>
 </body>

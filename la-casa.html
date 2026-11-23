@@ -180,6 +180,29 @@
   .caja h2{font-size:1.16rem;margin-bottom:8px}
   .caja p{font-size:.93rem;margin:0}
 
+  /* ── La guía del huésped (la-casa-guia, 23-nov-2026) ───── */
+  .bienv h2{font-size:1.35rem}
+  .bienv p{font-size:1rem;color:var(--tinta)}
+  .cabina{border-color:rgba(48,94,48,.35)}
+  .cabina h2{font-size:1.3rem;margin:0 0 2px}
+  .cabina .nombre{font-family:Fraunces,serif;font-size:1.05rem;color:var(--terracota-osc);margin:0 0 14px}
+  .cabina h3{font-size:1.02rem;color:var(--selva-osc);margin:18px 0 6px}
+  .cabina p{font-size:.95rem;color:var(--tinta);margin:0 0 12px}
+  .fotos-guia{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:14px 0 4px}
+  .fotos-guia figure,.foto-uso{margin:0}
+  .fotos-guia img,.foto-uso img{width:100%;height:auto;display:block;border-radius:12px;border:1px solid var(--linea);background:var(--crema)}
+  .fotos-guia figcaption,.foto-uso figcaption{font-size:.82rem;color:var(--gris);margin-top:5px}
+  .inv-cat{font-size:.78rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gris);margin:14px 0 4px}
+  .inv{list-style:none;margin:0;padding:0;display:grid;gap:0 22px}
+  @media(min-width:620px){ .inv{grid-template-columns:1fr 1fr} }
+  .inv li{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dotted var(--linea);padding:6px 0;font-size:.93rem}
+  .inv li b{font-variant-numeric:tabular-nums;color:var(--selva-osc)}
+  .pasos{margin:8px 0 14px;padding-left:1.25em;display:grid;gap:8px}
+  .pasos li{font-size:.95rem;color:var(--tinta);padding-left:2px}
+  .pasos li::marker{color:var(--selva);font-weight:700}
+  .ayuda h3{font-size:1.06rem;color:var(--selva-osc);margin-bottom:6px}
+  .ayuda .btn-wa{margin-top:14px}
+
   /* ── Cierre ────────────────────────────────────────────── */
   .cierre{text-align:center;padding:30px 0 10px}
   .cierre h2{font-size:1.4rem;margin-bottom:8px}
@@ -272,6 +295,18 @@
     <g><line class="cordel" x1="540" y1="14.5" x2="540" y2="20"/><circle class="luz" cx="540" cy="23" r="3"/></g>
   </svg>
 </div>
+
+<!-- ── La bienvenida: SIEMPRE a Casa Verde Canas, no a una cabaña (pedido de
+     Mauro, 23-nov-2026). Es el estándar, en los tres idiomas. Debajo, si el
+     huésped llegó por el QR de su alojamiento (?k=…), aparece SU alojamiento:
+     lo que dice cabanas/{id}.guia, sus fotos y su inventario. ────────── -->
+<section class="wrap" id="bienvenida">
+  <div class="caja bienv">
+    <h2 data-t="casa_bienv_t">Bienvenidos a Casa Verde Canas</h2>
+    <p data-t="casa_bienv_p">Nos alegra mucho tenerlos acá.</p>
+  </div>
+</section>
+<section class="wrap" id="tuCasa" hidden></section>
 
 <!-- ── La propiedad ──────────────────────────────────────── -->
 <section class="wrap">
@@ -371,6 +406,41 @@
   </div>
 </section>
 
+<!-- ── Cómo se usa lo de todos (23-nov-2026, Mauro): el lavarropas, los
+     espacios comunes y pedir ayuda. Como el resto de la página, cada texto es
+     una clave de textos-sitio.js (editable desde el editor visual) y cada
+     renglón de la lista es su propia clave. La foto del panel del lavarropas
+     es fija: si se cambia la máquina, se cambia acá. ────────────────── -->
+<section class="wrap" id="uso">
+  <h2 data-t="casa_uso_t">Cómo se usa lo de todos</h2>
+  <div class="grupo">
+    <h3 data-t="casa_lav_t">El lavarropas</h3>
+    <p data-t="casa_lav_p">Está en el área de servicio y es de todos.</p>
+    <ol class="pasos">
+      <li data-t="casa_lav_1">Giren siempre la perilla a «DESL.» y después vuelvan a elegir el programa.</li>
+      <li data-t="casa_lav_2">Recomendamos el programa «Rápido».</li>
+      <li data-t="casa_lav_3">No dejen la ropa lavada adentro.</li>
+      <li data-t="casa_lav_4">Si traen canastos, vuelvan a dejarlos en el área.</li>
+    </ol>
+    <figure class="foto-uso">
+      <img src="https://res.cloudinary.com/dnwfu8ffn/image/upload/f_auto,q_auto,w_1200/v1795438776/l1etj3nbtx5ryovk1jhv.jpg" alt="Panel del lavarropas Electrolux: la perilla de programas con DESL. arriba y Rápido a la derecha" loading="lazy" width="1200" height="900">
+      <figcaption data-t="casa_lav_foto">El panel del lavarropas.</figcaption>
+    </figure>
+  </div>
+  <div class="grupo">
+    <h3 data-t="casa_comun_t">Los espacios de todos</h3>
+    <p data-t="casa_comun_p">El parrillero, la sala de juegos con TV y el espacio de las hamacas están a disposición de todos.</p>
+  </div>
+  <div class="caja ayuda">
+    <h3 data-t="casa_ayuda_t">Si necesitan ayuda, pídanla</h3>
+    <p data-t="casa_ayuda_p">No duden en pedirnos ayuda.</p>
+    <a class="btn-wa" id="btnAyuda" href="#">
+      <span class="material-icons" style="font-size:19px;">chat</span>
+      <span data-t="casa_ayuda_btn">Pedir ayuda por WhatsApp</span>
+    </a>
+  </div>
+</section>
+
 <!-- ── EL ACUERDO ────────────────────────────────────────────
      Cada regla lleva su motivo debajo. Una regla sin porqué se discute;
      con porqué se entiende. Es la diferencia entre un reglamento y un
@@ -441,6 +511,18 @@
   </div>
 </section>
 
+<!-- ── El libro de visitas: lleva a recuerdos.html, que recuerda la clave del QR ── -->
+<section class="wrap" id="libro">
+  <div class="caja">
+    <h2 data-t="casa_libro_t">El libro de visitas</h2>
+    <p data-t="casa_libro_p">Dejen una foto de estos días con un comentario.</p>
+    <a class="btn-wa" id="btnLibro" href="./recuerdos.html" style="margin-top:14px;">
+      <span class="material-icons" style="font-size:19px;">photo_camera</span>
+      <span data-t="casa_libro_btn">Dejar mi recuerdo</span>
+    </a>
+  </div>
+</section>
+
 <!-- ── Cierre ────────────────────────────────────────────── -->
 <section class="wrap cierre">
   <h2 data-t="casa_dudas_t">¿Alguna duda?</h2>
@@ -487,6 +569,11 @@ var TEXTOS = {};
 var OCULTOS = [];
 
 function $(id) { return document.getElementById(id); }
+function esc(x) {
+  return String(x == null ? '' : x).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
 
 // ── Idiomas ──────────────────────────────────────────────────
 // Arranca en el del navegador; si no es pt, es o en, cae en español.
@@ -577,6 +664,7 @@ function aplicarIdioma() {
     els[i].textContent = t(els[i].dataset.t);
   }
   aplicarOcultos();
+  pintarMiCabana();
   var bs = document.querySelectorAll('.idiomas button');
   for (var j = 0; j < bs.length; j++) {
     bs[j].classList.toggle('on', bs[j].dataset.i === lang);
@@ -596,6 +684,103 @@ for (var b = 0; b < botonesIdioma.length; b++) {
   });
 }
 
+// ═══ SU ALOJAMIENTO (23-nov-2026) ═══════════════════════════
+// El QR de cada alojamiento trae la MISMA clave que el de recuerdos
+// (claves_recuerdos/{clave}: 'get' público, nunca 'list'), y esa clave dice
+// qué alojamiento es. De ahí sale cabanas/{id} (lectura pública): su guía
+// en los tres idiomas (`guia`), las fotos de la guía (`guiaFotos`) y el
+// inventario base. Si la clave no sirve, la página es la general y no
+// muestra nada de más: es el mismo comportamiento de recuerdos.html.
+var MEMORIA = 'cv-recuerdos-clave';       // la misma que recuerdos.html: así el libro de visitas ya sabe quién es
+var FORMA_CLAVE = /^[A-Za-z0-9._-]{6,64}$/;
+var CLAVE = '';
+var MI = null;                            // { id, d } del alojamiento, o null
+
+function claveRecordada() {
+  try {
+    var r = JSON.parse(localStorage.getItem(MEMORIA) || 'null');
+    if (!r || !r.clave) return '';
+    if (Date.now() > r.hasta) { localStorage.removeItem(MEMORIA); return ''; }
+    return r.clave;
+  } catch (e) { return ''; }
+}
+function recordarClave(c) {
+  try { localStorage.setItem(MEMORIA, JSON.stringify({ clave: c, hasta: Date.now() + 15 * 86400000 })); } catch (e) { /* sin memoria */ }
+}
+
+async function cargarMiCabana() {
+  var url = (new URLSearchParams(location.search).get('k') || '').trim();
+  if (url && FORMA_CLAVE.test(url)) {
+    recordarClave(url);
+    // La clave se saca de la barra: no viaja en capturas ni en enlaces compartidos.
+    try { history.replaceState({}, '', location.pathname); } catch (e) { /* nada */ }
+  }
+  CLAVE = (url && FORMA_CLAVE.test(url)) ? url : claveRecordada();
+  MI = null;
+  if (!CLAVE || !FORMA_CLAVE.test(CLAVE) || EDITAR) return;
+  try {
+    var k = await getDoc(doc(db, 'claves_recuerdos', CLAVE));
+    if (!k.exists()) return;
+    var x = k.data();
+    if (x.activa !== true) return;
+    var vence = x.vence && x.vence.toMillis ? x.vence.toMillis() : 0;
+    if (vence && Date.now() > vence) return;
+    if (typeof x.cabanaId !== 'string' || !x.cabanaId) return;
+    var c = await getDoc(doc(db, 'cabanas', x.cabanaId));
+    if (c.exists()) MI = { id: c.id, d: c.data() };
+  } catch (e) { console.warn('alojamiento', e && e.message); }
+}
+
+function enIdioma(obj) {
+  if (!obj || typeof obj !== 'object') return '';
+  return String(obj[lang] || obj.es || obj.pt || obj.en || '');
+}
+// La guía son párrafos separados por una línea en blanco; uno que empieza
+// con «# » es un subtítulo. Todo se escapa: lo escribe el panel, pero se lee en público.
+function guiaHtml(texto) {
+  return String(texto || '').split(/\n\s*\n/).map(function (b) {
+    b = b.trim();
+    if (!b) return '';
+    if (b.indexOf('# ') === 0) return '<h3>' + esc(b.slice(2)) + '</h3>';
+    return '<p>' + esc(b).replace(/\n/g, '<br>') + '</p>';
+  }).join('');
+}
+
+function pintarMiCabana() {
+  var sec = $('tuCasa');
+  if (!MI) { sec.hidden = true; sec.innerHTML = ''; return; }
+  var d = MI.d, h = '';
+  h += '<div class="caja cabina"><h2>' + esc(t('casa_tucab_t')) + '</h2><p class="nombre">' + esc(enIdioma(d.nombre)) + '</p>';
+  var g = enIdioma(d.guia);
+  // El título general sólo si la guía no abre con su propio subtítulo (así no quedan dos títulos seguidos).
+  if (g) h += (g.trim().indexOf('# ') === 0 ? '' : '<h3>' + esc(t('casa_guia_t')) + '</h3>') + guiaHtml(g);
+  var fotos = Array.isArray(d.guiaFotos) ? d.guiaFotos : [];
+  var fh = fotos.filter(function (f) { return f && typeof f.url === 'string' && /^https:\/\/res\.cloudinary\.com\//.test(f.url); }).map(function (f) {
+    var pie = enIdioma(f.pie);
+    return '<figure><img src="' + esc(f.url) + '" alt="' + esc(pie) + '" loading="lazy">' + (pie ? '<figcaption>' + esc(pie) + '</figcaption>' : '') + '</figure>';
+  }).join('');
+  if (fh) h += '<div class="fotos-guia">' + fh + '</div>';
+  // El inventario con sus cantidades (aceptado por Mauro: ayuda a que se cuide lo que hay).
+  var inv = (Array.isArray(d.inventarioBase) ? d.inventarioBase : []).map(function (x) {
+    if (typeof x === 'string') return { item: x, cantidad: 0, cat: '' };
+    return { item: String(x.item || x.nombre || ''), cantidad: Number(x.cantidad != null ? x.cantidad : x.cantidadBase) || 0, cat: String(x.categoria || '') };
+  }).filter(function (x) { return x.item; });
+  if (inv.length) {
+    h += '<h3>' + esc(t('casa_inv_t')) + '</h3><p>' + esc(t('casa_inv_p')) + '</p>';
+    var cats = [];
+    inv.forEach(function (x) { if (cats.indexOf(x.cat) === -1) cats.push(x.cat); });
+    cats.forEach(function (c) {
+      if (c) h += '<div class="inv-cat">' + esc(c) + '</div>';
+      h += '<ul class="inv">' + inv.filter(function (x) { return x.cat === c; }).map(function (x) {
+        return '<li><span>' + esc(x.item) + '</span>' + (x.cantidad ? '<b>' + x.cantidad + '</b>' : '') + '</li>';
+      }).join('') + '</ul>';
+    });
+  }
+  h += '</div>';
+  sec.innerHTML = h;
+  sec.hidden = false;
+}
+
 // ── El botón de WhatsApp ─────────────────────────────────────
 // El mensaje sale distinto del de la portada a propósito: quien escribe
 // desde acá ya leyó las reglas y casi siempre pregunta por una de ellas.
@@ -604,6 +789,7 @@ function armarLink() {
     // Sin número cargado en el panel, el botón no lleva a ningún lado.
     // Se deja el enlace muerto en vez de inventar una dirección.
     $('btnWa').href = '#';
+    $('btnAyuda').href = '#';
     $('waTop').href = './index.html#consulta';
     return;
   }
@@ -615,6 +801,14 @@ function armarLink() {
   var url = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(msj);
   $('btnWa').href = url;
   $('waTop').href = url;
+  // El de ayuda dice en qué alojamiento están, si se sabe.
+  var donde = MI ? enIdioma(MI.d.nombre) : '';
+  var ayuda = lang === 'pt'
+    ? 'Olá! ' + (donde ? 'Estamos em "' + donde + '" e ' : '') + 'precisamos de uma ajuda.'
+    : lang === 'en'
+      ? 'Hi! ' + (donde ? 'We are staying at "' + donde + '" and ' : '') + 'we need a hand with something.'
+      : 'Hola! ' + (donde ? 'Estamos en "' + donde + '" y ' : '') + 'necesitamos una mano con algo.';
+  $('btnAyuda').href = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(ayuda);
 }
 
 // ── Carga (lectura pública) ──────────────────────────────────
@@ -670,6 +864,7 @@ await cargarTodo(); aplicarIdioma(); },
 // público salía sin cabañas ni fotos. Si no baja, se sigue con los textos del HTML.
 try { await cargarFirebase(); } catch (e) { console.warn('Firebase no bajó:', e && e.message); }
 await cargarTodo();
+await cargarMiCabana();
 aplicarIdioma();
 </script>
 </body>

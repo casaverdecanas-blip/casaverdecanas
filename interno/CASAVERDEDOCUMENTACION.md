@@ -1,12 +1,39 @@
 # CASA VERDE CANAS — Documentación del sistema
 
-**Edición del 9 de noviembre de 2026** (la última reescritura entera fue la del 31 de julio, tanda 11.23; desde ahí se corrige por partes: ver «Retiros del 9-nov-2026» y cada sección con su fecha)
+**Edición del 23 de noviembre de 2026** (la última reescritura entera fue la del 31 de julio, tanda 11.23; desde ahí se corrige por partes: ver «Retiros del 9-nov-2026» y cada sección con su fecha)
 
 Los tres documentos del proyecto en un solo archivo, para subirlo de una vez al
 conocimiento. Antes eran `CONVENCIONES.md`, `GUIA-SITIO-PUBLICO.md` y
 `Master_briefing_vN.md`; su contenido no cambió, solo viven juntos.
 
 ---
+
+## La guía del huésped, 23-nov-2026 (`cv2-shell-v146`, `llegada-4`)
+
+Mauro pidió que lo que el huésped necesita saber esté **en la página que abre el QR de su alojamiento**,
+en los tres idiomas, y que se pueda editar sin tocar código.
+
+- **El QR** es el de recuerdos (`claves_recuerdos/{clave}`, una por superficie) pero ahora apunta a
+  **`la-casa.html?k=<clave>`** (`BASE_DEF` de `interno/recuerdos.html`; la dirección vieja guardada en un
+  navegador ya no manda). La página lee la clave (`get` público, nunca `list`), la guarda en el mismo lugar que
+  `recuerdos.html` y la saca de la barra: el botón «Dejar mi recuerdo» entra al libro de visitas ya identificado.
+  `recuerdos.html` sigue andando con cualquier clave. Ningún QR se había impreso.
+- **Lo general** vive en `textos-sitio.js` (ahora 140 claves por idioma, +21): la **bienvenida siempre a
+  Casa Verde Canas** (nunca a una cabaña), cómo se usa **el lavarropas** (con la foto de su panel), **los espacios
+  de todos** (parrillero, sala de juegos con TV, hamacas) y **pedir ayuda por WhatsApp**. Se edita en el editor
+  visual y el traductor, como el resto de «La casa».
+- **Lo de cada alojamiento** vive en `cabanas/{id}`: **`guia {es,pt,en}`** (párrafos separados por una línea en
+  blanco; «# » abre un subtítulo), **`guiaFotos [{url, pie {es,pt,en}}]`** y el `inventarioBase`, que ahora se
+  muestra con sus cantidades y agrupado por `categoria`. Sin reglas nuevas: `cabanas` ya es de lectura pública y
+  de escritura con `contenido`. **Es público: nada privado va en la guía.** Se edita en Cabañas.
+- **El control de entrada** (`actividades.html`) muestra lo que va a leer el huésped y lleva a
+  `cabanas.html?editar=<id>` para corregirlo: se revisa la guía y las cantidades antes de que llegue.
+- **El silencio pasa a ser de 23:00 a 8:00** (`casa_res_c2`, `casa_r_ruido_t`).
+- **La bienvenida de WhatsApp** (`llegada.html`, plantilla de fábrica): «bienvenida a Casa Verde Canas», sin
+  `{cabana}`. Si `config/bienvenida` tiene una plantilla guardada, rige esa: hay que cambiarla desde la ficha.
+- `cabanas.html` ya no pierde la `categoria` del inventario al guardar.
+- **Pendiente**: el saludo personalizado por reserva (borrador de Claude, confirmación en la ficha de llegada,
+  estándar si no se confirma) y los contactos con foto: necesitan decisión de Mauro (quiénes aparecen).
 
 ## Retiros del 9-nov-2026 (revisión de arquitectura)
 
@@ -894,7 +921,11 @@ fecha?, por?}, nota, creadoEn, creadoPor, creadoNombre, actualizadoEn`
 ### `cabanas/{c1|c2|c3}`
 `nombre {es,pt,en}, descripcion {es,pt,en}, capacidad {base, max, condicionMax}, orden, activa,
 tarifas {noche, limpieza, extraPersona, moneda}, amenities [], fotos [url], calendarId,
-airbnbUrl, notaEspecial {es,pt,en}, inventarioBase []`
+airbnbUrl, notaEspecial {es,pt,en}, inventarioBase [{item, cantidad, categoria?}],
+guia {es,pt,en}, guiaFotos [{url, pie {es,pt,en}}]`
+· **`guia` y `guiaFotos`** (23-nov-2026): lo que lee el huésped al escanear el QR de ese alojamiento
+  (`la-casa.html?k=`). **La colección es de lectura pública: nada privado.** Un párrafo es un bloque separado
+  por una línea en blanco; «# » abre un subtítulo; sólo se dibujan fotos de nuestro Cloudinary.
 · **La base es lo que se ofrece; el máximo, con su condición** (20-oct-2026, Mauro: «la base
   son 6 para la 1, 5 para el Loft y 4 para el depto; los máximos son con extra por persona y
   en situaciones especiales… debe quedar registrado en cada espacio y leerlo desde ahí»).

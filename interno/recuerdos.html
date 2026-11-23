@@ -111,7 +111,7 @@
     <div class="base">
       <span class="material-icons" style="color:var(--gris);">link</span>
       <input id="inBase" type="text" spellcheck="false"
-             placeholder="https://casaverdecanas.com.br/recuerdos.html">
+             placeholder="https://casaverdecanas.com.br/la-casa.html">
       <button class="btn" id="btnBase">Guardar dirección</button>
     </div>
     <p class="texto-gris" style="font-size:.8rem;margin-top:-8px;">
@@ -176,7 +176,7 @@
   <div class="hoja">
     <div class="marco" id="cajaQR"></div>
     <h3 id="qrTitulo"></h3>
-    <p class="pie">Escaneá este código y contanos cómo la pasaste 🌿</p>
+    <p class="pie">Escaneá · Escaneie · Scan 🌿<br>Tu alojamiento, cómo funciona todo y el libro de visitas</p>
     <p class="dir" id="qrDir"></p>
   </div>
   <div class="noimprimir" style="display:flex;gap:9px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap;">
@@ -254,10 +254,17 @@ const conteo = { pendiente: 0, publicado: 0, oculto: 0 };
 
 // La dirección que va DENTRO del QR. Por defecto la del dominio
 // definitivo; se puede cambiar y queda guardada en este navegador.
-const BASE_DEF = 'https://casaverdecanas.com.br/recuerdos.html';
+// 23-nov-2026: el QR de cada alojamiento abre la GUÍA del huésped (la-casa.html: su alojamiento, el
+// inventario, cómo se usan las cosas, el acuerdo y el libro de visitas), que lleva a recuerdos.html con
+// la misma clave. Ningún QR se había impreso todavía; recuerdos.html sigue funcionando con cualquier clave.
+const BASE_DEF = 'https://casaverdecanas.com.br/la-casa.html';
+const BASE_VIEJA = 'https://casaverdecanas.com.br/recuerdos.html';
 const BASE_MEM = 'cv-recuerdos-base';
 const baseGuardada = () => {
-  try { return localStorage.getItem(BASE_MEM) || BASE_DEF; } catch (e) { return BASE_DEF; }
+  try {
+    const g = localStorage.getItem(BASE_MEM);
+    return g && g !== BASE_VIEJA ? g : BASE_DEF;   // la dirección vieja guardada en este navegador no manda
+  } catch (e) { return BASE_DEF; }
 };
 const urlDeClave = (clave) => baseGuardada() + '?k=' + encodeURIComponent(clave);
 

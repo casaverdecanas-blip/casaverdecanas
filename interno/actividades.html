@@ -372,6 +372,9 @@
 
   <!-- ENTRADA -->
   <div id="chIn">
+    <!-- 23-nov-2026 (Mauro): antes de que llegue el huésped se revisa también lo que va a LEER (la guía de
+         esta cabaña y su inventario base). El enlace abre el editor de cabañas directo en ésta. -->
+    <div id="chGuia"></div>
     <p class="texto-gris" style="font-size:.82rem;margin-top:0;">
       Ajustá las cantidades a lo que <b>realmente</b> dejás en la cabaña. Esto fija la
       línea de base con la que se va a comparar la salida.</p>
@@ -1837,6 +1840,7 @@ window.abrirChequeo = async (actId) => {
     $('chSub').innerHTML = '🔑 Control de ENTRADA · ' + esc(nom) + ' · reserva ' + esc(it.reservaId);
     $('chIn').classList.remove('oculto');
     $('chOut').classList.add('oculto');
+    renderChGuia();
     renderChIn();
   } else {
     $('chSub').innerHTML = '🚪 Control de SALIDA · ' + esc(nom) +
@@ -1850,6 +1854,22 @@ window.abrirChequeo = async (actId) => {
   }
   $('mChequeo').showModal();
 };
+
+// Lo que lee el huésped al escanear el QR de ESTA cabaña, a la vista en el control de entrada.
+function renderChGuia() {
+  const g = chCab && chCab.guia ? (chCab.guia.es || chCab.guia.pt || chCab.guia.en || '') : '';
+  const fotos = chCab && Array.isArray(chCab.guiaFotos) ? chCab.guiaFotos.length : 0;
+  $('chGuia').innerHTML = `
+    <div style="background:var(--crema);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:.84rem;">
+      <b>👀 Lo que va a leer el huésped</b>
+      ${g ? `<div style="white-space:pre-wrap;max-height:110px;overflow:auto;margin:6px 0;color:var(--gris);">${esc(g)}</div>${fotos ? `<div class="texto-gris" style="font-size:.78rem;">+ ${fotos} foto(s)</div>` : ''}`
+          : '<p class="texto-gris" style="margin:6px 0;">Esta cabaña todavía no tiene guía propia: el huésped ve sólo lo general y el inventario.</p>'}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+        <a class="btn" style="font-size:.8rem;" href="./cabanas.html?editar=${encodeURIComponent(chCab.id)}">✏️ Editar la guía y el inventario de esta cabaña</a>
+        <a class="btn" style="font-size:.8rem;" href="./editar.html">✏️ Lo general (lavarropas, reglas)</a>
+      </div>
+    </div>`;
+}
 
 window.cerrarChequeo = () => $('mChequeo').close();
 

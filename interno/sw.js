@@ -541,7 +541,14 @@
 // v145 (18-nov-2026) — core-3: las compras (itemsDeCompra, compradosDe, tildarCompra) pasan
 //   al motor y el conector-1 las ofrece: Timón las muestra en su solapa Compras. Una
 //   compra con sólo el título es una cosa (antes no aparecía en la vista de Compras).
-const VERSION = 'cv2-shell-v145';
+// v146 (23-nov-2026) — LA GUÍA DEL HUÉSPED (Mauro). El silencio pasa de 23:00 a 8:00; la-casa.html suma la
+//   bienvenida a Casa Verde Canas (no a una cabaña), «Su alojamiento» (lo que dice cabanas/{id}.guia y
+//   .guiaFotos, y el inventario) cuando se llega por el QR (?k=), cómo se usa el lavarropas, los espacios de
+//   todos, pedir ayuda y el libro de visitas; textos-sitio.js +21 claves por idioma (140). cabanas.html: la
+//   guía y sus fotos, y la categoría del inventario se conserva. actividades.html: el control de entrada
+//   muestra lo que va a leer el huésped. llegada.html (llegada-4): la bienvenida de WhatsApp nombra Casa
+//   Verde Canas. recuerdos.html del panel: el QR apunta a la-casa.html.
+const VERSION = 'cv2-shell-v146';
 
 const SHELL = [
   './',

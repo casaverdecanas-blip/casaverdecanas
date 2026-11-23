@@ -98,7 +98,7 @@ CV2.registrarSW();
 const u = await CV2.verificarAuth();
 CV2.renderNav('reservas');
 
-const SELLO = 'llegada-3';
+const SELLO = 'llegada-4';
 const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
 $('sello').textContent = 'pantalla: ' + SELLO + ' · motor: ' + (CV2.VERSION ?? 'nucleo viejo');
@@ -110,28 +110,30 @@ $('volver').href = id ? './reservas.html?r=' + encodeURIComponent(id) : './reser
 CV2.botonVolver($('volver'));
 
 // ═══ Las bienvenidas por defecto ═══════════════════════════
+// 23-nov-2026 (Mauro): la bienvenida es siempre a «Casa Verde Canas», no a una cabaña en particular:
+// la plantilla de fábrica ya no nombra {cabana} (la marca sigue existiendo para quien la quiera poner).
 // Se pueden cambiar desde la misma pantalla («Cambiar la plantilla») y se
 // guardan en config/bienvenida. Las marcas entre llaves se reemplazan; las
 // que no se conocen quedan tal cual, para que se vean y se completen.
 const MARCAS = ['nombre', 'anfitrion', 'cabana', 'entrada', 'salida', 'noches', 'horaEntrada', 'horaSalida', 'llegada'];
 const DEFECTO = {
-  es: `¡Hola, {nombre}! 👋 Soy {anfitrion}, de Casa Verde, en Canasvieiras.
+  es: `¡Hola, {nombre}! 👋 Soy {anfitrion}, de Casa Verde Canas, en Canasvieiras.
 
-Les escribo para darles la bienvenida: los esperamos el {entrada} en {cabana}, hasta el {salida} ({noches} noches). La entrada es desde las {horaEntrada} y la salida hasta las {horaSalida}.
+Les escribo para darles la bienvenida a Casa Verde Canas: los esperamos el {entrada}, hasta el {salida} ({noches} noches). La entrada es desde las {horaEntrada} y la salida hasta las {horaSalida}.
 
 {llegada}
 
 Cualquier cosa que necesiten antes de venir, me escriben por acá. ¡Buen viaje! 🌿`,
-  pt: `Olá, {nombre}! 👋 Aqui é {anfitrion}, da Casa Verde, em Canasvieiras.
+  pt: `Olá, {nombre}! 👋 Aqui é {anfitrion}, da Casa Verde Canas, em Canasvieiras.
 
-Passando para dar as boas-vindas: esperamos vocês {entrada}, em {cabana}, até {salida} ({noches} noites). O check-in é a partir das {horaEntrada} e o check-out até as {horaSalida}.
+Passando para dar as boas-vindas à Casa Verde Canas: esperamos vocês {entrada}, até {salida} ({noches} noites). O check-in é a partir das {horaEntrada} e o check-out até as {horaSalida}.
 
 {llegada}
 
 Qualquer coisa que precisarem antes de vir, é só me chamar por aqui. Boa viagem! 🌿`,
-  en: `Hi {nombre}! 👋 This is {anfitrion} from Casa Verde, in Canasvieiras.
+  en: `Hi {nombre}! 👋 This is {anfitrion} from Casa Verde Canas, in Canasvieiras.
 
-Just writing to welcome you: we're expecting you on {entrada} at {cabana}, until {salida} ({noches} nights). Check-in is from {horaEntrada} and check-out is until {horaSalida}.
+Just writing to welcome you to Casa Verde Canas: we're expecting you on {entrada}, until {salida} ({noches} nights). Check-in is from {horaEntrada} and check-out is until {horaSalida}.
 
 {llegada}
 
