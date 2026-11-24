@@ -120,17 +120,44 @@
     box-shadow:0 2px 8px rgba(184,109,76,.28)}
   .wa:hover{background:var(--terracota-osc)}
 
-  /* ── Portada: la ilustración ES el sitio ───────────────── */
-  .hero{padding:22px 0 8px}
-  .dibujo{width:100%;max-width:1000px;margin:0 auto;display:block;border-radius:20px;
-    background:var(--crema);box-shadow:0 6px 30px rgba(34,91,56,.14)}
-  .hero-txt{text-align:center;padding-top:26px}
-  .hero-txt h1{font-size:clamp(1.9rem,5.4vw,3.1rem);color:var(--selva-osc);letter-spacing:-.015em}
-  .hero-txt p{font-size:1.06rem;color:var(--gris);max-width:580px;margin:14px auto 0}
-  .chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:22px}
-  .chip{background:#fff;border:1px solid var(--linea);border-radius:999px;
+  /* ── Portada: el video de dron, a pantalla completa (24-nov-2026) ───────────────────────────
+     Alto = la pantalla menos la barra (--barra se mide con JS: ningún número a mano). El video va detrás, con un velo
+     oscuro arriba y abajo para que el texto se lea; el texto vive abajo a la izquierda, como un cartel de viaje. */
+  .hero{position:relative;height:calc(100svh - var(--barra,64px));min-height:520px;max-height:940px;overflow:hidden;
+    background:#0d1f15;color:#fff;isolation:isolate}
+  .hero video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-3}
+  .hero::before{content:"";position:absolute;inset:0;z-index:-1;
+    background:linear-gradient(to bottom,rgba(8,22,14,.42) 0%,rgba(8,22,14,.08) 24%,rgba(8,22,14,.12) 46%,rgba(8,22,14,.72) 100%)}
+  .hero::after{content:"";position:absolute;inset:0;z-index:-2;background:radial-gradient(120% 80% at 18% 110%,rgba(8,22,14,.55),transparent 60%)}
+  .hero-in{position:absolute;left:0;right:0;bottom:0;padding-bottom:clamp(60px,9vh,100px)}
+  .hero-txt{text-align:left}
+  .hero-txt h1{font-size:clamp(2.1rem,5.6vw,4.3rem);color:#fff;letter-spacing:-.02em;line-height:1.05;max-width:40rem;
+    text-wrap:balance;text-shadow:0 2px 24px rgba(0,0,0,.4)}
+  .hero-txt p{font-size:clamp(1rem,1.6vw,1.2rem);color:rgba(255,255,255,.93);max-width:36rem;margin:16px 0 0;
+    text-shadow:0 1px 14px rgba(0,0,0,.5)}
+  .chips{display:flex;gap:8px;justify-content:flex-start;flex-wrap:wrap;margin-top:20px;max-width:46rem}
+  .chip{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);color:#fff;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:999px;
     padding:6px 14px;font-size:.82rem;display:inline-flex;align-items:center;gap:6px}
-  .chip .material-icons{font-size:16px;color:var(--selva)}
+  .chip .material-icons{font-size:16px;color:var(--menta)}
+  .hero-acc{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+  .btn-h{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font-weight:600;
+    font-size:.95rem;padding:13px 22px;border-radius:999px;border:1.5px solid transparent}
+  .btn-h.principal{background:var(--terracota);color:#fff;box-shadow:0 4px 18px rgba(0,0,0,.3)}
+  .btn-h.principal:hover{background:var(--terracota-osc)}
+  .btn-h.fantasma{border-color:rgba(255,255,255,.7);color:#fff;background:rgba(255,255,255,.06)}
+  .btn-h.fantasma:hover{background:rgba(255,255,255,.16)}
+  /* pausa: siempre a la vista y con teclado (WCAG 2.2.2: movimiento automático de más de 5 s) */
+  .hero-pausa{position:absolute;right:max(20px,env(safe-area-inset-right,0px));bottom:18px;display:inline-flex;align-items:center;gap:8px;
+    border:1px solid rgba(255,255,255,.5);background:rgba(13,31,21,.5);color:#fff;font:inherit;font-size:.8rem;cursor:pointer;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:8px 14px 8px 10px;border-radius:999px}
+  .hero-pausa:hover{background:rgba(13,31,21,.75)}
+  .hero-pausa:focus-visible{outline:3px solid var(--menta);outline-offset:3px}
+  .hero-pausa svg{width:18px;height:18px;fill:currentColor}
+  .hero-pausa .i-play{display:none}
+  .hero-pausa[aria-pressed="true"] .i-play{display:block}
+  .hero-pausa[aria-pressed="true"] .i-pause{display:none}
+  @media (max-width:560px){.chips .chip:nth-child(n+5){display:none}}   /* en el teléfono, los cuatro primeros: el resto está más abajo */
 
   /* ── Guirnalda: la firma visual, tomada del techo del dibujo ── */
   .guirnalda{display:block;margin:6px auto;max-width:620px;padding:0 20px}
@@ -150,17 +177,6 @@
   .predio-txt{white-space:pre-line;max-width:46rem;font-size:1.02rem;line-height:1.7;color:var(--gris)}
   .cv-ed .predio-txt{white-space:pre-wrap}
   .predio{padding-bottom:34px}
-  /* El video de presentación (24-nov-2026): sólo se baja cuando se ve, y nunca con ahorro de datos */
-  .entorno{padding-bottom:10px}
-  .entorno-vid{position:relative;max-width:1000px;margin:0 auto;border-radius:20px;overflow:hidden;
-    aspect-ratio:16/9;background:var(--selva-osc);box-shadow:0 6px 30px rgba(34,91,56,.14)}
-  .entorno-vid video{display:block;width:100%;height:100%;object-fit:cover}
-  .entorno-rep{position:absolute;right:14px;bottom:14px;display:none;align-items:center;gap:6px;border:0;
-    cursor:pointer;font:inherit;font-size:.86rem;font-weight:600;padding:8px 15px;border-radius:999px;
-    background:rgba(250,244,230,.94);color:var(--selva-osc);box-shadow:0 2px 8px rgba(0,0,0,.25)}
-  .entorno-rep .material-icons{font-size:18px}
-  .entorno-vid.fin .entorno-rep{display:inline-flex}
-  .entorno-pie{max-width:1000px;margin:14px auto 0;font-size:.98rem;line-height:1.6;color:var(--gris);text-align:center}
   .titulo h2{font-size:1.75rem;color:var(--selva-osc)}
   .titulo span{font-size:.85rem;color:var(--gris)}
   .cargando{color:var(--gris);padding:26px 0;text-align:center}
@@ -433,28 +449,84 @@
   </div>
 </header>
 
+<!-- La portada (24-nov-2026, Mauro): el video de dron de la bahía a la casa, a pantalla completa y en loop, lento y en silencio.
+     Los archivos viven en la raíz (casa-verde-portada.mp4 para pantallas grandes, -movil.mp4 más liviano para el teléfono, y el póster
+     .jpg): GitHub Pages los sirve sin costo, no pasan por Cloudinary. Con preload="none" no baja nada hasta que arranca; no arranca
+     con «reducir movimiento», ahorro de datos ni conexión 2G (queda el póster); se pausa fuera de pantalla; y el botón de pausa
+     siempre está a la vista. Los textos son los de siempre (data-t), así que el editor visual sigue editándolos. -->
 <div class="hero" id="top">
-  <div class="wrap">
-    <img class="dibujo" src="./ilustracion-hero.jpg"
-         alt="Ilustración de Casa Verde Canas: cabañas, piscina y jardín en Canasvieiras"
-         onerror="if(!this.dataset.r){this.dataset.r=1;this.src='./img/ilustracion-hero.jpg';}else{this.style.display='none';}">
-  </div>
-  <div class="wrap hero-txt">
-    <h1 data-t="titulo">A três quadras do mar, cercado de verde</h1>
-    <p data-t="bajada">Cabanas e apartamentos em Canasvieiras, Florianópolis. Piscina, churrasqueira e espaço para toda a família.</p>
-    <div class="chips">
-      <span class="chip"><span class="material-icons">pool</span><span data-t="c1">Piscina</span></span>
-      <span class="chip"><span class="material-icons">outdoor_grill</span><span data-t="c2">Churrasqueira</span></span>
-      <span class="chip"><span class="material-icons">beach_access</span><span data-t="c3">3 quadras do mar</span></span>
-      <span class="chip"><span class="material-icons">wifi</span><span data-t="c4">Wi-Fi</span></span>
-      <span class="chip"><span class="material-icons">local_laundry_service</span><span data-t="c5">Lavanderia</span></span>
-      <span class="chip"><span class="material-icons">local_parking</span><span data-t="c6">Estacionamento interno</span></span>
-      <span class="chip"><span class="material-icons">storefront</span><span data-t="c7">Pertinho do centrinho</span></span>
-      <span class="chip"><span class="material-icons">kayaking</span><span data-t="c8">Caiaques</span></span>
-      <span class="chip"><span class="material-icons">roofing</span><span data-t="c9">Pátio coberto</span></span>
+  <video id="heroVid" muted loop playsinline preload="none" poster="./casa-verde-portada.jpg" aria-hidden="true" tabindex="-1">
+    <source src="./casa-verde-portada-movil.mp4" type="video/mp4" media="(max-width: 700px)">
+    <source src="./casa-verde-portada.mp4" type="video/mp4">
+  </video>
+  <div class="hero-in">
+    <div class="wrap hero-txt">
+      <h1 data-t="titulo">A três quadras do mar, cercado de verde</h1>
+      <p data-t="bajada">Cabanas e apartamentos em Canasvieiras, Florianópolis. Piscina, churrasqueira e espaço para toda a família.</p>
+      <div class="chips">
+        <span class="chip"><span class="material-icons">pool</span><span data-t="c1">Piscina</span></span>
+        <span class="chip"><span class="material-icons">outdoor_grill</span><span data-t="c2">Churrasqueira</span></span>
+        <span class="chip"><span class="material-icons">beach_access</span><span data-t="c3">3 quadras do mar</span></span>
+        <span class="chip"><span class="material-icons">wifi</span><span data-t="c4">Wi-Fi</span></span>
+        <span class="chip"><span class="material-icons">local_laundry_service</span><span data-t="c5">Lavanderia</span></span>
+        <span class="chip"><span class="material-icons">local_parking</span><span data-t="c6">Estacionamento interno</span></span>
+        <span class="chip"><span class="material-icons">storefront</span><span data-t="c7">Pertinho do centrinho</span></span>
+        <span class="chip"><span class="material-icons">kayaking</span><span data-t="c8">Caiaques</span></span>
+        <span class="chip"><span class="material-icons">roofing</span><span data-t="c9">Pátio coberto</span></span>
+      </div>
+      <div class="hero-acc">
+        <a class="btn-h principal" id="waHero" href="#consulta"><span data-t="pedir">Pedir orçamento pelo WhatsApp</span></a>
+        <a class="btn-h fantasma" href="#predio"><span data-t="hero_ver">Ver os espaços</span></a>
+      </div>
     </div>
   </div>
+  <button type="button" class="hero-pausa" id="heroPausa" aria-pressed="false" aria-label="Pausar o vídeo de fundo">
+    <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>
+    <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
+    <span id="heroPausaTxt">Pausar vídeo</span>
+  </button>
 </div>
+<script>
+(function () {
+  var h = document.getElementById('top'), v = document.getElementById('heroVid'), b = document.getElementById('heroPausa'),
+      tx = document.getElementById('heroPausaTxt'), hd = document.querySelector('header');
+  if (!h || !v || !b) return;
+  function barra() { if (hd) document.documentElement.style.setProperty('--barra', hd.offsetHeight + 'px'); }
+  barra(); window.addEventListener('resize', barra); window.addEventListener('load', barra);
+  // rótulos del control (pausar, reproducir, y sus avisos para lectores de pantalla), por idioma
+  var T = { pt: ['Pausar vídeo', 'Reproduzir vídeo', 'Pausar o vídeo de fundo', 'Reproduzir o vídeo de fundo'],
+            es: ['Pausar video', 'Reproducir video', 'Pausar el video de fondo', 'Reproducir el video de fondo'],
+            en: ['Pause video', 'Play video', 'Pause the background video', 'Play the background video'] };
+  var corre = false, aMano = false;
+  function pinta() {
+    var t = T[(document.documentElement.lang || 'pt').slice(0, 2)] || T.pt;
+    b.setAttribute('aria-pressed', corre ? 'false' : 'true');
+    b.setAttribute('aria-label', corre ? t[2] : t[3]);
+    tx.textContent = corre ? t[0] : t[1];
+  }
+  new MutationObserver(pinta).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+  var quieto = false;
+  try {
+    var c = navigator.connection;
+    quieto = (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) ||
+             !!(c && (c.saveData || /(^|-)2g$/.test(c.effectiveType || '')));
+  } catch (e) {}
+  v.addEventListener('playing', function () { corre = true; pinta(); });
+  v.addEventListener('pause', function () { corre = false; pinta(); });
+  function jugar() { var p = v.play(); if (p && p.catch) p.catch(function () { corre = false; pinta(); }); }
+  b.addEventListener('click', function () { if (v.paused) { aMano = false; jugar(); } else { aMano = true; v.pause(); } });
+  if (!quieto) jugar();
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (!e.isIntersecting) { if (!v.paused) v.pause(); }
+        else if (!quieto && !aMano && v.paused) jugar();
+      });
+    }, { threshold: 0.15 }).observe(h);
+  }
+  pinta();
+})();
+</script>
 
 <div class="guirnalda" aria-hidden="true">
   <svg viewBox="0 0 600 46">
@@ -470,52 +542,6 @@
     <g><line class="cordel" x1="540" y1="14.5" x2="540" y2="20"/><circle class="luz" cx="540" cy="23" r="3"/></g>
   </svg>
 </div>
-
-<!-- El video de presentación (24-nov-2026, Mauro): de la bahía a la casa, hecho con tomas de dron. Es un archivo
-     más del sitio (casa-verde-entorno.mp4 + su póster, en la raíz, como ilustracion-hero.jpg): GitHub Pages lo sirve
-     sin costo y no pasa por Cloudinary. Sin script anda igual: el <video> trae sus controles. Con script sólo
-     arranca cuando se ve en pantalla (preload="none": no baja nada antes), en silencio, y no arranca solo con
-     «reducir movimiento» ni con ahorro de datos. Dura 30 s y no se repite solo: al terminar ofrece «Ver de nuevo». -->
-<section class="wrap entorno" id="entorno">
-  <div class="titulo"><h2 data-t="entorno_t">La casa en su entorno</h2></div>
-  <div class="entorno-vid" id="entornoVid">
-    <video id="entornoVideo" controls muted playsinline preload="none" poster="./casa-verde-entorno.jpg"
-           aria-describedby="entornoPie">
-      <source src="./casa-verde-entorno.mp4" type="video/mp4">
-    </video>
-    <button type="button" class="entorno-rep" id="entornoRep">
-      <span class="material-icons" aria-hidden="true">replay</span><span data-t="entorno_rep">Ver de nuevo</span>
-    </button>
-  </div>
-  <p class="entorno-pie" id="entornoPie" data-t="entorno_p">De la bahía hasta nuestra puerta.</p>
-</section>
-<script>
-(function () {
-  var cont = document.getElementById('entornoVid'), v = document.getElementById('entornoVideo'),
-      rep = document.getElementById('entornoRep');
-  if (!cont || !v) return;
-  var quieto = false;
-  try {
-    quieto = (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) ||
-             (navigator.connection && navigator.connection.saveData);
-  } catch (e) {}
-  v.addEventListener('ended', function () { cont.classList.add('fin'); });
-  rep.addEventListener('click', function () {
-    cont.classList.remove('fin'); v.currentTime = 0; var p = v.play(); if (p && p.catch) p.catch(function () {});
-  });
-  if (quieto || !('IntersectionObserver' in window)) return;   // queda con su póster y sus controles
-  v.removeAttribute('controls');
-  var io = new IntersectionObserver(function (es) {
-    es.forEach(function (e) {
-      if (e.isIntersecting && e.intersectionRatio >= 0.5) {
-        if (!cont.classList.contains('fin') && v.paused) { var p = v.play(); if (p && p.catch) p.catch(function () { v.setAttribute('controls', ''); }); }
-      } else if (!v.paused) { v.pause(); }
-    });
-  }, { threshold: [0, 0.5] });
-  io.observe(cont);
-  v.addEventListener('click', function () { if (v.paused) { v.play(); } else { v.pause(); } });
-})();
-</script>
 
 <!-- El predio (23-nov-2026, Mauro): lo que explica Casa Verde en general, arriba de las cabañas. Cada cabaña
      tiene su descripción propia; lo que es de todo el predio va acá. Admite varios párrafos (el editor deja
@@ -1207,12 +1233,13 @@ function armarLink(cab, ci, co, choque) {
                  ' Vi que está ocupado, tem outra opção?') : '');
   if (!WHATSAPP) {
     // Sin número cargado en el panel, el botón no lleva a ningún lado.
-    $('btnWa').href = '#'; $('waTop').href = '#';
+    $('btnWa').href = '#'; $('waTop').href = '#'; $('waHero').href = '#';
     return;
   }
   const url = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(msj);
   $('btnWa').href = url;
   $('waTop').href = url;
+  $('waHero').href = url;
 }
 
 $('qCabana').addEventListener('change', () => {

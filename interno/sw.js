@@ -566,7 +566,11 @@
 // v151 (24-nov-2026) — EL VIDEO «LA CASA EN SU ENTORNO» en la portada (Mauro: tomas de dron, de la bahía al muelle con el barco
 //   pirata; 30 s): textos-sitio.js +3 claves por idioma (entorno_t, entorno_p, entorno_rep). El video y su póster son archivos
 //   de la raíz del sitio, no del shell: no entran en SHELL.
-const VERSION = 'cv2-shell-v151';
+// v152 (24-nov-2026) — LA PORTADA ES EL VIDEO (Mauro: «habilitá esta versión como la versión oficial»): el hero pasa a ser el video de
+//   dron a pantalla completa, con el texto encima; la sección «La casa en su entorno» se retira (fuera entorno_t / entorno_p /
+//   entorno_rep de textos-sitio.js) y se suma hero_ver («Ver los espacios») en pt/es/en. Los videos y el póster son archivos de la
+//   raíz del sitio, no del shell: no entran en SHELL.
+const VERSION = 'cv2-shell-v152';
 
 const SHELL = [
   './',

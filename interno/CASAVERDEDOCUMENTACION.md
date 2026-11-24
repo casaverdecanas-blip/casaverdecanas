@@ -8,43 +8,44 @@ conocimiento. Antes eran `CONVENCIONES.md`, `GUIA-SITIO-PUBLICO.md` y
 
 ---
 
-## El video «La casa en su entorno» en la portada, 24-nov-2026
+## La portada es el video, 24-nov-2026 (`cv2-shell-v152`)
 
-Mauro: un video de presentación que va **de la bahía a la casa y la muestra en su barrio** (la playa, el muelle con el barco
-pirata, el arbolado del predio), hecho con tomas de dron propias. Vive en la portada, **debajo del hero y arriba de «Sobre
-Casa Verde Canas»** (`<section id="entorno">` de `index.html`).
+Mauro: «habilitá esta versión como la versión oficial del sitio». La portada deja de ser la ilustración con el texto abajo: es **un
+video de dron de la bahía a la casa, a pantalla completa, en loop, lento y en silencio** (`<div class="hero" id="top">` de
+`index.html`), con el texto encima, abajo a la izquierda, sobre un velo oscuro. La sección «La casa en su entorno» que había
+debajo se **retiró** (era el mismo video en chico) y con ella `entorno_t`, `entorno_p` y `entorno_rep`. La barra de arriba no cambió.
 
-- **Archivos** (en la raíz, como `ilustracion-hero.jpg`): `casa-verde-entorno.mp4` (30 s, 1280×720, H.264, **sin audio**,
-  8,8 MiB, con `faststart`) y `casa-verde-entorno.jpg` (el póster: el primer cuadro, 143 KB). **No pasa por Cloudinary**: la
-  regla de «toda imagen entra por `nucleo.js`» (§ 2.9 del protocolo) habla de imágenes subidas desde el panel; esto es un
-  archivo del sitio, igual que la ilustración.
-- **Cómo se comporta** (un `<script>` clásico chico dentro de la sección, sin Firebase): `preload="none"` y póster, así que
-  **no baja nada hasta que se ve** (50 % del recuadro en pantalla); entonces arranca solo, en silencio, y se pausa si se sale de
-  cuadro. **No arranca solo** con «reducir movimiento» ni con «ahorro de datos» (queda el póster con sus controles). Sin
-  JavaScript el `<video>` trae sus controles. **No se repite solo**: al terminar muestra «Ver de nuevo». Si el navegador no deja
-  arrancar solo, devuelve los controles.
-- **Textos** (en el editor visual como cualquiera): `entorno_t` (título), `entorno_p` (la frase debajo) y `entorno_rep`
-  («Ver de nuevo»), en pt/es/en. Ojo: `aplicarIdioma` pisa el texto de todo `data-t`, así que el ícono del botón va **fuera** del
-  elemento con `data-t`. El video en sí no se edita desde el panel: se **reemplaza el archivo** (mismo nombre; al cambiarlo, subir
-  el sello `?v=` o renombrar, porque el navegador lo guarda). Si se sube por la web de GitHub, el tope de ese camino es 25 MiB.
+- **Archivos** (en la raíz, como `ilustracion-hero.jpg`, que sigue sirviendo de `og:image` y de dato de Google): `casa-verde-portada.mp4`
+  (59 s, 1280×720, H.264, **sin audio**, 12,3 MiB), `casa-verde-portada-movil.mp4` (854×480, 4,6 MiB, **sólo lo piden los teléfonos**:
+  `media="(max-width: 700px)"`) y `casa-verde-portada.jpg` (el póster, 51 KB). Servidos por GitHub Pages; **no pasan por Cloudinary**
+  (la regla de «toda imagen entra por `nucleo.js`» es de lo que se sube desde el panel). Empieza y termina desde negro: al repetirse
+  hace un respiro y no un salto.
+- **Cómo se comporta** (un `<script>` clásico de la propia portada, sin Firebase): `preload="none"` y póster, así que **no baja nada
+  hasta que arranca**. Arranca solo, en silencio. **No arranca** con «reducir movimiento», con «ahorro de datos» ni con conexión 2G
+  (queda el póster). Se **pausa solo fuera de pantalla** y vuelve al volver (salvo que la persona lo haya pausado). El **botón de
+  pausa está siempre a la vista**, se maneja con teclado y está en los tres idiomas (WCAG 2.2.2: movimiento automático de más de
+  5 s junto a otro contenido). Sin JavaScript queda el póster.
+- **Alto** = la pantalla menos la barra: `--barra` se **mide con JS** (nada de números a mano). En el teléfono se ven los cuatro primeros
+  chips; el resto, en pantallas más grandes.
+- **Textos**: los de siempre (`titulo`, `bajada`, `c1…c9`, `pedir`), así que **el editor visual los sigue editando**; se suma `hero_ver`
+  («Ver los espacios»). El botón principal lleva el mismo enlace de WhatsApp que el de la barra (`waHero`, junto a `waTop`).
+  `aplicarIdioma` pisa el texto de todo `data-t`: por eso los rótulos de pausa/reproducir viven en el propio script, por idioma, y no
+  en un `data-t`. El video no se edita desde el panel: se **reemplaza el archivo** (si cambia, cambiar también el nombre, porque el
+  navegador lo guarda). Por la web de GitHub el tope de subida es 25 MiB.
 - **Costo (§ 13.2 bis, comprobado el 24-nov-2026 en `docs.github.com`)**: servicio **GitHub Pages**, repo público, sin tarjeta ni
-  facturación. Cupo: sitio publicado ≤ **1 GB**, **100 GB/mes** de transferencia (límite blando), un archivo < **100 MiB** (aviso
-  desde 50 MiB). Agrega 8,8 MiB al sitio y **8,8 MiB por reproducción completa**; para 10 personas, unas decenas de
-  reproducciones por día son **menos del 1 % del cupo** (100 GB ≈ 11.000 reproducciones completas por mes). No usa Firestore,
-  Netlify ni Cloudinary. Si el sitio tuviera mucho más tráfico, lo primero que se mira es esto (y se baja el bitrate).
-- **Cómo se hizo** (fuera del repo; los originales de dron **no se suben**, son unos 130 MB): seis clips del dron (FIMI00312, 00314,
-  00152 y tres clips ya editados del barco pirata a la casa) se montaron con `ffmpeg` y OpenCV: empalme geométrico entre tomas (homografías
-  entre cuadros, no sólo un fundido), estabilización por tramo, **descarte de los cuadros repetidos** que dejó la app de edición
-  (la causa de la trepidación) y de sus fundidos con «fantasmas», interpolación de movimiento en la llegada y fundidos propios.
-  Segunda pasada (24-nov, a pedido de Mauro): se quitó el borde estirado que aparecía tras el corte, se evitaron los restos de los
-  fundidos originales (el barco se corta casi en seco), la velocidad de la cámara se igualó cuadro a cuadro y la aproximación se
-  corta antes de la azotea blanca para llegar a la casa con un zoom y un fundido corto.
-  **Recorte final (24-nov, Mauro: «que quede hasta el segundo 30, el resto que se elimine»)**: el video termina a los 30 s, en el
-  muelle con el barco pirata, con un cierre suave de 0,5 s. Quedan la bahía, el barrio con Casa Verde de cerca, el ascenso hacia
-  la playa y el barco; **no se usan** las tomas posteriores (la ciudad hacia el interior y la llegada a la casa desde el fondo),
-  que siguen en el trabajo de montaje fuera del repo. La frase `entorno_p` se ajustó a lo que muestra.
-  La casa es **la de techo de tejas y jardín tupido, enfrente del edificio blanco**. Si se rehace, el trabajo de montaje no vive en
-  el repo: se pide de nuevo con las tomas.
+  facturación. Cupo: sitio publicado ≤ **1 GB**, **100 GB/mes** de transferencia (límite blando), un archivo < **100 MiB** (aviso desde
+  50 MiB). Agrega 17 MiB al sitio. Como **arranca solo en cada visita**, el gasto es por visita y no por reproducción completa: 100 GB
+  son unas 8.000 visitas de escritorio que lo vean entero (12,3 MiB) o unas 21.000 de teléfono (4,6 MiB), y bastante más si miran
+  unos segundos. Para 10 personas es **menos del 1 % del cupo**; si el sitio creciera mucho, esto es lo primero que se mira (y se baja
+  el bitrate o se acorta). No usa Firestore, Netlify ni Cloudinary.
+- **Cómo se hizo** (fuera del repo; los originales de dron **no se suben**): seis clips de dron montados con `ffmpeg` y OpenCV, con
+  empalme geométrico entre tomas, estabilización por tramo, descarte de los cuadros repetidos que dejó la app de edición, fundidos
+  alineados dentro de una misma toma y un corte casi en seco donde el agua no deja alinear. **Repaso final de velocidad**: se rehízo la
+  primera toma desde los originales a la mitad de velocidad (sin interpolar cuadros muy separados, que la dejaba borrosa) y las demás
+  con la velocidad de cámara igualada y cuadros intermedios por flujo óptico; la irregularidad de velocidad cuadro a cuadro bajó de
+  0,148 a 0,05. Termina en el muelle con el barco pirata; las tomas posteriores (la ciudad hacia el interior y la llegada a la casa
+  desde el fondo) **no se usan** y siguen fuera del repo. La casa es **la de techo de tejas y jardín tupido, enfrente del edificio
+  blanco**; el montaje no vive en el repo: se pide de nuevo con las tomas.
 
 ## Cinco chips más en la portada, 24-nov-2026 (`cv2-shell-v150`)
 
@@ -6571,8 +6572,8 @@ Texto original de las decisiones (referencia histórica):
 
 | Ruta | Qué hace |
 |---|---|
-| `/index.html` | La portada: hero, **el video «La casa en su entorno»** (24-nov-2026), «Sobre Casa Verde Canas», espacios, áreas comunes, **resumen de la casa**, calendario y pie |
-| `/casa-verde-entorno.mp4` · `/casa-verde-entorno.jpg` | El video de la portada (30 s, sin audio, 8,8 MiB) y su póster. Archivos del sitio, no de Cloudinary. Ver la entrada del 24-nov-2026 arriba (comportamiento, costo y cómo reemplazarlo) |
+| `/index.html` | La portada: **hero con el video de dron a pantalla completa** (24-nov-2026), «Sobre Casa Verde Canas», espacios, áreas comunes, **resumen de la casa**, calendario y pie |
+| `/casa-verde-portada.mp4` · `/casa-verde-portada-movil.mp4` · `/casa-verde-portada.jpg` | El video de la portada (59 s, sin audio; 12,3 MiB en escritorio, 4,6 MiB en teléfono) y su póster. Archivos del sitio, no de Cloudinary. Ver «La portada es el video» arriba (comportamiento, costo y cómo reemplazarlo) |
 | `/la-casa.html` | **El acuerdo de convivencia** (T11.45). Qué hay, qué no hay, horarios, las diez reglas con su motivo, cámaras, estadías largas. Página propia y no una sección de la portada: la portada convence a quien no reservó, esta se manda por WhatsApp antes del check-in y se lee entera |
 | `/opiniones.html` | **Las reseñas de Airbnb** (T11.56). Dirección propia para mandar por WhatsApp a quien pregunta si hay referencias. **Ojo: hay otro `opiniones.html` en `/interno/`**, que es el cargador. Mismo par que `recuerdos.html` |
 | `/recuerdos.html` | Muro público + formulario del QR. **Ojo: hay otro archivo con el mismo nombre en `/interno/`**, que es la pantalla de moderación. Son distintos |
