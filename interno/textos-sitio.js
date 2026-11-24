@@ -73,6 +73,7 @@ export const T = {
     'precioAviso':'Os preços que aparecem nos espaços são de referência da baixa temporada. Escolha as datas e peça o orçamento: respondemos pelo WhatsApp com o valor exato.',
     bajada:'Cabanas e apartamentos em Canasvieiras, Florianópolis. Piscina, churrasqueira e espaço para toda a família.',
     c1:'Piscina', c2:'Churrasqueira', c3:'3 quadras do mar', c4:'Wi-Fi',
+    c5:'Lavanderia', c6:'Estacionamento interno', c7:'Pertinho do centrinho', c8:'Caiaques', c9:'Pátio coberto',
     // 23-nov-2026: el bloque que explica el predio entero (lo reescribe Mauro desde el editor visual; admite varios párrafos)
     predio_t:'Sobre a Casa Verde Canas',
     predio_p:'Um terreno com várias cabanas e apartamentos, a três quadras da praia de Canasvieiras, numa área residencial tranquila e a sete quadras do centro comercial. Piscina, churrasqueira, terraço coberto com redes, sala comum com TV e estacionamento, compartilhados por todos.',
@@ -224,6 +225,7 @@ export const T = {
     'precioAviso':'Los precios que ves en los espacios son de referencia de temporada baja. Elegí las fechas y pedí el presupuesto: te respondemos por WhatsApp con el valor exacto.',
     bajada:'Cabañas y departamentos en Canasvieiras, Florianópolis. Piscina, parrilla y lugar para toda la familia.',
     c1:'Piscina', c2:'Parrilla', c3:'3 cuadras del mar', c4:'Wi-Fi',
+    c5:'Lavandería', c6:'Estacionamiento interno', c7:'Cerca del centrinho', c8:'Kayaks', c9:'Patio techado',
     predio_t:'Sobre Casa Verde Canas',
     predio_p:'Un predio con varias cabañas y apartamentos, a tres cuadras de la playa de Canasvieiras, en una zona residencial tranquila y a siete cuadras del centro comercial. Piscina, parrilla, terraza techada con hamacas, sala común con TV y estacionamiento, compartidos por todos.',
     pie_lugar:'Canasvieiras, Florianópolis — SC, Brasil',
@@ -374,6 +376,7 @@ export const T = {
     'precioAviso':'The prices shown on each place are low-season reference prices. Pick your dates and ask for a quote: we reply on WhatsApp with the exact figure.',
     bajada:'Cabins and apartments in Canasvieiras, Florianópolis. Pool, barbecue and room for the whole family.',
     c1:'Pool', c2:'Barbecue', c3:'3 blocks from the sea', c4:'Wi-Fi',
+    c5:'Laundry', c6:'Private parking', c7:'Near the centrinho', c8:'Kayaks', c9:'Covered patio',
     predio_t:'About Casa Verde Canas',
     predio_p:'A property with several cabins and apartments, three blocks from Canasvieiras beach, in a quiet residential area and seven blocks from the shopping centre. Swimming pool, barbecue, covered terrace with hammocks, a common room with TV and parking, shared by everyone.',
     pie_lugar:'Canasvieiras, Florianópolis — SC, Brasil',

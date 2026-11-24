@@ -8,6 +8,13 @@ conocimiento. Antes eran `CONVENCIONES.md`, `GUIA-SITIO-PUBLICO.md` y
 
 ---
 
+## Cinco chips más en la portada, 24-nov-2026 (`cv2-shell-v150`)
+
+Mauro: sumar, junto a Piscina / Parrilla / 3 cuadras del mar / Wi-Fi, «lavandería, estacionamiento interno, cerca del centrinho,
+kayaks, patio techado». Son los chips `c5`…`c9` de `index.html` (íconos de Material: `local_laundry_service`, `local_parking`,
+`storefront`, `kayaking`, `roofing`), con su texto en los tres idiomas en `textos-sitio.js` (149 claves por idioma) y editables
+desde «Editar el sitio» como cualquier otro texto (el ojo saca el que no se quiera).
+
 ## Un solo editor, y álbumes de fotos que funcionan, 24-nov-2026 (`cv2-shell-v149`)
 
 Mauro: «conservar [el editor visual] como la edición por defecto del sitio y eliminar la otra, para no tener dos editores»; y

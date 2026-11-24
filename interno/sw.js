@@ -561,7 +561,9 @@
 //   ?c=<id> lleva a la tarjeta de esa cabaña. cabanas.html y espacios.html ya no editan nombres, descripciones, fotos ni
 //   textos: quedan los DATOS (capacidad, tarifas, inventario, guía, calendario, WhatsApp) y el alta y el orden. nucleo.js:
 //   «Editar el sitio» primero en el grupo Sitio.
-const VERSION = 'cv2-shell-v149';
+// v150 (24-nov-2026) — la portada suma cinco chips con ícono (Mauro): lavandería, estacionamiento interno, cerca del centrinho,
+//   kayaks y patio techado (c5…c9; textos-sitio.js +5 claves por idioma, 149), todos editables desde «Editar el sitio».
+const VERSION = 'cv2-shell-v150';
 
 const SHELL = [
   './',
