@@ -14,8 +14,8 @@ Mauro: un video de presentación que va **de la bahía a la casa y la muestra en
 pirata, el arbolado del predio), hecho con tomas de dron propias. Vive en la portada, **debajo del hero y arriba de «Sobre
 Casa Verde Canas»** (`<section id="entorno">` de `index.html`).
 
-- **Archivos** (en la raíz, como `ilustracion-hero.jpg`): `casa-verde-entorno.mp4` (43,6 s, 1280×720, H.264, **sin audio**,
-  11,3 MiB, con `faststart`) y `casa-verde-entorno.jpg` (el póster: el primer cuadro, 174 KB). **No pasa por Cloudinary**: la
+- **Archivos** (en la raíz, como `ilustracion-hero.jpg`): `casa-verde-entorno.mp4` (42,5 s, 1280×720, H.264, **sin audio**,
+  13,0 MiB, con `faststart`) y `casa-verde-entorno.jpg` (el póster: el primer cuadro, 143 KB). **No pasa por Cloudinary**: la
   regla de «toda imagen entra por `nucleo.js`» (§ 2.9 del protocolo) habla de imágenes subidas desde el panel; esto es un
   archivo del sitio, igual que la ilustración.
 - **Cómo se comporta** (un `<script>` clásico chico dentro de la sección, sin Firebase): `preload="none"` y póster, así que
@@ -29,13 +29,16 @@ Casa Verde Canas»** (`<section id="entorno">` de `index.html`).
   el sello `?v=` o renombrar, porque el navegador lo guarda). Si se sube por la web de GitHub, el tope de ese camino es 25 MiB.
 - **Costo (§ 13.2 bis, comprobado el 24-nov-2026 en `docs.github.com`)**: servicio **GitHub Pages**, repo público, sin tarjeta ni
   facturación. Cupo: sitio publicado ≤ **1 GB**, **100 GB/mes** de transferencia (límite blando), un archivo < **100 MiB** (aviso
-  desde 50 MiB). Agrega 11,3 MiB al sitio y **11,3 MiB por reproducción completa**; para 10 personas, unas decenas de
-  reproducciones por día son **menos del 1 % del cupo** (100 GB ≈ 8.800 reproducciones completas por mes). No usa Firestore,
+  desde 50 MiB). Agrega 13,0 MiB al sitio y **13,0 MiB por reproducción completa**; para 10 personas, unas decenas de
+  reproducciones por día son **menos del 1 % del cupo** (100 GB ≈ 7.700 reproducciones completas por mes). No usa Firestore,
   Netlify ni Cloudinary. Si el sitio tuviera mucho más tráfico, lo primero que se mira es esto (y se baja el bitrate).
 - **Cómo se hizo** (fuera del repo; los originales de dron **no se suben**, son unos 130 MB): seis clips del dron (FIMI00312, 00314,
   00152 y tres clips ya editados del barco pirata a la casa) se montaron con `ffmpeg` y OpenCV: empalme geométrico entre tomas (homografías
   entre cuadros, no sólo un fundido), estabilización por tramo, **descarte de los cuadros repetidos** que dejó la app de edición
   (la causa de la trepidación) y de sus fundidos con «fantasmas», interpolación de movimiento en la llegada y fundidos propios.
+  Segunda pasada (24-nov, a pedido de Mauro): se quitó el borde estirado que aparecía tras el corte, se evitaron los restos de los
+  fundidos originales (el barco se corta casi en seco), la velocidad de la cámara se igualó cuadro a cuadro y la aproximación se
+  corta antes de la azotea blanca para llegar a la casa con un zoom y un fundido corto.
   La casa es **la de techo de tejas y jardín tupido, enfrente del edificio blanco**. Si se rehace, el trabajo de montaje no vive en
   el repo: se pide de nuevo con las tomas.
 
@@ -6521,7 +6524,7 @@ Texto original de las decisiones (referencia histórica):
 | Ruta | Qué hace |
 |---|---|
 | `/index.html` | La portada: hero, **el video «La casa en su entorno»** (24-nov-2026), «Sobre Casa Verde Canas», espacios, áreas comunes, **resumen de la casa**, calendario y pie |
-| `/casa-verde-entorno.mp4` · `/casa-verde-entorno.jpg` | El video de la portada (43,6 s, sin audio, 11,3 MiB) y su póster. Archivos del sitio, no de Cloudinary. Ver la entrada del 24-nov-2026 arriba (comportamiento, costo y cómo reemplazarlo) |
+| `/casa-verde-entorno.mp4` · `/casa-verde-entorno.jpg` | El video de la portada (42,5 s, sin audio, 13,0 MiB) y su póster. Archivos del sitio, no de Cloudinary. Ver la entrada del 24-nov-2026 arriba (comportamiento, costo y cómo reemplazarlo) |
 | `/la-casa.html` | **El acuerdo de convivencia** (T11.45). Qué hay, qué no hay, horarios, las diez reglas con su motivo, cámaras, estadías largas. Página propia y no una sección de la portada: la portada convence a quien no reservó, esta se manda por WhatsApp antes del check-in y se lee entera |
 | `/opiniones.html` | **Las reseñas de Airbnb** (T11.56). Dirección propia para mandar por WhatsApp a quien pregunta si hay referencias. **Ojo: hay otro `opiniones.html` en `/interno/`**, que es el cargador. Mismo par que `recuerdos.html` |
 | `/recuerdos.html` | Muro público + formulario del QR. **Ojo: hay otro archivo con el mismo nombre en `/interno/`**, que es la pantalla de moderación. Son distintos |

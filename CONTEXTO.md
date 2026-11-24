@@ -29,7 +29,7 @@ Base: Firebase `casaverde-20` (Auth + Firestore). Fotos: Cloudinary (subida sin 
 ## 3. Mapa de archivos
 
 ### Raíz
-`index.html`, `la-casa.html`, `opiniones.html`, `recuerdos.html` (público) · `404.html`, `CNAME`, `robots.txt`, `sitemap.xml`, imágenes (y `casa-verde-entorno.mp4` + su póster `.jpg`: el video de la portada, 11,3 MiB, servido por Pages) · `netlify.toml` (explica CÓMO se despliega y qué variable usa cada función) · `CLAUDE.md`, `HISTORIA.md`, `README.md`, este archivo.
+`index.html`, `la-casa.html`, `opiniones.html`, `recuerdos.html` (público) · `404.html`, `CNAME`, `robots.txt`, `sitemap.xml`, imágenes (y `casa-verde-entorno.mp4` + su póster `.jpg`: el video de la portada, 13,0 MiB, servido por Pages) · `netlify.toml` (explica CÓMO se despliega y qué variable usa cada función) · `CLAUDE.md`, `HISTORIA.md`, `README.md`, este archivo.
 
 ### `interno/` (el panel)
 - **Núcleo, uno solo, no se duplica**: `nucleo.js` (`CV2`: auth, permisos, navegación, subida de imágenes, avisos, `envolverEscrituras`; sello `CV2.VERSION`, hoy `nucleo-avisos-26`), `firebase-init.js` (**único contacto con el SDK**, diferido con `import()` en un `try`), `actividades-core.js` (`Core`: el motor de actividades, limpiezas, compras, `consultaActividades`), `reservas-core.js` (huellas y cuentas de reservas), `textos-sitio.js`.
