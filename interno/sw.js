@@ -555,12 +555,18 @@
 //   portada suma el bloque «Sobre Casa Verde Canas» (predio_t / predio_p, varios párrafos: Enter escribe una línea nueva
 //   en lo marcado data-multi), el chip Wi-Fi (c4) y el lugar del pie (pie_lugar, también en La casa);
 //   textos-sitio.js +4 claves por idioma. editar.html: Enter en data-multi.
-// v149 (24-nov-2026) — EL VIDEO «LA CASA EN SU ENTORNO» en la portada (Mauro: tomas de dron, de la bahía a la casa):
-//   textos-sitio.js +3 claves por idioma (entorno_t, entorno_p, entorno_rep). El video y su póster son archivos de la
-//   raíz del sitio, no del shell: no entran en SHELL.
-// v150 (24-nov-2026) — el video de la portada se recorta a 30 s (Mauro): termina en el muelle con el barco pirata; la frase
-//   entorno_p de textos-sitio.js (pt/es/en) pasa a decir lo que el video muestra.
-const VERSION = 'cv2-shell-v150';
+// v149 (24-nov-2026) — UN SOLO EDITOR Y ÁLBUMES QUE FUNCIONAN (Mauro: «conservar esta como la edición por defecto y
+//   eliminar la otra»). editar.html: tocar una foto abre el ÁLBUM entero de esa cabaña o espacio —✕ quita (con «Deshacer»),
+//   ★ pone de portada, «Cloudinary» muestra todo lo que hay y se tildan varias a la vez, «Subir una foto nueva»—, y
+//   ?c=<id> lleva a la tarjeta de esa cabaña. cabanas.html y espacios.html ya no editan nombres, descripciones, fotos ni
+//   textos: quedan los DATOS (capacidad, tarifas, inventario, guía, calendario, WhatsApp) y el alta y el orden. nucleo.js:
+//   «Editar el sitio» primero en el grupo Sitio.
+// v150 (24-nov-2026) — la portada suma cinco chips con ícono (Mauro): lavandería, estacionamiento interno, cerca del centrinho,
+//   kayaks y patio techado (c5…c9; textos-sitio.js +5 claves por idioma, 149), todos editables desde «Editar el sitio».
+// v151 (24-nov-2026) — EL VIDEO «LA CASA EN SU ENTORNO» en la portada (Mauro: tomas de dron, de la bahía al muelle con el barco
+//   pirata; 30 s): textos-sitio.js +3 claves por idioma (entorno_t, entorno_p, entorno_rep). El video y su póster son archivos
+//   de la raíz del sitio, no del shell: no entran en SHELL.
+const VERSION = 'cv2-shell-v151';
 
 const SHELL = [
   './',

@@ -6,7 +6,7 @@
 //   · index.html de la raíz (la portada).
 //   · la-casa.html de la raíz (el acuerdo de convivencia) — desde T11.45.
 //   · opiniones.html de la raíz (las reseñas de Airbnb) — desde T11.47.
-//   · interno/cabanas.html (el panel) — los muestra como texto de fondo
+//   · interno/editar.html (el editor visual) — cuál es el texto de fábrica y cuál escribió alguien
 //     de cada campo, así se ve qué dice el sitio HOY antes de editarlo.
 //
 //  Antes vivían dentro del sitio público y el panel no los conocía: por eso
@@ -15,11 +15,9 @@
 //
 //  Prioridad al mostrar en el sitio: config/sitio → este archivo → la clave.
 //
-//  Las claves que el FORMULARIO de cabanas.html deja editar son solo nueve
-//  (ver EDITABLES abajo). El EDITOR VISUAL (interno/editar.html) edita
-//  cualquier cosa que lleve data-t, así que todas las claves 'casa.*' se
-//  escriben desde ahí, encima del sitio. Son dos caminos distintos y no hay
-//  que confundirlos: sumar una clave acá NO la agrega al formulario.
+//  Todo texto se edita desde el EDITOR VISUAL (interno/editar.html), que edita cualquier cosa
+//  que lleve data-t, encima del sitio. Desde el 24-nov-2026 no hay otro camino: el formulario de
+//  cabanas.html que editaba nueve claves se retiró (ver EDITABLES abajo).
 //
 //  ⚠⚠ LAS CLAVES NO PUEDEN LLEVAR PUNTO. NUNCA. ⚠⚠
 //  El editor guarda con updateDoc y el camino 'textos.es.LACLAVE'. Firestore
@@ -75,6 +73,7 @@ export const T = {
     'precioAviso':'Os preços que aparecem nos espaços são de referência da baixa temporada. Escolha as datas e peça o orçamento: respondemos pelo WhatsApp com o valor exato.',
     bajada:'Cabanas e apartamentos em Canasvieiras, Florianópolis. Piscina, churrasqueira e espaço para toda a família.',
     c1:'Piscina', c2:'Churrasqueira', c3:'3 quadras do mar', c4:'Wi-Fi',
+    c5:'Lavanderia', c6:'Estacionamento interno', c7:'Pertinho do centrinho', c8:'Caiaques', c9:'Pátio coberto',
     // 24-nov-2026: el video de presentación («La casa en su entorno»), debajo del hero. Se reescribe desde el editor visual.
     entorno_t:'A casa no seu entorno',
     entorno_p:'Da baía até a casa e da casa até a praia: o arvoredo do terreno, o trapiche com o barco pirata, tudo a poucas quadras do mar.',
@@ -230,6 +229,7 @@ export const T = {
     'precioAviso':'Los precios que ves en los espacios son de referencia de temporada baja. Elegí las fechas y pedí el presupuesto: te respondemos por WhatsApp con el valor exacto.',
     bajada:'Cabañas y departamentos en Canasvieiras, Florianópolis. Piscina, parrilla y lugar para toda la familia.',
     c1:'Piscina', c2:'Parrilla', c3:'3 cuadras del mar', c4:'Wi-Fi',
+    c5:'Lavandería', c6:'Estacionamiento interno', c7:'Cerca del centrinho', c8:'Kayaks', c9:'Patio techado',
     entorno_t:'La casa en su entorno',
     entorno_p:'De la bahía a la casa y de la casa a la playa: el arbolado del predio y el muelle con el barco pirata, todo a pocas cuadras del mar.',
     entorno_rep:'Ver de nuevo',
@@ -383,6 +383,7 @@ export const T = {
     'precioAviso':'The prices shown on each place are low-season reference prices. Pick your dates and ask for a quote: we reply on WhatsApp with the exact figure.',
     bajada:'Cabins and apartments in Canasvieiras, Florianópolis. Pool, barbecue and room for the whole family.',
     c1:'Pool', c2:'Barbecue', c3:'3 blocks from the sea', c4:'Wi-Fi',
+    c5:'Laundry', c6:'Private parking', c7:'Near the centrinho', c8:'Kayaks', c9:'Covered patio',
     entorno_t:'The house in its surroundings',
     entorno_p:'From the bay to the house and from the house to the beach: the trees of the property and the pier with the pirate ship, all a few blocks from the sea.',
     entorno_rep:'Watch again',
@@ -528,9 +529,9 @@ export const T = {
   }
 };
 
-// Las nueve claves editables desde el FORMULARIO de cabanas.html, en el orden
-// en que aparecen en la portada de arriba hacia abajo.
-// Ojo: esto NO limita al editor visual, que edita cualquier data-t.
+// Las nueve claves que editaba el viejo FORMULARIO de cabanas.html (retirado el 24-nov-2026:
+// todo el texto se edita ahora en el editor visual, que edita cualquier data-t). Se deja la lista
+// por si alguna herramienta la quiere; ya no la importa ninguna pantalla.
 export const EDITABLES = [
   'titulo', 'bajada', 'c1', 'c2', 'c3',
   'tCabanas', 'tComunes', 'tConsulta', 'pie'

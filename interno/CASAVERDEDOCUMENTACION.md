@@ -46,6 +46,50 @@ Casa Verde Canas»** (`<section id="entorno">` de `index.html`).
   La casa es **la de techo de tejas y jardín tupido, enfrente del edificio blanco**. Si se rehace, el trabajo de montaje no vive en
   el repo: se pide de nuevo con las tomas.
 
+## Cinco chips más en la portada, 24-nov-2026 (`cv2-shell-v150`)
+
+Mauro: sumar, junto a Piscina / Parrilla / 3 cuadras del mar / Wi-Fi, «lavandería, estacionamiento interno, cerca del centrinho,
+kayaks, patio techado». Son los chips `c5`…`c9` de `index.html` (íconos de Material: `local_laundry_service`, `local_parking`,
+`storefront`, `kayaking`, `roofing`), con su texto en los tres idiomas en `textos-sitio.js` (149 claves por idioma) y editables
+desde «Editar el sitio» como cualquier otro texto (el ojo saca el que no se quiera).
+
+## Un solo editor, y álbumes de fotos que funcionan, 24-nov-2026 (`cv2-shell-v149`)
+
+Mauro: «conservar [el editor visual] como la edición por defecto del sitio y eliminar la otra, para no tener dos editores»; y
+«una forma simple y rápida de eliminar una foto de ese álbum, aunque quede en Cloudinary, y que la pestaña de Cloudinary muestre
+todas las que están disponibles para adjuntar a esa cabaña o espacio».
+
+- **`interno/editar.html` es EL editor de lo que se lee en la web**: textos, nombres y descripciones de cada cabaña, y fotos.
+  Va primero en el grupo «Sitio» del menú. `?c=<id>` abre la portada ya posada en la tarjeta de esa cabaña.
+- **`cabanas.html` («Datos de cabañas») y `espacios.html` («Espacios: alta y orden») ya NO escriben nombre, descripción, fotos
+  ni textos.** Una cabaña existente sólo recibe `updateDoc` de sus DATOS (capacidad y condición del máximo, tarifas, extra
+  por persona, amenities, inventario base con su categoría, guía y fotos de la guía, `calendarId`, orden); una cabaña o un
+  espacio NUEVO se crea con su nombre y vacío de descripción y fotos, y se completa en el editor. Se fue el diálogo «Textos y
+  contacto» (escribía las mismas claves `textos.<idioma>.titulo/bajada/c1…` que el editor visual, con otro criterio de
+  borrado): queda sólo «WhatsApp de las consultas» (`config/sitio.whatsapp`, un dato de contacto, con `merge`: no toca los
+  textos). `EDITABLES` de `textos-sitio.js` ya no lo usa nadie.
+- **Tocar una foto abre el ÁLBUM entero** (`abrirHojaFotos` → solapas «Álbum · N», «Cloudinary», «Del sitio»). Antes se
+  cambiaba UNA foto por otra y el álbum se armaba **desde lo que se veía**: un espacio común muestra sólo su primera foto, así
+  que cambiar esa foto guardaba el álbum con **una sola** (error corregido: el álbum lo sabe el sitio, no la pantalla).
+  - **✕ saca la foto del álbum** (con «Deshacer»); el archivo queda en Cloudinary. **★** la pone primera (portada).
+  - **«Cloudinary»** lista todo lo del sitio, con atajos por carpeta (Todas · Esta cabaña/lugar · Sitio · Cabañas ·
+    Espacios · Recuerdos; cada atajo pide su carpeta a la función, que sigue sin devolver `gastos`) y «Ver más fotos». Se
+    **tildan varias** y un botón fijo abajo hace «Agregar N fotos a <nombre>». Las que ya están en el álbum salen apagadas
+    (se comparan por identificador de Cloudinary, sin transformaciones ni versión). Se guardan con la transformación de
+    entrega `f_auto,q_auto,w_2000`, igual que las subidas desde el panel.
+  - **El sitio muestra el álbum al instante** (`CVSITIO.fotosDe(ref)` y `CVSITIO.verFotos(ref, fotos)`, en `index.html`; en
+    memoria, sin guardar): cada cambio repinta la portada y el editor lo cuenta como «cambio sin guardar»; si el álbum vuelve
+    a quedar como estaba, deja de contar. **Guardar** escribe `fotos` entero; **descartar** recarga de la base. En modo
+    edición cada espacio con varias fotos lleva una insignia «📷 N».
+- **La solapa «Cloudinary» no andaba por una variable que no hacía falta.** `cloudinary-listar` pedía
+  `CLOUDINARY_CLOUD_NAME` (el nombre de la cuenta, `dnwfu8ffn`, que es PÚBLICO: está en cada dirección de foto) y respondía
+  «Faltan credenciales de Cloudinary en Netlify: CLOUDINARY_CLOUD_NAME» aunque la clave y el secreto estuvieran cargados. Ahora lo
+  trae por defecto (la variable, si existe, manda). **Para que lo tome hay que subir el .zip de funciones a Netlify a mano**
+  (con las NUEVE funciones) y publicar el deploy; mientras tanto, sin tocar nada, alcanza con cargar
+  `CLOUDINARY_CLOUD_NAME=dnwfu8ffn` en Netlify → Environment variables y volver a desplegar. Banco: `node netlify/pruebas/cloudinary-listar.mjs` (7).
+- Sin reglas nuevas ni colecciones nuevas. Costo de cupos: una consulta a Cloudinary por abrir la solapa y por cada atajo (60 fotos
+  por consulta, el Admin API del plan gratuito da 500 por hora): 10 personas editando no se acercan.
+
 ## El editor cubre todo lo que se publica, 24-nov-2026 (`cv2-shell-v148`)
 
 Mauro: «revisá que todas las publicaciones de textos tengan su editable dentro del panel de edición». Auditoría con el
@@ -53,7 +97,7 @@ sitio abierto en modo edición (`?edit=1`), página por página:
 
 - **Portada y La casa**: todo texto está marcado editable (`data-t` → `config/sitio:textos.<idioma>.<clave>`), salvo lo que
   sale de OTRO lado a propósito: nombre, descripción, fotos, precio, capacidad y características de cada alojamiento (se
-  editan en **Cabañas**), las opiniones de Airbnb (**Opiniones**) y lo dinámico (calendario, selector de cabañas). Faltaban
+  editan en **Editar el sitio**, desde el 24-nov), las opiniones de Airbnb (**Opiniones**) y lo dinámico (calendario, selector de cabañas). Faltaban
   y se sumaron: el chip **Wi-Fi** (`c4`) y el lugar del pie (`pie_lugar`).
 - **Lo que no había**: dónde explicar el predio entero. Se suma el bloque **«Sobre Casa Verde Canas»** (`predio_t`,
   `predio_p`) debajo del título de la portada. **Admite varios párrafos**: en el editor, `Enter` cerraba la edición de
@@ -80,7 +124,7 @@ en los tres idiomas, y que se pueda editar sin tocar código.
 - **Lo de cada alojamiento** vive en `cabanas/{id}`: **`guia {es,pt,en}`** (párrafos separados por una línea en
   blanco; «# » abre un subtítulo), **`guiaFotos [{url, pie {es,pt,en}}]`** y el `inventarioBase`, que ahora se
   muestra con sus cantidades y agrupado por `categoria`. Sin reglas nuevas: `cabanas` ya es de lectura pública y
-  de escritura con `contenido`. **Es público: nada privado va en la guía.** Se edita en Cabañas.
+  de escritura con `contenido`. **Es público: nada privado va en la guía.** Se edita en «Datos de cabañas».
 - **El control de entrada** (`actividades.html`) muestra lo que va a leer el huésped y lleva a
   `cabanas.html?editar=<id>` para corregirlo: se revisa la guía y las cantidades antes de que llegue.
 - **El silencio pasa a ser de 23:00 a 8:00** (`casa_res_c2`, `casa_r_ruido_t`).
@@ -1005,7 +1049,7 @@ guia {es,pt,en}, guiaFotos [{url, pie {es,pt,en}}]`
 · **La base es lo que se ofrece; el máximo, con su condición** (20-oct-2026, Mauro: «la base
   son 6 para la 1, 5 para el Loft y 4 para el depto; los máximos son con extra por persona y
   en situaciones especiales… debe quedar registrado en cada espacio y leerlo desde ahí»).
-  `condicionMax` y `tarifas.extraPersona` se editan en Cabañas (`extraPersona` estaba en el
+  `condicionMax` y `tarifas.extraPersona` se editan en «Datos de cabañas» (`extraPersona` estaba en el
   modelo y el editor lo borraba al guardar). La Pizarra lo lee al responder pedidos.
 · **Nunca renderizar `nombre` crudo**: resolver `nombre.es` con respaldos.
 · Es la fuente del sitio público (Fase 4); se lee sin sesión.

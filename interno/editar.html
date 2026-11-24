@@ -110,7 +110,7 @@
   .hoja .hcab button { border: 0; background: none; cursor: pointer; padding: 8px;
     color: var(--gris); display: flex; min-width: 44px; min-height: 44px;
     align-items: center; justify-content: center; }
-  .hoja .cuerpo { overflow-y: auto; padding: 12px 14px;
+  .hoja .cuerpo { overflow-y: auto; padding: 12px 14px; flex: 1; min-height: 0;
     padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
 
   .solapas { display: flex; gap: 6px; margin-bottom: 10px; }
@@ -121,22 +121,50 @@
     color: #fff; font-weight: 600; }
 
   .grilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-    gap: 7px; }
-  .grilla img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 9px;
-    border: 2px solid var(--linea); cursor: pointer; display: block; background: #eee; }
-  .grilla img.usada { border-color: var(--verde); }
-  .aviso { color: var(--gris); font-size: .86rem; padding: 14px 2px; line-height: 1.5; }
-  .acciones { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 4px; }
-  .acciones button { border: 1px solid var(--linea); background: #fff; border-radius: 12px;
-    padding: 13px 14px; font: inherit; font-size: .9rem; cursor: pointer;
-    display: flex; align-items: center; gap: 10px; text-align: left; min-height: 48px;
-    color: var(--tinta); }
-  .acciones button .material-icons { color: var(--verde); }
-  .acciones button.peligro { color: #a8503c; }
-  .acciones button.peligro .material-icons { color: #a8503c; }
+    gap: 8px; }
+  .tile { position: relative; border-radius: 10px; overflow: hidden; background: #eee;
+    border: 2px solid var(--linea); aspect-ratio: 4/3; }
+  .tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .tile .x, .tile .pri { position: absolute; border: 0; cursor: pointer; padding: 0;
+    width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; color: #fff; background: rgba(20,30,18,.68); }
+  .tile .x { top: 4px; right: 4px; }
+  .tile .pri { bottom: 4px; right: 4px; }
+  .tile .x .material-icons, .tile .pri .material-icons { font-size: 20px; }
+  .tile .etq { position: absolute; left: 6px; bottom: 6px; background: var(--verde); color: #fff;
+    font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .tile .etq.ok { background: rgba(20,30,18,.72); font-weight: 600; }
+  .tile.elegible { cursor: pointer; }
+  .tile.ya { opacity: .55; cursor: default; }
+  .tile .marca { position: absolute; top: 5px; right: 5px; width: 26px; height: 26px;
+    border-radius: 50%; border: 2px solid #fff; background: rgba(20,30,18,.35);
+    display: flex; align-items: center; justify-content: center; color: transparent; }
+  .tile .marca .material-icons { font-size: 18px; }
+  .tile.tild { border-color: var(--verde); }
+  .tile.tild .marca { background: var(--verde); color: #fff; }
+  .aviso { color: var(--gris); font-size: .86rem; padding: 12px 2px; line-height: 1.5; }
+  .subir { width: 100%; border: 1px solid var(--linea); background: #fff; border-radius: 12px;
+    padding: 12px 14px; font: inherit; font-size: .9rem; cursor: pointer; display: flex;
+    align-items: center; gap: 10px; min-height: 48px; color: var(--tinta); margin-bottom: 10px; }
+  .subir .material-icons { color: var(--verde); }
+  .deshacer { display: flex; align-items: center; gap: 8px; background: #fdf2d9;
+    border-radius: 10px; padding: 8px 12px; font-size: .82rem; margin-bottom: 10px; }
+  .deshacer span { flex: 1; }
+  .deshacer button { border: 0; background: none; font: inherit; font-weight: 700;
+    color: var(--verde); cursor: pointer; min-height: 40px; padding: 0 6px; }
+  .chips { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 10px; padding-bottom: 2px; }
+  .chips button { flex: none; border: 1px solid var(--linea); background: #fff; border-radius: 999px;
+    padding: 7px 13px; font: inherit; font-size: .8rem; cursor: pointer; color: var(--gris);
+    min-height: 36px; white-space: nowrap; }
+  .chips button.on { background: var(--tinta); border-color: var(--tinta); color: #fff; font-weight: 600; }
   .mas { width: 100%; border: 1px dashed var(--linea); background: #fff;
     border-radius: 12px; padding: 12px; font: inherit; color: var(--gris);
     cursor: pointer; margin-top: 10px; min-height: 44px; }
+  .hpie { flex: none; padding: 10px 14px; padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--linea); background: #fff; }
+  .hpie.hide { display: none; }
+  .hpie button { width: 100%; border: 0; border-radius: 999px; background: var(--verde); color: #fff;
+    font: inherit; font-weight: 700; font-size: .92rem; padding: 12px; min-height: 46px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -183,16 +211,19 @@
 <div class="hoja-fondo hide" id="hojaFotos">
   <div class="hoja">
     <div class="hcab">
-      <b id="hojaTit">Foto</b>
+      <b id="hojaTit">Fotos</b>
       <button id="hojaX" aria-label="Cerrar"><span class="material-icons">close</span></button>
     </div>
     <div class="cuerpo">
-      <div class="acciones" id="hojaAcciones"></div>
       <div class="solapas">
-        <button data-f="uso" class="on">Ya en el sitio</button>
+        <button data-f="album" class="on">Álbum</button>
         <button data-f="nube">Cloudinary</button>
+        <button data-f="uso">Del sitio</button>
       </div>
       <div id="hojaLista"></div>
+    </div>
+    <div class="hpie hide" id="hojaPie">
+      <button id="btnSumar">Agregar</button>
     </div>
   </div>
 </div>
@@ -232,8 +263,12 @@
 //    no están en Cloudinary y NO se editan desde acá. Se cambian
 //    subiéndolos a GitHub. Es a propósito: son la identidad, no
 //    contenido.
-//  · El WhatsApp, las tarifas, la capacidad y las comodidades no se
-//    editan acá: no son texto visible sino datos. Siguen en Cabañas.
+//  · El WhatsApp, las tarifas, la capacidad, las comodidades, el inventario
+//    y la guía del huésped no se editan acá: son datos, no texto visible.
+//    Siguen en «Datos de las cabañas» (cabanas.html).
+//  · Desde el 24-nov-2026 ESTE es el único editor de lo que se lee en la web:
+//    textos, nombres y descripciones, y las fotos (el álbum de cada cabaña y
+//    de cada espacio). cabanas.html y espacios.html ya no escriben nada de eso.
 //  · El calendario y los botones del sitio están apagados mientras se
 //    edita; para probarlos hay que abrir el sitio normal.
 // ═══════════════════════════════════════════════════════════════
@@ -268,11 +303,6 @@ const pendientes = new Map();
 // necesita ni Cloudinary ni la función de Netlify.
 let enUso = [];
 
-let fotosNube = null;      // caché del listado de Cloudinary
-// Lo que contó la función de Netlify sobre su propia búsqueda.
-let diagNube = null;
-let cursorNube = null;
-let destinoFoto = null;    // qué foto se está cambiando
 
 // ── El marco ─────────────────────────────────────────────────
 // Ruta RELATIVA a propósito: así el marco hereda el mismo origen que
@@ -280,7 +310,9 @@ let destinoFoto = null;    // qué foto se está cambiando
 // dirección absoluta, el navegador trataría el marco como ajeno y
 // este editor no podría ni leer su contenido.
 let paginaActual = 'index.html';
-marco.src = '../' + paginaActual + '?edit=1';
+// Desde Cabañas se llega con ?c=<id> a la tarjeta de esa cabaña: la portada ya sabe llevar hasta ella.
+const cabDeEnlace = (new URLSearchParams(location.search).get('c') || '').replace(/[^A-Za-z0-9_-]/g, '');
+marco.src = '../' + paginaActual + '?edit=1' + (cabDeEnlace ? '&c=' + encodeURIComponent(cabDeEnlace) : '');
 
 /**
  * Cambia la página que se está editando.
@@ -389,7 +421,7 @@ function enganchar() {
     el.dataset.cvListo = '1';
     el.addEventListener('click', (ev) => {
       ev.preventDefault();
-      abrirHojaFotos(el.getAttribute('data-edit-img'), el);
+      abrirHojaFotos(el.getAttribute('data-edit-img'));
     });
   });
 
@@ -399,7 +431,7 @@ function enganchar() {
     el.dataset.cvListo = '1';
     el.addEventListener('click', (ev) => {
       ev.preventDefault();
-      abrirHojaFotos(el.getAttribute('data-edit-add') + '.+', el);
+      abrirHojaFotos(el.getAttribute('data-edit-add') + '.+');
     });
   });
 
@@ -475,7 +507,7 @@ let claveEnfocada = null;
  * circula por el editor ya es de esta ventana y el problema no puede
  * reaparecer por otro camino.
  *
- * Los arrays de fotos nunca tuvieron este problema porque arrayActual()
+ * Los arrays de fotos nunca tuvieron este problema porque leerAlbum()
  * los construye acá desde cero; este es el único dato que llega armado
  * desde adentro del marco.
  */
@@ -532,7 +564,7 @@ function contar() {
   $('btnGuardar').disabled = n === 0;
   $('btnTirar').hidden = n === 0;
   $('cuenta').innerHTML = n === 0
-    ? 'Tocá un texto para escribirlo. Tocá una foto para cambiarla.'
+    ? 'Tocá un texto para escribirlo. Tocá una foto para ver y ordenar su álbum.'
     : '<b>' + n + '</b> cambio' + (n === 1 ? '' : 's') + ' sin guardar';
 }
 
@@ -569,24 +601,101 @@ function recolectarEnUso() {
   enUso = [...vistas];
 }
 
-/**
- * ref = "col/doc:fotos.3"  → cambiar la foto que está en esa posición
- * ref = "col/doc:fotos.+"  → agregar una foto al final
- */
-function abrirHojaFotos(ref, el) {
-  destinoFoto = { ref: ref, el: el };
-  const agregar = ref.endsWith('.+');
-  $('hojaTit').textContent = agregar ? 'Agregar una foto' : 'Cambiar esta foto';
+// ── Álbumes de fotos ─────────────────────────────────────────
+// 24-nov-2026. Antes se tocaba UNA foto y se la cambiaba por otra: para quitar una
+// había que abrir la hoja, y para sumar cinco había que repetirlo cinco veces; y el
+// álbum de un espacio común (que en pantalla muestra sólo su primera foto) se armaba
+// desde lo que se veía y perdía el resto al guardar. Ahora tocar cualquier foto abre
+// EL ÁLBUM entero de esa cabaña o espacio:
+//   · «Álbum»      las fotos que tiene, cada una con ✕ (quitar) y ★ (poner de portada);
+//   · «Cloudinary» todo lo que hay en Cloudinary, para tildar varias y sumarlas de una vez;
+//   · «Del sitio»  lo que ya se ve en esta página (por si Cloudinary no contesta).
+// Quitar una foto la saca del álbum y nada más: el archivo sigue en Cloudinary y se puede
+// volver a sumar. El álbum de verdad lo guarda el SITIO en memoria (CVSITIO.fotosDe / verFotos):
+// el editor no lo deduce de la pantalla.
+let album = null;            // { clave, doc, nombre, carpeta, solapa, filtro, sel:Map(id→url) }
+const origenes = new Map();  // clave → cómo estaba el álbum antes del primer cambio
+const nube = new Map();      // filtro de carpeta → { fotos, cursor, diag, error }
+let quitada = null;          // { url, pos } la última quitada, para «Deshacer»
 
-  const acc = $('hojaAcciones');
-  acc.innerHTML = '';
-  acc.appendChild(botonAccion('add_a_photo', 'Subir una foto nueva', subirNueva));
-  if (!agregar) {
-    acc.appendChild(botonAccion('delete_outline', 'Quitar esta foto del sitio',
-      quitarFoto, true));
+const CHIPS_CARPETA = [
+  ['', 'Todas'], ['sitio', 'Sitio'], ['cabanas', 'Cabañas'],
+  ['Espacios', 'Espacios'], ['recuerdos', 'Recuerdos']
+];
+
+/** El identificador de una foto de Cloudinary sin transformaciones, versión ni extensión. */
+function idFoto(url) {
+  const s = String(url || '');
+  const i = s.indexOf('/upload/');
+  if (i === -1) return s;
+  return s.slice(i + 8).split('/')
+    .filter((p) => p && !/^v\d+$/.test(p) && !CV2._esTransformacion(p))
+    .join('/').replace(/\.[A-Za-z0-9]+$/, '');
+}
+
+/** La misma foto de Cloudinary con OTRA transformación de entrega (las demás van tal cual). */
+function conTransformacion(url, trans) {
+  const s = String(url || '');
+  const i = s.indexOf('/upload/');
+  if (i === -1 || !CV2.esCloudinary(s)) return s;
+  const resto = s.slice(i + 8).split('/');
+  while (resto.length && CV2._esTransformacion(resto[0])) resto.shift();
+  return s.slice(0, i + 8) + trans + '/' + resto.join('/');
+}
+
+/** Miniatura liviana de una foto de Cloudinary. */
+function miniDe(url) { return conTransformacion(url, 'f_auto,q_auto,w_300,h_300,c_fill'); }
+
+function mismasFotos(a, b) {
+  return a.length === b.length && a.every((u, i) => u === b[i]);
+}
+
+/** El álbum tal como está AHORA (con lo sin guardar): lo sabe el sitio. */
+function leerAlbum() {
+  if (!album) return [];
+  const w = ventana();
+  const info = (w && w.CVSITIO && w.CVSITIO.fotosDe) ? w.CVSITIO.fotosDe(album.doc) : null;
+  if (info) return info.fotos.slice();
+  if (pendientes.has(album.clave)) return pendientes.get(album.clave).slice();
+  return arrayDePantalla(album.clave);
+}
+
+/** Último recurso (un sitio viejo en la caché): lo que se ve en pantalla. */
+function arrayDePantalla(clave) {
+  const d = documento();
+  const salida = [];
+  if (d) {
+    d.querySelectorAll('[data-edit-img^="' + clave + '."]').forEach((el) => {
+      salida[Number(el.getAttribute('data-edit-img').split('.').pop())] = el.src;
+    });
   }
+  return salida.filter((x) => typeof x === 'string');
+}
 
-  solapa('uso');
+/** Deja el álbum así: lo muestra en el sitio y lo anota como cambio sin guardar. */
+function aplicarAlbum(arr) {
+  if (!origenes.has(album.clave)) origenes.set(album.clave, leerAlbum());
+  const w = ventana();
+  if (w && w.CVSITIO && w.CVSITIO.verFotos) w.CVSITIO.verFotos(album.doc, arr);
+  // Si quedó igual que al principio, no es un cambio: no cuenta ni se guarda.
+  if (mismasFotos(arr, origenes.get(album.clave))) pendientes.delete(album.clave);
+  else pendientes.set(album.clave, arr.slice());
+  contar();
+}
+
+/** ref = "col/doc:fotos.3" (una foto) o "col/doc:fotos.+" (el hueco de agregar): abre su álbum. */
+function abrirHojaFotos(ref) {
+  const clave = ref.slice(0, ref.lastIndexOf('.'));
+  const doc = clave.split(':')[0];
+  const w = ventana();
+  const info = (w && w.CVSITIO && w.CVSITIO.fotosDe) ? w.CVSITIO.fotosDe(doc) : null;
+  album = {
+    clave: clave, doc: doc, nombre: info ? info.nombre : '',
+    carpeta: carpetaSegunDestino(ref), solapa: 'album', filtro: '', sel: new Map()
+  };
+  quitada = null;
+  $('hojaTit').textContent = 'Fotos' + (album.nombre ? ' · ' + album.nombre : '');
+  solapa(leerAlbum().length ? 'album' : 'nube');
   abrirHoja();
 }
 
@@ -615,15 +724,6 @@ function cerrarHoja() {
   if (c) c();
 }
 
-function botonAccion(icono, texto, alTocar, peligro) {
-  const b = document.createElement('button');
-  if (peligro) b.className = 'peligro';
-  b.innerHTML = '<span class="material-icons">' + icono + '</span><span>'
-    + CV2.esc(texto) + '</span>';
-  b.addEventListener('click', alTocar);
-  return b;
-}
-
 $('hojaX').addEventListener('click', cerrarHoja);
 
 // Tocar el fondo oscuro también cierra. Es lo que la gente intenta
@@ -637,122 +737,235 @@ document.querySelector('.solapas').addEventListener('click', (ev) => {
   if (b) solapa(b.dataset.f);
 });
 
+$('hojaLista').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-acc]');
+  if (!b || !album) return;
+  const acc = b.dataset.acc, i = Number(b.dataset.i);
+  if (acc === 'quitar') quitarDelAlbum(i);
+  else if (acc === 'portada') ponerDePortada(i);
+  else if (acc === 'deshacer') deshacerQuitar();
+  else if (acc === 'subir') subirNueva();
+  else if (acc === 'elegir') tildarFoto(b);
+  else if (acc === 'mas') traerMas();
+  else if (acc === 'chip') { album.filtro = b.dataset.c || ''; pintarNube(); }
+});
+
+$('btnSumar').addEventListener('click', sumarElegidas);
+
 function solapa(cual) {
-  document.querySelectorAll('.solapas button').forEach((b) =>
-    b.classList.toggle('on', b.dataset.f === cual));
-  if (cual === 'uso') pintarEnUso();
-  else pintarNube();
+  if (!album) return;
+  album.solapa = cual;
+  const n = leerAlbum().length;
+  document.querySelectorAll('.solapas button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.f === cual);
+    if (b.dataset.f === 'album') b.textContent = 'Álbum · ' + n;
+  });
+  if (cual === 'album') pintarAlbum();
+  else if (cual === 'nube') pintarNube();
+  else pintarEnUso();
+  pintarPie();
+}
+
+/** La barra de abajo: «Agregar N fotos» cuando hay fotos tildadas. */
+function pintarPie() {
+  const n = album && album.solapa !== 'album' ? album.sel.size : 0;
+  $('hojaPie').classList.toggle('hide', n === 0);
+  $('btnSumar').textContent = 'Agregar ' + n + (n === 1 ? ' foto' : ' fotos')
+    + (album && album.nombre ? ' a ' + album.nombre : '');
+}
+
+function pintarAlbum() {
+  const cont = $('hojaLista');
+  const fotos = leerAlbum();
+  let h = '<button class="subir" data-acc="subir"><span class="material-icons">add_a_photo</span>'
+    + '<span>Subir una foto nueva</span></button>';
+  if (quitada) {
+    h += '<div class="deshacer"><span>Foto quitada del álbum. El archivo sigue en Cloudinary.</span>'
+      + '<button data-acc="deshacer">Deshacer</button></div>';
+  }
+  if (!fotos.length) {
+    h += '<div class="aviso">Este álbum no tiene fotos. Subí una nueva o elegí las que ya '
+      + 'están en Cloudinary (solapa <b>Cloudinary</b>).</div>';
+  } else {
+    h += '<div class="grilla">' + fotos.map((u, i) =>
+      '<div class="tile">'
+      + '<img src="' + CV2.esc(miniDe(u)) + '" alt="">'
+      + (i === 0 ? '<span class="etq">Portada</span>'
+        : '<button class="pri" data-acc="portada" data-i="' + i + '" aria-label="Poner de portada">'
+          + '<span class="material-icons">star</span></button>')
+      + '<button class="x" data-acc="quitar" data-i="' + i + '" aria-label="Quitar del álbum">'
+      + '<span class="material-icons">close</span></button></div>'
+    ).join('') + '</div>'
+      + '<div class="aviso">✕ saca la foto de este álbum (el archivo queda en Cloudinary y '
+      + 'se puede volver a sumar). ★ la pone primera: es la que se ve en la tarjeta.</div>';
+  }
+  cont.innerHTML = h;
+}
+
+function quitarDelAlbum(i) {
+  const arr = leerAlbum();
+  if (i < 0 || i >= arr.length) return;
+  quitada = { url: arr.splice(i, 1)[0], pos: i };
+  aplicarAlbum(arr);
+  solapa('album');
+}
+
+function deshacerQuitar() {
+  if (!quitada) return;
+  const arr = leerAlbum();
+  arr.splice(Math.min(quitada.pos, arr.length), 0, quitada.url);
+  quitada = null;
+  aplicarAlbum(arr);
+  solapa('album');
+}
+
+function ponerDePortada(i) {
+  const arr = leerAlbum();
+  if (i <= 0 || i >= arr.length) return;
+  arr.unshift(arr.splice(i, 1)[0]);
+  quitada = null;
+  aplicarAlbum(arr);
+  solapa('album');
+}
+
+/** Una grilla para tildar fotos de una lista (Cloudinary o «Del sitio»). */
+function grillaParaElegir(lista) {
+  const ya = new Set(leerAlbum().map(idFoto));
+  return '<div class="grilla">' + lista.map((f) => {
+    const id = idFoto(f.url);
+    const esta = ya.has(id), tild = album.sel.has(id);
+    return '<div class="tile elegible' + (esta ? ' ya' : '') + (tild ? ' tild' : '') + '"'
+      + (esta ? '' : ' data-acc="elegir"') + ' data-id="' + CV2.esc(id) + '" data-u="' + CV2.esc(f.url) + '">'
+      + '<img src="' + CV2.esc(f.mini || miniDe(f.url)) + '" loading="lazy" alt="' + CV2.esc(f.nombre || '') + '">'
+      + (esta ? '<span class="etq ok">✓ en el álbum</span>'
+        : '<span class="marca"><span class="material-icons">check</span></span>')
+      + '</div>';
+  }).join('') + '</div>';
+}
+
+function tildarFoto(el) {
+  const id = el.dataset.id;
+  if (album.sel.has(id)) { album.sel.delete(id); el.classList.remove('tild'); }
+  else { album.sel.set(id, el.dataset.u); el.classList.add('tild'); }
+  pintarPie();
+}
+
+function sumarElegidas() {
+  if (!album || !album.sel.size) return;
+  const arr = leerAlbum();
+  const ya = new Set(arr.map(idFoto));
+  let n = 0;
+  album.sel.forEach((url, id) => {
+    if (ya.has(id)) return;
+    // Se guarda con la misma transformación de entrega que las fotos subidas desde el panel.
+    arr.push(conTransformacion(url, CV2.ENTREGA));
+    n++;
+  });
+  album.sel.clear();
+  quitada = null;
+  aplicarAlbum(arr);
+  solapa('album');
+  CV2.toast(n === 1 ? 'Foto agregada al álbum' : n + ' fotos agregadas al álbum', 'success');
 }
 
 function pintarEnUso() {
   const cont = $('hojaLista');
   if (!enUso.length) {
-    cont.innerHTML = '<div class="aviso">Todavía no hay ninguna foto en el sitio.</div>';
+    cont.innerHTML = '<div class="aviso">Todavía no hay ninguna foto en esta página.</div>';
     return;
   }
-  cont.innerHTML = '<div class="grilla">' + enUso.map((url) =>
-    '<img src="' + CV2.esc(url) + '" class="usada" data-u="' + CV2.esc(url) + '" alt="">'
-  ).join('') + '</div>';
-  cont.querySelectorAll('img').forEach((im) =>
-    im.addEventListener('click', () => elegirFoto(im.dataset.u)));
+  cont.innerHTML = grillaParaElegir(enUso.map((u) => ({ url: u, mini: miniDe(u) })));
+}
+
+/** Los atajos de carpeta: «Todas», la de esta cabaña/espacio si es propia, y las del sitio. */
+function chipsHTML() {
+  const chips = CHIPS_CARPETA.slice();
+  const lista = chips.map((c) => c[0]);
+  if (album.carpeta && lista.indexOf(album.carpeta) === -1) {
+    chips.splice(1, 0, [album.carpeta, album.doc.indexOf('cabanas/') === 0 ? 'Esta cabaña' : 'Este lugar']);
+  }
+  return '<div class="chips">' + chips.map((c) =>
+    '<button data-acc="chip" data-c="' + CV2.esc(c[0]) + '"' + (album.filtro === c[0] ? ' class="on"' : '')
+    + '>' + CV2.esc(c[1]) + '</button>').join('') + '</div>';
 }
 
 async function pintarNube() {
   const cont = $('hojaLista');
-  if (fotosNube) { dibujarNube(); return; }
-  cont.innerHTML = '<div class="aviso">Buscando en Cloudinary…</div>';
-  try {
-    const r = await fetch(CV2.NETLIFY + '/cloudinary-listar');
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
-    fotosNube = data.fotos || [];
-    cursorNube = data.cursor || null;
-    // El diagnóstico que manda la función: en qué carpetas buscó y cuántas
-    // encontró en cada una. Se guarda para mostrarlo SOLO si la respuesta
-    // vino vacía, que es cuando hace falta.
-    diagNube = data.diagnostico || null;
-    dibujarNube();
-  } catch (e) {
-    // El motivo completo a la vista: acá los errores son de
-    // configuración (variables, carpetas) y adivinarlos cuesta horas.
-    cont.innerHTML = '<div class="aviso">No se pudo leer Cloudinary.<br>'
-      + CV2.esc(e.message) + '</div>';
+  const f = album.filtro;
+  let est = nube.get(f);
+  if (!est) {
+    cont.innerHTML = chipsHTML() + '<div class="aviso">Buscando en Cloudinary…</div>';
+    est = await pedirNube(f, '');
+    // La hoja pudo cerrarse o cambiar de solapa o de filtro mientras se esperaba.
+    if (!album || album.solapa !== 'nube' || album.filtro !== f) return;
   }
+  dibujarNube(est);
 }
 
-/**
- * Lo que la función de Netlify contó sobre su propia búsqueda. Se muestra
- * únicamente cuando volvió vacía: ahí la pregunta es siempre la misma
- * —¿buscó donde tenía que buscar?— y sin esto hay que abrir Netlify para
- * responderla.
- */
-function diagnosticoHTML() {
-  if (!diagNube) return '';
-  let h = '<br><br><b>Lo que buscó:</b><br>carpetas: '
-    + CV2.esc((diagNube.carpetas_pedidas || []).join(', '));
-  if (typeof diagNube.total_en_cloudinary === 'number') {
-    h += '<br>coincidencias en Cloudinary: ' + diagNube.total_en_cloudinary;
+/** Pide una página del listado. Nunca tira: el motivo del fallo queda a la vista. */
+async function pedirNube(filtro, cursor) {
+  const base = nube.get(filtro) || { fotos: [], cursor: null, diag: null, error: '' };
+  try {
+    let url = CV2.NETLIFY + '/cloudinary-listar';
+    const q = [];
+    if (filtro) q.push('carpetas=' + encodeURIComponent(filtro));
+    if (cursor) q.push('cursor=' + encodeURIComponent(cursor));
+    if (q.length) url += '?' + q.join('&');
+    const r = await fetch(url);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+    base.fotos = base.fotos.concat(data.fotos || []);
+    base.cursor = data.cursor || null;
+    base.diag = data.diagnostico || null;
+    base.error = '';
+    nube.set(filtro, base);
+  } catch (e) {
+    // El motivo completo a la vista: acá los errores son de configuración
+    // (variables, carpetas) y adivinarlos cuesta horas. Un fallo no se cachea.
+    base.error = e.message || String(e);
+    if (!base.fotos.length) nube.delete(filtro);
   }
-  const pc = diagNube.por_carpeta || {};
-  const claves = Object.keys(pc);
-  if (claves.length) {
-    h += '<br>' + claves.map((k) => CV2.esc(k) + ': ' + pc[k]).join(' · ');
+  return base;
+}
+
+function dibujarNube(est) {
+  const cont = $('hojaLista');
+  let h = chipsHTML();
+  if (est.error && !est.fotos.length) {
+    h += '<div class="aviso">No se pudo leer Cloudinary.<br>' + CV2.esc(est.error)
+      + '<br><br>Mientras tanto podés usar la solapa <b>Del sitio</b> o <b>Subir una foto nueva</b> '
+      + '(en la solapa Álbum).</div>';
+  } else if (!est.fotos.length) {
+    h += '<div class="aviso">No hay fotos en ' + (album.filtro ? 'esa carpeta' : 'las carpetas del sitio')
+      + '.<br><br>Las que están sueltas en la raíz de Cloudinary no se muestran: ahí viven '
+      + 'también los comprobantes de Dinero, y este listado nunca los toca. Para que aparezcan, '
+      + 'movelas a una carpeta (<b>sitio</b>, <b>cabanas</b>, <b>Espacios</b>, <b>recuerdos</b>) desde '
+      + 'Cloudinary: mover no cambia la dirección de la foto.' + diagnosticoHTML(est.diag) + '</div>';
+  } else {
+    h += grillaParaElegir(est.fotos);
+    if (est.cursor) h += '<button class="mas" data-acc="mas">Ver más fotos</button>';
+    if (est.error) h += '<div class="aviso">No se pudo traer más: ' + CV2.esc(est.error) + '</div>';
   }
+  cont.innerHTML = h;
+}
+
+/** Lo que la función contó sobre su búsqueda; sólo se muestra cuando volvió vacía. */
+function diagnosticoHTML(diag) {
+  if (!diag) return '';
+  let h = '<br><br><b>Lo que buscó:</b><br>carpetas: ' + CV2.esc((diag.carpetas_pedidas || []).join(', '));
+  if (typeof diag.total_en_cloudinary === 'number') h += '<br>coincidencias en Cloudinary: ' + diag.total_en_cloudinary;
   return h;
 }
 
-function dibujarNube() {
-  const cont = $('hojaLista');
-  if (!fotosNube.length) {
-    cont.innerHTML = '<div class="aviso">'
-      + 'No hay fotos en las carpetas del sitio (<b>sitio</b>, <b>cabanas</b>, '
-      + '<b>espacios</b>).<br><br>Las fotos que están sueltas en la raíz de '
-      + 'Cloudinary no se muestran acá: en esa raíz también viven los '
-      + 'comprobantes de Dinero, y este listado nunca los toca.<br><br>'
-      + 'Para que aparezcan, movelas a esas carpetas desde Cloudinary '
-      + '— mover no cambia la dirección de la foto, así que no rompe nada.'
-      + '<br><br><b>Desde la T11.50 las fotos nuevas ya se suben a su carpeta</b> '
-      + '(cada alojamiento a la suya). Si igual no aparece ninguna, el problema '
-      + 'está del lado del listado y no de la subida: la cuenta usa el modo '
-      + 'Dynamic folders, donde la carpeta se guarda en <b>asset_folder</b> y no '
-      + 'en <b>folder</b>, y hay que buscar incluyendo las SUBCARPETAS '
-      + '(cabanas/cabana1…). Una búsqueda por el campo viejo devuelve cero sin '
-      + 'dar error, que es exactamente lo que se ve acá. Se arregla en la '
-      + 'función <b>cloudinary-listar</b> de Netlify.'
-      + diagnosticoHTML()
-      + '</div>';
-    return;
-  }
-  const usadas = new Set(enUso);
-  cont.innerHTML = '<div class="grilla">' + fotosNube.map((f) =>
-    '<img src="' + CV2.esc(f.mini) + '" data-u="' + CV2.esc(f.url) + '"'
-    + (usadas.has(f.url) ? ' class="usada"' : '')
-    + ' loading="lazy" alt="' + CV2.esc(f.nombre) + '">'
-  ).join('') + '</div>'
-    + (cursorNube ? '<button class="mas" id="masFotos">Ver más fotos</button>' : '');
-  cont.querySelectorAll('.grilla img').forEach((im) =>
-    im.addEventListener('click', () => elegirFoto(im.dataset.u)));
-  const mas = $('masFotos');
-  if (mas) mas.addEventListener('click', traerMas);
-}
-
 async function traerMas() {
-  const b = $('masFotos');
-  b.textContent = 'Buscando…';
-  b.disabled = true;
-  try {
-    const r = await fetch(CV2.NETLIFY + '/cloudinary-listar?cursor='
-      + encodeURIComponent(cursorNube));
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
-    fotosNube = fotosNube.concat(data.fotos || []);
-    cursorNube = data.cursor || null;
-    dibujarNube();
-  } catch (e) {
-    CV2.toast('No se pudo traer más: ' + e.message, 'error');
-    b.textContent = 'Ver más fotos';
-    b.disabled = false;
-  }
+  const f = album.filtro;
+  const est = nube.get(f);
+  if (!est || !est.cursor) return;
+  const b = document.querySelector('#hojaLista .mas');
+  if (b) { b.textContent = 'Buscando…'; b.disabled = true; }
+  await pedirNube(f, est.cursor);
+  if (!album || album.solapa !== 'nube' || album.filtro !== f) return;
+  dibujarNube(nube.get(f) || { fotos: [], cursor: null, error: 'sin respuesta' });
 }
 
 /**
@@ -777,86 +990,18 @@ function carpetaSegunDestino(ref) {
 }
 
 async function subirNueva() {
-  const carpeta = carpetaSegunDestino(destinoFoto ? destinoFoto.ref : '');
   const url = await CV2.elegirYSubirImagen({
-    titulo: 'Foto para el sitio',
-    carpeta: carpeta
+    titulo: 'Foto para ' + (album.nombre || 'el sitio'),
+    carpeta: album.carpeta
   });
-  if (!url) return;
-  // La foto nueva entra a la lista "ya en el sitio" en el acto: acaba
-  // de subirse y todavía no está en ningún listado de Cloudinary.
-  if (enUso.indexOf(url) === -1) enUso.push(url);
-  fotosNube = null;   // el listado quedó viejo
-  elegirFoto(url);
-}
-
-/** La persona eligió una foto: se anota el array completo. */
-function elegirFoto(url) {
-  if (!destinoFoto) return;
-  const ref = destinoFoto.ref;
-  const agregar = ref.endsWith('.+');
-  const corte = ref.lastIndexOf('.');
-  const clave = ref.slice(0, corte);            // col/doc:fotos
-  const arr = arrayActual(clave);
-
-  if (agregar) arr.push(url);
-  else arr[Number(ref.slice(corte + 1))] = url;
-
-  // Se guarda el array ENTERO y no la posición sola: Firestore no sabe
-  // escribir "el elemento 2 de este array", y hacerlo por posición con
-  // dos personas editando dejaría el array a medias.
-  pendientes.set(clave, arr);
-  cerrarHoja();
-  pintarYaMismo(clave, arr);
-  contar();
-}
-
-function quitarFoto() {
-  if (!destinoFoto) return;
-  const ref = destinoFoto.ref;
-  const corte = ref.lastIndexOf('.');
-  const clave = ref.slice(0, corte);
-  const arr = arrayActual(clave);
-  arr.splice(Number(ref.slice(corte + 1)), 1);
-  pendientes.set(clave, arr);
-  cerrarHoja();
-  pintarYaMismo(clave, arr);
-  contar();
-}
-
-/**
- * El array de fotos tal como está AHORA: el pendiente si ya se tocó,
- * y si no, lo que muestra el sitio. Se lee de la pantalla y no de la
- * base para no pedir el documento de nuevo en cada toque.
- */
-function arrayActual(clave) {
-  if (pendientes.has(clave)) return pendientes.get(clave).slice();
-  const d = documento();
-  const salida = [];
-  if (d) {
-    d.querySelectorAll('[data-edit-img^="' + clave + '."]').forEach((el) => {
-      const i = Number(el.getAttribute('data-edit-img').split('.').pop());
-      salida[i] = el.src;
-    });
-  }
-  return salida.filter((x) => typeof x === 'string');
-}
-
-/** Cambiar una foto reordena el bloque: se repinta ese pedazo entero. */
-function pintarYaMismo(clave, arr) {
-  const d = documento();
-  if (!d) return;
-  const imgs = [...d.querySelectorAll('[data-edit-img^="' + clave + '."]')];
-  imgs.forEach((el, i) => {
-    if (arr[i]) { el.src = arr[i]; el.style.display = ''; }
-    else el.style.display = 'none';
-  });
-  if (arr.length > imgs.length) {
-    // Hay una foto más que huecos en pantalla: se ve al guardar, cuando
-    // el sitio se repinta con los datos nuevos. Se avisa para que no
-    // parezca que no pasó nada.
-    CV2.toast('Foto agregada — se va a ver al guardar');
-  }
+  if (!url || !album) return;
+  const arr = leerAlbum();
+  arr.push(url);
+  nube.clear();          // el listado de Cloudinary quedó viejo
+  quitada = null;
+  aplicarAlbum(arr);
+  solapa('album');
+  CV2.toast('Foto subida y agregada al álbum', 'success');
 }
 
 // ── Guardar ──────────────────────────────────────────────────
@@ -946,6 +1091,7 @@ async function guardar() {
   }
 
   pendientes.clear();
+  origenes.clear();
   // Se recarga del servidor en vez de dar por bueno lo que está en
   // pantalla: si algo se guardó distinto de lo que se creía, se ve
   // ahora y no dentro de tres semanas.
@@ -1001,6 +1147,7 @@ $('btnTirar').addEventListener('click', async () => {
   if (!pendientes.size) return;
   if (!(await preguntar('¿Descartar los ' + pendientes.size + ' cambios sin guardar?'))) return;
   pendientes.clear();
+  origenes.clear();
   const w = ventana();
   if (w && w.CVSITIO) await w.CVSITIO.recargar();
   contar();
@@ -1010,7 +1157,7 @@ $('btnTirar').addEventListener('click', async () => {
 $('btnVolver').addEventListener('click', async () => {
   if (pendientes.size
     && !(await preguntar('Hay ' + pendientes.size + ' cambio(s) sin guardar. ¿Salir igual?'))) return;
-  location.href = './cabanas.html';
+  location.href = './index.html';
 });
 
 // Último aviso si se cierra la pestaña o se va con el gesto de Android.
