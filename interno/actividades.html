@@ -82,6 +82,19 @@
     font-size: .76rem; margin-bottom: 2px; }
   .d-res .otras { padding: 0 11px 10px; font-size: .78rem; color: var(--gris); }
   .d-cargando { padding: 10px 11px; font-size: .82rem; color: var(--gris); }
+  /* Adjuntos de una tarea (core-4): documentos privados y fotos. */
+  .d-adj { margin-top: 12px; border: 1px solid var(--linea); border-radius: 10px; overflow: hidden; }
+  .d-adj h4 { margin: 0; padding: 8px 11px; font-size: .8rem; background: var(--verde-claro);
+    color: var(--verde-osc); display: flex; align-items: center; gap: 6px; }
+  .d-adj h4 .material-icons { font-size: 16px; }
+  .d-adj .adj { display: flex; align-items: center; gap: 8px; padding: 7px 11px;
+    border-top: 1px solid var(--linea); font-size: .84rem; }
+  .d-adj .adj:first-of-type { border-top: 0; }
+  .d-adj .adj .material-icons { font-size: 20px; color: var(--gris); flex: none; }
+  .d-adj .adj-n { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+  .d-adj .adj-n small { display: block; font-weight: 400; color: var(--gris); font-size: .74rem; }
+  .d-adj .adj-acc { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 11px 10px; border-top: 1px solid var(--linea); }
+  .d-adj .adj-acc .btn { font-size: .82rem; }
 
   .cmp-lugar { margin: 14px 0 0; }
   .cmp-lugar h3 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 6px;
@@ -349,10 +362,11 @@
   </div>
   <div class="m-body">
     <div id="dRuta" class="d-ruta"></div>
-    <div id="dResumen" class="texto-gris" style="font-size:.84rem;line-height:1.55;"></div>
+    <div id="dResumen" class="texto-gris" style="font-size:.84rem;line-height:1.55;white-space:pre-line;"></div>
     <div id="dChips" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;"></div>
     <div id="dReserva"></div>
     <div id="dCompra"></div>
+    <div id="dAdjuntos"></div>
     <div id="dAcciones" class="acciones" style="margin-top:12px;"></div>
   </div>
 </dialog>
@@ -1084,6 +1098,7 @@ window.abrirDetalle = (id) => {
   $('dChips').innerHTML = chips.join('');
 
   $('dCompra').innerHTML = it.esCompra ? listaCompraHTML(it) : '';
+  pintarAdjuntos(id);
 
   $('dAcciones').innerHTML =
     (!it.hecho ? (miCrono
@@ -1131,6 +1146,7 @@ window.abrirDetalle = (id) => {
 function refrescarDetalle(id) {
   const it = byId[id];
   if (!it) { $('mDetalle').close(); return; }
+  if (id === detalleAbierto && !adjuntando) pintarAdjuntos(id);
   if (it.esCompra) {
     const its = itemsDe(it), cp = compradosDe(it);
     const chip = $('dChips').querySelector('[data-chip-compra]');
@@ -1138,6 +1154,94 @@ function refrescarDetalle(id) {
     $('dCompra').innerHTML = listaCompraHTML(it);
   }
 }
+
+// ═══ ADJUNTOS DE LA TAREA (core-4) ════════════════════════
+// Documentos de respaldo (privados: viven en actividades/{id}/adjuntos/) y
+// fotos (Cloudinary). La ficha vive en la tarea: abrir el detalle no lee nada
+// de más. El chat lee lo mismo con `firestore.mjs`. Documentación: § Adjuntos.
+let adjuntando = false;   // mientras sube algo, no se repinta (no se pierde el botón)
+function pintarAdjuntos(id) {
+  const it = byId[id];
+  const caja = $('dAdjuntos');
+  if (!it || !caja) return;
+  const lista = Core.adjuntosDe(it);
+  const filas = lista.map((a) => {
+    const icono = a.tipo === 'imagen' ? 'image' : a.tipo === 'audio' ? 'mic' : (a.mime === 'application/pdf' ? 'picture_as_pdf' : 'description');
+    const meta = [Core.tamanoLegible(a.tam), a.por ? 'de ' + a.por : '', a.en ? CV2.fmtFecha(a.en.slice(0, 10)) : '']
+      .filter(Boolean).join(' · ');
+    return '<div class="adj"><span class="material-icons">' + icono + '</span>'
+      + '<div class="adj-n">' + esc(a.nombre) + (meta ? '<small>' + esc(meta) + '</small>' : '') + '</div>'
+      + '<button class="btn-ico" onclick="verAdjunto(\'' + id + '\',\'' + a.id + '\')" title="Abrir"><span class="material-icons">open_in_new</span></button>'
+      + '<button class="btn-ico" onclick="quitarAdjunto(\'' + id + '\',\'' + a.id + '\')" title="Sacar"><span class="material-icons" style="color:var(--rojo)">delete</span></button>'
+      + '</div>';
+  }).join('');
+  caja.innerHTML = '<div class="d-adj"><h4><span class="material-icons">attach_file</span>Adjuntos'
+    + (lista.length ? ' (' + lista.length + ')' : '') + '</h4>'
+    + (filas || '<div class="d-cargando">Sin adjuntos. Los documentos son privados: los ve quien ve esta tarea, y los lee Claude.</div>')
+    + '<div class="adj-acc">'
+    + '<button class="btn" onclick="adjuntarFoto(\'' + id + '\')"><span class="material-icons">photo_camera</span> Foto</button>'
+    + '<button class="btn" onclick="adjuntarDocumento(\'' + id + '\')"><span class="material-icons">upload_file</span> Documento</button>'
+    + '</div></div>';
+}
+
+window.adjuntarFoto = async (id) => {
+  if (adjuntando) return;
+  adjuntando = true;
+  try {
+    const url = await CV2.elegirYSubirImagen({ titulo: 'Foto de la tarea' });
+    if (!url) return;
+    await Core.agregarFoto(id, url, u);
+    CV2.toast('✓ Foto adjuntada', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.message || e.code), 'error'); }
+  finally { adjuntando = false; pintarAdjuntos(id); }
+};
+
+// El selector de archivos va por un <input> creado al vuelo: así no queda un
+// control suelto en la página y cada toque abre uno limpio.
+window.adjuntarDocumento = (id) => {
+  if (adjuntando) return;
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = Core.ADJUNTOS.EXTENSIONES.map((e) => '.' + e).join(',');
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    const ev = Core.evaluarAdjunto(f.name, f.size);
+    if (!ev.ok) { CV2.toast(ev.motivo, 'error'); return; }
+    adjuntando = true;
+    CV2.toast('Subiendo documento…');
+    try {
+      await Core.agregarDocumento(id, f, u);
+      CV2.toast('✓ Documento adjuntado (privado)', 'success');
+    } catch (e) { CV2.toast('No se pudo: ' + (e.message || e.code), 'error'); }
+    finally { adjuntando = false; pintarAdjuntos(id); }
+  };
+  inp.click();
+};
+
+window.verAdjunto = async (id, aid) => {
+  const ficha = Core.adjuntosDe(byId[id]).find((a) => a.id === aid);
+  if (!ficha) return;
+  try {
+    const r = await Core.leerAdjunto(id, ficha);
+    const a = document.createElement('a');
+    a.href = r.url; a.target = '_blank'; a.rel = 'noopener';
+    // Un PDF o una imagen se miran; el resto se descarga con su nombre.
+    if (r.local && r.mime !== 'application/pdf' && !String(r.mime).startsWith('image/')) a.download = r.nombre;
+    document.body.appendChild(a); a.click(); a.remove();
+    if (r.local) setTimeout(() => URL.revokeObjectURL(r.url), 120000);
+  } catch (e) { CV2.toast('No se pudo abrir: ' + (e.message || e.code), 'error'); }
+};
+
+window.quitarAdjunto = async (id, aid) => {
+  const ficha = Core.adjuntosDe(byId[id]).find((a) => a.id === aid);
+  if (!ficha || !confirm('¿Sacar «' + ficha.nombre + '» de esta tarea?')) return;
+  try {
+    await Core.quitarAdjunto(id, ficha);
+    CV2.toast('Adjunto sacado', 'success');
+  } catch (e) { CV2.toast('No se pudo: ' + (e.message || e.code), 'error'); }
+  pintarAdjuntos(id);
+};
 
 // Los datos que necesita quien va a hacer la limpieza: cuánta gente entra, a
 // qué hora, qué pidieron. Hasta agosto de 2026 la limpieza no decía NADA de su

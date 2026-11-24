@@ -551,7 +551,11 @@
 //   guía y sus fotos, y la categoría del inventario se conserva. actividades.html: el control de entrada
 //   muestra lo que va a leer el huésped. llegada.html (llegada-4): la bienvenida de WhatsApp nombra Casa
 //   Verde Canas. recuerdos.html del panel: el QR apunta a la-casa.html.
-const VERSION = 'cv2-shell-v147';
+//   v148 (24-nov-2026): adjuntos de una tarea (core-4). actividades.html: sección «Adjuntos» en el
+//   detalle (documentos privados y fotos); actividades-core.js: Core.agregarDocumento / agregarFoto /
+//   leerAdjunto / quitarAdjunto; firebase-init.js (init-5): exporta `Bytes`. Hay que publicar
+//   interno/firestore.rules (colección nueva actividades/{id}/adjuntos).
+const VERSION = 'cv2-shell-v148';
 
 const SHELL = [
   './',

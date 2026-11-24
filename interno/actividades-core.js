@@ -4,7 +4,8 @@
 //  ciclo con reprogramación de recurrentes y HONORARIOS
 //  PROPORCIONALES. Diseño heredado del v5.2 del sistema viejo,
 //  reescrito limpio. Fuente única: /sesiones/ y /honorarios/.
-//  Sello: core-3 (18-nov-2026) — las compras, en el motor (las lee Timón).
+//  Sello: core-4 (24-nov-2026) — los adjuntos de una tarea (fotos y documentos).
+//  core-3 (18-nov-2026) — las compras, en el motor (las lee Timón).
 //  core-2 (8-nov-2026) — el control de salida nace ACÁ.
 // ═══════════════════════════════════════════════════════════════
 
@@ -12,7 +13,7 @@ import {
   db, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   collection, query, where, limit, or, and,
   getAggregateFromServer, sum,
-  serverTimestamp, Timestamp, arrayUnion, arrayRemove
+  serverTimestamp, Timestamp, Bytes, arrayUnion, arrayRemove
 } from './firebase-init.js';
 
 export const Core = {};
@@ -32,6 +33,136 @@ Core.consultaActividades = (u, esAdmin) => {
     and(where('alcance', '==', 'asignados'), where('competencias', 'array-contains', u.uid)),
     and(where('alcance', '==', 'asignados'), where('creadoPor', '==', u.uid))
   ));
+};
+
+// ═══ ADJUNTOS ═══
+// Una tarea compleja necesita su documento de respaldo (un diagnóstico, un
+// presupuesto, un manual) y a veces una foto. Mauro, 24-nov-2026: «que se pueda
+// adjuntar este tipo de documentos a la tarea, como si fuese también una foto»,
+// «privados», «primero en Casa Verde y que quede todo documentado para la
+// migración a Timón».
+//
+// Dos lugares, un solo criterio (qué es privado y qué no):
+//   · la tarea lleva `adjuntos: [{id, tipo, nombre, mime, tam, url?, por, en}]`
+//     — SÓLO la ficha: abrir el detalle no lee ninguna subcolección;
+//   · un DOCUMENTO vive como bytes en `actividades/{id}/adjuntos/{aid}`, con la
+//     misma visibilidad que su tarea (regla en firestore.rules) y la misma
+//     forma que `firestore.mjs adjuntar` de `datos`, para que el chat lo lea;
+//   · una FOTO desde la web va a Cloudinary (como las del control de salida) y
+//     la ficha lleva su `url`; no tiene documento en la subcolección.
+// Las funciones puras van entre estas marcas: el banco `adjuntos.mjs` las saca
+// de acá, porque este archivo importa Firebase y no se carga en node.
+const ADJ_DOCS = { pdf: 'application/pdf', txt: 'text/plain', md: 'text/markdown', csv: 'text/csv', json: 'application/json' };
+const ADJ_IMGS = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
+// El techo es el mismo que el de `adjuntoDe` en datos y el de la regla: un
+// documento de Firestore no pasa de 1 MiB y los bytes viajan junto a su ficha.
+const ADJ_MAX = 900000;
+const ADJ_MAX_POR_TAREA = 12;
+const ADJ_ID = /^[A-Za-z0-9_-]{1,40}$/;
+
+function nombreDeAdjunto(n) {
+  const t = String(n ?? '').split(/[\\/]/).pop().replace(/[\u0000-\u001f\u007f<>"]/g, '').trim().slice(0, 120);
+  return t;
+}
+// Qué es lo que se quiere adjuntar. `tam` en bytes. {ok:false, motivo} dice por qué no.
+function evaluarAdjunto(nombre, tam) {
+  const n = nombreDeAdjunto(nombre);
+  if (!n) return { ok: false, motivo: 'El archivo no tiene nombre.' };
+  const ext = n.includes('.') ? n.split('.').pop().toLowerCase() : '';
+  const doc_ = ADJ_DOCS[ext], img = ADJ_IMGS[ext];
+  if (!doc_ && !img) return { ok: false, motivo: '«' + n + '»: sólo PDF, texto (txt, md, csv, json) e imágenes (jpg, png, webp).' };
+  if (!(tam > 0)) return { ok: false, motivo: '«' + n + '» está vacío.' };
+  if (tam > ADJ_MAX) return { ok: false, motivo: '«' + n + '» pesa ' + Math.round(tam / 1024) + ' KB: el techo es ' + Math.round(ADJ_MAX / 1024) + ' KB. Achicalo antes.' };
+  return { ok: true, nombre: n, tipo: doc_ ? 'documento' : 'imagen', mime: doc_ || img };
+}
+// La lista de adjuntos de una tarea, depurada: lo que no tiene la forma, no se muestra
+// (el agente o una versión vieja pudieron escribir cualquier cosa).
+function adjuntosDeTarea(it) {
+  const l = Array.isArray(it?.adjuntos) ? it.adjuntos : [];
+  return l.filter((a) => a && typeof a === 'object' && ADJ_ID.test(String(a.id ?? ''))
+      && typeof a.nombre === 'string' && a.nombre
+      && ['documento', 'imagen', 'audio'].includes(a.tipo))
+    .map((a) => ({
+      id: String(a.id), tipo: a.tipo, nombre: String(a.nombre).slice(0, 120),
+      mime: typeof a.mime === 'string' ? a.mime : '', tam: Number(a.tam) > 0 ? Number(a.tam) : 0,
+      url: typeof a.url === 'string' && /^https:\/\//.test(a.url) ? a.url : '',
+      por: typeof a.por === 'string' ? a.por : '', en: typeof a.en === 'string' ? a.en : ''
+    }))
+    .sort((x, y) => (x.en < y.en ? -1 : x.en > y.en ? 1 : 0));
+}
+function tamanoLegible(b) {
+  const n = Number(b) || 0;
+  return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : n >= 1024 ? Math.round(n / 1024) + ' KB' : n > 0 ? n + ' B' : '';
+}
+// La ficha que se guarda en la tarea. Una foto web lleva `url`; un documento no.
+function fichaDeAdjunto(id, ev, tam, por, en, url) {
+  const f = { id, tipo: ev.tipo, nombre: ev.nombre, mime: ev.mime, tam: Number(tam) || 0, por: por || '', en };
+  if (url) f.url = url;
+  return f;
+}
+// ═══ FIN ADJUNTOS ═══
+
+Core.ADJUNTOS = Object.freeze({ MAX: ADJ_MAX, MAX_POR_TAREA: ADJ_MAX_POR_TAREA,
+  EXTENSIONES: Object.freeze(Object.keys({ ...ADJ_DOCS, ...ADJ_IMGS })) });
+Core.evaluarAdjunto = evaluarAdjunto;
+Core.adjuntosDe = adjuntosDeTarea;
+Core.tamanoLegible = tamanoLegible;
+
+const idAdjunto = () => 'a-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+// Un DOCUMENTO (o una imagen como bytes): primero el documento privado, después
+// la ficha en la tarea. Si la ficha falla, el documento no queda huérfano.
+Core.agregarDocumento = async (actId, file, u) => {
+  const t = Core.adjuntosDe((await getDoc(doc(db, 'actividades', actId))).data());
+  if (t.length >= ADJ_MAX_POR_TAREA) throw new Error('Esta tarea ya tiene ' + ADJ_MAX_POR_TAREA + ' adjuntos: sacá alguno antes.');
+  const ev = evaluarAdjunto(file?.name, file?.size);
+  if (!ev.ok) throw new Error(ev.motivo);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (bytes.length > ADJ_MAX) throw new Error('El archivo supera el techo de ' + Math.round(ADJ_MAX / 1024) + ' KB.');
+  const id = idAdjunto(), en = new Date().toISOString();
+  const sub = doc(db, 'actividades', actId, 'adjuntos', id);
+  // La MISMA forma que `firestore.mjs adjuntar`: tipo, mime, nombre, datos, en, por (+ uid de quien subió).
+  await setDoc(sub, { tipo: ev.tipo, mime: ev.mime, nombre: ev.nombre, datos: Bytes.fromUint8Array(bytes),
+    en, por: u?.nombre ?? '', uid: u.uid });
+  const ficha = fichaDeAdjunto(id, ev, bytes.length, u?.nombre ?? '', en);
+  try {
+    await updateDoc(doc(db, 'actividades', actId), { adjuntos: arrayUnion(ficha), actualizadoEn: serverTimestamp() });
+  } catch (e) {
+    try { await deleteDoc(sub); } catch { /* si tampoco se puede, queda un documento sin ficha: no se ve */ }
+    throw e;
+  }
+  return ficha;
+};
+
+// Una FOTO que ya subió Cloudinary: sólo la ficha, con su `url`.
+Core.agregarFoto = async (actId, url, u) => {
+  const t = Core.adjuntosDe((await getDoc(doc(db, 'actividades', actId))).data());
+  if (t.length >= ADJ_MAX_POR_TAREA) throw new Error('Esta tarea ya tiene ' + ADJ_MAX_POR_TAREA + ' adjuntos: sacá alguno antes.');
+  if (!/^https:\/\//.test(String(url))) throw new Error('La foto no devolvió una dirección válida.');
+  const en = new Date().toISOString();
+  const ficha = fichaDeAdjunto(idAdjunto(), { nombre: 'Foto ' + en.slice(0, 10) + '.jpg', tipo: 'imagen', mime: 'image/jpeg' }, 0, u?.nombre ?? '', en, url);
+  await updateDoc(doc(db, 'actividades', actId), { adjuntos: arrayUnion(ficha), actualizadoEn: serverTimestamp() });
+  return ficha;
+};
+
+// Para ABRIR: una foto con `url` se abre por su enlace; un documento se lee de
+// la subcolección y se entrega como archivo local (blob). Devuelve { url, nombre, mime, local }.
+Core.leerAdjunto = async (actId, ficha) => {
+  if (ficha.url) return { url: ficha.url, nombre: ficha.nombre, mime: ficha.mime, local: false };
+  const s = await getDoc(doc(db, 'actividades', actId, 'adjuntos', ficha.id));
+  if (!s.exists()) throw new Error('El documento ya no está.');
+  const d = s.data();
+  const blob = new Blob([d.datos.toUint8Array()], { type: d.mime || ficha.mime || 'application/octet-stream' });
+  return { url: URL.createObjectURL(blob), nombre: d.nombre || ficha.nombre, mime: d.mime || ficha.mime, local: true };
+};
+
+// Sacar un adjunto: primero la ficha (lo que se ve), después el documento.
+Core.quitarAdjunto = async (actId, ficha) => {
+  const act = (await getDoc(doc(db, 'actividades', actId))).data() || {};
+  // arrayRemove compara el objeto ENTERO: se saca el que está guardado, no el depurado.
+  const guardado = (Array.isArray(act.adjuntos) ? act.adjuntos : []).find((a) => a && a.id === ficha.id);
+  if (guardado) await updateDoc(doc(db, 'actividades', actId), { adjuntos: arrayRemove(guardado), actualizadoEn: serverTimestamp() });
+  if (!ficha.url) { try { await deleteDoc(doc(db, 'actividades', actId, 'adjuntos', ficha.id)); } catch { /* sin permiso: queda sin ficha, no se ve */ } }
 };
 
 // ── Compras (core-3, 18-nov-2026) ────────────────────────────

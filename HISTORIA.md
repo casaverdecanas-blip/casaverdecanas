@@ -457,3 +457,27 @@ El reglamento propio y completo sigue siendo
 `interno/CASAVERDEDOCUMENTACION.md`: los protocolos de `datos` mandan sobre lo
 que es común a los tres sitios, y este documento sobre lo que es propio de Casa
 Verde.
+
+---
+
+## Agregado después del 15-nov-2026 (lo de arriba no se tocó)
+
+### Adjuntos de una tarea (24-nov-2026)
+
+Mauro, a propósito de la heladera de Casa Verde (la tarea `rep-heladera-gotea`, con un diagnóstico armado a partir de
+foros y manuales): «una tarea que es compleja y que requiere tener un documento de respaldo para que lo lea el propio
+chat, se tendrá que modificar para poder adjuntar este tipo de documentos a la tarea, como si fuese también una foto».
+Y al elegir cómo: «**privados**, y hacelo **primero en Casa Verde** y que quede todo documentado para la migración
+cuando se empiece a usar Timón».
+
+Qué se decidió y por qué (el detalle técnico, en `interno/CASAVERDEDOCUMENTACION.md`, «Adjuntos de una tarea»):
+- **Documentos privados en una subcolección** (`actividades/{id}/adjuntos/{aid}`), con la misma forma que
+  `firestore.mjs adjuntar`, y no un enlace público como las fotos: un presupuesto o una factura no pueden quedar
+  abiertos para quien tenga la dirección. Las **fotos** siguen yendo a Cloudinary (ya existía el camino, y ya eran
+  públicas en el control de salida): la única parte no privada, y está dicho.
+- **Una ficha en la tarea y los bytes aparte**, para que abrir el detalle no lea ninguna subcolección.
+- **No se usó `monto` de la tarea para el costo de la reparación**: ese campo es el pozo de honorarios (se reparte por
+  horas). El gasto va a Dinero, categoría Mantenimiento.
+- **Primero Casa Verde**: la mudanza de las tareas a Timón (8.3 de `INTEGRACION.md`) todavía no tiene fecha y la tarea
+  ya vivía acá. Se diseñó con la forma que tiene que conservar al mudarse, y la lista de cuidados quedó escrita.
+

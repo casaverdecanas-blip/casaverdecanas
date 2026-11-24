@@ -1,12 +1,88 @@
 # CASA VERDE CANAS — Documentación del sistema
 
-**Edición del 23 de noviembre de 2026** (la última reescritura entera fue la del 31 de julio, tanda 11.23; desde ahí se corrige por partes: ver «Retiros del 9-nov-2026» y cada sección con su fecha)
+**Edición del 24 de noviembre de 2026** (la última reescritura entera fue la del 31 de julio, tanda 11.23; desde ahí se corrige por partes: ver «Retiros del 9-nov-2026» y cada sección con su fecha)
 
 Los tres documentos del proyecto en un solo archivo, para subirlo de una vez al
 conocimiento. Antes eran `CONVENCIONES.md`, `GUIA-SITIO-PUBLICO.md` y
 `Master_briefing_vN.md`; su contenido no cambió, solo viven juntos.
 
 ---
+
+## Adjuntos de una tarea, 24-nov-2026 (`core-4`, `init-5`, `cv2-shell-v148`)
+
+Mauro pidió que una tarea compleja pueda llevar **un documento de respaldo que lea el propio chat**, «como si
+fuese también una foto», que sea **privado**, que se haga **primero en Casa Verde** y que quede **todo documentado
+para la migración a Timón**. El caso que lo disparó: la tarea `rep-heladera-gotea` (diagnóstico de la heladera, con
+fuentes y pasos), que no cabe bien en un `detalle`.
+
+**Cómo funciona**
+- **La tarea lleva una ficha**: `adjuntos: [{id, tipo, nombre, mime, tam, por, en, url?}]`. Sólo la ficha:
+  abrir el detalle no lee ninguna subcolección. `tipo` es `documento`, `imagen` o `audio`.
+- **Un documento** (PDF; texto `txt`/`md`/`csv`/`json`) vive como **bytes** en
+  `actividades/{id}/adjuntos/{aid}`, con la forma de `firestore.mjs adjuntar` de `datos`
+  (`tipo, mime, nombre, datos, en, por, nota?`) más `uid` de quien lo subió desde la web. Techo: **900000 bytes**
+  (un documento de Firestore no pasa de 1 MiB), el mismo en `Core.ADJUNTOS.MAX`, en la regla y en `adjuntoDe`.
+- **Una foto subida desde la web** va a Cloudinary (como las del control de salida, `CV2.elegirYSubirImagen`) y la
+  ficha lleva su `url`; no hay documento en la subcolección. **Es la única parte que no es privada:** quien tenga el
+  enlace la ve. Lo que no deba verse, va como documento.
+- **Privado = se ve lo que se ve de su tarea.** La regla de `actividades/{id}/adjuntos/{aid}` repite la cuenta de
+  alcance de `actividades` (equipo; personal y asignados sólo para quien corresponde; el admin, todo). Crear:
+  cualquier cuenta activa, con la forma exacta y el techo. **Un adjunto no se edita:** se reemplaza. Borrar: quien
+  lo subió (`uid`) o el admin; el agente no borra. Cada lectura cuesta una lectura más (la regla trae la tarea).
+- **Pantalla**: `actividades.html`, en el detalle de la tarea, sección «Adjuntos»: 📷 Foto, 📎 Documento, abrir
+  y sacar. Tope de **12 adjuntos por tarea** (`Core.ADJUNTOS.MAX_POR_TAREA`). La ficha se **depura** al leerla
+  (`Core.adjuntosDe`): un `id` con forma rara, un tipo desconocido o una `url` que no es `https` no se muestra.
+- **Motor** (`actividades-core.js`, `Core`): `agregarDocumento`, `agregarFoto`, `leerAdjunto`, `quitarAdjunto`,
+  `evaluarAdjunto`, `adjuntosDe`. Primero se escribe el documento y después la ficha; si la ficha falla, el
+  documento se borra. Al sacar: primero la ficha, después el documento.
+- **`firebase-init.js` (init-5)** exporta `Bytes` (el SDK sigue entrando sólo por ahí).
+- **Banco**: `node netlify/pruebas/adjuntos.mjs` (14 casos: qué entra y qué no, el techo, la depuración de la ficha,
+  y que la regla sea privada, con la forma del agente y sin ediciones). **Ojo:** la parte de las reglas se prueba
+  leyendo el texto del archivo; no hay emulador acá. La regla real se verifica **después de publicarla**.
+
+**Cómo lo lee el chat**
+- Antes de publicar las reglas no puede (la regla niega todo lo no declarado).
+- Después: `node herramientas/firestore.mjs casaverde leer actividades/<id>/adjuntos` lista los documentos de una
+  tarea (los bytes salen en **base64**); la ficha, en `leer actividades <id>` → `adjuntos`. Para **adjuntar desde
+  el chat** hace falta el parche de `datos` (abajo): sin él, `adjuntar` no acepta PDF ni texto, ni `actividades`.
+- **Lo que ya hay y lo que falta en `datos`** (no se pudo subir desde esta sesión: sin permiso de escritura sobre el
+  repo): `adjuntoDe` con `pdf/txt/md/csv/json` y `tipo: "documento"`; `adjuntos: ["actividades"]` en la
+  configuración de `casaverde`; un comando para bajar un adjunto a un archivo; y la fila de `actividades/` de
+  `protocolos/INTEGRACION.md` (§ 4.2) con la columna «adjuntos». Está listo como parche; ver el cierre de la tanda.
+
+**Migración a Timón (etapa 8.3 de `INTEGRACION.md`): qué hay que tener en cuenta**
+1. **Qué es contrato y qué no.** La forma de la ficha (`adjuntos[]`) y la del documento (`tipo, mime, nombre, datos,
+   en, por`) es lo que hay que **conservar tal cual** en el ítem. Los `id` (`a-…`) se conservan: así las fichas
+   siguen apuntando bien después de mover.
+2. **Dónde queda cada cosa.** La ficha pasa a `items/{id}.adjuntos`. Los documentos pasan a
+   `items/{id}/adjuntos/{aid}`, con una regla igual a la de acá (**colección nueva = regla en la misma tanda;
+   hay que publicar `firestore.rules` de `tiempos`**). Las fotos **no se mueven**: su `url` de Cloudinary sigue valiendo.
+3. **La visibilidad cambia de criterio.** Acá manda `alcance` (equipo, personal, asignados). En Timón la regla
+   decide por **espacio** (`casaverde` con sus miembros): el adjunto se ve como se ve su ítem. Una tarea
+   `personal` o `asignada` que se mude necesita que 8.3 resuelva primero cómo se traduce su alcance.
+4. **El `uid` no se traslada.** Los UID son por proyecto: el `uid` de quien subió el documento en `casaverde-20` no
+   existe en `tiempos-71d42`. Al mudar, `uid` se descarta (queda `por`, el nombre) o se mapea con `miembros/{uid}.cuentas`.
+   Hasta decidirlo, **sólo el admin borra** esos documentos en Timón.
+5. **Mover los bytes es un script, y se prueba.** `firestore.mjs copiar` es dentro de una misma base: pasar de una
+   base a otra pide una herramienta que lea de `casaverde` y escriba en `tiempos` **y compare el hash de cada
+   documento** antes de dar nada por mudado. No se borra el original hasta que el banco de 8.3 lo confirme.
+6. **Cupos** (`PROTOCOLO-DESARROLLO.md` § 13): hoy los documentos cuentan contra el cupo gratuito de `casaverde-20`.
+   Al mudar pasan al de `tiempos-71d42`, que comparten más personas: **decir el costo antes de mudar** (un documento
+   pesa hasta 900 KB y una tarea lleva hasta 12).
+7. **Lo que Timón ve hoy.** `actividades.adjuntos` ya llega con la tarea por `Core.consultaActividades`
+   (`conector-1`), pero Timón **todavía no lo dibuja** ni puede abrir un documento: `Core.leerAdjunto` no está en
+   `OFRECE`. Sumarlo es **aditivo** (no rompe el contrato de `conector-1`; igual necesita su caso en
+   `netlify/pruebas/conector.mjs` y el cambio en `tiempos` en la misma tanda). Mientras tanto, Timón puede mostrar
+   la ficha («📎 2») y mandar a abrir la tarea en Casa Verde.
+8. **«Se leerán al revés en Casa Verde».** Cuando las tareas vivan en Timón, `actividades.html` va a mostrar la ficha
+   del ítem y a leer el documento de **Timón por `timon-1`**, con la sesión de Timón de la persona (8.1, D2). El
+   motor de adjuntos de acá tiene que quedar con una sola costura (`Core.leerAdjunto`, `agregarDocumento`,
+   `quitarAdjunto`) para cambiar de dónde lee **sin tocar la pantalla**.
+9. **Prueba de que la mudanza no perdió nada**: por cada tarea mudada, la cantidad de fichas es igual, cada `id`
+   tiene su documento (salvo las fotos), el hash coincide, y `Core.adjuntosDe` de la tarea nueva devuelve lo mismo.
+
+**Hay que publicar `interno/firestore.rules`** (colección nueva: `actividades/{id}/adjuntos/{aid}`). Hasta
+entonces, adjuntar un documento falla con `permission-denied` y las fotos andan igual (sólo escriben la tarea).
 
 ## La guía del huésped, 23-nov-2026 (`cv2-shell-v146`, `llegada-4`)
 
@@ -686,6 +762,8 @@ ultimoCierreEn, orden, cabanaId, creadoPor, creadoNombre`
 · `faltantesData {faltantes[], danios[], huesped, checkIn, checkOut}` — en la actividad
   de faltantes; denormalizado a propósito: no debe depender de que la reserva exista.
 · `gastoMovimientoId` — si el faltante ya generó su gasto en Dinero.
+· `adjuntos` — la ficha de los adjuntos de la tarea (core-4); ver «Adjuntos de una tarea» al principio y
+  «`actividades/{id}/adjuntos/{aid}`» abajo. **No va en `monto`**: ese campo es el pozo de honorarios.
 · El color se hereda en cascada desde la raíz (pastel para los fondos).
 
 ### `sesiones/{id}`
@@ -1051,6 +1129,21 @@ ultimoAutorNombre, ultimaActividad, creadoPor, creadoNombre, creadoEn`
   categorías de Dinero. **Cero cambios en las reglas.**
 · El campo era **texto libre** hasta agosto de 2026, y por eso agrupar no servía:
   *"Ferretería"*, *"ferreteria"* y *"Ferretería del centro"* eran tres lugares distintos.
+
+### `actividades/{id}` — adjuntos (core-4, 24-nov-2026)
+· **`adjuntos`** — `[{id, tipo, nombre, mime, tam, por, en, url?}]`. `tipo` ∈ `documento | imagen | audio`.
+  Una foto de la web lleva `url` (Cloudinary, **no privada**); un documento no, y vive en la subcolección.
+· Se escribe con **`arrayUnion` / `arrayRemove`**, nunca reescribiendo el array (dos personas adjuntando a la vez no
+  se pisan). `arrayRemove` compara el objeto entero: se saca el guardado, no el depurado (`Core.quitarAdjunto`).
+· **Lo que no tiene la forma no se muestra** (`Core.adjuntosDe`): `id` con `[A-Za-z0-9_-]{1,40}`, `nombre`, y un `tipo` conocido.
+
+### `actividades/{id}/adjuntos/{aid}` — el documento, privado
+`tipo, mime, nombre, datos (bytes), en (texto ISO), por (nombre), uid? (de quien lo subió desde la web), nota?`
+· **Misma forma que `firestore.mjs adjuntar`**, a propósito: el chat lo crea y lo lee sin traductor.
+· `datos` ≤ **900000 bytes**. `en` es **texto**, no fecha (así lo escribe el agente).
+· Lectura = visibilidad de su actividad. Crear = cuenta activa y forma exacta. Editar = nadie. Borrar = quien lo
+  subió o el admin. **No entra en el respaldo diario** (`colecciones` de `firestore.mjs` no lista subcolecciones):
+  un documento sin copia en la bodega; si importa, se guarda también donde corresponda.
 
 ### `actividades/{id}` — campos de agenda
 · **`hora`** (`'HH:MM'`, opcional) y **`duracionHoras`** (número, opcional). Las dos

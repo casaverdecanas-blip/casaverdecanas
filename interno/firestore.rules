@@ -14,6 +14,13 @@ rules_version = '2';
 //  nunca por fragmentos, y los casos especiales (config/integraciones)
 //  se excluyen a mano del bloque general.
 //
+//  CAMBIO 24-nov-2026 · ADJUNTOS DE UNA TAREA  [ADJUNTOS]  (core-4)
+//  Mauro: «una tarea compleja necesita un documento de respaldo que lea el
+//  propio chat… como si fuese también una foto»; «privados». Colección nueva:
+//  /actividades/{id}/adjuntos/{aid}. Se lee lo que se lee de la actividad, se
+//  crea con la forma de `firestore.mjs adjuntar` (tope 900000 bytes) y sólo
+//  se borra por quien lo subió o el admin; nunca se edita.
+//
 //  CAMBIO 2-nov-2026 · POR PAGAR  [POR-PAGAR]  (por-pagar-1)
 //  Mauro: «una lista de los pagos pendientes a hacer como ser el IPTU, pagos
 //  de impuestos, devoluciones… honorarios», para quien tiene finanzas.
@@ -428,6 +435,59 @@ service cloud.firestore {
       allow create: if activo();
       allow update: if activo();
       allow delete: if esAdmin() || esMio('creadoPor');
+    }
+
+    // Adjuntos de una actividad (core-4, 24-nov-2026; Mauro: «privados»).
+    // Un DOCUMENTO de respaldo (PDF o texto) o una imagen como bytes, que el
+    // chat lee con su sesión. Se ve EXACTAMENTE lo que se ve de su actividad
+    // —la misma cuenta de alcance que arriba—, así que un documento de una
+    // tarea personal no lo ve nadie más. Las fotos que sube la web van a
+    // Cloudinary y no pasan por acá (la tarea guarda su enlace).
+    // · La forma es la de `firestore.mjs adjuntar` de `datos` (tipo, mime,
+    //   nombre, datos, en, por, nota?) más `uid` de quien lo subió desde la web.
+    // · Sólo se CREA y se borra: un adjunto no se edita, se reemplaza.
+    // · 900000 bytes: el techo de `adjuntoDe` y de Core.ADJUNTOS.MAX; un
+    //   documento de Firestore no pasa de 1 MiB.
+    // · Cada lectura trae la actividad (get): una lectura de más por abrir un
+    //   adjunto, que es poco frecuente. Sin la actividad no hay adjunto.
+    // En una actividad que NO existe, `get().data` falla y la regla niega: bien.
+    match /actividades/{actId}/adjuntos/{aid} {
+      function laActividad() {
+        return get(/databases/$(database)/documents/actividades/$(actId)).data;
+      }
+      allow read: if esAdmin() || (activo() && (
+                       laActividad().alcance == 'equipo'
+                    || (laActividad().alcance == 'personal'
+                        && laActividad().creadoPor == request.auth.uid)
+                    || (laActividad().alcance == 'asignados'
+                        && laActividad().creadoPor == request.auth.uid)
+                    || (laActividad().alcance == 'asignados'
+                        && request.auth.uid in laActividad().get('competencias', []))
+                  ));
+      allow create: if activo()
+                    && exists(/databases/$(database)/documents/actividades/$(actId))
+                    && request.resource.data.keys().hasOnly(
+                         ['tipo', 'mime', 'nombre', 'datos', 'en', 'por', 'nota', 'uid'])
+                    && request.resource.data.keys().hasAll(
+                         ['tipo', 'mime', 'nombre', 'datos', 'en', 'por'])
+                    && request.resource.data.tipo in ['documento', 'imagen', 'audio']
+                    && request.resource.data.mime is string
+                    && request.resource.data.mime.size() <= 100
+                    && request.resource.data.nombre is string
+                    && request.resource.data.nombre.size() > 0
+                    && request.resource.data.nombre.size() <= 120
+                    && request.resource.data.datos is bytes
+                    && request.resource.data.datos.size() > 0
+                    && request.resource.data.datos.size() <= 900000
+                    && request.resource.data.en is string
+                    && request.resource.data.por is string
+                    && request.resource.data.por.size() <= 80
+                    && (!('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid)
+                    && (!('nota' in request.resource.data)
+                        || (request.resource.data.nota is string && request.resource.data.nota.size() <= 500));
+      allow update: if false;
+      allow delete: if esAdmin() || (activo() && resource != null
+                                    && resource.data.get('uid', '') == request.auth.uid);
     }
 
     // Sesiones: el equipo lee todo (frenar el cronómetro de otro al

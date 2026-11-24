@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 //  CASAVERDE 2.0 — firebase-init.js
-//  Sello: init-4 (8-nov-2026: despertar va a timon-servidor)
+//  Sello: init-5 (24-nov-2026: `Bytes`, para los documentos adjuntos de las tareas)
+//  init-4 (8-nov-2026: despertar va a timon-servidor)
 //  Punto ÚNICO de contacto con el SDK de Firebase.
 //  Regla: ninguna página importa de gstatic directamente;
 //  todo pasa por este módulo. La versión del SDK vive SOLO acá.
@@ -58,7 +59,7 @@ export let doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
            collection, query, where, orderBy, limit, onSnapshot,
            or, and, documentId,
            getCountFromServer, getAggregateFromServer, sum, average, count,
-           serverTimestamp, Timestamp, increment, arrayUnion, arrayRemove,
+           serverTimestamp, Timestamp, Bytes, increment, arrayUnion, arrayRemove,
            deleteField, writeBatch, runTransaction,
            terminate, clearIndexedDbPersistence;
 export let onAuthStateChanged, signInWithEmailAndPassword, signOut,
@@ -115,7 +116,7 @@ export function cargarFirebase() {
        collection, query, where, orderBy, limit, onSnapshot,
        or, and, documentId,
        getCountFromServer, getAggregateFromServer, sum, average, count,
-       serverTimestamp, Timestamp, increment, arrayUnion, arrayRemove,
+       serverTimestamp, Timestamp, Bytes, increment, arrayUnion, arrayRemove,
        deleteField, writeBatch, runTransaction,
        terminate, clearIndexedDbPersistence } = modFs);
     // init-3: guardar algo que muestra la Pizarra la despierta (ver abajo).
