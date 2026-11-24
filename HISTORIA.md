@@ -481,3 +481,11 @@ Qué se decidió y por qué (el detalle técnico, en `interno/CASAVERDEDOCUMENTA
 - **Primero Casa Verde**: la mudanza de las tareas a Timón (8.3 de `INTEGRACION.md`) todavía no tiene fecha y la tarea
   ya vivía acá. Se diseñó con la forma que tiene que conservar al mudarse, y la lista de cuidados quedó escrita.
 
+### La cocina privada no se publica (24-nov-2026)
+
+Mauro, sobre la heladera de la cocina que se comparte con Esteban: «no corresponde a ninguna de las cabañas que se alquilan
+en temporada… habría que agregar en la lista nuestra cocina como la cocina privada de Casa Verde Canas». Y después: «**no debe
+aparecer en la página pública**, es de uso privado como las casas de alquiler anual… los dormitorios que compartimos con Esteban,
+la familia y eventualmente algunas personas más». Por eso es una rama de Mantenimiento (`mant-cocina-privada`) y no una entrada
+de `cabanas/` o `espacios_comunes/`, que publica el sitio. El detalle, en `interno/CASAVERDEDOCUMENTACION.md`.
+

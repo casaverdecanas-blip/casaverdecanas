@@ -1130,6 +1130,21 @@ ultimoAutorNombre, ultimaActividad, creadoPor, creadoNombre, creadoEn`
 · El campo era **texto libre** hasta agosto de 2026, y por eso agrupar no servía:
   *"Ferretería"*, *"ferreteria"* y *"Ferretería del centro"* eran tres lugares distintos.
 
+### Lugares PRIVADOS de la casa (24-nov-2026)
+Mauro: la cocina que se comparte con Esteban «no corresponde a ninguna de las cabañas que se alquilan» y «no debe
+aparecer en la página pública; es de uso privado como las casas de alquiler anual», los dormitorios que comparten
+Esteban, la familia y, a veces, otras personas.
+· **Un lugar privado es una rama del árbol de Mantenimiento** (`actividades/`, hija de `proj-mantenimiento`), como
+  `mant-piscina` y `mant-patio-casa`. El primero es **`mant-cocina-privada`** («Cocina privada de Casa Verde Canas»).
+  Las reparaciones de ese lugar cuelgan de ahí (hoy, las dos de la heladera).
+· **NO va en `cabanas/` ni en `espacios_comunes/`.** Esas dos colecciones las **lee el sitio público** (`allow read: if true`):
+  lo que se agrega ahí se publica. `actividades/` no la lee el sitio ni ninguna función de servidor, y su regla pide
+  una cuenta activa. Se verificó el 24-nov: el sitio sólo lee `cabanas`, `disponibilidad`, `espacios_comunes`,
+  `recuerdos`, `config`, `huespedes` y `claves_recuerdos`.
+· **Quien tiene cuenta activa ve estas tareas** (alcance `equipo`). Si algo no debe verlo todo el equipo, el alcance es
+  `asignados` o `personal`.
+· **Al mudar a Timón** (8.3 de `INTEGRACION.md`) la rama viaja como un ítem más del espacio `casaverde`, con su `padre`.
+
 ### `actividades/{id}` — adjuntos (core-4, 24-nov-2026)
 · **`adjuntos`** — `[{id, tipo, nombre, mime, tam, por, en, url?}]`. `tipo` ∈ `documento | imagen | audio`.
   Una foto de la web lleva `url` (Cloudinary, **no privada**); un documento no, y vive en la subcolección.
