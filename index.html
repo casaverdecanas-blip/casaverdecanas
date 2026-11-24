@@ -150,6 +150,17 @@
   .predio-txt{white-space:pre-line;max-width:46rem;font-size:1.02rem;line-height:1.7;color:var(--gris)}
   .cv-ed .predio-txt{white-space:pre-wrap}
   .predio{padding-bottom:34px}
+  /* El video de presentación (24-nov-2026): sólo se baja cuando se ve, y nunca con ahorro de datos */
+  .entorno{padding-bottom:10px}
+  .entorno-vid{position:relative;max-width:1000px;margin:0 auto;border-radius:20px;overflow:hidden;
+    aspect-ratio:16/9;background:var(--selva-osc);box-shadow:0 6px 30px rgba(34,91,56,.14)}
+  .entorno-vid video{display:block;width:100%;height:100%;object-fit:cover}
+  .entorno-rep{position:absolute;right:14px;bottom:14px;display:none;align-items:center;gap:6px;border:0;
+    cursor:pointer;font:inherit;font-size:.86rem;font-weight:600;padding:8px 15px;border-radius:999px;
+    background:rgba(250,244,230,.94);color:var(--selva-osc);box-shadow:0 2px 8px rgba(0,0,0,.25)}
+  .entorno-rep .material-icons{font-size:18px}
+  .entorno-vid.fin .entorno-rep{display:inline-flex}
+  .entorno-pie{max-width:1000px;margin:14px auto 0;font-size:.98rem;line-height:1.6;color:var(--gris);text-align:center}
   .titulo h2{font-size:1.75rem;color:var(--selva-osc)}
   .titulo span{font-size:.85rem;color:var(--gris)}
   .cargando{color:var(--gris);padding:26px 0;text-align:center}
@@ -451,6 +462,52 @@
     <g><line class="cordel" x1="540" y1="14.5" x2="540" y2="20"/><circle class="luz" cx="540" cy="23" r="3"/></g>
   </svg>
 </div>
+
+<!-- El video de presentación (24-nov-2026, Mauro): de la bahía a la casa, hecho con tomas de dron. Es un archivo
+     más del sitio (casa-verde-entorno.mp4 + su póster, en la raíz, como ilustracion-hero.jpg): GitHub Pages lo sirve
+     sin costo y no pasa por Cloudinary. Sin script anda igual: el <video> trae sus controles. Con script sólo
+     arranca cuando se ve en pantalla (preload="none": no baja nada antes), en silencio, y no arranca solo con
+     «reducir movimiento» ni con ahorro de datos. Dura 43 s y no se repite solo: al terminar ofrece «Ver de nuevo». -->
+<section class="wrap entorno" id="entorno">
+  <div class="titulo"><h2 data-t="entorno_t">La casa en su entorno</h2></div>
+  <div class="entorno-vid" id="entornoVid">
+    <video id="entornoVideo" controls muted playsinline preload="none" poster="./casa-verde-entorno.jpg"
+           aria-describedby="entornoPie">
+      <source src="./casa-verde-entorno.mp4" type="video/mp4">
+    </video>
+    <button type="button" class="entorno-rep" id="entornoRep">
+      <span class="material-icons" aria-hidden="true">replay</span><span data-t="entorno_rep">Ver de nuevo</span>
+    </button>
+  </div>
+  <p class="entorno-pie" id="entornoPie" data-t="entorno_p">De la bahía hasta nuestra puerta.</p>
+</section>
+<script>
+(function () {
+  var cont = document.getElementById('entornoVid'), v = document.getElementById('entornoVideo'),
+      rep = document.getElementById('entornoRep');
+  if (!cont || !v) return;
+  var quieto = false;
+  try {
+    quieto = (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) ||
+             (navigator.connection && navigator.connection.saveData);
+  } catch (e) {}
+  v.addEventListener('ended', function () { cont.classList.add('fin'); });
+  rep.addEventListener('click', function () {
+    cont.classList.remove('fin'); v.currentTime = 0; var p = v.play(); if (p && p.catch) p.catch(function () {});
+  });
+  if (quieto || !('IntersectionObserver' in window)) return;   // queda con su póster y sus controles
+  v.removeAttribute('controls');
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      if (e.isIntersecting && e.intersectionRatio >= 0.5) {
+        if (!cont.classList.contains('fin') && v.paused) { var p = v.play(); if (p && p.catch) p.catch(function () { v.setAttribute('controls', ''); }); }
+      } else if (!v.paused) { v.pause(); }
+    });
+  }, { threshold: [0, 0.5] });
+  io.observe(cont);
+  v.addEventListener('click', function () { if (v.paused) { v.play(); } else { v.pause(); } });
+})();
+</script>
 
 <!-- El predio (23-nov-2026, Mauro): lo que explica Casa Verde en general, arriba de las cabañas. Cada cabaña
      tiene su descripción propia; lo que es de todo el predio va acá. Admite varios párrafos (el editor deja

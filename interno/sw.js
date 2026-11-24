@@ -555,7 +555,10 @@
 //   portada suma el bloque «Sobre Casa Verde Canas» (predio_t / predio_p, varios párrafos: Enter escribe una línea nueva
 //   en lo marcado data-multi), el chip Wi-Fi (c4) y el lugar del pie (pie_lugar, también en La casa);
 //   textos-sitio.js +4 claves por idioma. editar.html: Enter en data-multi.
-const VERSION = 'cv2-shell-v148';
+// v149 (24-nov-2026) — EL VIDEO «LA CASA EN SU ENTORNO» en la portada (Mauro: tomas de dron, de la bahía a la casa):
+//   textos-sitio.js +3 claves por idioma (entorno_t, entorno_p, entorno_rep). El video y su póster son archivos de la
+//   raíz del sitio, no del shell: no entran en SHELL.
+const VERSION = 'cv2-shell-v149';
 
 const SHELL = [
   './',

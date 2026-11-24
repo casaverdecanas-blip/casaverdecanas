@@ -29,13 +29,13 @@ Base: Firebase `casaverde-20` (Auth + Firestore). Fotos: Cloudinary (subida sin 
 ## 3. Mapa de archivos
 
 ### Raíz
-`index.html`, `la-casa.html`, `opiniones.html`, `recuerdos.html` (público) · `404.html`, `CNAME`, `robots.txt`, `sitemap.xml`, imágenes · `netlify.toml` (explica CÓMO se despliega y qué variable usa cada función) · `CLAUDE.md`, `HISTORIA.md`, `README.md`, este archivo.
+`index.html`, `la-casa.html`, `opiniones.html`, `recuerdos.html` (público) · `404.html`, `CNAME`, `robots.txt`, `sitemap.xml`, imágenes (y `casa-verde-entorno.mp4` + su póster `.jpg`: el video de la portada, 11,3 MiB, servido por Pages) · `netlify.toml` (explica CÓMO se despliega y qué variable usa cada función) · `CLAUDE.md`, `HISTORIA.md`, `README.md`, este archivo.
 
 ### `interno/` (el panel)
 - **Núcleo, uno solo, no se duplica**: `nucleo.js` (`CV2`: auth, permisos, navegación, subida de imágenes, avisos, `envolverEscrituras`; sello `CV2.VERSION`, hoy `nucleo-avisos-26`), `firebase-init.js` (**único contacto con el SDK**, diferido con `import()` en un `try`), `actividades-core.js` (`Core`: el motor de actividades, limpiezas, compras, `consultaActividades`), `reservas-core.js` (huellas y cuentas de reservas), `textos-sitio.js`.
 - **Contrato con otras apps**: `conector-1.js`. Lo que lista `OFRECE` (`Core`: `consultaActividades`, `limpiezaLatente`, `esLimpiezaEntrada`, `iniciar`, `finalizar`, `tildar`, `itemsDeCompra`, `compradosDe`, `tildarCompra`; `CV2`: `subirImagen`, `comprimirImagen`, `NETLIFY`) **no se saca ni cambia de forma**; un cambio incompatible es un `conector-2.js` al lado. Banco: `netlify/pruebas/conector.mjs`.
 - **Páginas del panel**: `index.html` (Inicio con novedades y pendientes), `login.html`, `reservas.html` (la más grande), `revisar-reservas.html`, `calendario.html`, `cabanas.html` y `espacios.html` (editor de todo el contenido público), `editar.html` (editor visual), `fotos.html`, `actividades.html` (limpiezas, tareas, compras), `agenda.html`, `horas-stats.html`, `honorarios.html`, `dinero.html`, `balance.html`, `fiscal.html` (liquidaciones y DARF), `clientes.html`, `avisos.html`, `pedidos-alquiler.html`, `recuerdos.html` (moderación), `opiniones.html`, `llegada.html`, `comprobante.html`, `usuarios.html`, `gestion-sesiones.html`, `traducir.html`, `manual.html`, `diagnostico.html`, `pruebas.html`.
-- **Infra**: `sw.js` (service worker; `VERSION` hoy `cv2-shell-v145`), `manifest.json`, `design-system.css`, íconos, `firestore.rules` (**la copia de las reglas**), `CASAVERDEDOCUMENTACION.md`.
+- **Infra**: `sw.js` (service worker; `VERSION` hoy `cv2-shell-v149`), `manifest.json`, `design-system.css`, íconos, `firestore.rules` (**la copia de las reglas**), `CASAVERDEDOCUMENTACION.md`.
 
 ### `netlify/`
 - `functions/`: `claude-proxy.js` (la IA: facturas, boletas, inventario de remate; **la única clave de Gemini**), `airbnb-ical.js` (lee el .ics de Airbnb), `ical-cabana.js` (publica NUESTRA ocupación, **sólo reservas directas**), `notify-whatsapp.js` (CallMeBot), `cloudinary-listar.js`, `avisar-claude.mjs` (despierta al chat de Claude), `despertar.mjs` (FCM a las Pizarras), `hielo.mjs` (TURN para llamadas).
@@ -118,9 +118,10 @@ Además: suben los sellos (`CV2.VERSION`, `VERSION` de `sw.js` si cambia algo de
 - No retirar **Liquidaciones**: son los cobros de Airbnb con su DARF y el centro de `fiscal.html`; retirarlas es una decisión de impuestos de Mauro.
 - No publicar hacia Airbnb reservas que vinieron de Airbnb (`ical-cabana` publica sólo las directas).
 
-## 10. Estado actual (23-nov-2026)
+## 10. Estado actual (24-nov-2026)
 
-- Último trabajo: `core-3` (compras en el motor y en `conector-1` para la solapa Compras de Timón) y el enlace directo a un espacio (`?c=`/`?lang=`). `CV2.VERSION` `nucleo-avisos-26`, `sw.js` `cv2-shell-v145`.
+- **24-nov**: la portada tiene el video «La casa en su entorno» (de la bahía a la casa, tomas de dron; sección `#entorno` bajo el hero, claves `entorno_*` en `textos-sitio.js`). Sólo se baja cuando se ve y no con ahorro de datos; costo y detalle en la primera entrada de `interno/CASAVERDEDOCUMENTACION.md`.
+- Último trabajo previo: `core-3` (compras en el motor y en `conector-1` para la solapa Compras de Timón) y el enlace directo a un espacio (`?c=`/`?lang=`). `CV2.VERSION` `nucleo-avisos-26`, `sw.js` `cv2-shell-v149`.
 - Los recuerdos por QR se retiraron el 9-nov y **volvieron el 15-nov**; el chat interno y «migrar reservas» se retiraron.
 - Las funciones del ecosistema (IA, luces, despertar, hielo, avisar-claude) **se van mudando a `timon-servidor`**; se sacan del zip cuando la Pizarra cambie de servidor.
 - Pendientes del panel de esta app: ver `proyectos/casaverde` y `pendientes/casaverde:*` en el panel de `datos` (`casaverde:A9` plan en espera de Mauro).

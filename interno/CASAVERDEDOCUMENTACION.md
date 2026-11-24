@@ -1,12 +1,43 @@
 # CASA VERDE CANAS — Documentación del sistema
 
-**Edición del 23 de noviembre de 2026** (la última reescritura entera fue la del 31 de julio, tanda 11.23; desde ahí se corrige por partes: ver «Retiros del 9-nov-2026» y cada sección con su fecha)
+**Edición del 24 de noviembre de 2026** (la última reescritura entera fue la del 31 de julio, tanda 11.23; desde ahí se corrige por partes: ver «Retiros del 9-nov-2026» y cada sección con su fecha)
 
 Los tres documentos del proyecto en un solo archivo, para subirlo de una vez al
 conocimiento. Antes eran `CONVENCIONES.md`, `GUIA-SITIO-PUBLICO.md` y
 `Master_briefing_vN.md`; su contenido no cambió, solo viven juntos.
 
 ---
+
+## El video «La casa en su entorno» en la portada, 24-nov-2026
+
+Mauro: un video de presentación que va **de la bahía a la casa y la muestra en su barrio** (la playa, el muelle con el barco
+pirata, el arbolado del predio), hecho con tomas de dron propias. Vive en la portada, **debajo del hero y arriba de «Sobre
+Casa Verde Canas»** (`<section id="entorno">` de `index.html`).
+
+- **Archivos** (en la raíz, como `ilustracion-hero.jpg`): `casa-verde-entorno.mp4` (43,6 s, 1280×720, H.264, **sin audio**,
+  11,3 MiB, con `faststart`) y `casa-verde-entorno.jpg` (el póster: el primer cuadro, 174 KB). **No pasa por Cloudinary**: la
+  regla de «toda imagen entra por `nucleo.js`» (§ 2.9 del protocolo) habla de imágenes subidas desde el panel; esto es un
+  archivo del sitio, igual que la ilustración.
+- **Cómo se comporta** (un `<script>` clásico chico dentro de la sección, sin Firebase): `preload="none"` y póster, así que
+  **no baja nada hasta que se ve** (50 % del recuadro en pantalla); entonces arranca solo, en silencio, y se pausa si se sale de
+  cuadro. **No arranca solo** con «reducir movimiento» ni con «ahorro de datos» (queda el póster con sus controles). Sin
+  JavaScript el `<video>` trae sus controles. **No se repite solo**: al terminar muestra «Ver de nuevo». Si el navegador no deja
+  arrancar solo, devuelve los controles.
+- **Textos** (en el editor visual como cualquiera): `entorno_t` (título), `entorno_p` (la frase debajo) y `entorno_rep`
+  («Ver de nuevo»), en pt/es/en. Ojo: `aplicarIdioma` pisa el texto de todo `data-t`, así que el ícono del botón va **fuera** del
+  elemento con `data-t`. El video en sí no se edita desde el panel: se **reemplaza el archivo** (mismo nombre; al cambiarlo, subir
+  el sello `?v=` o renombrar, porque el navegador lo guarda). Si se sube por la web de GitHub, el tope de ese camino es 25 MiB.
+- **Costo (§ 13.2 bis, comprobado el 24-nov-2026 en `docs.github.com`)**: servicio **GitHub Pages**, repo público, sin tarjeta ni
+  facturación. Cupo: sitio publicado ≤ **1 GB**, **100 GB/mes** de transferencia (límite blando), un archivo < **100 MiB** (aviso
+  desde 50 MiB). Agrega 11,3 MiB al sitio y **11,3 MiB por reproducción completa**; para 10 personas, unas decenas de
+  reproducciones por día son **menos del 1 % del cupo** (100 GB ≈ 8.800 reproducciones completas por mes). No usa Firestore,
+  Netlify ni Cloudinary. Si el sitio tuviera mucho más tráfico, lo primero que se mira es esto (y se baja el bitrate).
+- **Cómo se hizo** (fuera del repo; los originales de dron **no se suben**, son unos 130 MB): seis clips del dron (FIMI00312, 00314,
+  00152 y tres clips ya editados del barco pirata a la casa) se montaron con `ffmpeg` y OpenCV: empalme geométrico entre tomas (homografías
+  entre cuadros, no sólo un fundido), estabilización por tramo, **descarte de los cuadros repetidos** que dejó la app de edición
+  (la causa de la trepidación) y de sus fundidos con «fantasmas», interpolación de movimiento en la llegada y fundidos propios.
+  La casa es **la de techo de tejas y jardín tupido, enfrente del edificio blanco**. Si se rehace, el trabajo de montaje no vive en
+  el repo: se pide de nuevo con las tomas.
 
 ## El editor cubre todo lo que se publica, 24-nov-2026 (`cv2-shell-v148`)
 
@@ -6489,7 +6520,8 @@ Texto original de las decisiones (referencia histórica):
 
 | Ruta | Qué hace |
 |---|---|
-| `/index.html` | La portada: hero, espacios, áreas comunes, **resumen de la casa**, calendario y pie |
+| `/index.html` | La portada: hero, **el video «La casa en su entorno»** (24-nov-2026), «Sobre Casa Verde Canas», espacios, áreas comunes, **resumen de la casa**, calendario y pie |
+| `/casa-verde-entorno.mp4` · `/casa-verde-entorno.jpg` | El video de la portada (43,6 s, sin audio, 11,3 MiB) y su póster. Archivos del sitio, no de Cloudinary. Ver la entrada del 24-nov-2026 arriba (comportamiento, costo y cómo reemplazarlo) |
 | `/la-casa.html` | **El acuerdo de convivencia** (T11.45). Qué hay, qué no hay, horarios, las diez reglas con su motivo, cámaras, estadías largas. Página propia y no una sección de la portada: la portada convence a quien no reservó, esta se manda por WhatsApp antes del check-in y se lee entera |
 | `/opiniones.html` | **Las reseñas de Airbnb** (T11.56). Dirección propia para mandar por WhatsApp a quien pregunta si hay referencias. **Ojo: hay otro `opiniones.html` en `/interno/`**, que es el cargador. Mismo par que `recuerdos.html` |
 | `/recuerdos.html` | Muro público + formulario del QR. **Ojo: hay otro archivo con el mismo nombre en `/interno/`**, que es la pantalla de moderación. Son distintos |
