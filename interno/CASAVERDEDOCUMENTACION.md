@@ -1144,6 +1144,26 @@ Esteban, la familia y, a veces, otras personas.
 · **Quien tiene cuenta activa ve estas tareas** (alcance `equipo`). Si algo no debe verlo todo el equipo, el alcance es
   `asignados` o `personal`.
 · **Al mudar a Timón** (8.3 de `INTEGRACION.md`) la rama viaja como un ítem más del espacio `casaverde`, con su `padre`.
+· **Lugares privados que hay** (24-nov-2026): `mant-cocina-privada` («Cocina privada de Casa Verde Canas») y
+  `mant-bano-compartido` («Baño compartido de la casa»). Los dos son de uso interno de la casa, compartidos con Esteban,
+  la familia y, a veces, otras personas; ninguno es de una cabaña de alquiler.
+
+### Cómo se escribe una tarea de mantenimiento (24-nov-2026)
+Mauro: las tareas «requieren una descripción precisa que se ajuste a la persona que está acá en permanencia encargándose
+del mantenimiento y a los invitados que vienen a participar, con un usuario registrado en el sitio». La hace quien esté en
+la casa y puede no conocerla: el `detalle` tiene que alcanzar sin preguntar. Se ordena así (ejemplos: «Limpiar heladera»,
+`U5gtynyXV5RUBeZOqU8O`, y «Limpieza del baño», `XPZwBv1eekrJwCtzPYV7`):
+· **DÓNDE** (cuál es el lugar, y cuál no) · **QUIÉN** (la persona de mantenimiento o un invitado con usuario; «si algo no
+  está claro, no lo hagas y preguntá») · **CADA CUÁNTO** · **QUÉ HACER** (pasos numerados, terminando en tocar ✔ «Realizada»)
+  · **QUÉ NO USAR / CUIDADOS** · **CÓMO SABER QUE ESTÁ LISTA** · y, si aplica, **AVISO TEMPORAL** con la tarea de reparación
+  que lo origina y «borrar este aviso» cuando se cierre.
+· **Lo que no se sabe no se inventa:** se escribe lo que dijo Mauro o una fuente citada. Al reescribir, el texto anterior
+  queda al final del `detalle` («TEXTO ANTERIOR»), además de la copia en `_historial/`.
+· **Quién puede qué** (`firestore.rules`, `actividades`): una cuenta con `activo` ve y **edita** las tareas de alcance
+  `equipo`; borrar es de quien la creó o del admin. Un invitado con usuario activo puede, entonces, marcar y editar. Si eso
+  no conviene, la tarea es de alcance `asignados`.
+· **Tarea vencida:** `ultimaRealizacion` y `fechaInicio` dicen cuándo se hizo por última vez y cuándo le toca. Al 24-nov, la
+  limpieza del baño figuraba hecha por última vez el 18-sep (cada 3 días) y la de la heladera el 7-oct (cada 28).
 
 ### `actividades/{id}` — adjuntos (core-4, 24-nov-2026)
 · **`adjuntos`** — `[{id, tipo, nombre, mime, tam, por, en, url?}]`. `tipo` ∈ `documento | imagen | audio`.
