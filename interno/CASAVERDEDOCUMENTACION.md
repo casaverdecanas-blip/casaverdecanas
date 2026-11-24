@@ -8,6 +8,29 @@ conocimiento. Antes eran `CONVENCIONES.md`, `GUIA-SITIO-PUBLICO.md` y
 
 ---
 
+## La imagen al compartir el enlace, 24-nov-2026
+
+Mauro: «cuando se comparte el sitio en WhatsApp o Facebook, la foto que queda cargada… quisiera que sea la foto de la fachada de la
+casa que está publicada en la página web y con el logo de Casa Verde por encima, como una marca de agua grande». La vista previa
+sale de `og:image` (y de `twitter:image`), y apuntaba a la ilustración de marca.
+
+- **Qué es ahora**: `og-fachada.jpg`, en la raíz (1200×630, 173 KB; WhatsApp prefiere menos de 300 KB). Es la **primera foto de «Entrada y
+  estacionamiento»** (`espacios_comunes/entrada`, la fachada verde de madera) recortada a 1200×630, con un velo leve en el centro y el
+  **logo (`logo-sitio.png`) de 600 px de ancho, centrado**, al 94 % y con una sombra suave. Queda **entero aunque la miniatura se
+  recorte a un cuadrado central**, que es lo que hace WhatsApp en la lista de chats. Es una **copia propia** hecha aparte (no una URL de
+  Cloudinary: los rastreadores de WhatsApp y Facebook no ejecutan JavaScript y la imagen tiene que estar en el HTML).
+- **Dónde**: `og:image`, `twitter:image` y la `image` del dato estructurado de la portada, y `og:image`/`twitter:image` de La casa,
+  Opiniones y Recuerdos. Ahora **sí declaran** `width`, `height`, `type` y `alt`, porque las medidas son las reales (la nota vieja de
+  más abajo decía que no se declaraban mientras la imagen no fuera una pieza de 1200×630: ya lo es).
+- **Cómo cambiarla**: rehacer una de 1200×630 con otra foto y **cambiarle el nombre** (WhatsApp y Facebook guardan la imagen por dirección).
+  `ilustracion-hero.jpg` quedó sin uso en las páginas (el service worker todavía la precachea: retirarla es subir el sello).
+- **Ojo, la vista previa se guarda**: WhatsApp y Facebook recuerdan la vista previa de cada enlace. Los enlaces **ya compartidos pueden
+  seguir mostrando la ilustración un tiempo**. En Facebook se fuerza desde el depurador de uso compartido
+  (`developers.facebook.com/tools/debug`, «Volver a obtener»). WhatsApp no tiene botón: se refresca solo con el tiempo, o se comparte
+  el enlace con un parámetro nuevo al final (`casaverdecanas.com.br/?v=2`).
+- **Costo (§ 13.2 bis)**: GitHub Pages, 173 KB más en el sitio; la imagen se baja una vez por vista previa. Sin tarjeta ni facturación;
+  muy por debajo de los cupos (1 GB de sitio, 100 GB/mes).
+
 ## La portada es el video, 24-nov-2026 (`cv2-shell-v152`)
 
 Mauro: «habilitá esta versión como la versión oficial del sitio». La portada deja de ser la ilustración con el texto abajo: es **un
@@ -15,7 +38,7 @@ video de dron de la bahía a la casa, a pantalla completa, en loop, lento y en s
 `index.html`), con el texto encima, abajo a la izquierda, sobre un velo oscuro. La sección «La casa en su entorno» que había
 debajo se **retiró** (era el mismo video en chico) y con ella `entorno_t`, `entorno_p` y `entorno_rep`. La barra de arriba no cambió.
 
-- **Archivos** (en la raíz, como `ilustracion-hero.jpg`, que sigue sirviendo de `og:image` y de dato de Google): `casa-verde-portada.mp4`
+- **Archivos** (en la raíz, como `ilustracion-hero.jpg`): `casa-verde-portada.mp4`
   (59 s, 1280×720, H.264, **sin audio**, 12,3 MiB), `casa-verde-portada-movil.mp4` (854×480, 4,6 MiB, **sólo lo piden los teléfonos**:
   `media="(max-width: 700px)"`) y `casa-verde-portada.jpg` (el póster, 51 KB). Servidos por GitHub Pages; **no pasan por Cloudinary**
   (la regla de «toda imagen entra por `nucleo.js`» es de lo que se sube desde el panel). Empieza y termina desde negro: al repetirse
@@ -6611,7 +6634,8 @@ lleva ningún camino visible es una pantalla que no existe para quien no la escr
 
 | Ruta real | Tamaño | Qué es |
 |---|---|---|
-| `/ilustracion-hero.jpg` | 226 KB | La ilustración de marca (venía de un PNG de ~1 MB) |
+| `/ilustracion-hero.jpg` | 226 KB | La ilustración de marca (venía de un PNG de ~1 MB). **Desde el 24-nov ya no la usa ninguna página** |
+| `/og-fachada.jpg` | 173 KB | **La imagen al compartir el enlace** (24-nov-2026): la fachada con el logo grande, 1200×630. Ver «La imagen al compartir el enlace» arriba |
 | `/logo-sitio.png` | 101 KB | Logo de la barra. Con halo verde detrás del trazo, para leerse sobre el crema |
 | `/logo-pie.png` | 61 KB | Logo del pie. Letras crema, para el verde selva oscuro del footer |
 
@@ -6633,8 +6657,9 @@ nada, y el respaldo, pensado como red de seguridad, era el camino normal.
 > **Que las imágenes se vieran ocultó que las rutas estaban mal.** Un respaldo que
 > funciona demasiado bien esconde el problema que estaba tapando.
 
-Las tres apuntan ahora a la raíz. **`og:image` y `twitter:image` usan
-`ilustracion-hero.jpg`**, y ya **no declaran `width` ni `height`**: declarar medidas que
+Las tres apuntan ahora a la raíz. **(Hasta el 23-nov `og:image` y `twitter:image` usaban
+`ilustracion-hero.jpg` y no declaraban `width` ni `height`; desde el 24-nov usan `og-fachada.jpg`, 1200×630, y sí los declaran.)** Antes: **`og:image` y `twitter:image` usaban
+`ilustracion-hero.jpg`**, y ya **no declaraban `width` ni `height`**: declarar medidas que
 no son las reales es peor que no declararlas. Si algún día se hace una pieza dedicada de
 1200×630, se cambia en esas dos etiquetas.
 

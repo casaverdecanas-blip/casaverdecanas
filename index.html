@@ -26,22 +26,23 @@
 <meta property="og:url" content="https://casaverdecanas.com.br/">
 <meta property="og:title" content="Casa Verde Canas | Cabañas en Canasvieiras, Florianópolis">
 <meta property="og:description" content="Cabañas y departamentos a 3 cuadras de la playa de Canasvieiras. Piscina, estacionamiento, WiFi y atención personalizada. ¡Reservá directo y ahorrá!">
-<!-- La imagen que muestran WhatsApp y las redes al compartir el enlace.
-     Apunta a la ilustración de marca, que EXISTE. Antes apuntaba a
-     img/og-preview.jpg, un archivo que nunca se subió: y como WhatsApp,
-     Facebook y Google NO ejecutan JavaScript, el respaldo de las <img>
-     no los alcanza. Todo enlace compartido salía sin imagen.
-     No se declaran width ni height: los lee el consumidor del archivo, y
-     declarar medidas que no son las reales es peor que no declararlas.
-     Si algún día se sube una pieza dedicada de 1200x630, se cambia acá. -->
-<meta property="og:image" content="https://casaverdecanas.com.br/ilustracion-hero.jpg">
+<!-- La imagen que muestran WhatsApp, Facebook y las redes al compartir el enlace (24-nov-2026, Mauro): la FOTO DE LA FACHADA de la
+     casa (la de «Entrada y estacionamiento» de la página) con el logo grande encima, como marca de agua. 1200x630, hecha aparte
+     y subida a la raíz como og-fachada.jpg (copia propia, no una URL de Cloudinary). El logo queda entero aunque la miniatura se
+     recorte a un cuadrado central. Antes apuntaba a la ilustración de marca (ilustracion-hero.jpg, que sigue en el repo). Estas
+     medidas SÍ son las reales, por eso se declaran. WhatsApp y Facebook guardan la vista previa de cada enlace: ver el Libro 3. -->
+<meta property="og:image" content="https://casaverdecanas.com.br/og-fachada.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:alt" content="Fachada de Casa Verde Canas, la casa verde de madera entre plantas tropicales, con el logo encima">
 <meta property="og:locale" content="es_AR">
 <meta property="og:locale:alternate" content="pt_BR">
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Casa Verde Canas | Cabañas en Canasvieiras, Florianópolis">
 <meta name="twitter:description" content="Cabañas a 3 cuadras de la playa. Piscina, estacionamiento y WiFi.">
-<meta name="twitter:image" content="https://casaverdecanas.com.br/ilustracion-hero.jpg">
+<meta name="twitter:image" content="https://casaverdecanas.com.br/og-fachada.jpg">
 
 <!-- OJO: un <link> no tiene onerror. Estas dos rutas tienen que ser las
      REALES, no las deseadas: apuntaban a ./img/ y el sitio quedó sin ícono
@@ -58,7 +59,7 @@
   "@type": "LodgingBusiness",
   "name": "Casa Verde Canas",
   "url": "https://casaverdecanas.com.br/",
-  "image": "https://casaverdecanas.com.br/ilustracion-hero.jpg",
+  "image": "https://casaverdecanas.com.br/og-fachada.jpg",
   "description": "Alquiler de cabañas y departamentos en Canasvieiras, Florianópolis, a 3 cuadras de la playa. Piscina, estacionamiento y WiFi.",
   "telephone": "+5548991181246",
   "priceRange": "$$",

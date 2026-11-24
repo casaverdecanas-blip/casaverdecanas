@@ -120,6 +120,7 @@ Además: suben los sellos (`CV2.VERSION`, `VERSION` de `sw.js` si cambia algo de
 
 ## 10. Estado actual (24-nov-2026)
 
+- **24-nov**: la vista previa al compartir el enlace (WhatsApp, Facebook) es `og-fachada.jpg`: la fachada con el logo grande (1200×630); WhatsApp y Facebook guardan la vista previa de cada enlace (ver la primera entrada de `interno/CASAVERDEDOCUMENTACION.md`).
 - **24-nov**: **la portada es el video de dron a pantalla completa** (de la bahía a la casa, en loop, lento y en silencio; `<div class="hero" id="top">`, texto encima, botón de pausa siempre a la vista; no arranca con «reducir movimiento», ahorro de datos o 2G). Costo y detalle en la primera entrada de `interno/CASAVERDEDOCUMENTACION.md`.
 - Último trabajo previo: `core-3` (compras en el motor y en `conector-1` para la solapa Compras de Timón) y el enlace directo a un espacio (`?c=`/`?lang=`). `CV2.VERSION` `nucleo-avisos-26`, `sw.js` `cv2-shell-v152`.
 - Los recuerdos por QR se retiraron el 9-nov y **volvieron el 15-nov**; el chat interno y «migrar reservas» se retiraron.
