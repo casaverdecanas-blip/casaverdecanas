@@ -8,6 +8,23 @@ conocimiento. Antes eran `CONVENCIONES.md`, `GUIA-SITIO-PUBLICO.md` y
 
 ---
 
+## El editor cubre todo lo que se publica, 24-nov-2026 (`cv2-shell-v148`)
+
+Mauro: «revisá que todas las publicaciones de textos tengan su editable dentro del panel de edición». Auditoría con el
+sitio abierto en modo edición (`?edit=1`), página por página:
+
+- **Portada y La casa**: todo texto está marcado editable (`data-t` → `config/sitio:textos.<idioma>.<clave>`), salvo lo que
+  sale de OTRO lado a propósito: nombre, descripción, fotos, precio, capacidad y características de cada alojamiento (se
+  editan en **Cabañas**), las opiniones de Airbnb (**Opiniones**) y lo dinámico (calendario, selector de cabañas). Faltaban
+  y se sumaron: el chip **Wi-Fi** (`c4`) y el lugar del pie (`pie_lugar`).
+- **Lo que no había**: dónde explicar el predio entero. Se suma el bloque **«Sobre Casa Verde Canas»** (`predio_t`,
+  `predio_p`) debajo del título de la portada. **Admite varios párrafos**: en el editor, `Enter` cerraba la edición de
+  cualquier texto; ahora, en lo marcado `data-multi`, escribe una línea nueva (una línea en blanco separa párrafos).
+  Lo que está escrito hoy es un borrador armado con lo que el sitio ya decía; Mauro lo reescribe.
+- **Fuera del editor, a propósito o por pendiente**: `opiniones.html` (la página de todas las opiniones: su título, su
+  bajada y sus botones están fijos en el HTML, sin modo edición) y `recuerdos.html` (todo fijo, y sólo en español). El
+  editor sólo abre Portada y La casa.
+
 ## La guía del huésped, 23-nov-2026 (`cv2-shell-v146`, `llegada-4`)
 
 Mauro pidió que lo que el huésped necesita saber esté **en la página que abre el QR de su alojamiento**,

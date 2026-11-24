@@ -370,7 +370,9 @@ function enganchar() {
     el.setAttribute('spellcheck', 'false');
     el.addEventListener('input', () => anotar(el));
     el.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
+      // 23-nov-2026: lo marcado data-multi (el bloque del predio) admite varios párrafos: ahí Enter escribe una
+      // línea nueva. En todo lo demás sigue cerrando la edición (un título o un rótulo no llevan saltos).
+      if (ev.key === 'Enter' && !el.hasAttribute('data-multi')) { ev.preventDefault(); el.blur(); }
     });
     // Al tocar un texto, el botón del ojo pasa a apuntarle. Se usa
     // 'focus' y no 'click' porque un texto también se alcanza con el

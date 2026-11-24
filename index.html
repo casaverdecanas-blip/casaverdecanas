@@ -146,6 +146,10 @@
   /* ── Secciones ─────────────────────────────────────────── */
   section{padding:34px 0}
   .titulo{display:flex;align-items:baseline;gap:12px;margin-bottom:22px}
+  /* El predio: varios párrafos (una línea en blanco los separa) */
+  .predio-txt{white-space:pre-line;max-width:46rem;font-size:1.02rem;line-height:1.7;color:var(--gris)}
+  .cv-ed .predio-txt{white-space:pre-wrap}
+  .predio{padding-bottom:34px}
   .titulo h2{font-size:1.75rem;color:var(--selva-osc)}
   .titulo span{font-size:.85rem;color:var(--gris)}
   .cargando{color:var(--gris);padding:26px 0;text-align:center}
@@ -428,7 +432,7 @@
       <span class="chip"><span class="material-icons">pool</span><span data-t="c1">Piscina</span></span>
       <span class="chip"><span class="material-icons">outdoor_grill</span><span data-t="c2">Churrasqueira</span></span>
       <span class="chip"><span class="material-icons">beach_access</span><span data-t="c3">3 quadras do mar</span></span>
-      <span class="chip"><span class="material-icons">wifi</span>Wi-Fi</span>
+      <span class="chip"><span class="material-icons">wifi</span><span data-t="c4">Wi-Fi</span></span>
     </div>
   </div>
 </div>
@@ -447,6 +451,14 @@
     <g><line class="cordel" x1="540" y1="14.5" x2="540" y2="20"/><circle class="luz" cx="540" cy="23" r="3"/></g>
   </svg>
 </div>
+
+<!-- El predio (23-nov-2026, Mauro): lo que explica Casa Verde en general, arriba de las cabañas. Cada cabaña
+     tiene su descripción propia; lo que es de todo el predio va acá. Admite varios párrafos (el editor deja
+     Enter en lo marcado data-multi). -->
+<section class="wrap predio" id="predio">
+  <div class="titulo"><h2 data-t="predio_t">Sobre Casa Verde Canas</h2></div>
+  <div class="predio-txt" data-t="predio_p" data-multi="1">Un predio con varias cabañas.</div>
+</section>
 
 <section class="wrap">
   <div class="titulo"><h2 data-t="tCabanas">Nossos espaços</h2></div>
@@ -595,7 +607,7 @@
   <div class="wrap">
     <img src="./logo-pie.png" alt="Casa Verde Canas"
          onerror="if(!this.dataset.r){this.dataset.r=1;this.src='./img/logo-pie.png';}else{this.style.display='none';}">
-    <div><b>Casa Verde Canas</b> · Canasvieiras, Florianópolis — SC, Brasil</div>
+    <div><b>Casa Verde Canas</b> · <span data-t="pie_lugar">Canasvieiras, Florianópolis — SC, Brasil</span></div>
     <span data-t="pie">Reservas e consultas pelo WhatsApp.</span>
 
     <div class="pie-links">

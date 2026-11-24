@@ -551,7 +551,11 @@
 //   guía y sus fotos, y la categoría del inventario se conserva. actividades.html: el control de entrada
 //   muestra lo que va a leer el huésped. llegada.html (llegada-4): la bienvenida de WhatsApp nombra Casa
 //   Verde Canas. recuerdos.html del panel: el QR apunta a la-casa.html.
-const VERSION = 'cv2-shell-v147';
+// v148 (24-nov-2026) — EL EDITOR CUBRE MÁS (Mauro: «que todas las publicaciones de textos tengan su editable»): la
+//   portada suma el bloque «Sobre Casa Verde Canas» (predio_t / predio_p, varios párrafos: Enter escribe una línea nueva
+//   en lo marcado data-multi), el chip Wi-Fi (c4) y el lugar del pie (pie_lugar, también en La casa);
+//   textos-sitio.js +4 claves por idioma. editar.html: Enter en data-multi.
+const VERSION = 'cv2-shell-v148';
 
 const SHELL = [
   './',
