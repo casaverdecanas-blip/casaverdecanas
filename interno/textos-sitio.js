@@ -6,7 +6,7 @@
 //   · index.html de la raíz (la portada).
 //   · la-casa.html de la raíz (el acuerdo de convivencia) — desde T11.45.
 //   · opiniones.html de la raíz (las reseñas de Airbnb) — desde T11.47.
-//   · interno/cabanas.html (el panel) — los muestra como texto de fondo
+//   · interno/editar.html (el editor visual) — cuál es el texto de fábrica y cuál escribió alguien
 //     de cada campo, así se ve qué dice el sitio HOY antes de editarlo.
 //
 //  Antes vivían dentro del sitio público y el panel no los conocía: por eso
@@ -15,11 +15,9 @@
 //
 //  Prioridad al mostrar en el sitio: config/sitio → este archivo → la clave.
 //
-//  Las claves que el FORMULARIO de cabanas.html deja editar son solo nueve
-//  (ver EDITABLES abajo). El EDITOR VISUAL (interno/editar.html) edita
-//  cualquier cosa que lleve data-t, así que todas las claves 'casa.*' se
-//  escriben desde ahí, encima del sitio. Son dos caminos distintos y no hay
-//  que confundirlos: sumar una clave acá NO la agrega al formulario.
+//  Todo texto se edita desde el EDITOR VISUAL (interno/editar.html), que edita cualquier cosa
+//  que lleve data-t, encima del sitio. Desde el 24-nov-2026 no hay otro camino: el formulario de
+//  cabanas.html que editaba nueve claves se retiró (ver EDITABLES abajo).
 //
 //  ⚠⚠ LAS CLAVES NO PUEDEN LLEVAR PUNTO. NUNCA. ⚠⚠
 //  El editor guarda con updateDoc y el camino 'textos.es.LACLAVE'. Firestore
@@ -518,9 +516,9 @@ export const T = {
   }
 };
 
-// Las nueve claves editables desde el FORMULARIO de cabanas.html, en el orden
-// en que aparecen en la portada de arriba hacia abajo.
-// Ojo: esto NO limita al editor visual, que edita cualquier data-t.
+// Las nueve claves que editaba el viejo FORMULARIO de cabanas.html (retirado el 24-nov-2026:
+// todo el texto se edita ahora en el editor visual, que edita cualquier data-t). Se deja la lista
+// por si alguna herramienta la quiere; ya no la importa ninguna pantalla.
 export const EDITABLES = [
   'titulo', 'bajada', 'c1', 'c2', 'c3',
   'tCabanas', 'tComunes', 'tConsulta', 'pie'

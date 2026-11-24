@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>CasaVerde 2.0 · Cabañas</title>
+<title>CasaVerde 2.0 · Datos de las cabañas</title>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <link rel="stylesheet" href="design-system.css">
 <link rel="manifest" href="manifest.json">
@@ -38,68 +38,34 @@
 
 <div class="contenedor">
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-    <h1 style="margin-right:auto;">Contenido del sitio</h1>
-    <a class="btn" href="./espacios.html"><span class="material-icons">deck</span> Espacios</a>
-    <a class="btn" href="./editar.html" title="El lavarropas, los espacios de todos, el acuerdo de convivencia y los horarios se editan en la página «La casa»"><span class="material-icons">edit_note</span> Editar «La casa»</a>
-    <button class="btn btn-primario" id="btnSitio">
-      <span class="material-icons">tune</span> Textos y contacto</button>
+    <h1 style="margin-right:auto;">Datos de las cabañas</h1>
+    <a class="btn btn-primario" href="./editar.html"><span class="material-icons">edit_note</span> Editar el sitio</a>
   </div>
-  <p class="texto-gris" style="margin:8px 0 0;">Todo lo que se ve en
-  <b>casaverdecanas.com.br</b>: las cabañas con sus fotos y descripciones, los espacios
-  comunes, los textos de la portada y el WhatsApp que recibe las consultas.</p>
-  <div style="display:flex;align-items:center;gap:10px;margin:18px 0 6px;">
+  <p class="texto-gris" style="margin:8px 0 0;">Acá van los <b>datos</b> de cada cabaña: cuántos entran,
+  lo que cuesta, las comodidades, el inventario, la guía del huésped y el calendario. <b>Lo que se lee en
+  casaverdecanas.com.br</b> —nombres, descripciones, fotos, textos y espacios comunes— se edita
+  <b>una sola vez, en «Editar el sitio»</b>, tocando sobre el sitio mismo.</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+    <a class="btn" href="./espacios.html"><span class="material-icons">deck</span> Espacios comunes: alta y orden</a>
+    <button class="btn" id="btnSitio"><span class="material-icons">call</span> WhatsApp de las consultas</button>
+  </div>
+<div style="display:flex;align-items:center;gap:10px;margin:18px 0 6px;">
     <h2 style="font-size:1.05rem;margin:0 auto 0 0;">Cabañas</h2>
     <button class="btn btn-primario" id="btnAgregar"><span class="material-icons">add</span> Agregar</button>
   </div>
   <div id="lista"><div class="vacio">Cargando…</div></div>
 </div>
 
-<!-- ═══ Textos del sitio y contacto ═══════════════════════════ -->
-<dialog id="mSitio" style="width:min(560px,95vw);">
-  <h2 style="margin:0 0 4px;">Textos y contacto del sitio</h2>
-  <p class="texto-gris" style="margin:0 0 2px;font-size:.84rem;">
-    En gris, dentro de cada campo, está <b>lo que el sitio dice hoy</b>. Si lo dejás
-    vacío, queda ese texto.</p>
+<!-- ═══ WhatsApp que recibe las consultas del sitio ══════════
+     Es un dato de contacto, no un texto visible: por eso no está en el editor visual.
+     Los textos del sitio se editan sólo en editar.html (desde el 24-nov-2026). -->
+<dialog id="mSitio" style="width:min(460px,95vw);">
+  <h2 style="margin:0 0 4px;">WhatsApp de las consultas</h2>
   <p id="sMeta" class="texto-gris" style="margin:0 0 10px;font-size:.76rem;"></p>
-
-  <label>WhatsApp que recibe las consultas</label>
-  <input id="sWa" inputmode="tel" placeholder="+5548999999999"
-    style="font-family:monospace;">
+  <label>Número que recibe las consultas del sitio</label>
+  <input id="sWa" inputmode="tel" placeholder="+5548999999999" style="font-family:monospace;">
   <p class="texto-gris" style="font-size:.78rem;margin:4px 0 12px;">
     Con el + y el código de país. Brasil: +55 + DDD + número, sin el 0 del DDD.</p>
-
-  <div style="display:flex;gap:6px;margin-bottom:12px;">
-    <button class="btn sIdi activo" data-i="pt" style="flex:1;">Português</button>
-    <button class="btn sIdi" data-i="es" style="flex:1;">Español</button>
-    <button class="btn sIdi" data-i="en" style="flex:1;">English</button>
-  </div>
-
-  <label>Título de portada</label>
-  <input id="sTitulo" maxlength="90">
-  <label>Bajada</label>
-  <textarea id="sBajada" rows="2" maxlength="220"></textarea>
-
-  <label>Destacados (los tres globitos)</label>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-    <input id="sC1" maxlength="24"><input id="sC2" maxlength="24"><input id="sC3" maxlength="24">
-  </div>
-
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
-    <div><label>Título "cabañas"</label><input id="sTCab" maxlength="40"></div>
-    <div><label>Título "áreas comunes"</label><input id="sTCom" maxlength="40"></div>
-  </div>
-  <label>Título de la consulta</label>
-  <input id="sTCons" maxlength="50">
-  <label>Pie de página</label>
-  <input id="sPie" maxlength="120">
-
-  <button class="btn" id="sTraer" style="width:100%;margin-top:12px;font-size:.82rem;">
-    <span class="material-icons">download</span> Traer los textos actuales para editarlos
-  </button>
-  <p class="texto-gris" style="margin:4px 0 0;font-size:.75rem;">
-    Copia a los campos lo que el sitio muestra en este idioma. Solo llena los que estén
-    vacíos: no pisa nada de lo que ya escribiste.</p>
-
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
     <button class="btn" id="sCancelar">Cancelar</button>
     <button class="btn btn-primario" id="sGuardar"><span class="material-icons">save</span> Guardar</button>
@@ -109,15 +75,15 @@
 <dialog id="modal">
   <h2 id="mTit" style="margin:0 0 6px;">Editar cabaña</h2>
 
-  <label>Nombre</label>
-  <div class="idioma"><span>🇪🇸 es</span><input id="nEs" maxlength="60"></div>
-  <div class="idioma"><span>🇧🇷 pt</span><input id="nPt" maxlength="60"></div>
-  <div class="idioma"><span>🇬🇧 en</span><input id="nEn" maxlength="60"></div>
-
-  <label>Descripción</label>
-  <div class="idioma"><span>🇪🇸 es</span><textarea id="dEs" rows="2"></textarea></div>
-  <div class="idioma"><span>🇧🇷 pt</span><textarea id="dPt" rows="2"></textarea></div>
-  <div class="idioma"><span>🇬🇧 en</span><textarea id="dEn" rows="2"></textarea></div>
+  <!-- 24-nov-2026: el nombre, la descripción y las fotos de una cabaña existente se editan en
+       «Editar el sitio» (tocándolos sobre el sitio). Acá el nombre sólo se pide al CREAR una. -->
+  <div id="bloqueNombre">
+    <label>Nombre</label>
+    <div class="idioma"><span>🇪🇸 es</span><input id="nEs" maxlength="60"></div>
+    <div class="idioma"><span>🇧🇷 pt</span><input id="nPt" maxlength="60"></div>
+    <div class="idioma"><span>🇬🇧 en</span><input id="nEn" maxlength="60"></div>
+  </div>
+  <p id="avisoEditor" class="texto-gris" style="margin:0 0 6px;font-size:.82rem;"></p>
 
   <div class="fila2c">
     <div><label>Capacidad base</label><input id="fCapBase" type="number" min="1" step="1" inputmode="numeric"></div>
@@ -164,15 +130,6 @@
   <label style="margin-top:12px;">Google Calendar ID (sync Airbnb — se conecta en la próxima tanda)</label>
   <input id="fCalendar" style="font-family:monospace;font-size:.8rem;" placeholder="xxxx@group.calendar.google.com">
 
-  <label>Fotos</label>
-  <div id="fotosEdit"></div>
-  <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-    <button class="btn" id="btnSubirFoto" style="font-size:.84rem;">
-      <span class="material-icons">add_photo_alternate</span> Subir foto</button>
-    <button class="btn" id="btnUrlFoto" style="font-size:.84rem;">
-      <span class="material-icons">link</span> Pegar URL</button>
-  </div>
-
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
     <button class="btn" id="mCancelar">Cancelar</button>
     <button class="btn btn-primario" id="mGuardar"><span class="material-icons">save</span> Guardar</button>
@@ -181,9 +138,8 @@
 
 <script type="module">
 // Regla del 2.0: definiciones primero, suscripción AL FINAL.
-import { db, collection, onSnapshot, doc, getDoc, updateDoc, setDoc, deleteField, serverTimestamp } from './firebase-init.js';
+import { db, collection, onSnapshot, doc, getDoc, updateDoc, setDoc, serverTimestamp } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
-import { T as TEXTOS_SITIO } from './textos-sitio.js';
 
 CV2.registrarSW();
 const u = await CV2.verificarAuth();
@@ -199,7 +155,6 @@ const esc = CV2.esc;
 
 let cabanas = [];
 let editId = null;
-let fotosTmp = [];
 let invTmp = [];   // [{item, cantidad}] mientras se edita la cabaña
 let abrirDeUrl = false;   // ?editar=<id> se atiende una sola vez
 let guiaFotosTmp = [];   // [{url, pie:{es,pt,en}}] las fotos de la guía del huésped
@@ -230,11 +185,11 @@ function normalizarInventario(inv) {
 
 const nom = (c) => c.nombre?.es ?? c.nombre?.pt ?? c.nombre?.en ?? c.id;
 
-// ═══ Fotos ════════════════════════════════════════════════
-// Van por el camino ÚNICO del sistema: CV2.elegirYSubirImagen (hoja de
-// cámara/archivo + compresión a 2000px/0.85 + Cloudinary). Antes había
-// acá una copia propia de la subida SIN comprimir: las fotos del sitio
-// se subían enteras, pesadas para el visitante. Ver nucleo.js.
+// ═══ Fotos y textos ═══════════════════════════════════════
+// Desde el 24-nov-2026 las fotos, el nombre y la descripción de una cabaña NO se editan acá sino
+// en «Editar el sitio» (editar.html), tocando sobre el sitio: un solo editor para lo que se lee
+// en la web. Esta pantalla guarda los DATOS (capacidad, tarifas, comodidades, inventario, guía,
+// calendario). Las fotos de la GUÍA del huésped sí se suben acá: no están en el sitio de reservas.
 
 // ═══ Render lista ═════════════════════════════════════════
 function render() {
@@ -251,17 +206,17 @@ function render() {
         <span class="material-icons" style="color:var(--verde);">cottage</span>
         <b>${esc(nom(c))}</b>
         ${c.activa === false ? '<span class="chip" style="background:#fde4e2;color:#8f1d17;">inactiva</span>' : ''}
-        <button class="btn-ico" onclick="editar('${c.id}')"><span class="material-icons">edit</span> Editar</button>
+        <button class="btn-ico" onclick="editar('${c.id}')"><span class="material-icons">tune</span> Datos</button>
       </div>
       <div class="datos">
         <span>👥 ${capTexto(c.capacidad)}</span>
         <span>🌙 ${CV2.fmtMonto(c.tarifas?.noche ?? 0)}/noche</span>
         <span>🧹 ${CV2.fmtMonto(c.tarifas?.limpieza ?? 0)} limpieza</span>
         <span>📅 ${c.calendarId ? 'calendario conectado' : 'sin calendario Airbnb'}</span>
-        <span>🖼 ${(c.fotos ?? []).length} foto(s)</span>
+        <span>🖼 ${(c.fotos ?? []).filter(Boolean).length} foto(s) en el sitio</span>
       </div>
-      ${(c.fotos ?? []).length ? `<div class="fotos">${c.fotos.slice(0, 6).map((f) => `<img src="${esc(f)}" loading="lazy">`).join('')}</div>` : ''}
-      ${c.descripcion?.es ? `<p class="texto-gris" style="margin:8px 0 0;font-size:.84rem;">${esc(c.descripcion.es)}</p>` : ''}
+      <div style="margin-top:8px;"><a class="btn-ico" href="./editar.html?c=${encodeURIComponent(c.id)}">
+        <span class="material-icons">edit_note</span> Fotos, nombre y descripción: Editar el sitio</a></div>
     </div>`).join('');
 }
 
@@ -287,16 +242,6 @@ window.crearBase = async () => {
 };
 
 // ═══ Edición ══════════════════════════════════════════════
-function renderFotosEdit() {
-  $('fotosEdit').innerHTML = fotosTmp.map((f, i) => `
-    <div class="fotoedit">
-      <img src="${esc(f)}">
-      <input value="${esc(f)}" readonly>
-      <button class="btn-ico" onclick="quitarFoto(${i})"><span class="material-icons" style="color:var(--rojo)">delete_outline</span></button>
-    </div>`).join('') || '<p class="texto-gris" style="margin:4px 0 0;">Sin fotos todavía.</p>';
-}
-window.quitarFoto = (i) => { fotosTmp.splice(i, 1); renderFotosEdit(); };
-
 // ── Fotos de la guía (cada una con su pie en los tres idiomas) ─
 function renderGuiaFotos() {
   $('guiaFotosEdit').innerHTML = guiaFotosTmp.map((f, i) => `
@@ -351,21 +296,23 @@ $('btnInvAgregar').addEventListener('click', () => {
 $('btnAgregar').addEventListener('click', () => {
   editId = null;
   $('mTit').textContent = 'Agregar cabaña';
-  ['nEs','nPt','nEn','dEs','dPt','dEn','gEs','gPt','gEn','fCapCond','fExtra','fAmenities','fCalendar'].forEach((i) => { $(i).value = ''; });
+  ['nEs','nPt','nEn','gEs','gPt','gEn','fCapCond','fExtra','fAmenities','fCalendar'].forEach((i) => { $(i).value = ''; });
+  $('bloqueNombre').hidden = false;
+  $('avisoEditor').textContent = 'Después de crearla, sus fotos y su descripción se cargan en «Editar el sitio».';
   $('fCapBase').value = 2; $('fCapMax').value = 2;
   $('fOrden').value = cabanas.reduce((m, c) => Math.max(m, Number(c.orden) || 0), 0) + 1;
   $('fNoche').value = 0; $('fLimpieza').value = 0;
-  fotosTmp = []; invTmp = []; guiaFotosTmp = [];
-  renderFotosEdit(); renderInvEdit(); renderGuiaFotos();
+  invTmp = []; guiaFotosTmp = [];
+  renderInvEdit(); renderGuiaFotos();
   $('modal').showModal();
 });
 
 window.editar = (id) => {
   const c = cabanas.find((x) => x.id === id);
   editId = id;
-  $('mTit').textContent = 'Editar · ' + nom(c);
-  $('nEs').value = c.nombre?.es ?? ''; $('nPt').value = c.nombre?.pt ?? ''; $('nEn').value = c.nombre?.en ?? '';
-  $('dEs').value = c.descripcion?.es ?? ''; $('dPt').value = c.descripcion?.pt ?? ''; $('dEn').value = c.descripcion?.en ?? '';
+  $('mTit').textContent = 'Datos · ' + nom(c);
+  $('bloqueNombre').hidden = true;
+  $('avisoEditor').innerHTML = 'El nombre, la descripción y las fotos de esta cabaña se editan en <a href="./editar.html?c=' + encodeURIComponent(c.id) + '">Editar el sitio</a>.';
   const cap = normalizarCap(c.capacidad);
   $('fCapBase').value = cap.base;
   $('fCapMax').value = cap.max;
@@ -376,55 +323,18 @@ window.editar = (id) => {
   $('fExtra').value = c.tarifas?.extraPersona ?? '';
   $('fAmenities').value = (c.amenities ?? []).join(', ');
   $('fCalendar').value = c.calendarId ?? '';
-  fotosTmp = (c.fotos ?? []).slice();
   invTmp = normalizarInventario(c.inventarioBase);
   $('gEs').value = c.guia?.es ?? ''; $('gPt').value = c.guia?.pt ?? ''; $('gEn').value = c.guia?.en ?? '';
   guiaFotosTmp = (c.guiaFotos ?? []).filter((f) => f && f.url).map((f) => ({ url: f.url, pie: { es: f.pie?.es ?? '', pt: f.pie?.pt ?? '', en: f.pie?.en ?? '' } }));
-  renderFotosEdit();
   renderInvEdit();
   renderGuiaFotos();
   $('modal').showModal();
 };
 
-$('btnSubirFoto').addEventListener('click', async () => {
-  $('btnSubirFoto').disabled = true;
-  try {
-    const url = await CV2.elegirYSubirImagen({ titulo: 'Foto de la cabaña' });
-    if (!url) return;
-    fotosTmp.push(url);
-    renderFotosEdit();
-    CV2.toast('✓ Foto subida', 'success');
-  } finally { $('btnSubirFoto').disabled = false; }
-});
-// "Pegar URL" era la puerta por donde entraban fotos de servidores ajenos:
-// guardaba el link tal cual, sin validar. Si ese servidor cambiaba, la foto
-// desaparecía del sitio. Ahora la imagen se TRAE a Cloudinary (la baja
-// Cloudinary desde su servidor, así no hay problema de CORS) y se guarda
-// nuestra copia. Si ya es una URL nuestra, solo se normaliza la entrega.
-$('btnUrlFoto').addEventListener('click', async () => {
-  const url = prompt('Pegá la URL de la imagen:');
-  if (!url || !url.trim().startsWith('http')) return;
-  const limpia = url.trim();
-  if (CV2.esCloudinary(limpia)) {
-    fotosTmp.push(CV2.urlEntrega(limpia));
-    renderFotosEdit();
-    return;
-  }
-  $('btnUrlFoto').disabled = true;
-  CV2.toast('Trayendo la imagen…');
-  try {
-    fotosTmp.push(await CV2.traerImagenDesdeUrl(limpia));
-    renderFotosEdit();
-    CV2.toast('✓ Copia guardada en Cloudinary', 'success');
-  } catch (e) {
-    CV2.toast('No se pudo traer: ' + (e.code ?? e.message), 'error');
-  } finally { $('btnUrlFoto').disabled = false; }
-});
-
 $('mCancelar').addEventListener('click', () => $('modal').close());
 $('mGuardar').addEventListener('click', async () => {
   const es = $('nEs').value.trim();
-  if (!es) { CV2.toast('Falta el nombre en español', 'error'); return; }
+  if (!editId && !es) { CV2.toast('Falta el nombre en español', 'error'); return; }
   $('mGuardar').disabled = true;
   try {
     let ref = editId;
@@ -433,9 +343,10 @@ $('mGuardar').addEventListener('click', async () => {
       while (cabanas.some((x) => x.id === 'c' + n)) n++;
       ref = 'c' + n;
     }
+    // Sólo DATOS. El nombre, la descripción y las fotos son del editor visual: si esta pantalla los
+    // volviera a escribir, pisaría lo que se cambió allá (y una descripción que acá no se carga
+    // se borraría). Sólo una cabaña NUEVA los lleva, con lo mínimo.
     const datos = {
-      nombre: { es, pt: $('nPt').value.trim() || es, en: $('nEn').value.trim() || es },
-      descripcion: { es: $('dEs').value.trim(), pt: $('dPt').value.trim(), en: $('dEn').value.trim() },
       capacidad: {
         base: Math.max(1, parseInt($('fCapBase').value) || 1),
         max: Math.max(1, parseInt($('fCapMax').value) || parseInt($('fCapBase').value) || 1),
@@ -453,13 +364,17 @@ $('mGuardar').addEventListener('click', async () => {
       // La categoría (Cocina, Ropa blanca…) se conserva: la guía del huésped agrupa por ella.
       inventarioBase: invTmp.filter((x) => x.item).map((x) => ({ item: x.item, cantidad: Number(x.cantidad) || 0, ...(x.categoria ? { categoria: x.categoria } : {}) })),
       calendarId: $('fCalendar').value.trim() || null,
-      fotos: fotosTmp,
       guia: { es: $('gEs').value.trim(), pt: $('gPt').value.trim(), en: $('gEn').value.trim() },
       guiaFotos: guiaFotosTmp.map((f) => ({ url: f.url, pie: { es: (f.pie?.es ?? '').trim(), pt: (f.pie?.pt ?? '').trim(), en: (f.pie?.en ?? '').trim() } })),
       actualizadoEn: serverTimestamp()
     };
     if (editId) await updateDoc(doc(db, 'cabanas', ref), datos);
-    else await setDoc(doc(db, 'cabanas', ref), { ...datos, activa: true, creadoEn: serverTimestamp() });
+    else await setDoc(doc(db, 'cabanas', ref), {
+      ...datos,
+      nombre: { es, pt: $('nPt').value.trim() || es, en: $('nEn').value.trim() || es },
+      descripcion: { es: '', pt: '', en: '' }, fotos: [],
+      activa: true, creadoEn: serverTimestamp()
+    });
     $('modal').close();
     CV2.toast(editId ? 'Guardada' : '✓ Cabaña agregada', 'success');
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
@@ -468,59 +383,11 @@ $('mGuardar').addEventListener('click', async () => {
 
 // ═══ Suscripción — AL FINAL ═══════════════════════════════
 
-// ═══ Textos y contacto del sitio público ══════════════════
-// Viven en config/sitio, que la regla deja leer SIN sesión (el sitio no
-// tiene login). Lo que quede vacío no se guarda: el sitio cae en su
-// texto por defecto. Un solo lugar para todo el contenido público.
-const CAMPOS = { sTitulo:'titulo', sBajada:'bajada', sC1:'c1', sC2:'c2', sC3:'c3',
-  sTCab:'tCabanas', sTCom:'tComunes', sTCons:'tConsulta', sPie:'pie' };
-let sitio = { whatsapp: '', textos: { pt:{}, es:{}, en:{} } };
-let idiomaSitio = 'pt';
-
-function cargarIdioma(i) {
-  idiomaSitio = i;
-  document.querySelectorAll('.sIdi').forEach((b) => b.classList.toggle('activo', b.dataset.i === i));
-  const t = (sitio.textos && sitio.textos[i]) || {};
-  const def = TEXTOS_SITIO[i] || {};
-  Object.keys(CAMPOS).forEach((id) => {
-    const clave = CAMPOS[id];
-    $(id).value = t[clave] || '';
-    // El texto de fondo muestra QUÉ DICE EL SITIO HOY si este campo se deja
-    // vacío. Sin esto el editor abría en blanco aunque el sitio tuviera
-    // texto, y no había forma de saber de dónde se partía.
-    $(id).placeholder = def[clave] || '';
-  });
-}
-
-// El estado guarda TAMBIÉN los campos vacíos (cadena vacía). Antes solo
-// guardaba los que tenían texto, y por eso vaciar un campo no hacía nada:
-// ver payloadTextos().
-function guardarIdiomaActual() {
-  const t = {};
-  Object.keys(CAMPOS).forEach((id) => { t[CAMPOS[id]] = $(id).value.trim(); });
-  sitio.textos = sitio.textos || {};
-  sitio.textos[idiomaSitio] = t;
-}
-
-// ⚠ TRAMPA DE FIRESTORE: con 'merge: true' el merge de un mapa CONSERVA las
-// claves que no vienen en el payload. Mandar solo los campos con texto hacía
-// que vaciar uno no tuviera ningún efecto — quedaba el valor viejo para
-// siempre, aunque la interfaz prometiera "vacío = texto por defecto".
-// Un campo vacío tiene que viajar como deleteField() explícito.
-function payloadTextos() {
-  const out = {};
-  ['pt', 'es', 'en'].forEach((lang) => {
-    const t = (sitio.textos && sitio.textos[lang]) || {};
-    const bloque = {};
-    Object.keys(CAMPOS).forEach((id) => {
-      const clave = CAMPOS[id];
-      const v = (t[clave] || '').trim();
-      bloque[clave] = v ? v : deleteField();
-    });
-    out[lang] = bloque;
-  });
-  return out;
-}
+// ═══ WhatsApp de las consultas ════════════════════════════
+// Vive en config/sitio.whatsapp, que la regla deja leer SIN sesión (el sitio no tiene login).
+// Los TEXTOS de ese documento los edita sólo «Editar el sitio» (24-nov-2026): acá se escribe
+// únicamente el número, con merge, así nada de lo escrito allá se toca.
+let sitio = { whatsapp: '' };
 
 // "Registra el cambio": quién editó y cuándo, a la vista en el propio diálogo.
 function pintarMeta(x) {
@@ -529,30 +396,11 @@ function pintarMeta(x) {
     ? x.actualizadoEn.toDate() : null;
   if (!f) { el.textContent = 'Todavía no se guardó ningún cambio desde el panel.'; return; }
   const quien = (x.actualizadoPorNombre || '').trim();
-  el.textContent = 'Última edición: '
+  el.textContent = 'Última edición del sitio: '
     + f.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
     + ' ' + f.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
     + (quien ? ' · ' + quien : '');
 }
-
-document.querySelectorAll('.sIdi').forEach((b) => b.addEventListener('click', () => {
-  guardarIdiomaActual();          // no perder lo tipeado al cambiar de idioma
-  cargarIdioma(b.dataset.i);
-}));
-
-// Trae a los campos el texto que el sitio muestra hoy en ESTE idioma, para
-// editarlo en vez de escribirlo de cero. Solo completa los vacíos: nunca
-// pisa lo que la persona ya escribió.
-$('sTraer').addEventListener('click', () => {
-  const def = TEXTOS_SITIO[idiomaSitio] || {};
-  let n = 0;
-  Object.keys(CAMPOS).forEach((id) => {
-    const actual = $(id).value.trim();
-    const porDefecto = def[CAMPOS[id]] || '';
-    if (!actual && porDefecto) { $(id).value = porDefecto; n++; }
-  });
-  CV2.toast(n ? 'Se completaron ' + n + ' campo(s)' : 'Ya estaban todos completos', n ? 'success' : 'info');
-});
 
 $('btnSitio').addEventListener('click', async () => {
   let crudo = null;
@@ -560,20 +408,18 @@ $('btnSitio').addEventListener('click', async () => {
     const d = await getDoc(doc(db, 'config', 'sitio'));
     if (d.exists()) {
       crudo = d.data();
-      sitio = { whatsapp: crudo.whatsapp || '', textos: crudo.textos || { pt:{}, es:{}, en:{} } };
+      sitio = { whatsapp: crudo.whatsapp || '' };
     }
   } catch (e) { CV2.toast('No se pudo leer la configuración', 'error'); }
   // telVisible y no el crudo: si quedó guardado sin «+» de antes, se ve con «+».
   $('sWa').value = CV2.telVisible(sitio.whatsapp);
   pintarMeta(crudo);
-  cargarIdioma('pt');
   $('mSitio').showModal();
 });
 
 $('sCancelar').addEventListener('click', () => $('mSitio').close());
 
 $('sGuardar').addEventListener('click', async () => {
-  guardarIdiomaActual();
   // Se guarda con «+», que es la forma que se le muestra a una persona. El
   // formato pelado que pide wa.me lo arman las páginas públicas al usarlo.
   // Ver nucleo.js, «Teléfonos».
@@ -584,14 +430,13 @@ $('sGuardar').addEventListener('click', async () => {
   try {
     await setDoc(doc(db, 'config', 'sitio'), {
       whatsapp: wa,
-      textos: payloadTextos(),
       actualizadoEn: serverTimestamp(),
       actualizadoPor: u.uid,
       actualizadoPorNombre: u.nombre || ''
     }, { merge: true });
     sitio.whatsapp = wa;
     $('mSitio').close();
-    CV2.toast('✓ Sitio actualizado', 'success');
+    CV2.toast('✓ WhatsApp actualizado', 'success');
   } catch (e) { CV2.toast('No se pudo: ' + (e.code ?? e.message), 'error'); }
   finally { $('sGuardar').disabled = false; }
 });

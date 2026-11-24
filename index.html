@@ -390,6 +390,9 @@
   .cv-ed .slider .nav, .cv-ed .slider .puntos{display:none !important}
   .cv-ed [data-edit-img]{cursor:pointer;outline:2px solid transparent;outline-offset:2px}
   .cv-ed [data-edit-img]:hover{outline-color:var(--terracota)}
+  .cv-ed .esp{position:relative}
+  .cv-ed .cv-nfotos{position:absolute;top:8px;right:8px;z-index:2;background:rgba(20,30,18,.72);
+    color:#fff;font-size:.74rem;font-weight:600;padding:3px 9px;border-radius:999px;pointer-events:none}
   .cv-ed [data-edit-add]{aspect-ratio:4/3;border:2px dashed var(--terracota);
     border-radius:8px;display:flex;align-items:center;justify-content:center;
     color:var(--terracota);font-size:.8rem;font-weight:600;cursor:pointer;
@@ -966,6 +969,14 @@ window.mover = (i, d) => {
   imgs[a].classList.add('on'); if (pts[a]) pts[a].classList.add('on');
 };
 
+// El documento de una cabaña o de un espacio común, por su ref 'col/id' (para el editor).
+function itemDeAlbum(ref) {
+  const i = String(ref).indexOf('/');
+  const col = String(ref).slice(0, i), id = String(ref).slice(i + 1);
+  const lista = col === 'cabanas' ? cabanas : col === 'espacios_comunes' ? espacios : [];
+  return lista.find((e) => e.id === id) || null;
+}
+
 function pintarEspacios() {
   $('espacios').innerHTML = espacios.map((e) => {
     const f = (e.fotos || [])[0];
@@ -973,7 +984,9 @@ function pintarEspacios() {
     // El espacio común muestra UNA foto, la primera. Se edita esa: la
     // posición 0 del array, aunque el documento tenga más guardadas.
     const marcaImg = EDITAR ? ` data-edit-img="espacios_comunes/${id}:fotos.0"` : ' loading="lazy"';
+    const n = (e.fotos || []).filter(Boolean).length;
     return `<div class="esp">
+      ${EDITAR && n > 1 ? `<span class="cv-nfotos">📷 ${n}</span>` : ''}
       ${f ? `<img src="${esc(f)}"${marcaImg} alt="">`
           : (EDITAR ? `<div data-edit-add="espacios_comunes/${id}:fotos">+ agregar foto</div>`
                     : '<div style="aspect-ratio:4/3;background:#eceae3;"></div>')}
@@ -1210,6 +1223,24 @@ await cargarTodo(); aplicarIdioma(); pintarCal(); },
     setOcultos(lista) {
       OCULTOS = Array.isArray(lista) ? lista.slice() : [];
       aplicarOcultos();
+    },
+    // 24-nov-2026 (álbumes): el álbum COMPLETO de una cabaña o un espacio.
+    // El editor no puede deducirlo de la pantalla: un espacio común muestra
+    // sólo su primera foto, y armar el array desde lo que se ve borraba el resto.
+    // ref = 'cabanas/c1' | 'espacios_comunes/<id>' → { nombre, fotos:[url…] } o null.
+    fotosDe(ref) {
+      const x = itemDeAlbum(ref);
+      return x ? { nombre: txt(x.nombre), fotos: (x.fotos || []).filter(Boolean).map(String) } : null;
+    },
+    // Muestra el álbum tal como quedaría, sin guardar nada: el editor lo llama
+    // cada vez que se agrega, quita o reordena. Lo que viene de la base se
+    // recupera con recargar() (al guardar o al descartar).
+    verFotos(ref, fotos) {
+      const x = itemDeAlbum(ref);
+      if (!x) return;
+      x.fotos = Array.isArray(fotos) ? Array.from(fotos, String) : [];
+      pintarCabanas(); pintarEspacios();
+      document.dispatchEvent(new CustomEvent('cv:pintado'));
     }
   };
 }

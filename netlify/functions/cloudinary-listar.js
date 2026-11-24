@@ -2,7 +2,7 @@
 //  cloudinary-listar — las fotos del sitio que hay en Cloudinary
 //
 //  QUIÉN LA LLAMA
-//    · interno/editar.html  → la solapa "Cloudinary" de la hoja de fotos.
+//    · interno/editar.html  → la solapa "Cloudinary" del álbum de fotos (varias a la vez).
 //    · interno/fotos.html   → para cruzar cada foto contra su carpeta real.
 //
 //  CONTRATO (no cambiarlo sin tocar esas dos pantallas):
@@ -54,7 +54,7 @@
 //  Hay que cargarlas en el panel de Netlify (Site configuration →
 //  Environment variables) y volver a desplegar. Se aceptan varios nombres
 //  porque no todas las cuentas usan los mismos:
-//      CLOUDINARY_CLOUD_NAME   (o CLOUDINARY_CLOUD)     — 'dnwfu8ffn'
+//      CLOUDINARY_CLOUD_NAME   (o CLOUDINARY_CLOUD)     — opcional: sin ella se usa 'dnwfu8ffn'
 //      CLOUDINARY_API_KEY      (o CLOUDINARY_KEY)
 //      CLOUDINARY_API_SECRET   (o CLOUDINARY_SECRET)
 //  También sirve una sola:
@@ -67,6 +67,9 @@
 //  enganchado a Git: subir este archivo a GitHub NO lo despliega. Hay que
 //  desplegarlo a mano desde Netlify.
 // ═══════════════════════════════════════════════════════════════
+
+// La cuenta de Cloudinary del sitio. Público por diseño (viaja en cada URL de foto).
+const CLOUD_POR_DEFECTO = 'dnwfu8ffn';
 
 // Las carpetas del SITIO. 'gastos' no está y no puede estar.
 const CARPETAS_POR_DEFECTO = ['sitio', 'cabanas', 'Espacios', 'recuerdos'];
@@ -100,7 +103,12 @@ function variable(nombres) {
  * CLOUDINARY_URL de una sola pieza, que es la que copia y pega la mayoría.
  */
 function credenciales() {
-  let cloud = variable(['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_CLOUD']);
+  // 24-nov-2026: el nombre de la cuenta ('dnwfu8ffn') es PÚBLICO — está en cada
+  // dirección de foto del sitio y en interno/nucleo.js —, así que no hace falta
+  // una variable de entorno para él. Faltaba y el listado entero devolvía
+  // «Faltan credenciales…» aunque la clave y el secreto estuvieran cargados.
+  // Lo único secreto son la clave y el secreto de la API: ésas siguen siendo variables.
+  let cloud = variable(['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_CLOUD']) || CLOUD_POR_DEFECTO;
   let key = variable(['CLOUDINARY_API_KEY', 'CLOUDINARY_KEY']);
   let secret = variable(['CLOUDINARY_API_SECRET', 'CLOUDINARY_SECRET']);
 
@@ -160,6 +168,9 @@ function urlDe(cloud, recurso, transformacion) {
   return 'https://res.cloudinary.com/' + cloud + '/' + tipo + '/' + entrega + '/'
     + transformacion + '/' + recurso.public_id + ext;
 }
+
+exports._expresion = expresion;
+exports._credenciales = credenciales;
 
 exports.handler = async function (event) {
   if (event.httpMethod === 'OPTIONS') {

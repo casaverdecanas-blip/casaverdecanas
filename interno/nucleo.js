@@ -437,8 +437,12 @@ CV2.NAV = [
   // solo los suyos; lo que se debe declarar es del libro del negocio entero.
   { id: 'fiscal', label: 'Impuestos', href: './fiscal.html', icono: 'account_balance', permiso: 'finanzas', grupo: 'plata' },
 
-  { id: 'cabanas', label: 'Cabañas', href: './cabanas.html', icono: 'cottage', permiso: 'contenido', grupo: 'sitio' },
-  { id: 'espacios', label: 'Espacios', href: './espacios.html', icono: 'deck', permiso: 'contenido', grupo: 'sitio' },
+  // 24-nov-2026: «Editar el sitio» es EL editor de lo que se lee en la web (textos, nombres, descripciones
+  // y fotos); va primero. Cabañas y Espacios quedan para los DATOS: cuántos entran, lo que cuesta, el
+  // inventario, la guía, el alta y el orden. Dos editores del mismo texto se pisaban.
+  { id: 'editar', label: 'Editar el sitio', href: './editar.html', icono: 'edit_note', permiso: 'contenido', grupo: 'sitio' },
+  { id: 'cabanas', label: 'Datos de cabañas', href: './cabanas.html', icono: 'cottage', permiso: 'contenido', grupo: 'sitio' },
+  { id: 'espacios', label: 'Espacios (alta y orden)', href: './espacios.html', icono: 'deck', permiso: 'contenido', grupo: 'sitio' },
   { id: 'recuerdos', label: 'Recuerdos', href: './recuerdos.html', icono: 'photo_library', permiso: 'contenido', grupo: 'sitio' },
   // Opiniones ≠ Recuerdos, y por eso son dos pantallas: los recuerdos son
   // fotos que suben los huéspedes DESPUÉS de la estadía; las opiniones son
@@ -449,7 +453,6 @@ CV2.NAV = [
   // a los dos. Hasta la T11.46 el editor solo se alcanzaba desde Cabañas: una
   // pantalla a la que no lleva ningún camino visible es una pantalla que no
   // existe para quien no la escribió.
-  { id: 'editar', label: 'Editar el sitio', href: './editar.html', icono: 'edit_note', permiso: 'contenido', grupo: 'sitio' },
   { id: 'traducir', label: 'Revisar y traducir', href: './traducir.html', icono: 'translate', permiso: 'contenido', grupo: 'sitio' },
   { id: 'fotos', label: 'Revisar las fotos', href: './fotos.html', icono: 'photo_camera_back', permiso: 'contenido', grupo: 'sitio' },
 
