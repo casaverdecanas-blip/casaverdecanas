@@ -1865,7 +1865,8 @@ function renderChGuia() {
       ${g ? `<div style="white-space:pre-wrap;max-height:110px;overflow:auto;margin:6px 0;color:var(--gris);">${esc(g)}</div>${fotos ? `<div class="texto-gris" style="font-size:.78rem;">+ ${fotos} foto(s)</div>` : ''}`
           : '<p class="texto-gris" style="margin:6px 0;">Esta cabaña todavía no tiene guía propia: el huésped ve sólo lo general y el inventario.</p>'}
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
-        <a class="btn" style="font-size:.8rem;" href="./cabanas.html?editar=${encodeURIComponent(chCab.id)}">✏️ Editar la guía y el inventario de esta cabaña</a>
+        <a class="btn" style="font-size:.8rem;" href="./inventario.html?c=${encodeURIComponent(chCab.id)}">🧺 Editar el inventario de esta cabaña</a>
+        <a class="btn" style="font-size:.8rem;" href="./cabanas.html?editar=${encodeURIComponent(chCab.id)}">✏️ Editar su guía</a>
         <a class="btn" style="font-size:.8rem;" href="./editar.html">✏️ Lo general (lavarropas, reglas)</a>
       </div>
     </div>`;

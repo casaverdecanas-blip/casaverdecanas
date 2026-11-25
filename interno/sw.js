@@ -563,7 +563,10 @@
 //   «Editar el sitio» primero en el grupo Sitio.
 // v150 (24-nov-2026) — la portada suma cinco chips con ícono (Mauro): lavandería, estacionamiento interno, cerca del centrinho,
 //   kayaks y patio techado (c5…c9; textos-sitio.js +5 claves por idioma, 149), todos editables desde «Editar el sitio».
-const VERSION = 'cv2-shell-v150';
+// v151 (26-nov-2026) — «Inventario» (inventario.html + inventario-core.js): la gestión del inventario de cada cabaña
+//   en su pantalla —ítems con foto, cantidad y sección; se guarda solo—; la lista simple del control se deriva sola.
+//   cabanas.html ya no edita el inventario; el control de entrada y de salida lleva a la pantalla nueva.
+const VERSION = 'cv2-shell-v151';
 
 const SHELL = [
   './',
@@ -571,6 +574,8 @@ const SHELL = [
   './login.html',
   './actividades.html',
   './actividades-core.js',
+  './inventario.html',
+  './inventario-core.js',
   './honorarios.html',
   './gestion-sesiones.html',
   './avisos.html',

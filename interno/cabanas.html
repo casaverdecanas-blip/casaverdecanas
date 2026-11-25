@@ -106,14 +106,9 @@
   <label>Amenities (separadas por coma)</label>
   <input id="fAmenities" placeholder="Wifi, Piscina, Aire acondicionado…">
 
-  <label style="margin-top:12px;">Inventario base <span class="texto-gris" style="font-weight:400;font-size:.8rem;">— con cuánto debería quedar la cabaña</span></label>
-  <div id="invEdit"></div>
-  <div style="display:flex;gap:8px;margin-top:6px;">
-    <input id="invNombre" placeholder="Ítem (ej: Toallas grandes)" style="flex:1;">
-    <input id="invCant" type="number" min="0" inputmode="numeric" value="1" style="width:70px;">
-    <button class="btn" id="btnInvAgregar" style="font-size:.84rem;white-space:nowrap;">
-      <span class="material-icons">add</span></button>
-  </div>
+  <!-- 26-nov-2026: el INVENTARIO (ítems, fotos, cantidades, secciones) tiene su propia pantalla y no se edita acá:
+       dos lugares escribiendo la misma lista se pisaban. -->
+  <p id="avisoInv" class="texto-gris" style="margin:12px 0 0;font-size:.84rem;"></p>
 
   <!-- 23-nov-2026, Mauro: lo que lee el huésped al escanear el QR de SU alojamiento (la-casa.html?k=…):
        consejos de este lugar (las ventanas viejas, el aire) con sus fotos, además del inventario de arriba.
@@ -155,7 +150,6 @@ const esc = CV2.esc;
 
 let cabanas = [];
 let editId = null;
-let invTmp = [];   // [{item, cantidad}] mientras se edita la cabaña
 let abrirDeUrl = false;   // ?editar=<id> se atiende una sola vez
 let guiaFotosTmp = [];   // [{url, pie:{es,pt,en}}] las fotos de la guía del huésped
 
@@ -173,14 +167,6 @@ function normalizarCap(c) {
 function capTexto(c) {
   const x = normalizarCap(c);
   return x.base === x.max ? String(x.base) : x.base + '–' + x.max;
-}
-
-function normalizarInventario(inv) {
-  if (!Array.isArray(inv)) return [];
-  return inv.map((x) => typeof x === 'string'
-    ? { item: x, cantidad: 0 }
-    : { item: String(x.item ?? x.nombre ?? ''), cantidad: Number(x.cantidad ?? x.cantidadBase) || 0, ...(x.categoria ? { categoria: String(x.categoria) } : {}) })
-    .filter((x) => x.item);
 }
 
 const nom = (c) => c.nombre?.es ?? c.nombre?.pt ?? c.nombre?.en ?? c.id;
@@ -268,29 +254,6 @@ $('btnGuiaFoto').addEventListener('click', async () => {
   } finally { $('btnGuiaFoto').disabled = false; }
 });
 
-// ── Inventario editable ──────────────────────────────────────
-function renderInvEdit() {
-  $('invEdit').innerHTML = invTmp.length
-    ? invTmp.map((x, i) => `
-      <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px dashed var(--linea);font-size:.88rem;">
-        <span style="flex:1;">${esc(x.item)}</span>
-        <input type="number" min="0" inputmode="numeric" value="${x.cantidad}" onchange="invCant(${i}, this.value)" style="width:64px;">
-        <button class="btn-ico" onclick="invQuitar(${i})"><span class="material-icons" style="font-size:18px;color:var(--rojo)">delete_outline</span></button>
-      </div>`).join('')
-    : '<p class="texto-gris" style="margin:4px 0 0;font-size:.82rem;">Sin ítems todavía. Agregá abajo.</p>';
-}
-window.invCant = (i, v) => { invTmp[i].cantidad = Math.max(0, parseInt(v) || 0); };
-window.invQuitar = (i) => { invTmp.splice(i, 1); renderInvEdit(); };
-$('btnInvAgregar').addEventListener('click', () => {
-  const nombre = $('invNombre').value.trim();
-  if (!nombre) { $('invNombre').focus(); return; }
-  const cant = Math.max(0, parseInt($('invCant').value) || 0);
-  invTmp.push({ item: nombre, cantidad: cant });
-  $('invNombre').value = ''; $('invCant').value = '1';
-  renderInvEdit();
-  $('invNombre').focus();
-});
-
 // Alta de una cabaña/apartamento nuevo: abre el mismo formulario vacío.
 // El id es el siguiente libre (c4, c5…) y el orden va al final.
 $('btnAgregar').addEventListener('click', () => {
@@ -302,8 +265,9 @@ $('btnAgregar').addEventListener('click', () => {
   $('fCapBase').value = 2; $('fCapMax').value = 2;
   $('fOrden').value = cabanas.reduce((m, c) => Math.max(m, Number(c.orden) || 0), 0) + 1;
   $('fNoche').value = 0; $('fLimpieza').value = 0;
-  invTmp = []; guiaFotosTmp = [];
-  renderInvEdit(); renderGuiaFotos();
+  guiaFotosTmp = [];
+  $('avisoInv').textContent = 'El inventario de esta cabaña se carga en «Inventario», una vez creada.';
+  renderGuiaFotos();
   $('modal').showModal();
 });
 
@@ -323,10 +287,9 @@ window.editar = (id) => {
   $('fExtra').value = c.tarifas?.extraPersona ?? '';
   $('fAmenities').value = (c.amenities ?? []).join(', ');
   $('fCalendar').value = c.calendarId ?? '';
-  invTmp = normalizarInventario(c.inventarioBase);
+  $('avisoInv').innerHTML = '🧺 El <b>inventario</b> de esta cabaña (' + (Array.isArray(c.inventario) ? c.inventario.length : (c.inventarioBase || []).length) + ' ítems) se edita en <a href="./inventario.html?c=' + encodeURIComponent(c.id) + '">Inventario</a>: con fotos, secciones y cantidades.';
   $('gEs').value = c.guia?.es ?? ''; $('gPt').value = c.guia?.pt ?? ''; $('gEn').value = c.guia?.en ?? '';
   guiaFotosTmp = (c.guiaFotos ?? []).filter((f) => f && f.url).map((f) => ({ url: f.url, pie: { es: f.pie?.es ?? '', pt: f.pie?.pt ?? '', en: f.pie?.en ?? '' } }));
-  renderInvEdit();
   renderGuiaFotos();
   $('modal').showModal();
 };
@@ -361,8 +324,7 @@ $('mGuardar').addEventListener('click', async () => {
         moneda: 'BRL'
       },
       amenities: $('fAmenities').value.split(',').map((x) => x.trim()).filter(Boolean),
-      // La categoría (Cocina, Ropa blanca…) se conserva: la guía del huésped agrupa por ella.
-      inventarioBase: invTmp.filter((x) => x.item).map((x) => ({ item: x.item, cantidad: Number(x.cantidad) || 0, ...(x.categoria ? { categoria: x.categoria } : {}) })),
+      // El inventario NO se escribe acá (26-nov-2026): lo edita «Inventario» y deriva `inventarioBase` solo.
       calendarId: $('fCalendar').value.trim() || null,
       guia: { es: $('gEs').value.trim(), pt: $('gPt').value.trim(), en: $('gEn').value.trim() },
       guiaFotos: guiaFotosTmp.map((f) => ({ url: f.url, pie: { es: (f.pie?.es ?? '').trim(), pt: (f.pie?.pt ?? '').trim(), en: (f.pie?.en ?? '').trim() } })),

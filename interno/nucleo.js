@@ -420,6 +420,9 @@ CV2.NAV = [
   { id: 'agenda', label: 'Agenda', corto: 'Agenda', href: './agenda.html', icono: 'event_note', permiso: null, grupo: 'directo' },
 
   { id: 'reservas', label: 'Reservas', href: './reservas.html', icono: 'king_bed', permiso: 'reservas', grupo: 'alojamiento' },
+  // 26-nov-2026 (Mauro): el inventario de cada cabaña —ítems, fotos, cantidades y secciones— en su propia pantalla.
+  // Lo escribe quien edita cabañas (`contenido`); la lista simple que lee el control se deriva sola.
+  { id: 'inventario', label: 'Inventario', href: './inventario.html', icono: 'inventory_2', permiso: 'contenido', grupo: 'alojamiento' },
   { id: 'clientes', label: 'Clientes', href: './clientes.html', icono: 'contacts', permiso: 'reservas', grupo: 'alojamiento' },
   // 18-oct-2026: los pedidos de alquiler de los grupos de Facebook, para todo
   // el equipo con sesión activa (Mauro: «para que Florencia y otro usuario

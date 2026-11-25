@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CasaVerde 2.0 · Inventario</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="design-system.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2d5a27">
+<!--
+  inventario.html — el inventario de cada cabaña. Sello: inventario-1 (26-nov-2026).
+
+  Mauro: «una pestaña dentro de casaverde para la gestión del inventario de cada cabaña… agregar,
+  modificar o eliminar ítems, cargar la foto, la cantidad, en qué sección (cocina, electrodomésticos…).
+  Esa información se guarda en la base y se simplifica luego para el control. Amigable, siempre intuitiva».
+
+  Cada toque se guarda solo (sin botón «Guardar» para lo de la lista). Lo que se escribe es la forma RICA
+  (`cabanas/{id}.inventario`: con foto y sección); la SIMPLE que lee el control de entrada y de salida y «La
+  casa» (`inventarioBase`) se deriva en cada guardado (inventario-core.js: `paraGuardar`). Quien edita
+  inventarios tiene el permiso `contenido`, igual que las cabañas (la regla de `cabanas` no cambia).
+-->
+<style>
+  .contenedor { padding-bottom: 150px; }
+  h1 { margin: 0; }
+  .sub { color: var(--gris); font-size: .86rem; margin: 2px 0 10px; line-height: 1.4; }
+
+  /* La cabaña: pastillas grandes, a un toque */
+  .cabs { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 8px; margin: 0 -2px; scrollbar-width: none; }
+  .cabs::-webkit-scrollbar { display: none; }
+  .cabs button { flex: none; border: 1.5px solid var(--linea); background: #fff; border-radius: 999px;
+    padding: 0 16px; min-height: 46px; font: inherit; font-size: .92rem; cursor: pointer; color: var(--tinta);
+    display: flex; align-items: center; gap: 7px; }
+  .cabs button .n { font-size: .74rem; background: var(--crema, #f3eee0); border-radius: 999px; padding: 1px 8px; color: var(--gris); }
+  .cabs button.on { background: var(--verde); border-color: var(--verde); color: #fff; font-weight: 700; }
+  .cabs button.on .n { background: rgba(255,255,255,.22); color: #fff; }
+
+  .fila-estado { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .8rem; color: var(--gris); margin: 2px 0 10px; }
+  .fila-estado .guardado { margin-left: auto; font-weight: 600; }
+  .guardado.ok { color: var(--verde); } .guardado.mal { color: var(--rojo); cursor: pointer; }
+
+  .busca { position: relative; margin-bottom: 12px; }
+  .busca input { width: 100%; box-sizing: border-box; padding: 12px 40px 12px 42px; border: 1.5px solid var(--linea);
+    border-radius: 12px; font: inherit; font-size: .95rem; background: #fff; }
+  .busca .material-icons { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--gris); }
+  .busca button { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); border: 0; background: none; padding: 8px; cursor: pointer; color: var(--gris); display: flex; }
+
+  /* Las secciones */
+  .sec { margin: 14px 0 6px; }
+  .sec-cab { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: none; padding: 6px 2px; cursor: pointer;
+    font: inherit; text-align: left; color: var(--tinta); min-height: 44px; }
+  .sec-cab .material-icons { color: var(--verde); }
+  .sec-cab b { font-size: 1rem; flex: 1; }
+  .sec-cab .cuenta { font-size: .76rem; color: var(--gris); }
+  .sec-cab .flecha { transition: transform .15s; color: var(--gris); }
+  .sec.cerrada .flecha { transform: rotate(-90deg); }
+  .sec.cerrada .filas { display: none; }
+
+  .fila { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--linea); border-radius: 12px;
+    padding: 8px 8px 8px 8px; margin-bottom: 6px; box-shadow: var(--sombra); }
+  .fila.cero { background: #fffaf2; }
+  .foto { flex: none; width: 52px; height: 52px; border-radius: 10px; border: 1.5px dashed var(--linea); background: var(--crema, #f3eee0);
+    display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; overflow: hidden; color: var(--gris); }
+  .foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .foto.con { border-style: solid; }
+  .nombre { flex: 1; min-width: 0; cursor: pointer; padding: 6px 0; line-height: 1.25; font-size: .96rem; word-break: break-word; }
+  .nombre small { display: block; color: var(--gris); font-size: .74rem; }
+  .cant { flex: none; display: flex; align-items: center; }
+  .cant button { width: 38px; height: 44px; border: 0; background: var(--crema, #f3eee0); cursor: pointer; display: flex;
+    align-items: center; justify-content: center; color: var(--tinta); }
+  .cant button:first-child { border-radius: 10px 0 0 10px; } .cant button:last-child { border-radius: 0 10px 10px 0; }
+  .cant button:active { background: #e4ddc8; }
+  .cant input { width: 44px; height: 44px; box-sizing: border-box; border: 0; text-align: center; font: inherit; font-weight: 700;
+    font-size: 1rem; background: #fff; -moz-appearance: textfield; padding: 0; }
+  .cant input::-webkit-outer-spin-button, .cant input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+  .vacio { text-align: center; color: var(--gris); padding: 28px 12px; }
+  .vacio .material-icons { font-size: 54px; color: var(--linea); }
+  .vacio h3 { margin: 6px 0; color: var(--tinta); }
+  .vacio .acciones { display: flex; flex-direction: column; gap: 8px; max-width: 320px; margin: 14px auto 0; }
+
+  /* Lo pegado abajo: el botón de agregar y el aviso de «Deshacer» */
+  .flotante { padding: 10px 14px; pointer-events: none; display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
+  .flotante > * { pointer-events: auto; }
+  .fab { border: 0; border-radius: 999px; background: var(--verde); color: #fff; font: inherit; font-weight: 700; font-size: 1rem;
+    min-height: 54px; padding: 0 22px 0 16px; display: flex; align-items: center; gap: 6px; cursor: pointer;
+    box-shadow: 0 6px 18px rgba(0,0,0,.28); }
+  .fab.mas { background: #fff; color: var(--verde); border: 1.5px solid var(--verde); padding: 0 14px; }
+  #aviso { position: fixed; left: 12px; right: 12px; z-index: 91; bottom: calc(var(--cv-piso) + 78px); max-width: 520px; margin: 0 auto;
+    background: #263238; color: #fff; border-radius: 12px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;
+    font-size: .9rem; box-shadow: 0 6px 20px rgba(0,0,0,.3); }
+  #aviso[hidden], dialog .pie [hidden] { display: none !important; }
+  #aviso button { margin-left: auto; border: 0; background: none; color: #9fd2b0; font: inherit; font-weight: 700; cursor: pointer; min-height: 40px; padding: 0 6px; }
+
+  /* Las hojas (diálogos): desde abajo en el teléfono */
+  dialog { border: 0; padding: 0; width: min(560px, 100vw); max-width: 100vw; max-height: 92dvh; border-radius: 20px 20px 0 0;
+    margin: auto auto 0; box-shadow: 0 -8px 40px rgba(0,0,0,.3); overflow: hidden; }
+  @media (min-width: 700px) { dialog { margin: auto; border-radius: 20px; } }
+  dialog::backdrop { background: rgba(20,30,18,.5); }
+  dialog .in { display: flex; flex-direction: column; max-height: 92dvh; }
+  dialog .cab { display: flex; align-items: center; gap: 8px; padding: 14px 16px 6px; }
+  dialog .cab h2 { margin: 0; font-size: 1.1rem; flex: 1; }
+  dialog .cab button { border: 0; background: none; cursor: pointer; padding: 8px; display: flex; color: var(--gris); }
+  dialog .cuerpo { overflow-y: auto; padding: 4px 16px 12px; }
+  dialog .pie { display: flex; gap: 8px; padding: 10px 16px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--linea); background: #fff; }
+  dialog .pie .btn { flex: 1; min-height: 48px; justify-content: center; }
+  dialog .pie .btn.peligro { flex: none; color: var(--rojo); }
+  dialog label.campo { display: block; font-size: .82rem; font-weight: 700; color: var(--gris); margin: 12px 0 5px; }
+  dialog input[type=text], dialog textarea { width: 100%; box-sizing: border-box; padding: 13px 12px; border: 1.5px solid var(--linea);
+    border-radius: 12px; font: inherit; font-size: 1rem; }
+  dialog textarea { min-height: 140px; resize: vertical; }
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .chips button { border: 1.5px solid var(--linea); background: #fff; border-radius: 999px; padding: 0 13px; min-height: 40px; font: inherit;
+    font-size: .86rem; cursor: pointer; color: var(--tinta); display: flex; align-items: center; gap: 5px; }
+  .chips button .material-icons { font-size: 18px; color: var(--verde); }
+  .chips button.on { background: var(--verde); border-color: var(--verde); color: #fff; font-weight: 700; }
+  .chips button.on .material-icons { color: #fff; }
+  .chips button.sug { border-style: dashed; color: var(--gris); }
+  .paso { display: flex; align-items: center; justify-content: center; gap: 0; }
+  .paso button { width: 60px; height: 54px; border: 0; background: var(--crema, #f3eee0); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .paso button:first-child { border-radius: 12px 0 0 12px; } .paso button:last-child { border-radius: 0 12px 12px 0; }
+  .paso button .material-icons { font-size: 28px; }
+  .paso input { width: 90px !important; height: 54px; text-align: center; border-radius: 0 !important; font-weight: 700; font-size: 1.4rem !important; padding: 0 !important; }
+  .fotobox { display: flex; gap: 12px; align-items: center; }
+  .fotobox .vista { flex: none; width: 96px; height: 96px; border-radius: 14px; border: 1.5px dashed var(--linea); background: var(--crema, #f3eee0);
+    display: flex; align-items: center; justify-content: center; overflow: hidden; color: var(--gris); }
+  .fotobox .vista img { width: 100%; height: 100%; object-fit: cover; }
+  .fotobox .btns { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .aviso-r { background: #fff4d6; border-radius: 10px; padding: 8px 12px; font-size: .84rem; margin-top: 8px; }
+  .previa { background: var(--crema, #f3eee0); border-radius: 12px; padding: 8px 12px; margin-top: 10px; font-size: .86rem; max-height: 150px; overflow: auto; }
+  .previa div { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; }
+  .lista-cabs { display: flex; flex-direction: column; gap: 8px; }
+  .lista-cabs button { text-align: left; border: 1.5px solid var(--linea); background: #fff; border-radius: 12px; padding: 12px 14px; font: inherit; cursor: pointer;
+    min-height: 56px; display: flex; flex-direction: column; gap: 2px; }
+  .lista-cabs button small { color: var(--gris); }
+  .lista-cabs button.on { border-color: var(--verde); background: #f0f7ee; }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<div class="contenedor">
+  <h1>Inventario</h1>
+  <p class="sub">Lo que tiene cada cabaña. Tocá un ítem para editarlo, el − y el + para cambiar la cantidad, y la cámara para ponerle foto.
+  Todo se guarda solo.</p>
+
+  <div class="cabs" id="cabs" role="tablist" aria-label="Cabaña"></div>
+
+  <div class="fila-estado">
+    <span id="resumen"></span>
+    <span class="guardado ok" id="guardado"></span>
+  </div>
+
+  <div class="busca">
+    <span class="material-icons">search</span>
+    <input id="q" type="search" placeholder="Buscar un ítem…" autocomplete="off" aria-label="Buscar un ítem">
+    <button id="qx" hidden aria-label="Borrar la búsqueda"><span class="material-icons">close</span></button>
+  </div>
+
+  <div id="lista"><div class="vacio">Cargando…</div></div>
+</div>
+
+<!-- Lo pegado abajo: el aviso («Quitado · Deshacer») y los botones de agregar -->
+<div id="aviso" hidden><span id="avisoTxt"></span><button id="avisoBtn">Deshacer</button></div>
+<div class="cv-pegado-abajo flotante" id="flot">
+  <button class="fab mas" id="btnMas" aria-label="Más opciones"><span class="material-icons">more_horiz</span></button>
+  <button class="fab" id="btnAgregar"><span class="material-icons">add</span> Agregar ítem</button>
+</div>
+
+<!-- ═══ Agregar / editar un ítem ═══ -->
+<dialog id="dItem">
+  <div class="in">
+    <div class="cab"><h2 id="iTit">Agregar ítem</h2><button data-cerrar aria-label="Cerrar"><span class="material-icons">close</span></button></div>
+    <div class="cuerpo">
+      <label class="campo" for="iNombre">¿Qué es?</label>
+      <input type="text" id="iNombre" maxlength="80" placeholder="Ej.: Platos hondos" autocomplete="off" enterkeyhint="done">
+      <div class="aviso-r" id="iRepetido" hidden></div>
+
+      <label class="campo">Sección</label>
+      <div class="chips" id="iSecciones"></div>
+
+      <div id="iSugBox" hidden>
+        <label class="campo">Tocá uno para cargarlo rápido</label>
+        <div class="chips" id="iSug"></div>
+      </div>
+
+      <label class="campo">Cantidad</label>
+      <div class="paso">
+        <button id="iMenos" aria-label="Menos"><span class="material-icons">remove</span></button>
+        <input type="text" id="iCant" inputmode="numeric" maxlength="4" value="1" aria-label="Cantidad">
+        <button id="iMas" aria-label="Más"><span class="material-icons">add</span></button>
+      </div>
+
+      <label class="campo">Foto</label>
+      <div class="fotobox">
+        <div class="vista" id="iVista"><span class="material-icons">photo_camera</span></div>
+        <div class="btns">
+          <button class="btn" id="iFoto"><span class="material-icons">add_a_photo</span> <span id="iFotoTxt">Sacar o elegir foto</span></button>
+          <button class="btn" id="iFotoX" hidden><span class="material-icons">delete_outline</span> Quitar la foto</button>
+        </div>
+      </div>
+    </div>
+    <div class="pie">
+      <button class="btn peligro" id="iBorrar" hidden aria-label="Eliminar este ítem"><span class="material-icons">delete_outline</span></button>
+      <button class="btn" id="iOtro" hidden>Guardar y otro</button>
+      <button class="btn btn-primario" id="iGuardar"><span class="material-icons">check</span> Guardar</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ═══ Agregar varios de una vez ═══ -->
+<dialog id="dVarios">
+  <div class="in">
+    <div class="cab"><h2>Agregar varios de una vez</h2><button data-cerrar aria-label="Cerrar"><span class="material-icons">close</span></button></div>
+    <div class="cuerpo">
+      <p class="sub" style="margin-top:0">Un ítem por línea. La cantidad va al principio: <b>6 platos hondos</b>. Sin número, se carga 1.</p>
+      <textarea id="vTexto" placeholder="6 platos hondos&#10;6 vasos&#10;4 copas&#10;2 sartenes&#10;1 pava"></textarea>
+      <label class="campo">¿En qué sección van?</label>
+      <div class="chips" id="vSecciones"></div>
+      <div class="previa" id="vPrevia" hidden></div>
+    </div>
+    <div class="pie">
+      <button class="btn" data-cerrar>Cancelar</button>
+      <button class="btn btn-primario" id="vAgregar" disabled><span class="material-icons">playlist_add</span> <span id="vAgregarTxt">Agregar</span></button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ═══ Copiar de otra cabaña ═══ -->
+<dialog id="dCopiar">
+  <div class="in">
+    <div class="cab"><h2>Copiar de otra cabaña</h2><button data-cerrar aria-label="Cerrar"><span class="material-icons">close</span></button></div>
+    <div class="cuerpo">
+      <p class="sub" style="margin-top:0">Se suman acá <b>sólo los ítems que faltan</b> (con su foto y su sección). Lo que ya está, no se toca.</p>
+      <div class="lista-cabs" id="cLista"></div>
+    </div>
+    <div class="pie">
+      <button class="btn" data-cerrar>Cancelar</button>
+      <button class="btn btn-primario" id="cCopiar" disabled><span class="material-icons">content_copy</span> <span id="cCopiarTxt">Copiar</span></button>
+    </div>
+  </div>
+</dialog>
+
+<script type="module">
+import { db, collection, onSnapshot, doc, updateDoc, serverTimestamp } from './firebase-init.js';
+import { CV2 } from './nucleo.js';
+import { SECCIONES, leerInventario, paraGuardar, agrupar, parsearLineas, faltantesDe, repetido, sugerirSeccion,
+  sugeridosFaltantes, miniatura, resumen, idNuevo, iconoDe, seccionCanonica, clave } from './inventario-core.js';
+
+CV2.registrarSW();
+const u = await CV2.verificarAuth();
+// replace y no href, por el mismo motivo que en cabanas.html (el rebote del botón Atrás).
+if (!CV2.puede('contenido')) { location.replace('./index.html'); throw new Error('sin permiso de contenido'); }
+CV2.renderNav('inventario');
+
+const $ = (id) => document.getElementById(id);
+const esc = CV2.esc;
+
+// ── El estado ────────────────────────────────────────────────
+let cabanas = [];        // las cabañas activas, como llegan de la base
+let cab = null;          // la elegida
+let items = [];          // su inventario, en la forma rica
+let buscar = '';
+let cerradas = new Set(JSON.parse(sessionStorage.getItem('inv-cerradas') || '[]'));
+let sucio = false;       // hay cambios sin escribir
+let escribiendo = null;  // la promesa del guardado en curso
+let temporizador = null;
+
+const nombreDe = (c) => (c.nombre && (c.nombre.es || c.nombre.pt || c.nombre.en)) || c.id;
+const hayAlgo = (c) => leerInventario(c).length;
+
+// ── Guardar: cada cambio se escribe solo ─────────────────────
+function marcar(estado, txt) {
+  const g = $('guardado');
+  g.className = 'guardado ' + (estado === 'mal' ? 'mal' : 'ok');
+  g.textContent = txt;
+}
+function cambio() {
+  sucio = true;
+  marcar('ok', 'Guardando…');
+  pintar();
+  clearTimeout(temporizador);
+  temporizador = setTimeout(escribir, 500);
+}
+async function escribir() {
+  clearTimeout(temporizador);
+  if (!cab || !sucio) return;
+  if (escribiendo) { await escribiendo; if (!sucio) return; }
+  const id = cab.id, datos = paraGuardar(items);
+  sucio = false;
+  escribiendo = updateDoc(doc(db, 'cabanas', id), {
+    ...datos, inventarioActualizadoEn: serverTimestamp(), inventarioActualizadoPor: u.nombre || u.email || ''
+  }).then(() => { if (!sucio) marcar('ok', '✓ Guardado'); })
+    .catch((e) => { sucio = true; marcar('mal', '⚠ No se guardó: ' + (e.code || e.message) + ' · tocá para reintentar'); })
+    .finally(() => { escribiendo = null; });
+  await escribiendo;
+}
+$('guardado').addEventListener('click', () => { if (sucio) escribir(); });
+// No perder lo último que se tocó al salir.
+window.addEventListener('pagehide', () => { if (sucio) escribir(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && sucio) escribir(); });
+
+// ── Elegir cabaña ────────────────────────────────────────────
+async function elegir(id) {
+  await escribir();
+  cab = cabanas.find((c) => c.id === id) || cabanas[0] || null;
+  if (!cab) { items = []; pintar(); return; }
+  items = leerInventario(cab);
+  try { localStorage.setItem('inv-cab', cab.id); } catch {}
+  buscar = ''; $('q').value = ''; $('qx').hidden = true;
+  marcar('ok', '');
+  pintar();
+}
+
+// ── Pintar ───────────────────────────────────────────────────
+function pintarCabs() {
+  $('cabs').innerHTML = cabanas.map((c) => {
+    const n = c === cab ? items.length : hayAlgo(c);
+    return `<button role="tab" data-c="${esc(c.id)}" class="${cab && c.id === cab.id ? 'on' : ''}" aria-selected="${cab && c.id === cab.id}">
+      ${esc(nombreDe(c))}<span class="n">${n}</span></button>`;
+  }).join('');
+}
+function pintarFoto(x) {
+  return x.foto
+    ? `<button class="foto con" data-foto="${esc(x.id)}" aria-label="Ver o cambiar la foto"><img src="${esc(miniatura(x.foto))}" alt="" loading="lazy"></button>`
+    : `<button class="foto" data-foto="${esc(x.id)}" aria-label="Agregar una foto"><span class="material-icons">add_a_photo</span></button>`;
+}
+function pintar() {
+  pintarCabs();
+  const r = resumen(items);
+  $('resumen').textContent = cab ? (r.items ? `${r.items} ítem${r.items === 1 ? '' : 's'} · ${r.unidades} unidades · ${r.secciones} sección${r.secciones === 1 ? '' : 'es'}` : 'Sin ítems todavía') : '';
+  $('flot').hidden = !cab;
+  const lista = $('lista');
+  if (!cab) { lista.innerHTML = '<div class="vacio"><span class="material-icons">cottage</span><h3>No hay cabañas cargadas</h3><p>Se crean en «Datos de cabañas».</p></div>'; return; }
+  if (!items.length) {
+    lista.innerHTML = `<div class="vacio"><span class="material-icons">inventory_2</span>
+      <h3>${esc(nombreDe(cab))} no tiene inventario cargado</h3>
+      <p>Cargá lo que tiene la cabaña: sirve para controlar la entrada y la salida de cada huésped.</p>
+      <div class="acciones">
+        <button class="btn btn-primario" data-acc="nuevo"><span class="material-icons">add</span> Agregar un ítem</button>
+        <button class="btn" data-acc="varios"><span class="material-icons">playlist_add</span> Cargar varios de una vez</button>
+        <button class="btn" data-acc="copiar"><span class="material-icons">content_copy</span> Copiar de otra cabaña</button>
+      </div></div>`;
+    return;
+  }
+  const k = clave(buscar);
+  const visibles = k ? items.filter((x) => clave(x.item).includes(k) || clave(x.seccion).includes(k)) : items;
+  if (!visibles.length) { lista.innerHTML = `<div class="vacio"><span class="material-icons">search_off</span><h3>No hay nada con «${esc(buscar)}»</h3>
+    <div class="acciones"><button class="btn btn-primario" data-acc="nuevo-busca"><span class="material-icons">add</span> Agregar «${esc(buscar)}»</button></div></div>`; return; }
+  lista.innerHTML = agrupar(visibles).map((g) => `
+    <div class="sec ${cerradas.has(g.seccion) && !k ? 'cerrada' : ''}" data-sec="${esc(g.seccion)}">
+      <button class="sec-cab" data-plegar="${esc(g.seccion)}"><span class="material-icons">${esc(g.icono)}</span><b>${esc(g.seccion)}</b>
+        <span class="cuenta">${g.items.length}</span><span class="material-icons flecha">expand_more</span></button>
+      <div class="filas">${g.items.map((x) => `
+        <div class="fila ${x.cantidad === 0 ? 'cero' : ''}" data-id="${esc(x.id)}">
+          ${pintarFoto(x)}
+          <div class="nombre" data-editar="${esc(x.id)}">${esc(x.item)}${x.cantidad === 0 ? '<small>cantidad 0: tocá el + o editá</small>' : ''}</div>
+          <div class="cant">
+            <button data-menos="${esc(x.id)}" aria-label="Menos"><span class="material-icons">remove</span></button>
+            <input type="text" inputmode="numeric" maxlength="4" value="${x.cantidad}" data-cant="${esc(x.id)}" aria-label="Cantidad de ${esc(x.item)}">
+            <button data-mas="${esc(x.id)}" aria-label="Más"><span class="material-icons">add</span></button>
+          </div>
+        </div>`).join('')}</div>
+    </div>`).join('');
+}
+
+// ── La lista: un solo oyente ─────────────────────────────────
+const porId = (id) => items.find((x) => x.id === id);
+$('lista').addEventListener('click', (ev) => {
+  const t = ev.target.closest('button, .nombre'); if (!t) return;
+  const d = t.dataset;
+  if (d.acc) return accion(d.acc);
+  if (d.plegar) {
+    cerradas.has(d.plegar) ? cerradas.delete(d.plegar) : cerradas.add(d.plegar);
+    try { sessionStorage.setItem('inv-cerradas', JSON.stringify([...cerradas])); } catch {}
+    return pintar();
+  }
+  if (d.menos || d.mas) {
+    const x = porId(d.menos || d.mas); if (!x) return;
+    x.cantidad = Math.max(0, Math.min(9999, x.cantidad + (d.mas ? 1 : -1)));
+    const inp = t.parentElement.querySelector('input'); inp.value = x.cantidad;
+    t.closest('.fila').classList.toggle('cero', x.cantidad === 0);
+    sucio = true; marcar('ok', 'Guardando…'); clearTimeout(temporizador); temporizador = setTimeout(escribir, 600);
+    $('resumen').textContent = resumenTxt();
+    return;
+  }
+  if (d.editar) return abrirItem(porId(d.editar));
+  if (d.foto) { const x = porId(d.foto); return x && x.foto ? abrirItem(x) : fotoRapida(x); }
+});
+$('lista').addEventListener('change', (ev) => {
+  const i = ev.target.closest('input[data-cant]'); if (!i) return;
+  const x = porId(i.dataset.cant); if (!x) return;
+  const n = Math.max(0, Math.min(9999, Math.round(Number(String(i.value).replace(/[^\d]/g, '')) || 0)));
+  x.cantidad = n; i.value = n; cambio();
+});
+$('lista').addEventListener('focusin', (ev) => { if (ev.target.matches('input[data-cant]')) ev.target.select(); });
+const resumenTxt = () => { const r = resumen(items); return `${r.items} ítem${r.items === 1 ? '' : 's'} · ${r.unidades} unidades · ${r.secciones} sección${r.secciones === 1 ? '' : 'es'}`; };
+
+$('cabs').addEventListener('click', (ev) => { const b = ev.target.closest('button[data-c]'); if (b) elegir(b.dataset.c); });
+$('q').addEventListener('input', () => { buscar = $('q').value; $('qx').hidden = !buscar; pintar(); });
+$('qx').addEventListener('click', () => { $('q').value = ''; buscar = ''; $('qx').hidden = true; pintar(); $('q').focus(); });
+
+// ── El aviso con «Deshacer» ──────────────────────────────────
+let alDeshacer = null, tAviso = null;
+function avisar(txt, deshacer) {
+  $('avisoTxt').textContent = txt; alDeshacer = deshacer || null;
+  $('avisoBtn').hidden = !deshacer; $('aviso').hidden = false;
+  clearTimeout(tAviso); tAviso = setTimeout(() => { $('aviso').hidden = true; alDeshacer = null; }, 7000);
+}
+$('avisoBtn').addEventListener('click', () => { if (alDeshacer) alDeshacer(); $('aviso').hidden = true; alDeshacer = null; });
+
+// ── Botones de abajo ─────────────────────────────────────────
+$('btnAgregar').addEventListener('click', () => accion('nuevo'));
+$('btnMas').addEventListener('click', () => {
+  // Un menú chico, sin librerías: reusa el aviso no sirve; se abre «Más» como una hoja de dos opciones.
+  const opciones = [['varios', 'playlist_add', 'Cargar varios de una vez'], ['copiar', 'content_copy', 'Copiar de otra cabaña']];
+  const hoja = document.createElement('dialog');
+  hoja.innerHTML = `<div class="in"><div class="cab"><h2>Más opciones</h2><button data-x aria-label="Cerrar"><span class="material-icons">close</span></button></div>
+    <div class="cuerpo"><div class="lista-cabs">${opciones.map(([a, i, t]) => `<button data-a="${a}"><span class="material-icons" style="color:var(--verde)">${i}</span> ${t}</button>`).join('')}</div></div></div>`;
+  document.body.appendChild(hoja);
+  hoja.addEventListener('click', (ev) => {
+    const b = ev.target.closest('button'); if (!b && ev.target !== hoja) return;
+    hoja.close(); hoja.remove(); if (b && b.dataset.a) accion(b.dataset.a);
+  });
+  hoja.showModal();
+});
+function accion(a) {
+  if (a === 'nuevo') return abrirItem(null);
+  if (a === 'nuevo-busca') return abrirItem(null, buscar);
+  if (a === 'varios') return abrirVarios();
+  if (a === 'copiar') return abrirCopiar();
+}
+
+// ── Cerrar hojas ─────────────────────────────────────────────
+for (const d of document.querySelectorAll('dialog')) {
+  d.addEventListener('click', (ev) => { if (ev.target === d || ev.target.closest('[data-cerrar]')) d.close(); });
+}
+
+// ═══ Agregar / editar un ítem ═══
+let editando = null;     // el ítem que se edita (null = uno nuevo)
+let formSec = 'Cocina', formCant = 1, formFoto = '', secElegidaAMano = false;
+
+function chipsSecciones(contenedor, actual, alElegir) {
+  const propias = [...new Set(items.map((x) => x.seccion))].filter((s) => !SECCIONES.some((b) => b.id === s));
+  const todas = [...SECCIONES.map((s) => s.id), ...propias];
+  if (actual && !todas.includes(actual)) todas.splice(todas.length - 1, 0, actual);
+  $(contenedor).innerHTML = todas.map((s) => `<button type="button" data-s="${esc(s)}" class="${s === actual ? 'on' : ''}">${esc(s)}</button>`).join('')
+    + `<button type="button" data-otra class="sug">＋ Otra sección</button>`;
+  $(contenedor).onclick = (ev) => {
+    const b = ev.target.closest('button'); if (!b) return;
+    if (b.hasAttribute('data-otra')) {
+      const n = seccionCanonica(prompt('¿Cómo se llama la sección? (por ejemplo: Quincho)') || '');
+      if (n) alElegir(n); return;
+    }
+    alElegir(b.dataset.s);
+  };
+}
+function pintarForm() {
+  chipsSecciones('iSecciones', formSec, (s) => { formSec = s; secElegidaAMano = true; pintarForm(); avisoRepetido(); });
+  const sug = editando ? [] : sugeridosFaltantes(items, formSec, 8);
+  $('iSugBox').hidden = !sug.length;
+  $('iSug').innerHTML = sug.map((s) => `<button type="button" class="sug" data-sug="${esc(s)}">${esc(s)}</button>`).join('');
+  $('iCant').value = formCant;
+  const v = $('iVista');
+  v.innerHTML = formFoto ? `<img src="${esc(miniatura(formFoto, 240))}" alt="">` : '<span class="material-icons">photo_camera</span>';
+  v.style.borderStyle = formFoto ? 'solid' : 'dashed';
+  $('iFotoTxt').textContent = formFoto ? 'Cambiar la foto' : 'Sacar o elegir foto';
+  $('iFotoX').hidden = !formFoto;
+}
+function avisoRepetido() {
+  const r = repetido(items, $('iNombre').value, formSec, editando && editando.id);
+  $('iRepetido').hidden = !r;
+  if (r) $('iRepetido').innerHTML = `Ya hay «${esc(r.item)}» en ${esc(formSec)} (${r.cantidad}). Podés guardarlo igual, o <b>editar el que ya está</b>.`;
+}
+function abrirItem(x, nombreInicial) {
+  editando = x || null;
+  $('iTit').textContent = x ? 'Editar ítem' : 'Agregar ítem';
+  $('iNombre').value = x ? x.item : (nombreInicial || '');
+  formSec = x ? x.seccion : (nombreInicial ? sugerirSeccion(nombreInicial) : (ultimaSeccion || 'Cocina'));
+  formCant = x ? x.cantidad : 1; formFoto = x ? (x.foto || '') : ''; secElegidaAMano = !!x;
+  $('iBorrar').hidden = !x; $('iOtro').hidden = !!x;
+  pintarForm(); avisoRepetido();
+  $('dItem').showModal();
+  if (!x) setTimeout(() => $('iNombre').focus(), 60);
+}
+let ultimaSeccion = null;
+$('iNombre').addEventListener('input', () => {
+  // Mientras escribe, la sección se sugiere sola (hasta que la elija a mano).
+  if (!editando && !secElegidaAMano) { const s = sugerirSeccion($('iNombre').value); if (s !== 'Otros' || !$('iNombre').value) { if (s !== formSec) { formSec = s; pintarForm(); } } }
+  avisoRepetido();
+});
+$('iNombre').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); guardarItem(false); } });
+$('iSug').addEventListener('click', (ev) => { const b = ev.target.closest('[data-sug]'); if (b) { $('iNombre').value = b.dataset.sug; avisoRepetido(); $('iNombre').focus(); } });
+const nCant = (v) => Math.max(0, Math.min(9999, Math.round(Number(String(v).replace(/[^\d]/g, '')) || 0)));
+$('iMenos').addEventListener('click', () => { formCant = Math.max(0, nCant($('iCant').value) - 1); $('iCant').value = formCant; });
+$('iMas').addEventListener('click', () => { formCant = nCant($('iCant').value) + 1; $('iCant').value = formCant; });
+$('iCant').addEventListener('input', () => { formCant = nCant($('iCant').value); });
+$('iCant').addEventListener('focus', () => $('iCant').select());
+$('iFoto').addEventListener('click', async () => {
+  const url = await CV2.elegirYSubirImagen({ titulo: 'Foto del ítem', carpeta: 'inventario' });
+  if (url) { formFoto = url; pintarForm(); }
+});
+$('iFotoX').addEventListener('click', () => { formFoto = ''; pintarForm(); });
+$('iGuardar').addEventListener('click', () => guardarItem(false));
+$('iOtro').addEventListener('click', () => guardarItem(true));
+$('iBorrar').addEventListener('click', () => { const x = editando; $('dItem').close(); quitar(x); });
+
+function guardarItem(seguir) {
+  const nombre = $('iNombre').value.replace(/\s+/g, ' ').trim();
+  if (!nombre) { CV2.toast('Escribí qué es el ítem', 'error'); $('iNombre').focus(); return; }
+  const dato = { item: nombre.slice(0, 80), cantidad: nCant($('iCant').value), seccion: formSec || 'Otros', ...(formFoto ? { foto: formFoto } : {}) };
+  if (editando) {
+    const x = porId(editando.id);
+    if (x) { Object.assign(x, dato); if (!formFoto) delete x.foto; } else items.push({ id: editando.id, ...dato });
+  } else items.push({ id: idNuevo(), ...dato });
+  ultimaSeccion = dato.seccion;
+  cambio();
+  if (seguir && !editando) {
+    CV2.toast('✓ ' + dato.item + ' agregado', 'success');
+    $('iNombre').value = ''; formCant = 1; formFoto = ''; secElegidaAMano = true; pintarForm(); avisoRepetido(); $('iNombre').focus();
+  } else $('dItem').close();
+}
+function quitar(x) {
+  if (!x) return;
+  const pos = items.findIndex((y) => y.id === x.id); if (pos === -1) return;
+  const copia = items[pos];
+  items.splice(pos, 1); cambio();
+  avisar('«' + copia.item + '» quitado', () => { items.splice(Math.min(pos, items.length), 0, copia); cambio(); });
+}
+async function fotoRapida(x) {
+  if (!x) return;
+  const url = await CV2.elegirYSubirImagen({ titulo: 'Foto de ' + x.item, carpeta: 'inventario' });
+  if (url) { x.foto = url; cambio(); CV2.toast('✓ Foto agregada', 'success'); }
+}
+
+// ═══ Agregar varios de una vez ═══
+let varSec = null;
+function pintarVarios() {
+  chipsSecciones('vSecciones', varSec, (s) => { varSec = s; pintarVarios(); });
+  const filas = parsearLineas($('vTexto').value);
+  const p = $('vPrevia');
+  p.hidden = !filas.length;
+  p.innerHTML = filas.slice(0, 40).map((f) => `<div><span>${esc(f.item)}</span><b>${f.cantidad}</b></div>`).join('') + (filas.length > 40 ? `<div>… y ${filas.length - 40} más</div>` : '');
+  $('vAgregar').disabled = !filas.length;
+  $('vAgregarTxt').textContent = filas.length ? `Agregar ${filas.length} ítem${filas.length === 1 ? '' : 's'}` : 'Agregar';
+}
+function abrirVarios() { $('vTexto').value = ''; varSec = ultimaSeccion || 'Cocina'; pintarVarios(); $('dVarios').showModal(); setTimeout(() => $('vTexto').focus(), 60); }
+$('vTexto').addEventListener('input', pintarVarios);
+$('vAgregar').addEventListener('click', () => {
+  const filas = parsearLineas($('vTexto').value); if (!filas.length) return;
+  for (const f of filas) items.push({ id: idNuevo(), item: f.item, cantidad: f.cantidad, seccion: varSec || sugerirSeccion(f.item) });
+  ultimaSeccion = varSec; cambio(); $('dVarios').close();
+  CV2.toast(`✓ ${filas.length} ítem${filas.length === 1 ? '' : 's'} agregado${filas.length === 1 ? '' : 's'}`, 'success');
+});
+
+// ═══ Copiar de otra cabaña ═══
+let origenId = null;
+function abrirCopiar() {
+  origenId = null;
+  const otras = cabanas.filter((c) => c.id !== cab.id);
+  $('cLista').innerHTML = otras.length ? otras.map((c) => {
+    const f = faltantesDe(leerInventario(c), items).length;
+    return `<button data-o="${esc(c.id)}" ${f ? '' : 'disabled style="opacity:.55"'}><b>${esc(nombreDe(c))}</b><small>${f ? `${f} ítem${f === 1 ? '' : 's'} que acá faltan` : (hayAlgo(c) ? 'No tiene nada que acá falte' : 'Sin inventario cargado')}</small></button>`;
+  }).join('') : '<p class="sub">No hay otra cabaña.</p>';
+  $('cCopiar').disabled = true; $('cCopiarTxt').textContent = 'Copiar';
+  $('dCopiar').showModal();
+}
+$('cLista').addEventListener('click', (ev) => {
+  const b = ev.target.closest('button[data-o]'); if (!b || b.disabled) return;
+  origenId = b.dataset.o;
+  $('cLista').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+  const n = faltantesDe(leerInventario(cabanas.find((c) => c.id === origenId)), items).length;
+  $('cCopiar').disabled = !n; $('cCopiarTxt').textContent = `Copiar ${n} ítem${n === 1 ? '' : 's'}`;
+});
+$('cCopiar').addEventListener('click', () => {
+  const o = cabanas.find((c) => c.id === origenId); if (!o) return;
+  const nuevos = faltantesDe(leerInventario(o), items);
+  items.push(...nuevos); cambio(); $('dCopiar').close();
+  avisar(`✓ ${nuevos.length} ítem${nuevos.length === 1 ? '' : 's'} copiado${nuevos.length === 1 ? '' : 's'} de ${nombreDe(o)}`, null);
+});
+
+// ── La base: se suscribe AL FINAL (regla 3.2) ────────────────
+onSnapshot(collection(db, 'cabanas'), (snap) => {
+  const lista = [];
+  snap.forEach((d) => { const x = { id: d.id, ...d.data() }; if (x.activa !== false) lista.push(x); });
+  lista.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+  cabanas = lista;
+  if (!cabanas.length) { cab = null; items = []; return pintar(); }
+  if (!cab) {
+    const pedido = new URLSearchParams(location.search).get('c');
+    let guardada = null; try { guardada = localStorage.getItem('inv-cab'); } catch {}
+    const elegida = cabanas.find((c) => c.id === pedido) || cabanas.find((c) => c.id === guardada) || cabanas[0];
+    cab = elegida; items = leerInventario(elegida); pintar();
+    if (new URLSearchParams(location.search).get('nuevo') === '1') abrirItem(null);
+    return;
+  }
+  const fresca = cabanas.find((c) => c.id === cab.id);
+  if (!fresca) { cab = cabanas[0]; items = leerInventario(cab); return pintar(); }
+  // Lo que cambió otra persona se ve en el acto; lo que yo todavía no escribí manda.
+  cab = fresca;
+  if (!sucio && !escribiendo && !document.querySelector('dialog[open]') && !(document.activeElement && document.activeElement.matches && document.activeElement.matches('input[data-cant]'))) {
+    items = leerInventario(cab);
+  }
+  pintar();
+}, (e) => { console.error(e); CV2.toast('No se pudo cargar el inventario (' + (e.code ?? e.message) + ')', 'error'); });
+</script>
+</body>
+</html>

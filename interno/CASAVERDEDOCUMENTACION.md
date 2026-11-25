@@ -1,12 +1,35 @@
 # CASA VERDE CANAS — Documentación del sistema
 
-**Edición del 24 de noviembre de 2026** (la última reescritura entera fue la del 31 de julio, tanda 11.23; desde ahí se corrige por partes: ver «Retiros del 9-nov-2026» y cada sección con su fecha)
+**Edición del 26 de noviembre de 2026** (la última reescritura entera fue la del 31 de julio, tanda 11.23; desde ahí se corrige por partes: ver «Retiros del 9-nov-2026» y cada sección con su fecha)
 
 Los tres documentos del proyecto en un solo archivo, para subirlo de una vez al
 conocimiento. Antes eran `CONVENCIONES.md`, `GUIA-SITIO-PUBLICO.md` y
 `Master_briefing_vN.md`; su contenido no cambió, solo viven juntos.
 
 ---
+
+## Inventario por cabaña, una pantalla propia, 26-nov-2026 (`cv2-shell-v151`, `inventario-1`)
+
+Mauro: «una ventana pestaña dentro de casaverde para la gestión del inventario de cada cabaña… se guarda en la base y se simplifica
+luego para el control… muy cómoda, con todos los ítems que se pueden agregar, modificar o eliminar, la foto, la cantidad, en qué
+sección… amigable, siempre intuitiva».
+
+- **`interno/inventario.html`** (menú Alojamiento → Inventario, permiso `contenido`, como `cabanas`; `?c=<id>` elige la cabaña,
+  `?nuevo=1` abre «Agregar ítem»). Lógica pura en **`interno/inventario-core.js`** (sin DOM ni Firebase; banco
+  `node netlify/pruebas/inventario.mjs`, 17 casos). Interfaz: cabañas como píldoras, resumen, buscador, secciones plegables, cada
+  ítem con foto, nombre y − cantidad +; tocar el ítem abre la hoja de edición; botón flotante «Agregar ítem» y «Más» (cargar varios
+  de una, copiar de otra cabaña). Guarda sola (una escritura por tanda de toques); eliminar deja «Deshacer».
+- **Un solo origen, dos formas.** En `cabanas/{id}` se guarda `inventario` = `[{id, item, cantidad, seccion, foto?}]` (la rica, la
+  que edita esta pantalla) y, derivada en cada guardado por `paraGuardar()`, `inventarioBase` = `[{item, cantidad, categoria}]`
+  (la simple, sin fotos) que lee el control de entrada/salida (`actividades.html`) y la guía del huésped (`la-casa.html`, agrupa por
+  `categoria`). Nadie más escribe `inventarioBase`: **`cabanas.html` ya no edita el inventario** (dejó un aviso que lleva acá).
+  Más `inventarioActualizadoEn` / `inventarioActualizadoPor`.
+- Una cabaña vieja (sólo `inventarioBase`) se lee y se acomoda en secciones por su `categoria` o por el nombre (`sugerirSeccion`);
+  queda guardada en la forma rica en el primer cambio. Fotos: `CV2.elegirYSubirImagen({carpeta: 'inventario'})` (Cloudinary, preset
+  sin firma, dos entradas cámara/archivos). Sin colección nueva: no hay reglas que publicar (rige la de `cabanas`).
+- El control de `actividades.html` ahora tiene «🧺 Editar el inventario de esta cabaña» (a esta pantalla) y «✏️ Editar su guía».
+- Verificado con un navegador y Firebase simulado (autoguardado, forma simple derivada, foto, buscar, editar, eliminar y deshacer,
+  carga múltiple, copiar entre cabañas, 390 px de ancho); no con una sesión real.
 
 ## Cinco chips más en la portada, 24-nov-2026 (`cv2-shell-v150`)
 
