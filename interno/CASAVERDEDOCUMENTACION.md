@@ -8,28 +8,35 @@ conocimiento. Antes eran `CONVENCIONES.md`, `GUIA-SITIO-PUBLICO.md` y
 
 ---
 
-## Inventario por cabaña, una pantalla propia, 26-nov-2026 (`cv2-shell-v153`, `inventario-1`)
+## Inventario de cabañas y espacios comunes, con estado y mantenimiento, 26-nov-2026 (`cv2-shell-v154`, `inventario-2`)
 
-Mauro: «una ventana pestaña dentro de casaverde para la gestión del inventario de cada cabaña… se guarda en la base y se simplifica
-luego para el control… muy cómoda, con todos los ítems que se pueden agregar, modificar o eliminar, la foto, la cantidad, en qué
-sección… amigable, siempre intuitiva».
+Mauro (1.ª vuelta): «una pestaña… para la gestión del inventario de cada cabaña… agregar, modificar o eliminar ítems, la foto, la
+cantidad, en qué sección… amigable, siempre intuitiva». (2.ª vuelta): «una pantalla completa para controlar el inventario de cada
+cabaña o de los espacios comunes —la parrilla, todas las instancias que tengan utensilios—, con una descripción del artículo, para
+control nuestro del estado y mantenimiento; si hay que hacer una reparación, que se guarde en la base de datos».
 
-- **`interno/inventario.html`** (menú Alojamiento → Inventario, permiso `contenido`, como `cabanas`; `?c=<id>` elige la cabaña,
+- **`interno/inventario.html`** (Alojamiento → Inventario, permiso `contenido`; `?c=<cabaña>` / `?e=<espacio>` eligen el lugar,
   `?nuevo=1` abre «Agregar ítem»). Lógica pura en **`interno/inventario-core.js`** (sin DOM ni Firebase; banco
-  `node netlify/pruebas/inventario.mjs`, 17 casos). Interfaz: cabañas como píldoras, resumen, buscador, secciones plegables, cada
-  ítem con foto, nombre y − cantidad +; tocar el ítem abre la hoja de edición; botón flotante «Agregar ítem» y «Más» (cargar varios
-  de una, copiar de otra cabaña). Guarda sola (una escritura por tanda de toques); eliminar deja «Deshacer».
-- **Un solo origen, dos formas.** En `cabanas/{id}` se guarda `inventario` = `[{id, item, cantidad, seccion, foto?}]` (la rica, la
-  que edita esta pantalla) y, derivada en cada guardado por `paraGuardar()`, `inventarioBase` = `[{item, cantidad, categoria}]`
-  (la simple, sin fotos) que lee el control de entrada/salida (`actividades.html`) y la guía del huésped (`la-casa.html`, agrupa por
-  `categoria`). Nadie más escribe `inventarioBase`: **`cabanas.html` ya no edita el inventario** (dejó un aviso que lleva acá).
-  Más `inventarioActualizadoEn` / `inventarioActualizadoPor`.
-- Una cabaña vieja (sólo `inventarioBase`) se lee y se acomoda en secciones por su `categoria` o por el nombre (`sugerirSeccion`);
-  queda guardada en la forma rica en el primer cambio. Fotos: `CV2.elegirYSubirImagen({carpeta: 'inventario'})` (Cloudinary, preset
-  sin firma, dos entradas cámara/archivos). Sin colección nueva: no hay reglas que publicar (rige la de `cabanas`).
-- El control de `actividades.html` ahora tiene «🧺 Editar el inventario de esta cabaña» (a esta pantalla) y «✏️ Editar su guía».
-- Verificado con un navegador y Firebase simulado (autoguardado, forma simple derivada, foto, buscar, editar, eliminar y deshacer,
-  carga múltiple, copiar entre cabañas, 390 px de ancho); no con una sesión real.
+  `node netlify/pruebas/inventario.mjs`, 21 casos). Dos pestañas, **Cabañas** y **Espacios comunes** (las `espacios_comunes/`
+  de siempre), con un contador rojo de lo que hay para reparar; secciones plegables (se suman «Parrilla y quincho» y «Recreación»);
+  filtros por estado; buscador (también en la descripción); «Más» = cargar varios de una vez, copiar de otro lugar (sin el estado
+  ni lo anotado) y «Ver todo lo que hay para reparar» (todos los lugares juntos; tocar uno salta al ítem).
+- **Cada ítem** (`inventarios/{lugar}.items[]`): `{ id, item, cantidad, seccion, foto?, descripcion?, estado, revisado?, mantenimiento? }`;
+  `estado` = `bien` | `desgaste` | `reparar` | `baja`; `mantenimiento` = `[{ id, fecha, texto, hecho, hechoEn? }]`. **Anotar una
+  reparación pasa el ítem a `reparar`; tildar todo lo anotado lo devuelve a `bien`** (`anotarMantenimiento` / `resolverMantenimiento`).
+- **Dónde se guarda: `inventarios/{cabana-c1 | espacio-piscina}`**, colección **nueva y PRIVADA** (regla `tiene('contenido')`; el agente
+  la lee por `esAgente()`): el estado y las reparaciones no son para el sitio público, que lee `cabanas/` sin sesión. **Hay que
+  publicar `interno/firestore.rules`** (sin eso la pantalla avisa «falta publicar las reglas» y no guarda).
+- **La simple, derivada.** Al guardar una CABAÑA, en el mismo lote (`writeBatch`: o se escriben las dos cosas o ninguna) se actualiza
+  `cabanas/{id}.inventarioBase` = `[{ item, cantidad, categoria }]`, sin fotos, sin estado y **sin lo «Fuera de uso»**: es lo que
+  leen el control de entrada/salida (`actividades.html`) y «La casa» (`la-casa.html`). Nadie más la escribe: `cabanas.html` ya no edita
+  el inventario (deja un aviso que lleva acá). Los espacios comunes no tienen lista simple. Una cabaña que todavía sólo tiene
+  `inventarioBase` se lee igual (sus ítems se acomodan en secciones) y queda en la forma nueva en el primer cambio; un lugar vaciado
+  a propósito no resucita lo viejo.
+- Fotos: `CV2.elegirYSubirImagen({carpeta: 'inventario'})` (Cloudinary, preset sin firma; dos entradas, cámara y archivos).
+- Verificado con un navegador y Firebase simulado (lote de dos escrituras, espacios, estado y anotaciones, lista global, copiar,
+  cabaña vieja, 390 px de ancho); no con una sesión real ni con las reglas publicadas.
+
 ## La imagen al compartir el enlace, 24-nov-2026
 
 Mauro: «cuando se comparte el sitio en WhatsApp o Facebook, la foto que queda cargada… quisiera que sea la foto de la fachada de la

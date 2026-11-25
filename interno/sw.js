@@ -573,7 +573,11 @@
 // v153 (26-nov-2026) — «Inventario» (inventario.html + inventario-core.js): la gestión del inventario de cada cabaña
 //   en su pantalla —ítems con foto, cantidad y sección; se guarda solo—; la lista simple del control se deriva sola.
 //   cabanas.html ya no edita el inventario; el control de entrada y de salida lleva a la pantalla nueva.
-const VERSION = 'cv2-shell-v153';
+// v154 (26-nov-2026) — «Inventario» también de los ESPACIOS COMUNES (parrilla, piscina, living…), y cada ítem con descripción,
+//   estado (Bien / Con desgaste / Hay que repararlo / Fuera de uso), última revisión y anotaciones de mantenimiento
+//   (inventario-core.js inventario-2; inventario.html). Se guarda en `inventarios/{cabana-c1|espacio-piscina}` (PRIVADO,
+//   colección nueva: hay que publicar interno/firestore.rules) y de una cabaña se sigue derivando `inventarioBase`.
+const VERSION = 'cv2-shell-v154';
 
 const SHELL = [
   './',

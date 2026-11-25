@@ -555,6 +555,16 @@ service cloud.firestore {
       allow write: if tiene('contenido');
     }
 
+    // [INVENTARIO · 26-nov-2026] El inventario de cada cabaña y de cada espacio
+    // común, con descripción, estado y mantenimiento (inventario.html). Es
+    // PRIVADO a propósito: «hay que repararlo» no es para el sitio público, que
+    // por eso lee la lista simple que se deriva en cabanas/{id}.inventarioBase.
+    // Id: «cabana-c1», «espacio-piscina». El agente lo lee por el comodín de
+    // esAgente() (nada sensible: no abre nada).
+    match /inventarios/{id} {
+      allow read, write: if tiene('contenido');
+    }
+
     // Espejo público de ocupación: SOLO cabaña y fechas, sin datos de
     // huéspedes. Existe para que el sitio muestre disponibilidad sin exponer
     // /reservas/ (que tiene nombres, teléfonos y montos y sigue cerrada).

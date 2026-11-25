@@ -10,16 +10,18 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#2d5a27">
 <!--
-  inventario.html — el inventario de cada cabaña. Sello: inventario-1 (26-nov-2026).
+  inventario.html — el inventario de cada cabaña y de los espacios comunes. Sello: inventario-2 (26-nov-2026).
 
-  Mauro: «una pestaña dentro de casaverde para la gestión del inventario de cada cabaña… agregar,
-  modificar o eliminar ítems, cargar la foto, la cantidad, en qué sección (cocina, electrodomésticos…).
-  Esa información se guarda en la base y se simplifica luego para el control. Amigable, siempre intuitiva».
+  Mauro: «una pantalla completa para controlar el inventario de cada una de las cabañas o de los espacios comunes
+  (la parrilla, todas las instancias que tengan utensilios), con una descripción del artículo, para visualización y
+  control nuestro sobre el estado y mantenimiento de cada artículo; si hay que hacer una reparación, que se guarde en
+  la base de datos. Amigable, siempre intuitiva».
 
-  Cada toque se guarda solo (sin botón «Guardar» para lo de la lista). Lo que se escribe es la forma RICA
-  (`cabanas/{id}.inventario`: con foto y sección); la SIMPLE que lee el control de entrada y de salida y «La
-  casa» (`inventarioBase`) se deriva en cada guardado (inventario-core.js: `paraGuardar`). Quien edita
-  inventarios tiene el permiso `contenido`, igual que las cabañas (la regla de `cabanas` no cambia).
+  Cada toque se guarda solo. Lo que se escribe es `inventarios/{cabana-c1 | espacio-piscina}` (PRIVADO, permiso
+  `contenido`): ítems con sección, cantidad, foto, descripción, estado y anotaciones de mantenimiento. De una cabaña,
+  además, se deriva en el mismo guardado la lista SIMPLE que lee el control de entrada y de salida y «La casa»
+  (`cabanas/{id}.inventarioBase`, sin estado y sin lo dado de baja): inventario-core.js, `paraGuardar`. Los dos
+  documentos van en UN lote: o se guardan los dos o ninguno. Hay que publicar interno/firestore.rules (colección nueva).
 -->
 <style>
   .contenedor { padding-bottom: 150px; }
@@ -135,6 +137,64 @@
     min-height: 56px; display: flex; flex-direction: column; gap: 2px; }
   .lista-cabs button small { color: var(--gris); }
   .lista-cabs button.on { border-color: var(--verde); background: #f0f7ee; }
+  /* Cabañas / Espacios comunes */
+  .tipos { display: flex; gap: 0; margin: 4px 0 10px; background: var(--crema, #f3eee0); border-radius: 14px; padding: 4px; }
+  .tipos button { flex: 1; border: 0; background: none; border-radius: 11px; min-height: 46px; font: inherit; font-size: .95rem; cursor: pointer;
+    color: var(--tinta); display: flex; align-items: center; justify-content: center; gap: 7px; }
+  .tipos button { white-space: nowrap; padding: 0 6px; font-size: .9rem; gap: 5px; }
+  .tipos button.on { background: #fff; box-shadow: 0 1px 5px rgba(0,0,0,.15); font-weight: 700; color: var(--verde); }
+  .rojo { background: #c0392b !important; color: #fff !important; }
+  .cabs button .n.rojo, .tipos button .n { font-size: .72rem; border-radius: 999px; padding: 1px 7px; font-weight: 700; }
+  .tipos button .n { background: #c0392b; color: #fff; }
+
+  /* Filtros por estado */
+  .filtros { display: flex; gap: 7px; overflow-x: auto; margin: 0 0 10px; padding-bottom: 2px; scrollbar-width: none; }
+  .filtros::-webkit-scrollbar { display: none; }
+  .filtros button { flex: none; border: 1.5px solid var(--linea); background: #fff; border-radius: 999px; min-height: 38px; padding: 0 13px;
+    font: inherit; font-size: .84rem; cursor: pointer; color: var(--tinta); display: flex; align-items: center; gap: 5px; }
+  .filtros button .material-icons { font-size: 17px; }
+  .filtros button.on { background: var(--verde); border-color: var(--verde); color: #fff; font-weight: 700; }
+  .filtros button.on .material-icons { color: #fff !important; }
+
+  /* El estado de cada ítem */
+  .fila.e-reparar { border-left: 5px solid #c0392b; }
+  .fila.e-desgaste { border-left: 5px solid #d69e2e; }
+  .fila.e-baja { opacity: .65; border-left: 5px solid #9e9e9e; }
+  .nombre b { font-weight: 600; }
+  .nombre .desc { display: block; color: var(--gris); font-size: .78rem; margin-top: 1px; overflow: hidden; text-overflow: ellipsis;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .est { display: inline-flex; align-items: center; gap: 3px; font-size: .74rem; font-weight: 700; margin-top: 3px; }
+  .est .material-icons { font-size: 15px; }
+  .est.reparar { color: #c0392b; } .est.desgaste { color: #b7791f; } .est.baja { color: #7a7a7a; }
+
+  .chips button.e-bien.on { background: #2d5a27; border-color: #2d5a27; }
+  .chips button.e-desgaste.on { background: #b7791f; border-color: #b7791f; }
+  .chips button.e-reparar.on { background: #c0392b; border-color: #c0392b; }
+  .chips button.e-baja.on { background: #7a7a7a; border-color: #7a7a7a; }
+  .chips button.e-bien .material-icons { color: #2d5a27; } .chips button.e-desgaste .material-icons { color: #b7791f; }
+  .chips button.e-reparar .material-icons { color: #c0392b; } .chips button.e-baja .material-icons { color: #7a7a7a; }
+  .chips button.on .material-icons { color: #fff !important; }
+  dialog textarea.corta { min-height: 84px; }
+
+  /* Mantenimiento dentro de la hoja */
+  .mant { display: flex; align-items: flex-start; gap: 6px; border: 1px solid var(--linea); border-radius: 12px; padding: 4px 4px 4px 2px; margin-bottom: 6px; background: #fff; }
+  .mant .t { flex: 1; min-width: 0; padding: 8px 0; font-size: .92rem; line-height: 1.3; word-break: break-word; }
+  .mant .t small { display: block; color: var(--gris); font-size: .74rem; margin-top: 2px; }
+  .mant.hecho .t span { text-decoration: line-through; color: var(--gris); }
+  .mant button { border: 0; background: none; cursor: pointer; padding: 10px; display: flex; color: var(--gris); }
+  .mant button.chk { color: var(--verde); }
+  .mant-nuevo { display: flex; gap: 8px; }
+  .mant-nuevo input { flex: 1; }
+  .mant-nuevo .btn { min-height: 48px; }
+  .nota-chica { color: var(--gris); font-size: .78rem; margin: 6px 0 0; line-height: 1.35; }
+  .revisado { display: flex; align-items: center; gap: 10px; font-size: .88rem; color: var(--gris); }
+  .revisado .btn { min-height: 40px; }
+
+  /* Lo que hay para reparar, en todos lados */
+  .pend { text-align: left; border: 1.5px solid var(--linea); background: #fff; border-radius: 12px; padding: 10px 14px; font: inherit; cursor: pointer;
+    display: flex; flex-direction: column; gap: 2px; min-height: 56px; border-left: 5px solid #c0392b; }
+  .pend small { color: var(--gris); }
+  #sinReglas { background: #fdecea; border: 1px solid #f5c2bd; color: #7a1f16; border-radius: 12px; padding: 10px 14px; font-size: .86rem; margin: 0 0 10px; }
 </style>
 </head>
 <body>
@@ -143,15 +203,21 @@
 
 <div class="contenedor">
   <h1>Inventario</h1>
-  <p class="sub">Lo que tiene cada cabaña. Tocá un ítem para editarlo, el − y el + para cambiar la cantidad, y la cámara para ponerle foto.
-  Todo se guarda solo.</p>
+  <p class="sub">Lo que hay en cada cabaña y en los espacios comunes (parrilla, piscina, living…): cuántos hay, en qué estado están y qué
+  hay que arreglar. Tocá un ítem para ver o cambiar todo; el − y el + cambian la cantidad. Todo se guarda solo.</p>
 
-  <div class="cabs" id="cabs" role="tablist" aria-label="Cabaña"></div>
+  <div id="sinReglas" hidden><b>Falta publicar las reglas de Firestore.</b> Esta pantalla guarda en una colección nueva
+  (<code>inventarios</code>) y la base todavía no lo permite: publicá <code>interno/firestore.rules</code> desde el panel.</div>
+
+  <div class="tipos" id="tipos" role="tablist" aria-label="Qué inventario"></div>
+  <div class="cabs" id="cabs" role="tablist" aria-label="Lugar"></div>
 
   <div class="fila-estado">
     <span id="resumen"></span>
     <span class="guardado ok" id="guardado"></span>
   </div>
+
+  <div class="filtros" id="filtros"></div>
 
   <div class="busca">
     <span class="material-icons">search</span>
@@ -193,6 +259,12 @@
         <button id="iMas" aria-label="Más"><span class="material-icons">add</span></button>
       </div>
 
+      <label class="campo">¿En qué estado está?</label>
+      <div class="chips" id="iEstados"></div>
+
+      <label class="campo" for="iDesc">Descripción <span style="font-weight:400">(opcional)</span></label>
+      <textarea id="iDesc" class="corta" maxlength="400" placeholder="Marca, medidas, color, dónde se guarda, cómo se usa…"></textarea>
+
       <label class="campo">Foto</label>
       <div class="fotobox">
         <div class="vista" id="iVista"><span class="material-icons">photo_camera</span></div>
@@ -200,6 +272,19 @@
           <button class="btn" id="iFoto"><span class="material-icons">add_a_photo</span> <span id="iFotoTxt">Sacar o elegir foto</span></button>
           <button class="btn" id="iFotoX" hidden><span class="material-icons">delete_outline</span> Quitar la foto</button>
         </div>
+      </div>
+
+      <label class="campo">Reparaciones y mantenimiento</label>
+      <div id="iMant"></div>
+      <div class="mant-nuevo">
+        <input type="text" id="iMantTxt" maxlength="300" placeholder="Ej.: Soldar la pata, cambiar la manija…" autocomplete="off" enterkeyhint="done">
+        <button class="btn" id="iMantAdd"><span class="material-icons">build</span> Anotar</button>
+      </div>
+      <p class="nota-chica">Al anotar algo, el ítem queda como «Hay que repararlo». Cuando tildás todo lo anotado, vuelve a «Bien».</p>
+
+      <div class="revisado" style="margin-top:12px">
+        <span id="iRev">Sin revisar todavía</span>
+        <button class="btn" id="iRevHoy" style="margin-left:auto"><span class="material-icons">event_available</span> Revisado hoy</button>
       </div>
     </div>
     <div class="pie">
@@ -228,12 +313,12 @@
   </div>
 </dialog>
 
-<!-- ═══ Copiar de otra cabaña ═══ -->
+<!-- ═══ Copiar de otro lugar ═══ -->
 <dialog id="dCopiar">
   <div class="in">
-    <div class="cab"><h2>Copiar de otra cabaña</h2><button data-cerrar aria-label="Cerrar"><span class="material-icons">close</span></button></div>
+    <div class="cab"><h2>Copiar de otro lugar</h2><button data-cerrar aria-label="Cerrar"><span class="material-icons">close</span></button></div>
     <div class="cuerpo">
-      <p class="sub" style="margin-top:0">Se suman acá <b>sólo los ítems que faltan</b> (con su foto y su sección). Lo que ya está, no se toca.</p>
+      <p class="sub" style="margin-top:0">Se suman acá <b>sólo los ítems que faltan</b> (con su foto, su sección y su descripción; el estado y lo anotado no se copian). Lo que ya está, no se toca.</p>
       <div class="lista-cabs" id="cLista"></div>
     </div>
     <div class="pie">
@@ -243,11 +328,21 @@
   </div>
 </dialog>
 
+<!-- ═══ Lo que hay para reparar, en todos lados ═══ -->
+<dialog id="dPend">
+  <div class="in">
+    <div class="cab"><h2>Para reparar</h2><button data-cerrar aria-label="Cerrar"><span class="material-icons">close</span></button></div>
+    <div class="cuerpo"><div class="lista-cabs" id="pLista"></div></div>
+    <div class="pie"><button class="btn" data-cerrar>Cerrar</button></div>
+  </div>
+</dialog>
+
 <script type="module">
-import { db, collection, onSnapshot, doc, updateDoc, serverTimestamp } from './firebase-init.js';
+import { db, collection, onSnapshot, doc, writeBatch, serverTimestamp } from './firebase-init.js';
 import { CV2 } from './nucleo.js';
-import { SECCIONES, leerInventario, paraGuardar, agrupar, parsearLineas, faltantesDe, repetido, sugerirSeccion,
-  sugeridosFaltantes, miniatura, resumen, idNuevo, iconoDe, seccionCanonica, clave } from './inventario-core.js';
+import { SECCIONES, ESTADOS, estadoDe, leerInventario, paraGuardar, agrupar, parsearLineas, faltantesDe, repetido, sugerirSeccion,
+  sugeridosFaltantes, miniatura, resumen, idNuevo, seccionCanonica, clave, filtrar, pendientes, necesitaAtencion,
+  anotarMantenimiento, resolverMantenimiento, claveLugar, paraRepararEn } from './inventario-core.js';
 
 CV2.registrarSW();
 const u = await CV2.verificarAuth();
@@ -259,17 +354,24 @@ const $ = (id) => document.getElementById(id);
 const esc = CV2.esc;
 
 // ── El estado ────────────────────────────────────────────────
-let cabanas = [];        // las cabañas activas, como llegan de la base
-let cab = null;          // la elegida
-let items = [];          // su inventario, en la forma rica
-let buscar = '';
-let cerradas = new Set(JSON.parse(sessionStorage.getItem('inv-cerradas') || '[]'));
+let lugares = [];        // cabañas activas + espacios comunes: { key, tipo, id, nombre, raw }
+let invs = new Map();    // inventarios/{key} tal como llegan de la base
+let lug = null;          // el lugar elegido
+let tipo = 'cabana';     // la pestaña: 'cabana' | 'espacio'
+let items = [];          // el inventario del lugar elegido, en la forma rica
+let buscar = '', filtro = 'todo';
+let cerradas = new Set(); try { cerradas = new Set(JSON.parse(sessionStorage.getItem('inv-cerradas') || '[]')); } catch {}
 let sucio = false;       // hay cambios sin escribir
 let escribiendo = null;  // la promesa del guardado en curso
 let temporizador = null;
+const listos = { c: false, e: false, i: false };
 
-const nombreDe = (c) => (c.nombre && (c.nombre.es || c.nombre.pt || c.nombre.en)) || c.id;
-const hayAlgo = (c) => leerInventario(c).length;
+const nombreDe = (raw) => (raw && raw.nombre && (typeof raw.nombre === 'string' ? raw.nombre : (raw.nombre.es || raw.nombre.pt || raw.nombre.en))) || (raw && raw.id) || '';
+const itemsDe = (l) => invs.has(l.key) ? leerInventario({ items: invs.get(l.key).items }) : (l.tipo === 'cabana' ? leerInventario(l.raw) : []);
+const itemsAhora = (l) => (lug && l.key === lug.key ? items : itemsDe(l));
+const hoy = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const fechaTxt = (f) => (f ? f.split('-').reverse().join('/') : '');
+const plural = (n, a, b) => `${n} ${n === 1 ? a : b}`;
 
 // ── Guardar: cada cambio se escribe solo ─────────────────────
 function marcar(estado, txt) {
@@ -286,14 +388,23 @@ function cambio() {
 }
 async function escribir() {
   clearTimeout(temporizador);
-  if (!cab || !sucio) return;
+  if (!lug || !sucio) return;
   if (escribiendo) { await escribiendo; if (!sucio) return; }
-  const id = cab.id, datos = paraGuardar(items);
+  const l = lug, datos = paraGuardar(items), por = u.nombre || u.email || '';
   sucio = false;
-  escribiendo = updateDoc(doc(db, 'cabanas', id), {
-    ...datos, inventarioActualizadoEn: serverTimestamp(), inventarioActualizadoPor: u.nombre || u.email || ''
-  }).then(() => { if (!sucio) marcar('ok', '✓ Guardado'); })
-    .catch((e) => { sucio = true; marcar('mal', '⚠ No se guardó: ' + (e.code || e.message) + ' · tocá para reintentar'); })
+  // UN lote: la rica (privada) y, en una cabaña, la simple derivada (la que lee el control y «La casa»).
+  const lote = writeBatch(db);
+  lote.set(doc(db, 'inventarios', l.key), { tipo: l.tipo, lugar: l.id, nombre: l.nombre, items: datos.items,
+    actualizadoEn: serverTimestamp(), actualizadoPor: por });
+  if (l.tipo === 'cabana') lote.update(doc(db, 'cabanas', l.id), { inventarioBase: datos.inventarioBase,
+    inventarioActualizadoEn: serverTimestamp(), inventarioActualizadoPor: por });
+  escribiendo = lote.commit()
+    .then(() => { $('sinReglas').hidden = true; if (!sucio) marcar('ok', '✓ Guardado'); })
+    .catch((e) => {
+      sucio = true;
+      if (e && e.code === 'permission-denied') { $('sinReglas').hidden = false; marcar('mal', '⚠ No se guardó: faltan publicar las reglas · tocá para reintentar'); }
+      else marcar('mal', '⚠ No se guardó: ' + ((e && (e.code || e.message)) || 'error') + ' · tocá para reintentar');
+    })
     .finally(() => { escribiendo = null; });
   await escribiendo;
 }
@@ -302,61 +413,96 @@ $('guardado').addEventListener('click', () => { if (sucio) escribir(); });
 window.addEventListener('pagehide', () => { if (sucio) escribir(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && sucio) escribir(); });
 
-// ── Elegir cabaña ────────────────────────────────────────────
-async function elegir(id) {
+// ── Elegir lugar ─────────────────────────────────────────────
+async function elegir(key) {
   await escribir();
-  cab = cabanas.find((c) => c.id === id) || cabanas[0] || null;
-  if (!cab) { items = []; pintar(); return; }
-  items = leerInventario(cab);
-  try { localStorage.setItem('inv-cab', cab.id); } catch {}
-  buscar = ''; $('q').value = ''; $('qx').hidden = true;
+  lug = lugares.find((l) => l.key === key) || lugares.find((l) => l.tipo === tipo) || lugares[0] || null;
+  if (!lug) { items = []; return pintar(); }
+  tipo = lug.tipo; items = itemsDe(lug);
+  try { localStorage.setItem('inv-lugar', lug.key); } catch {}
+  buscar = ''; filtro = 'todo'; $('q').value = ''; $('qx').hidden = true;
   marcar('ok', '');
   pintar();
 }
 
 // ── Pintar ───────────────────────────────────────────────────
-function pintarCabs() {
-  $('cabs').innerHTML = cabanas.map((c) => {
-    const n = c === cab ? items.length : hayAlgo(c);
-    return `<button role="tab" data-c="${esc(c.id)}" class="${cab && c.id === cab.id ? 'on' : ''}" aria-selected="${cab && c.id === cab.id}">
-      ${esc(nombreDe(c))}<span class="n">${n}</span></button>`;
+function pintarCabeceras() {
+  const por = (t) => lugares.filter((l) => l.tipo === t);
+  const reparar = (t) => por(t).reduce((s, l) => s + resumen(itemsAhora(l)).reparar, 0);
+  const tabs = [['cabana', 'cottage', 'Cabañas'], ['espacio', 'deck', 'Espacios comunes']].filter(([t]) => por(t).length);
+  $('tipos').innerHTML = tabs.length > 1 ? tabs.map(([t, ic, tx]) => { const r = reparar(t);
+    return `<button role="tab" data-t="${t}" class="${tipo === t ? 'on' : ''}" aria-selected="${tipo === t}"><span class="material-icons">${ic}</span>${tx}${r ? `<span class="n" title="Para reparar">${r}</span>` : ''}</button>`; }).join('') : '';
+  $('cabs').innerHTML = por(tipo).map((l) => {
+    const its = itemsAhora(l), r = resumen(its);
+    return `<button role="tab" data-c="${esc(l.key)}" class="${lug && l.key === lug.key ? 'on' : ''}" aria-selected="${!!lug && l.key === lug.key}">
+      ${esc(l.nombre)}<span class="n ${r.reparar ? 'rojo' : ''}" title="${r.reparar ? 'Para reparar' : 'Ítems'}">${r.reparar || its.length}</span></button>`;
   }).join('');
+}
+function pintarFiltros() {
+  const r = resumen(items);
+  const hay = r.reparar || r.desgaste || r.baja;
+  if (!lug || !items.length || !hay) { $('filtros').innerHTML = ''; if (filtro !== 'todo') filtro = 'todo'; return; }
+  const f = [['todo', 'list', 'Todo', items.length, '#2d5a27'], ['reparar', 'build', 'Para reparar', r.reparar, '#c0392b'],
+    ['desgaste', 'error_outline', 'Con desgaste', r.desgaste, '#b7791f'], ['baja', 'block', 'Fuera de uso', r.baja, '#7a7a7a']]
+    .filter(([id, , , n]) => id === 'todo' || n);
+  if (!f.some(([id]) => id === filtro)) filtro = 'todo';
+  $('filtros').innerHTML = f.map(([id, ic, tx, n, col]) => `<button data-f="${id}" class="${filtro === id ? 'on' : ''}"><span class="material-icons" style="color:${col}">${ic}</span>${tx} · ${n}</button>`).join('');
 }
 function pintarFoto(x) {
   return x.foto
     ? `<button class="foto con" data-foto="${esc(x.id)}" aria-label="Ver o cambiar la foto"><img src="${esc(miniatura(x.foto))}" alt="" loading="lazy"></button>`
     : `<button class="foto" data-foto="${esc(x.id)}" aria-label="Agregar una foto"><span class="material-icons">add_a_photo</span></button>`;
 }
-function pintar() {
-  pintarCabs();
+function pintarEstado(x) {
+  const p = pendientes(x), e = estadoDe(x.estado);
+  if (x.estado === 'bien' && !p) return '';
+  const ic = x.estado === 'bien' ? 'build' : e.icono;
+  const cl = x.estado === 'bien' ? 'reparar' : x.estado;
+  const txt = x.estado === 'bien' ? '' : e.texto;
+  const extra = p ? (txt ? ' · ' : '') + plural(p, 'anotación', 'anotaciones') + ' sin hacer' : '';
+  return `<span class="est ${cl}"><span class="material-icons">${ic}</span>${esc(txt + extra)}</span>`;
+}
+const resumenTxt = () => {
   const r = resumen(items);
-  $('resumen').textContent = cab ? (r.items ? `${r.items} ítem${r.items === 1 ? '' : 's'} · ${r.unidades} unidades · ${r.secciones} sección${r.secciones === 1 ? '' : 'es'}` : 'Sin ítems todavía') : '';
-  $('flot').hidden = !cab;
+  return `${plural(r.items, 'ítem', 'ítems')} · ${r.unidades} unidades · ${plural(r.secciones, 'sección', 'secciones')}` + (r.reparar ? ` · ${r.reparar} para reparar` : '');
+};
+function pintar() {
+  pintarCabeceras();
+  $('resumen').textContent = lug ? (items.length ? resumenTxt() : 'Sin ítems todavía') : '';
+  pintarFiltros();
+  $('flot').hidden = !lug;
   const lista = $('lista');
-  if (!cab) { lista.innerHTML = '<div class="vacio"><span class="material-icons">cottage</span><h3>No hay cabañas cargadas</h3><p>Se crean en «Datos de cabañas».</p></div>'; return; }
+  if (!lug) { lista.innerHTML = '<div class="vacio"><span class="material-icons">cottage</span><h3>No hay cabañas ni espacios cargados</h3><p>Se crean en «Datos de cabañas» y en «Espacios».</p></div>'; return; }
   if (!items.length) {
+    const cab = lug.tipo === 'cabana';
     lista.innerHTML = `<div class="vacio"><span class="material-icons">inventory_2</span>
-      <h3>${esc(nombreDe(cab))} no tiene inventario cargado</h3>
-      <p>Cargá lo que tiene la cabaña: sirve para controlar la entrada y la salida de cada huésped.</p>
+      <h3>${esc(lug.nombre)} no tiene inventario cargado</h3>
+      <p>${cab ? 'Cargá lo que tiene la cabaña: sirve para controlar la entrada y la salida de cada huésped y para saber en qué estado está cada cosa.'
+        : 'Cargá lo que hay en este espacio (utensilios, equipos, muebles…) para saber qué hay y en qué estado está.'}</p>
       <div class="acciones">
         <button class="btn btn-primario" data-acc="nuevo"><span class="material-icons">add</span> Agregar un ítem</button>
         <button class="btn" data-acc="varios"><span class="material-icons">playlist_add</span> Cargar varios de una vez</button>
-        <button class="btn" data-acc="copiar"><span class="material-icons">content_copy</span> Copiar de otra cabaña</button>
+        <button class="btn" data-acc="copiar"><span class="material-icons">content_copy</span> Copiar de otro lugar</button>
       </div></div>`;
     return;
   }
-  const k = clave(buscar);
-  const visibles = k ? items.filter((x) => clave(x.item).includes(k) || clave(x.seccion).includes(k)) : items;
-  if (!visibles.length) { lista.innerHTML = `<div class="vacio"><span class="material-icons">search_off</span><h3>No hay nada con «${esc(buscar)}»</h3>
-    <div class="acciones"><button class="btn btn-primario" data-acc="nuevo-busca"><span class="material-icons">add</span> Agregar «${esc(buscar)}»</button></div></div>`; return; }
+  const visibles = filtrar(items, filtro, buscar);
+  if (!visibles.length) {
+    lista.innerHTML = buscar
+      ? `<div class="vacio"><span class="material-icons">search_off</span><h3>No hay nada con «${esc(buscar)}»</h3>
+        <div class="acciones"><button class="btn btn-primario" data-acc="nuevo-busca"><span class="material-icons">add</span> Agregar «${esc(buscar)}»</button></div></div>`
+      : '<div class="vacio"><span class="material-icons">task_alt</span><h3>Nada por acá</h3></div>';
+    return;
+  }
+  const abierta = !!buscar || filtro !== 'todo';
   lista.innerHTML = agrupar(visibles).map((g) => `
-    <div class="sec ${cerradas.has(g.seccion) && !k ? 'cerrada' : ''}" data-sec="${esc(g.seccion)}">
+    <div class="sec ${cerradas.has(g.seccion) && !abierta ? 'cerrada' : ''}" data-sec="${esc(g.seccion)}">
       <button class="sec-cab" data-plegar="${esc(g.seccion)}"><span class="material-icons">${esc(g.icono)}</span><b>${esc(g.seccion)}</b>
         <span class="cuenta">${g.items.length}</span><span class="material-icons flecha">expand_more</span></button>
       <div class="filas">${g.items.map((x) => `
-        <div class="fila ${x.cantidad === 0 ? 'cero' : ''}" data-id="${esc(x.id)}">
+        <div class="fila e-${x.estado} ${necesitaAtencion(x) && x.estado !== 'reparar' ? 'e-reparar' : ''} ${x.cantidad === 0 ? 'cero' : ''}" data-id="${esc(x.id)}">
           ${pintarFoto(x)}
-          <div class="nombre" data-editar="${esc(x.id)}">${esc(x.item)}${x.cantidad === 0 ? '<small>cantidad 0: tocá el + o editá</small>' : ''}</div>
+          <div class="nombre" data-editar="${esc(x.id)}"><b>${esc(x.item)}</b>${x.descripcion ? `<span class="desc">${esc(x.descripcion)}</span>` : ''}${pintarEstado(x)}${x.cantidad === 0 ? '<small>cantidad 0: tocá el + o editá</small>' : ''}</div>
           <div class="cant">
             <button data-menos="${esc(x.id)}" aria-label="Menos"><span class="material-icons">remove</span></button>
             <input type="text" inputmode="numeric" maxlength="4" value="${x.cantidad}" data-cant="${esc(x.id)}" aria-label="Cantidad de ${esc(x.item)}">
@@ -396,9 +542,20 @@ $('lista').addEventListener('change', (ev) => {
   x.cantidad = n; i.value = n; cambio();
 });
 $('lista').addEventListener('focusin', (ev) => { if (ev.target.matches('input[data-cant]')) ev.target.select(); });
-const resumenTxt = () => { const r = resumen(items); return `${r.items} ítem${r.items === 1 ? '' : 's'} · ${r.unidades} unidades · ${r.secciones} sección${r.secciones === 1 ? '' : 'es'}`; };
 
-$('cabs').addEventListener('click', (ev) => { const b = ev.target.closest('button[data-c]'); if (b) elegir(b.dataset.c); });
+$('tipos').addEventListener('click', (ev) => {
+  const b = ev.target.closest('button[data-t]'); if (!b || b.dataset.t === tipo) return;
+  tipo = b.dataset.t;
+  let ult = null; try { ult = localStorage.getItem('inv-lugar-' + tipo); } catch {}
+  const k = (lugares.find((l) => l.key === ult && l.tipo === tipo) || lugares.find((l) => l.tipo === tipo) || {}).key;
+  if (k) elegir(k);
+});
+$('cabs').addEventListener('click', (ev) => {
+  const b = ev.target.closest('button[data-c]'); if (!b) return;
+  try { localStorage.setItem('inv-lugar-' + tipo, b.dataset.c); } catch {}
+  elegir(b.dataset.c);
+});
+$('filtros').addEventListener('click', (ev) => { const b = ev.target.closest('button[data-f]'); if (b) { filtro = b.dataset.f; pintar(); } });
 $('q').addEventListener('input', () => { buscar = $('q').value; $('qx').hidden = !buscar; pintar(); });
 $('qx').addEventListener('click', () => { $('q').value = ''; buscar = ''; $('qx').hidden = true; pintar(); $('q').focus(); });
 
@@ -414,11 +571,12 @@ $('avisoBtn').addEventListener('click', () => { if (alDeshacer) alDeshacer(); $(
 // ── Botones de abajo ─────────────────────────────────────────
 $('btnAgregar').addEventListener('click', () => accion('nuevo'));
 $('btnMas').addEventListener('click', () => {
-  // Un menú chico, sin librerías: reusa el aviso no sirve; se abre «Más» como una hoja de dos opciones.
-  const opciones = [['varios', 'playlist_add', 'Cargar varios de una vez'], ['copiar', 'content_copy', 'Copiar de otra cabaña']];
+  const total = paraRepararEn(lugares.map((l) => ({ ...l, items: itemsAhora(l) }))).length;
+  const opciones = [['varios', 'playlist_add', 'Cargar varios de una vez'], ['copiar', 'content_copy', 'Copiar de otro lugar'],
+    ['pendientes', 'build', total ? `Ver todo lo que hay para reparar (${total})` : 'Ver todo lo que hay para reparar']];
   const hoja = document.createElement('dialog');
   hoja.innerHTML = `<div class="in"><div class="cab"><h2>Más opciones</h2><button data-x aria-label="Cerrar"><span class="material-icons">close</span></button></div>
-    <div class="cuerpo"><div class="lista-cabs">${opciones.map(([a, i, t]) => `<button data-a="${a}"><span class="material-icons" style="color:var(--verde)">${i}</span> ${t}</button>`).join('')}</div></div></div>`;
+    <div class="cuerpo"><div class="lista-cabs">${opciones.map(([a, i, t]) => `<button data-a="${a}"><span class="material-icons" style="color:var(--verde)">${i}</span> ${esc(t)}</button>`).join('')}</div></div></div>`;
   document.body.appendChild(hoja);
   hoja.addEventListener('click', (ev) => {
     const b = ev.target.closest('button'); if (!b && ev.target !== hoja) return;
@@ -431,6 +589,7 @@ function accion(a) {
   if (a === 'nuevo-busca') return abrirItem(null, buscar);
   if (a === 'varios') return abrirVarios();
   if (a === 'copiar') return abrirCopiar();
+  if (a === 'pendientes') return abrirPendientes();
 }
 
 // ── Cerrar hojas ─────────────────────────────────────────────
@@ -441,6 +600,8 @@ for (const d of document.querySelectorAll('dialog')) {
 // ═══ Agregar / editar un ítem ═══
 let editando = null;     // el ítem que se edita (null = uno nuevo)
 let formSec = 'Cocina', formCant = 1, formFoto = '', secElegidaAMano = false;
+let formEstado = 'bien', formMant = [], formRev = '';
+let ultimaSeccion = null;
 
 function chipsSecciones(contenedor, actual, alElegir) {
   const propias = [...new Set(items.map((x) => x.seccion))].filter((s) => !SECCIONES.some((b) => b.id === s));
@@ -457,17 +618,27 @@ function chipsSecciones(contenedor, actual, alElegir) {
     alElegir(b.dataset.s);
   };
 }
+function pintarMant() {
+  $('iMant').innerHTML = formMant.map((m) => `<div class="mant ${m.hecho ? 'hecho' : ''}">
+      <button class="chk" data-mh="${esc(m.id)}" aria-label="${m.hecho ? 'Volver a pendiente' : 'Marcar como hecho'}"><span class="material-icons">${m.hecho ? 'check_box' : 'check_box_outline_blank'}</span></button>
+      <div class="t"><span>${esc(m.texto)}</span><small>${m.fecha ? 'Anotado el ' + esc(fechaTxt(m.fecha)) : ''}${m.hecho && m.hechoEn ? ' · hecho el ' + esc(fechaTxt(m.hechoEn)) : ''}</small></div>
+      <button data-mx="${esc(m.id)}" aria-label="Sacar esta anotación"><span class="material-icons">close</span></button></div>`).join('');
+}
 function pintarForm() {
   chipsSecciones('iSecciones', formSec, (s) => { formSec = s; secElegidaAMano = true; pintarForm(); avisoRepetido(); });
   const sug = editando ? [] : sugeridosFaltantes(items, formSec, 8);
   $('iSugBox').hidden = !sug.length;
   $('iSug').innerHTML = sug.map((s) => `<button type="button" class="sug" data-sug="${esc(s)}">${esc(s)}</button>`).join('');
   $('iCant').value = formCant;
+  $('iEstados').innerHTML = ESTADOS.map((e) => `<button type="button" data-e="${e.id}" class="e-${e.id} ${formEstado === e.id ? 'on' : ''}"><span class="material-icons">${e.icono}</span>${esc(e.texto)}</button>`).join('');
   const v = $('iVista');
   v.innerHTML = formFoto ? `<img src="${esc(miniatura(formFoto, 240))}" alt="">` : '<span class="material-icons">photo_camera</span>';
   v.style.borderStyle = formFoto ? 'solid' : 'dashed';
   $('iFotoTxt').textContent = formFoto ? 'Cambiar la foto' : 'Sacar o elegir foto';
   $('iFotoX').hidden = !formFoto;
+  pintarMant();
+  $('iRev').textContent = formRev ? 'Última revisión: ' + fechaTxt(formRev) : 'Sin revisar todavía';
+  $('iRevHoy').hidden = formRev === hoy();
 }
 function avisoRepetido() {
   const r = repetido(items, $('iNombre').value, formSec, editando && editando.id);
@@ -478,14 +649,17 @@ function abrirItem(x, nombreInicial) {
   editando = x || null;
   $('iTit').textContent = x ? 'Editar ítem' : 'Agregar ítem';
   $('iNombre').value = x ? x.item : (nombreInicial || '');
-  formSec = x ? x.seccion : (nombreInicial ? sugerirSeccion(nombreInicial) : (ultimaSeccion || 'Cocina'));
+  $('iDesc').value = x ? (x.descripcion || '') : '';
+  $('iMantTxt').value = '';
+  formSec = x ? x.seccion : (nombreInicial ? sugerirSeccion(nombreInicial) : (ultimaSeccion || (lug && lug.tipo === 'espacio' ? 'Parrilla y quincho' : 'Cocina')));
   formCant = x ? x.cantidad : 1; formFoto = x ? (x.foto || '') : ''; secElegidaAMano = !!x;
+  formEstado = x ? x.estado : 'bien'; formMant = x ? (x.mantenimiento || []).map((m) => ({ ...m })) : []; formRev = x ? (x.revisado || '') : '';
   $('iBorrar').hidden = !x; $('iOtro').hidden = !!x;
   pintarForm(); avisoRepetido();
   $('dItem').showModal();
+  $('dItem').querySelector('.cuerpo').scrollTop = 0;
   if (!x) setTimeout(() => $('iNombre').focus(), 60);
 }
-let ultimaSeccion = null;
 $('iNombre').addEventListener('input', () => {
   // Mientras escribe, la sección se sugiere sola (hasta que la elija a mano).
   if (!editando && !secElegidaAMano) { const s = sugerirSeccion($('iNombre').value); if (s !== 'Otros' || !$('iNombre').value) { if (s !== formSec) { formSec = s; pintarForm(); } } }
@@ -498,11 +672,31 @@ $('iMenos').addEventListener('click', () => { formCant = Math.max(0, nCant($('iC
 $('iMas').addEventListener('click', () => { formCant = nCant($('iCant').value) + 1; $('iCant').value = formCant; });
 $('iCant').addEventListener('input', () => { formCant = nCant($('iCant').value); });
 $('iCant').addEventListener('focus', () => $('iCant').select());
+$('iEstados').addEventListener('click', (ev) => { const b = ev.target.closest('[data-e]'); if (b) { formEstado = b.dataset.e; pintarForm(); } });
 $('iFoto').addEventListener('click', async () => {
   const url = await CV2.elegirYSubirImagen({ titulo: 'Foto del ítem', carpeta: 'inventario' });
   if (url) { formFoto = url; pintarForm(); }
 });
 $('iFotoX').addEventListener('click', () => { formFoto = ''; pintarForm(); });
+$('iRevHoy').addEventListener('click', () => { formRev = hoy(); pintarForm(); });
+
+// Mantenimiento: anotar, tildar como hecho, sacar. Trabaja sobre una copia del ítem hasta que se guarda.
+function anotar() {
+  const t = $('iMantTxt').value; if (!t.trim()) return false;
+  const r = anotarMantenimiento({ estado: formEstado, mantenimiento: formMant }, t, hoy());
+  formMant = r.mantenimiento; formEstado = r.estado; $('iMantTxt').value = '';
+  return true;
+}
+$('iMantAdd').addEventListener('click', () => { if (anotar()) { pintarForm(); $('iMantTxt').focus(); } });
+$('iMantTxt').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); if (anotar()) pintarForm(); } });
+$('iMant').addEventListener('click', (ev) => {
+  const b = ev.target.closest('button'); if (!b) return;
+  if (b.dataset.mh) {
+    const m = formMant.find((y) => y.id === b.dataset.mh); if (!m) return;
+    const r = resolverMantenimiento({ estado: formEstado, mantenimiento: formMant }, m.id, !m.hecho, hoy());
+    formMant = r.mantenimiento; formEstado = r.estado; pintarForm();
+  } else if (b.dataset.mx) { formMant = formMant.filter((y) => y.id !== b.dataset.mx); pintarForm(); }
+});
 $('iGuardar').addEventListener('click', () => guardarItem(false));
 $('iOtro').addEventListener('click', () => guardarItem(true));
 $('iBorrar').addEventListener('click', () => { const x = editando; $('dItem').close(); quitar(x); });
@@ -510,16 +704,20 @@ $('iBorrar').addEventListener('click', () => { const x = editando; $('dItem').cl
 function guardarItem(seguir) {
   const nombre = $('iNombre').value.replace(/\s+/g, ' ').trim();
   if (!nombre) { CV2.toast('Escribí qué es el ítem', 'error'); $('iNombre').focus(); return; }
-  const dato = { item: nombre.slice(0, 80), cantidad: nCant($('iCant').value), seccion: formSec || 'Otros', ...(formFoto ? { foto: formFoto } : {}) };
+  anotar();   // lo que quedó escrito en «Anotar» sin tocar el botón, no se pierde
+  const dato = { item: nombre.slice(0, 80), cantidad: nCant($('iCant').value), seccion: formSec || 'Otros', estado: formEstado,
+    ...(formFoto ? { foto: formFoto } : {}), ...($('iDesc').value.trim() ? { descripcion: $('iDesc').value.trim().slice(0, 400) } : {}),
+    ...(formRev ? { revisado: formRev } : {}), ...(formMant.length ? { mantenimiento: formMant } : {}) };
   if (editando) {
-    const x = porId(editando.id);
-    if (x) { Object.assign(x, dato); if (!formFoto) delete x.foto; } else items.push({ id: editando.id, ...dato });
+    const pos = items.findIndex((y) => y.id === editando.id);
+    if (pos !== -1) items[pos] = { id: editando.id, ...dato }; else items.push({ id: editando.id, ...dato });
   } else items.push({ id: idNuevo(), ...dato });
   ultimaSeccion = dato.seccion;
   cambio();
   if (seguir && !editando) {
     CV2.toast('✓ ' + dato.item + ' agregado', 'success');
-    $('iNombre').value = ''; formCant = 1; formFoto = ''; secElegidaAMano = true; pintarForm(); avisoRepetido(); $('iNombre').focus();
+    $('iNombre').value = ''; $('iDesc').value = ''; formCant = 1; formFoto = ''; formEstado = 'bien'; formMant = []; formRev = '';
+    secElegidaAMano = true; pintarForm(); avisoRepetido(); $('iNombre').focus();
   } else $('dItem').close();
 }
 function quitar(x) {
@@ -544,67 +742,98 @@ function pintarVarios() {
   p.hidden = !filas.length;
   p.innerHTML = filas.slice(0, 40).map((f) => `<div><span>${esc(f.item)}</span><b>${f.cantidad}</b></div>`).join('') + (filas.length > 40 ? `<div>… y ${filas.length - 40} más</div>` : '');
   $('vAgregar').disabled = !filas.length;
-  $('vAgregarTxt').textContent = filas.length ? `Agregar ${filas.length} ítem${filas.length === 1 ? '' : 's'}` : 'Agregar';
+  $('vAgregarTxt').textContent = filas.length ? `Agregar ${plural(filas.length, 'ítem', 'ítems')}` : 'Agregar';
 }
-function abrirVarios() { $('vTexto').value = ''; varSec = ultimaSeccion || 'Cocina'; pintarVarios(); $('dVarios').showModal(); setTimeout(() => $('vTexto').focus(), 60); }
+function abrirVarios() { $('vTexto').value = ''; varSec = ultimaSeccion || (lug && lug.tipo === 'espacio' ? 'Parrilla y quincho' : 'Cocina'); pintarVarios(); $('dVarios').showModal(); setTimeout(() => $('vTexto').focus(), 60); }
 $('vTexto').addEventListener('input', pintarVarios);
 $('vAgregar').addEventListener('click', () => {
   const filas = parsearLineas($('vTexto').value); if (!filas.length) return;
-  for (const f of filas) items.push({ id: idNuevo(), item: f.item, cantidad: f.cantidad, seccion: varSec || sugerirSeccion(f.item) });
+  for (const f of filas) items.push({ id: idNuevo(), item: f.item, cantidad: f.cantidad, seccion: varSec || sugerirSeccion(f.item), estado: 'bien' });
   ultimaSeccion = varSec; cambio(); $('dVarios').close();
-  CV2.toast(`✓ ${filas.length} ítem${filas.length === 1 ? '' : 's'} agregado${filas.length === 1 ? '' : 's'}`, 'success');
+  CV2.toast(`✓ ${plural(filas.length, 'ítem agregado', 'ítems agregados')}`, 'success');
 });
 
-// ═══ Copiar de otra cabaña ═══
-let origenId = null;
+// ═══ Copiar de otro lugar (lo que acá falta; sin el estado ni lo anotado) ═══
+let origenKey = null;
+const paraCopiar = (l) => itemsAhora(l).map(({ estado, revisado, mantenimiento, ...x }) => x);
 function abrirCopiar() {
-  origenId = null;
-  const otras = cabanas.filter((c) => c.id !== cab.id);
-  $('cLista').innerHTML = otras.length ? otras.map((c) => {
-    const f = faltantesDe(leerInventario(c), items).length;
-    return `<button data-o="${esc(c.id)}" ${f ? '' : 'disabled style="opacity:.55"'}><b>${esc(nombreDe(c))}</b><small>${f ? `${f} ítem${f === 1 ? '' : 's'} que acá faltan` : (hayAlgo(c) ? 'No tiene nada que acá falte' : 'Sin inventario cargado')}</small></button>`;
-  }).join('') : '<p class="sub">No hay otra cabaña.</p>';
+  origenKey = null;
+  const otros = lugares.filter((l) => l.key !== lug.key);
+  $('cLista').innerHTML = otros.length ? otros.map((l) => {
+    const f = faltantesDe(paraCopiar(l), items).length;
+    return `<button data-o="${esc(l.key)}" ${f ? '' : 'disabled style="opacity:.55"'}><b>${esc(l.nombre)}</b><small>${l.tipo === 'espacio' ? 'Espacio común · ' : ''}${f ? plural(f, 'ítem que acá falta', 'ítems que acá faltan') : (itemsAhora(l).length ? 'No tiene nada que acá falte' : 'Sin inventario cargado')}</small></button>`;
+  }).join('') : '<p class="sub">No hay otro lugar.</p>';
   $('cCopiar').disabled = true; $('cCopiarTxt').textContent = 'Copiar';
   $('dCopiar').showModal();
 }
 $('cLista').addEventListener('click', (ev) => {
   const b = ev.target.closest('button[data-o]'); if (!b || b.disabled) return;
-  origenId = b.dataset.o;
+  origenKey = b.dataset.o;
   $('cLista').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
-  const n = faltantesDe(leerInventario(cabanas.find((c) => c.id === origenId)), items).length;
-  $('cCopiar').disabled = !n; $('cCopiarTxt').textContent = `Copiar ${n} ítem${n === 1 ? '' : 's'}`;
+  const n = faltantesDe(paraCopiar(lugares.find((l) => l.key === origenKey)), items).length;
+  $('cCopiar').disabled = !n; $('cCopiarTxt').textContent = `Copiar ${plural(n, 'ítem', 'ítems')}`;
 });
 $('cCopiar').addEventListener('click', () => {
-  const o = cabanas.find((c) => c.id === origenId); if (!o) return;
-  const nuevos = faltantesDe(leerInventario(o), items);
+  const o = lugares.find((l) => l.key === origenKey); if (!o) return;
+  const nuevos = faltantesDe(paraCopiar(o), items).map((x) => ({ ...x, estado: 'bien' }));
   items.push(...nuevos); cambio(); $('dCopiar').close();
-  avisar(`✓ ${nuevos.length} ítem${nuevos.length === 1 ? '' : 's'} copiado${nuevos.length === 1 ? '' : 's'} de ${nombreDe(o)}`, null);
+  avisar(`✓ ${plural(nuevos.length, 'ítem copiado', 'ítems copiados')} de ${o.nombre}`, null);
+});
+
+// ═══ Lo que hay para reparar, en todos los lugares ═══
+function abrirPendientes() {
+  const todo = paraRepararEn(lugares.map((l) => ({ ...l, items: itemsAhora(l) })));
+  $('pLista').innerHTML = todo.length ? todo.map(({ lugar, item }) => {
+    const p = (item.mantenimiento || []).filter((m) => !m.hecho);
+    return `<button class="pend" data-pk="${esc(lugar.key)}" data-pi="${esc(item.id)}"><b>${esc(item.item)}</b>
+      <small>${esc(lugar.nombre)} · ${esc(item.seccion)}</small>${p.length ? `<small>${esc(p.map((m) => m.texto).join(' · ').slice(0, 140))}</small>` : ''}</button>`;
+  }).join('') : '<div class="vacio"><span class="material-icons">task_alt</span><h3>Nada para reparar</h3><p>Todo lo cargado está bien.</p></div>';
+  $('dPend').showModal();
+}
+$('pLista').addEventListener('click', async (ev) => {
+  const b = ev.target.closest('button[data-pk]'); if (!b) return;
+  $('dPend').close();
+  if (!lug || lug.key !== b.dataset.pk) await elegir(b.dataset.pk);
+  const x = porId(b.dataset.pi); if (x) abrirItem(x);
 });
 
 // ── La base: se suscribe AL FINAL (regla 3.2) ────────────────
-onSnapshot(collection(db, 'cabanas'), (snap) => {
-  const lista = [];
-  snap.forEach((d) => { const x = { id: d.id, ...d.data() }; if (x.activa !== false) lista.push(x); });
-  lista.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
-  cabanas = lista;
-  if (!cabanas.length) { cab = null; items = []; return pintar(); }
-  if (!cab) {
-    const pedido = new URLSearchParams(location.search).get('c');
-    let guardada = null; try { guardada = localStorage.getItem('inv-cab'); } catch {}
-    const elegida = cabanas.find((c) => c.id === pedido) || cabanas.find((c) => c.id === guardada) || cabanas[0];
-    cab = elegida; items = leerInventario(elegida); pintar();
-    if (new URLSearchParams(location.search).get('nuevo') === '1') abrirItem(null);
+let cabanasRaw = [], espaciosRaw = [];
+function rearmar() {
+  if (!(listos.c && listos.e && listos.i)) return;
+  const act = (x) => x.activa !== false && x.activo !== false;
+  lugares = [
+    ...cabanasRaw.filter(act).sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0)).map((c) => ({ key: claveLugar('cabana', c.id), tipo: 'cabana', id: c.id, nombre: nombreDe(c), raw: c })),
+    ...espaciosRaw.filter(act).sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0)).map((e) => ({ key: claveLugar('espacio', e.id), tipo: 'espacio', id: e.id, nombre: nombreDe(e), raw: e })),
+  ];
+  if (!lugares.length) { lug = null; items = []; return pintar(); }
+  if (!lug) {
+    const q = new URLSearchParams(location.search);
+    let guardado = null; try { guardado = localStorage.getItem('inv-lugar'); } catch {}
+    const pedido = q.get('c') ? claveLugar('cabana', q.get('c')) : (q.get('e') ? claveLugar('espacio', q.get('e')) : null);
+    lug = lugares.find((l) => l.key === pedido) || lugares.find((l) => l.key === guardado) || lugares[0];
+    tipo = lug.tipo; items = itemsDe(lug); pintar();
+    if (q.get('nuevo') === '1') abrirItem(null);
     return;
   }
-  const fresca = cabanas.find((c) => c.id === cab.id);
-  if (!fresca) { cab = cabanas[0]; items = leerInventario(cab); return pintar(); }
+  const fresco = lugares.find((l) => l.key === lug.key);
+  if (!fresco) { lug = lugares[0]; tipo = lug.tipo; items = itemsDe(lug); return pintar(); }
   // Lo que cambió otra persona se ve en el acto; lo que yo todavía no escribí manda.
-  cab = fresca;
+  lug = fresco;
   if (!sucio && !escribiendo && !document.querySelector('dialog[open]') && !(document.activeElement && document.activeElement.matches && document.activeElement.matches('input[data-cant]'))) {
-    items = leerInventario(cab);
+    items = itemsDe(lug);
   }
   pintar();
-}, (e) => { console.error(e); CV2.toast('No se pudo cargar el inventario (' + (e.code ?? e.message) + ')', 'error'); });
+}
+const falla = (que, marca) => (e) => {
+  console.error(e); listos[marca] = true;
+  if (marca === 'i' && e && e.code === 'permission-denied') { $('sinReglas').hidden = false; }
+  else CV2.toast('No se pudo cargar ' + que + ' (' + ((e && (e.code ?? e.message)) || 'error') + ')', 'error');
+  rearmar();
+};
+onSnapshot(collection(db, 'cabanas'), (snap) => { cabanasRaw = []; snap.forEach((d) => cabanasRaw.push({ id: d.id, ...d.data() })); listos.c = true; rearmar(); }, falla('las cabañas', 'c'));
+onSnapshot(collection(db, 'espacios_comunes'), (snap) => { espaciosRaw = []; snap.forEach((d) => espaciosRaw.push({ id: d.id, ...d.data() })); listos.e = true; rearmar(); }, falla('los espacios', 'e'));
+onSnapshot(collection(db, 'inventarios'), (snap) => { invs = new Map(); snap.forEach((d) => invs.set(d.id, d.data())); listos.i = true; $('sinReglas').hidden = true; rearmar(); }, falla('el inventario', 'i'));
 </script>
 </body>
 </html>
