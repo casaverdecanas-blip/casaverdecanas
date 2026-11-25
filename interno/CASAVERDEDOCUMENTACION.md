@@ -34,6 +34,10 @@ control nuestro del estado y mantenimiento; si hay que hacer una reparación, qu
   `inventarioBase` se lee igual (sus ítems se acomodan en secciones) y queda en la forma nueva en el primer cambio; un lugar vaciado
   a propósito no resucita lo viejo.
 - Fotos: `CV2.elegirYSubirImagen({carpeta: 'inventario'})` (Cloudinary, preset sin firma; dos entradas, cámara y archivos).
+- **Publicación del 25-nov-2026:** GitHub Pages devolvió un error 500 al crear el despliegue de `cv2-shell-v153` y `v154` («Failed to create
+  deployment (status: 500)») y los reintentos quedaron en cola. No es un fallo del código: si vuelve a pasar, se relanza el workflow o se
+  empuja un cambio mínimo real (como esta nota) para que Pages arme una ejecución nueva. Comprobar siempre que `interno/sw.js` en vivo
+  diga la `VERSION` esperada.
 - Verificado con un navegador y Firebase simulado (lote de dos escrituras, espacios, estado y anotaciones, lista global, copiar,
   cabaña vieja, 390 px de ancho); no con una sesión real ni con las reglas publicadas.
 
