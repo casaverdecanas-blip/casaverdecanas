@@ -8,7 +8,7 @@ conocimiento. Antes eran `CONVENCIONES.md`, `GUIA-SITIO-PUBLICO.md` y
 
 ---
 
-## Inventario por cabaña, una pantalla propia, 26-nov-2026 (`cv2-shell-v151`, `inventario-1`)
+## Inventario por cabaña, una pantalla propia, 26-nov-2026 (`cv2-shell-v153`, `inventario-1`)
 
 Mauro: «una ventana pestaña dentro de casaverde para la gestión del inventario de cada cabaña… se guarda en la base y se simplifica
 luego para el control… muy cómoda, con todos los ítems que se pueden agregar, modificar o eliminar, la foto, la cantidad, en qué
@@ -30,6 +30,67 @@ sección… amigable, siempre intuitiva».
 - El control de `actividades.html` ahora tiene «🧺 Editar el inventario de esta cabaña» (a esta pantalla) y «✏️ Editar su guía».
 - Verificado con un navegador y Firebase simulado (autoguardado, forma simple derivada, foto, buscar, editar, eliminar y deshacer,
   carga múltiple, copiar entre cabañas, 390 px de ancho); no con una sesión real.
+## La imagen al compartir el enlace, 24-nov-2026
+
+Mauro: «cuando se comparte el sitio en WhatsApp o Facebook, la foto que queda cargada… quisiera que sea la foto de la fachada de la
+casa que está publicada en la página web y con el logo de Casa Verde por encima, como una marca de agua grande». La vista previa
+sale de `og:image` (y de `twitter:image`), y apuntaba a la ilustración de marca.
+
+- **Qué es ahora**: `og-fachada.jpg`, en la raíz (1200×630, 173 KB; WhatsApp prefiere menos de 300 KB). Es la **primera foto de «Entrada y
+  estacionamiento»** (`espacios_comunes/entrada`, la fachada verde de madera) recortada a 1200×630, con un velo leve en el centro y el
+  **logo (`logo-sitio.png`) de 600 px de ancho, centrado**, al 94 % y con una sombra suave. Queda **entero aunque la miniatura se
+  recorte a un cuadrado central**, que es lo que hace WhatsApp en la lista de chats. Es una **copia propia** hecha aparte (no una URL de
+  Cloudinary: los rastreadores de WhatsApp y Facebook no ejecutan JavaScript y la imagen tiene que estar en el HTML).
+- **Dónde**: `og:image`, `twitter:image` y la `image` del dato estructurado de la portada, y `og:image`/`twitter:image` de La casa,
+  Opiniones y Recuerdos. Ahora **sí declaran** `width`, `height`, `type` y `alt`, porque las medidas son las reales (la nota vieja de
+  más abajo decía que no se declaraban mientras la imagen no fuera una pieza de 1200×630: ya lo es).
+- **Cómo cambiarla**: rehacer una de 1200×630 con otra foto y **cambiarle el nombre** (WhatsApp y Facebook guardan la imagen por dirección).
+  `ilustracion-hero.jpg` quedó sin uso en las páginas (el service worker todavía la precachea: retirarla es subir el sello).
+- **Ojo, la vista previa se guarda**: WhatsApp y Facebook recuerdan la vista previa de cada enlace. Los enlaces **ya compartidos pueden
+  seguir mostrando la ilustración un tiempo**. En Facebook se fuerza desde el depurador de uso compartido
+  (`developers.facebook.com/tools/debug`, «Volver a obtener»). WhatsApp no tiene botón: se refresca solo con el tiempo, o se comparte
+  el enlace con un parámetro nuevo al final (`casaverdecanas.com.br/?v=2`).
+- **Costo (§ 13.2 bis)**: GitHub Pages, 173 KB más en el sitio; la imagen se baja una vez por vista previa. Sin tarjeta ni facturación;
+  muy por debajo de los cupos (1 GB de sitio, 100 GB/mes).
+
+## La portada es el video, 24-nov-2026 (`cv2-shell-v152`)
+
+Mauro: «habilitá esta versión como la versión oficial del sitio». La portada deja de ser la ilustración con el texto abajo: es **un
+video de dron de la bahía a la casa, a pantalla completa, en loop, lento y en silencio** (`<div class="hero" id="top">` de
+`index.html`), con el texto encima, abajo a la izquierda, sobre un velo oscuro. La sección «La casa en su entorno» que había
+debajo se **retiró** (era el mismo video en chico) y con ella `entorno_t`, `entorno_p` y `entorno_rep`. La barra de arriba no cambió.
+
+- **Archivos** (en la raíz, como `ilustracion-hero.jpg`): `casa-verde-portada.mp4`
+  (59 s, 1280×720, H.264, **sin audio**, 12,3 MiB), `casa-verde-portada-movil.mp4` (854×480, 4,6 MiB, **sólo lo piden los teléfonos**:
+  `media="(max-width: 700px)"`) y `casa-verde-portada.jpg` (el póster, 51 KB). Servidos por GitHub Pages; **no pasan por Cloudinary**
+  (la regla de «toda imagen entra por `nucleo.js`» es de lo que se sube desde el panel). Empieza y termina desde negro: al repetirse
+  hace un respiro y no un salto.
+- **Cómo se comporta** (un `<script>` clásico de la propia portada, sin Firebase): `preload="none"` y póster, así que **no baja nada
+  hasta que arranca**. Arranca solo, en silencio. **No arranca** con «reducir movimiento», con «ahorro de datos» ni con conexión 2G
+  (queda el póster). Se **pausa solo fuera de pantalla** y vuelve al volver (salvo que la persona lo haya pausado). El **botón de
+  pausa está siempre a la vista**, se maneja con teclado y está en los tres idiomas (WCAG 2.2.2: movimiento automático de más de
+  5 s junto a otro contenido). Sin JavaScript queda el póster.
+- **Alto** = la pantalla menos la barra: `--barra` se **mide con JS** (nada de números a mano). En el teléfono se ven los cuatro primeros
+  chips; el resto, en pantallas más grandes.
+- **Textos**: los de siempre (`titulo`, `bajada`, `c1…c9`, `pedir`), así que **el editor visual los sigue editando**; se suma `hero_ver`
+  («Ver los espacios»). El botón principal lleva el mismo enlace de WhatsApp que el de la barra (`waHero`, junto a `waTop`).
+  `aplicarIdioma` pisa el texto de todo `data-t`: por eso los rótulos de pausa/reproducir viven en el propio script, por idioma, y no
+  en un `data-t`. El video no se edita desde el panel: se **reemplaza el archivo** (si cambia, cambiar también el nombre, porque el
+  navegador lo guarda). Por la web de GitHub el tope de subida es 25 MiB.
+- **Costo (§ 13.2 bis, comprobado el 24-nov-2026 en `docs.github.com`)**: servicio **GitHub Pages**, repo público, sin tarjeta ni
+  facturación. Cupo: sitio publicado ≤ **1 GB**, **100 GB/mes** de transferencia (límite blando), un archivo < **100 MiB** (aviso desde
+  50 MiB). Agrega 17 MiB al sitio. Como **arranca solo en cada visita**, el gasto es por visita y no por reproducción completa: 100 GB
+  son unas 8.000 visitas de escritorio que lo vean entero (12,3 MiB) o unas 21.000 de teléfono (4,6 MiB), y bastante más si miran
+  unos segundos. Para 10 personas es **menos del 1 % del cupo**; si el sitio creciera mucho, esto es lo primero que se mira (y se baja
+  el bitrate o se acorta). No usa Firestore, Netlify ni Cloudinary.
+- **Cómo se hizo** (fuera del repo; los originales de dron **no se suben**): seis clips de dron montados con `ffmpeg` y OpenCV, con
+  empalme geométrico entre tomas, estabilización por tramo, descarte de los cuadros repetidos que dejó la app de edición, fundidos
+  alineados dentro de una misma toma y un corte casi en seco donde el agua no deja alinear. **Repaso final de velocidad**: se rehízo la
+  primera toma desde los originales a la mitad de velocidad (sin interpolar cuadros muy separados, que la dejaba borrosa) y las demás
+  con la velocidad de cámara igualada y cuadros intermedios por flujo óptico; la irregularidad de velocidad cuadro a cuadro bajó de
+  0,148 a 0,05. Termina en el muelle con el barco pirata; las tomas posteriores (la ciudad hacia el interior y la llegada a la casa
+  desde el fondo) **no se usan** y siguen fuera del repo. La casa es **la de techo de tejas y jardín tupido, enfrente del edificio
+  blanco**; el montaje no vive en el repo: se pide de nuevo con las tomas.
 
 ## Cinco chips más en la portada, 24-nov-2026 (`cv2-shell-v150`)
 
@@ -6556,7 +6617,8 @@ Texto original de las decisiones (referencia histórica):
 
 | Ruta | Qué hace |
 |---|---|
-| `/index.html` | La portada: hero, espacios, áreas comunes, **resumen de la casa**, calendario y pie |
+| `/index.html` | La portada: **hero con el video de dron a pantalla completa** (24-nov-2026), «Sobre Casa Verde Canas», espacios, áreas comunes, **resumen de la casa**, calendario y pie |
+| `/casa-verde-portada.mp4` · `/casa-verde-portada-movil.mp4` · `/casa-verde-portada.jpg` | El video de la portada (59 s, sin audio; 12,3 MiB en escritorio, 4,6 MiB en teléfono) y su póster. Archivos del sitio, no de Cloudinary. Ver «La portada es el video» arriba (comportamiento, costo y cómo reemplazarlo) |
 | `/la-casa.html` | **El acuerdo de convivencia** (T11.45). Qué hay, qué no hay, horarios, las diez reglas con su motivo, cámaras, estadías largas. Página propia y no una sección de la portada: la portada convence a quien no reservó, esta se manda por WhatsApp antes del check-in y se lee entera |
 | `/opiniones.html` | **Las reseñas de Airbnb** (T11.56). Dirección propia para mandar por WhatsApp a quien pregunta si hay referencias. **Ojo: hay otro `opiniones.html` en `/interno/`**, que es el cargador. Mismo par que `recuerdos.html` |
 | `/recuerdos.html` | Muro público + formulario del QR. **Ojo: hay otro archivo con el mismo nombre en `/interno/`**, que es la pantalla de moderación. Son distintos |
@@ -6594,7 +6656,8 @@ lleva ningún camino visible es una pantalla que no existe para quien no la escr
 
 | Ruta real | Tamaño | Qué es |
 |---|---|---|
-| `/ilustracion-hero.jpg` | 226 KB | La ilustración de marca (venía de un PNG de ~1 MB) |
+| `/ilustracion-hero.jpg` | 226 KB | La ilustración de marca (venía de un PNG de ~1 MB). **Desde el 24-nov ya no la usa ninguna página** |
+| `/og-fachada.jpg` | 173 KB | **La imagen al compartir el enlace** (24-nov-2026): la fachada con el logo grande, 1200×630. Ver «La imagen al compartir el enlace» arriba |
 | `/logo-sitio.png` | 101 KB | Logo de la barra. Con halo verde detrás del trazo, para leerse sobre el crema |
 | `/logo-pie.png` | 61 KB | Logo del pie. Letras crema, para el verde selva oscuro del footer |
 
@@ -6616,8 +6679,9 @@ nada, y el respaldo, pensado como red de seguridad, era el camino normal.
 > **Que las imágenes se vieran ocultó que las rutas estaban mal.** Un respaldo que
 > funciona demasiado bien esconde el problema que estaba tapando.
 
-Las tres apuntan ahora a la raíz. **`og:image` y `twitter:image` usan
-`ilustracion-hero.jpg`**, y ya **no declaran `width` ni `height`**: declarar medidas que
+Las tres apuntan ahora a la raíz. **(Hasta el 23-nov `og:image` y `twitter:image` usaban
+`ilustracion-hero.jpg` y no declaraban `width` ni `height`; desde el 24-nov usan `og-fachada.jpg`, 1200×630, y sí los declaran.)** Antes: **`og:image` y `twitter:image` usaban
+`ilustracion-hero.jpg`**, y ya **no declaraban `width` ni `height`**: declarar medidas que
 no son las reales es peor que no declararlas. Si algún día se hace una pieza dedicada de
 1200×630, se cambia en esas dos etiquetas.
 
